@@ -143,6 +143,10 @@ function UI.new(app)
     vim_register = '"',
     vim_pending_register = false,
     vim_pending = nil,
+    vim_recording = nil,
+    vim_macros = {},
+    vim_last_macro = nil,
+    vim_replaying = false,
     vim_char_visual = false,
     vim_char_anchor = nil,
     vim_char_yank = nil,
@@ -1039,8 +1043,21 @@ function UI:run_vim_command(command)
   end
 end
 
+function UI:play_macro()
+  local macro = self.vim_last_macro
+  if macro == nil or #macro == 0 then return end
+  local copy = {}
+  for index, key in ipairs(macro) do copy[index] = key end
+  self.vim_replaying = true
+  for _, key in ipairs(copy) do self:keypressed(key) end
+  self.vim_replaying = false
+end
+
 function UI:keypressed(key)
   local notebook = self.app:notebook()
+  if self.vim_recording and not self.vim_replaying and key ~= "q" then
+    self.vim_recording[#self.vim_recording + 1] = key
+  end
   if self.vim_search ~= nil then
     if key == "escape" then
       self.vim_search = nil
