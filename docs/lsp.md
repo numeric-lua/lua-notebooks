@@ -20,5 +20,9 @@ The standalone stdio service is `notebook/lsp_server.lua`:
 scripts/lua-notebooks-lsp < framed-input > framed-output
 ```
 
-A LÖVR channel transport, worker thread, versioned cell documents, and
-scope-aware semantic analysis remain to be integrated.
+Cell IDs are persisted in `.luanb`. `notebook/lsp_client.lua` implements
+request/notification routing, document sync, versioned cell documents, and
+diagnostic caching. It is tested end-to-end against the server core.
+
+A LÖVR channel transport, worker thread, UI wiring, and scope-aware semantic
+analysis remain to be integrated.

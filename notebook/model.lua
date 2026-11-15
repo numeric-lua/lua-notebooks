@@ -3,9 +3,16 @@
 --
 local Notebook = {}
 Notebook.__index = Notebook
+local next_cell_id = 0
 
-local function cell(kind, source)
+local function new_cell_id()
+  next_cell_id = next_cell_id + 1
+  return string.format("c%04d", next_cell_id)
+end
+
+local function cell(kind, source, id)
   return {
+    id = id or new_cell_id(),
     kind = kind or "code",
     source = source or "",
     output = "",
@@ -31,7 +38,10 @@ function Notebook.new(options)
   if #self.cells == 0 then
     self.cells[1] = cell("code", "")
   end
+  local seen = {}
   for _, item in ipairs(self.cells) do
+    if item.id == nil or seen[item.id] then item.id = new_cell_id() end
+    seen[item.id] = true
     item.cursor = item.cursor or (#(item.source or "") + 1)
   end
   return self
@@ -41,7 +51,7 @@ function Notebook:snapshot()
   local cells = {}
   for index, item in ipairs(self.cells) do
     cells[index] = {
-      kind = item.kind, source = item.source, output = item.output,
+      id = item.id, kind = item.kind, source = item.source, output = item.output,
       scene = item.scene, running = false, error = item.error,
       cursor = item.cursor, widgets = item.widgets,
       collapsed = item.collapsed,
@@ -113,6 +123,7 @@ function Notebook:copy_cell(index)
   local cell = self.cells[index]
   if cell == nil then return nil end
   return {
+    id = new_cell_id(),
     kind = cell.kind,
     source = cell.source,
     output = "",

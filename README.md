@@ -108,8 +108,9 @@ This is a small subset of Vim, not a full Vim implementation.
 
 A transport-independent JSON-RPC LSP core now exists under `notebook/lsp/`.
 It handles initialization, cell open/change/close, diagnostics, completion,
-and hover. It is not yet wired to a LÖVR worker thread or a full semantic
-scope analyzer; see [`docs/lsp.md`](docs/lsp.md).
+and hover, with a transport-independent client and persisted cell IDs. It is
+not yet wired to a LÖVR worker thread or a full semantic scope analyzer; see
+[`docs/lsp.md`](docs/lsp.md).
 
 ## Cell focus
 

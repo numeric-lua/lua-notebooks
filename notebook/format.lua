@@ -11,6 +11,7 @@ function Format.encode(notebook)
   local cells = {}
   for _, cell in ipairs(notebook.cells) do
     cells[#cells + 1] = {
+      id = cell.id,
       kind = cell.kind,
       source = cell.source,
       output = cell.output or "",
@@ -46,6 +47,7 @@ function Format.decode(text)
       error("notebook: invalid cell kind at " .. index, 2)
     end
     cells[index] = {
+      id = cell.id,
       kind = cell.kind,
       source = type(cell.source) == "string" and cell.source or "",
       output = type(cell.output) == "string" and cell.output or "",

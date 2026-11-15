@@ -12,6 +12,7 @@ test:
 	$(LUA) tests/editor.lua
 	$(LUA) tests/lsp_protocol.lua
 	sh tests/lsp_stdio.sh
+	$(LUA) tests/lsp_client.lua
 
 run:
 	lovr .
