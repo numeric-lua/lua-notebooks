@@ -296,6 +296,22 @@ test("finds inner and around word ranges", function()
   eq(notebook:selected().source, "alpha gamma")
 end)
 
+current = "markdown editing"
+test("edits markdown cells", function()
+  local Notebook = require("notebook.model")
+  local notebook = Notebook.new({ cells = {
+    { kind = "markdown", source = "hello" },
+  } })
+  notebook:selected().cursor = 6
+  notebook:insert("!")
+  eq(notebook:selected().source, "hello!")
+  eq(notebook:selected().cursor, 7)
+  notebook:backspace()
+  eq(notebook:selected().source, "hello")
+  notebook:cursor_home()
+  eq(notebook:selected().cursor, 1)
+end)
+
 current = "vim delimiter objects"
 test("finds quoted and bracketed ranges", function()
   local Notebook = require("notebook.model")

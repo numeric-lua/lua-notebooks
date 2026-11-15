@@ -140,6 +140,11 @@ to the widget rectangle. The included `star_nest` preset is the MIT-licensed
 Star Nest shader by Pablo Román Andrioli, adapted from the shooter project.
 Custom fragment source can also be supplied through `shader`.
 
+## Markdown editing
+
+Markdown cells are fully editable: typing, backspace/delete, newline, cursor
+movement, and Vim operations share the code-cell editing path.
+
 ## Markdown preview
 
 Markdown cells show formatted text when unfocused: heading markers, emphasis,

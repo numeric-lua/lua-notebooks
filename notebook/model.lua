@@ -277,7 +277,7 @@ end
 function Notebook:insert(text)
   self:push_undo()
   local current = self:selected()
-  if current.kind ~= "code" then return end
+  if current.kind ~= "code" and current.kind ~= "markdown" then return end
   local cursor = current.cursor or (#current.source + 1)
   current.source = current.source:sub(1, cursor - 1) .. text ..
     current.source:sub(cursor)
@@ -310,7 +310,7 @@ end
 function Notebook:backspace()
   self:push_undo()
   local current = self:selected()
-  if current.kind ~= "code" then return end
+  if current.kind ~= "code" and current.kind ~= "markdown" then return end
   local cursor = current.cursor or (#current.source + 1)
   local start = previous_start(current.source, cursor)
   if start == nil then return end
@@ -321,7 +321,7 @@ end
 
 function Notebook:delete()
   local current = self:selected()
-  if current.kind ~= "code" then return end
+  if current.kind ~= "code" and current.kind ~= "markdown" then return end
   local cursor = current.cursor or (#current.source + 1)
   if cursor > #current.source then return end
   local finish = next_end(current.source, cursor)
@@ -356,7 +356,7 @@ end
 
 function Notebook:move_cursor(delta)
   local current = self:selected()
-  if current.kind ~= "code" then return end
+  if current.kind ~= "code" and current.kind ~= "markdown" then return end
   local cursor = current.cursor or (#current.source + 1)
   if delta < 0 then
     for _ = 1, -delta do
@@ -375,7 +375,7 @@ end
 
 function Notebook:cursor_home()
   local current = self:selected()
-  if current.kind ~= "code" then return end
+  if current.kind ~= "code" and current.kind ~= "markdown" then return end
   local before = current.source:sub(1, (current.cursor or 1) - 1)
   local newline = before:match(".*()\n")
   current.cursor = (newline or 0) + 1
@@ -383,7 +383,7 @@ end
 
 function Notebook:cursor_end()
   local current = self:selected()
-  if current.kind ~= "code" then return end
+  if current.kind ~= "code" and current.kind ~= "markdown" then return end
   local after = current.source:sub(current.cursor or (#current.source + 1))
   local newline = after:find("\n", 1, true)
   current.cursor = (newline and current.cursor + newline - 1) or

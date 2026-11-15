@@ -328,8 +328,10 @@ function UI:draw(pass)
         char_b = math.max(self.vim_char_anchor, cell.cursor or 1)
       end
       local preview = cell.kind == "markdown" and not selected
+      local line_tops = {}
       local line_y = source_y
       for line_index = 1, math.min(#source_lines, 14) do
+        line_tops[line_index] = line_y
         local raw_display = source_lines[line_index]
         local display = preview and Markdown.preview(raw_display) or raw_display
         local engine_layout = math_layouts[line_index]
@@ -446,7 +448,7 @@ function UI:draw(pass)
       text(pass, app.font, tostring(index), label_x, source_y,
         cell.running and { 0.95, 0.75, 0.35, 1 } or kind_color, 0.6)
 
-      if cell.kind == "code" and selected then
+      if selected and (cell.kind == "code" or cell.kind == "markdown") then
         local cursor_pos = cell.cursor or (#cell.source + 1)
         local line_start = 0
         local cursor_line = 1
@@ -459,18 +461,28 @@ function UI:draw(pass)
           line_start = line_start + line_length + 1
         end
         local cursor_text = source_lines[cursor_line] or ""
-        local offset = math.max(0, math.min(#cursor_text, cursor_pos - line_start - 1))
-        local cursor_x = 36 + app.font:getWidth(cursor_text:sub(1, offset)) * 0.86
-        local cursor_y = source_y + (cursor_line - 1) * 21 + 2
-        local normal_mode = app.vim_mode and self.vim_normal
-        if normal_mode then
-          local next_char = cursor_text:sub(offset + 1, offset + 1)
-          local char_width = next_char ~= "" and
-            app.font:getWidth(next_char) * 0.86 or 9
-          box(pass, cursor_x + 1, cursor_y, math.max(8, char_width), 18,
-            { 0.35, 0.62, 0.95, 0.55 })
-        else
-          box(pass, cursor_x + 2, cursor_y, 2, 18, { 0.4, 0.75, 1, 1 })
+        local simple_cursor_line = cell.kind == "code" or
+          not (cursor_text:match("^%s*%$%$") or
+            Math.display_fraction(cursor_text) or
+            Math.display_matrix(cursor_text) or
+            Math.display_root(cursor_text))
+        if simple_cursor_line then
+          local offset = math.max(0, math.min(#cursor_text,
+            cursor_pos - line_start - 1))
+          local cursor_x = 36 + app.font:getWidth(
+            cursor_text:sub(1, offset)) * 0.86
+          local cursor_y = (line_tops[cursor_line] or
+            (source_y + (cursor_line - 1) * 21)) + 2
+          local normal_mode = app.vim_mode and self.vim_normal
+          if normal_mode then
+            local next_char = cursor_text:sub(offset + 1, offset + 1)
+            local char_width = next_char ~= "" and
+              app.font:getWidth(next_char) * 0.86 or 9
+            box(pass, cursor_x + 1, cursor_y, math.max(8, char_width), 18,
+              { 0.35, 0.62, 0.95, 0.55 })
+          else
+            box(pass, cursor_x + 2, cursor_y, 2, 18, { 0.4, 0.75, 1, 1 })
+          end
         end
       end
 
@@ -981,7 +993,7 @@ function UI:textinput(value)
     return
   end
   local cell = self.app:notebook():selected()
-  if cell.kind ~= "code" then return end
+  if cell.kind ~= "code" and cell.kind ~= "markdown" then return end
   self.app:notebook():insert(value)
 end
 
@@ -1605,7 +1617,7 @@ function UI:keypressed(key)
     elseif key == "x" then
       self.vim_last_change = "x"
       local cell = notebook.cells[notebook.active]
-      if cell and cell.kind == "code" then
+      if cell and (cell.kind == "code" or cell.kind == "markdown") then
         cell.source = cell.source:sub(1, -2)
       end
       return
@@ -1694,7 +1706,8 @@ function UI:keypressed(key)
   if key == "f5" then
     self.app:run()
   elseif key == "tab" then
-    if notebook:selected().kind == "code" then
+    if notebook:selected().kind == "code" or
+       notebook:selected().kind == "markdown" then
       notebook:insert("  ")
     end
   elseif key == "backspace" then
@@ -1710,7 +1723,8 @@ function UI:keypressed(key)
   elseif key == "end" then
     notebook:cursor_end()
   elseif key == "return" then
-    if notebook:selected().kind == "code" then
+    if notebook:selected().kind == "code" or
+       notebook:selected().kind == "markdown" then
       notebook:newline()
     end
   elseif key == "up" then
