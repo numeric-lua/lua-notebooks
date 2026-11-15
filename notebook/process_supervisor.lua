@@ -21,6 +21,8 @@ function ProcessSupervisor.new(options)
     on_result = options.on_result,
     on_error = options.on_error,
     root = options.root or ".",
+    memory_kb = options.memory_kb or 524288,
+    cpu_seconds = options.cpu_seconds or 12,
   }, ProcessSupervisor)
 end
 
@@ -38,7 +40,10 @@ function ProcessSupervisor:open(id)
     shell_quote(dir .. "/worker.log"))
   -- The environment assignment above is intentionally unused by the child;
   -- keep the command simple and portable.
-  command = string.format("luajit %s %s %s > %s 2>&1 & echo $! > %s",
+  command = string.format(
+    "(ulimit -v %d 2>/dev/null || true; ulimit -t %d 2>/dev/null || true; " ..
+    "exec luajit %s %s %s) > %s 2>&1 & echo $! > %s",
+    self.memory_kb, self.cpu_seconds,
     shell_quote(self.root .. "/kernel/process_worker.lua"),
     shell_quote(dir), shell_quote(self.root),
     shell_quote(dir .. "/worker.log"), shell_quote(dir .. "/pid"))

@@ -35,6 +35,8 @@ function App:new(notebooks)
     ProcessSupervisor or Supervisor
   self.supervisor = SupervisorClass.new({
     root = lovr.filesystem.getSource(),
+    memory_kb = tonumber(os.getenv("LUANB_KERNEL_MEMORY_KB") or "") or 524288,
+    cpu_seconds = tonumber(os.getenv("LUANB_KERNEL_CPU_SECONDS") or "") or 12,
     on_result = function(kernel_id, request, message)
       self:on_result(kernel_id, request, message)
     end,

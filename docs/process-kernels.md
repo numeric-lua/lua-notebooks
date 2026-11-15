@@ -48,7 +48,10 @@ capture logic as the thread worker. It has no graphics access.
 - One in-flight job per kernel; rapid widget events are serialized by the host.
 - No automatic restart for a child that dies between requests (only timeout
   recovery).
-- Process mode does not yet use OS resource limits or a sandbox.
+- Process mode applies `ulimit -v` (default 512 MiB) and `ulimit -t`
+  (default 12 s) to the child, plus the host-side 8 s request timeout.
+  Limits are configurable in `ProcessSupervisor.new`; they are not a full
+  sandbox.
 - The thread backend remains the default and the fallback.
 
 ## Verification
