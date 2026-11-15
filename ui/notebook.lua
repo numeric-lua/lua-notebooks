@@ -251,9 +251,7 @@ function UI:draw(pass)
   return self.extension_passes
 end
 
-function UI:draw_palette(pass, width, height)
-  self.palette_rects = {}
-  if not self.show_palette then return end
+function UI:palette_commands()
   local commands = {
     { id = "run", label = "Run selected cell  (F5)" },
     { id = "save", label = "Save notebook  (F6)" },
@@ -262,14 +260,52 @@ function UI:draw_palette(pass, width, height)
     { id = "outline", label = "Heading outline  (F11)" },
     { id = "help", label = "Shortcut help  (F12)" },
   }
-  local panel_w, panel_h = 460, 70 + #commands * 32
+  local query = self.palette_query:lower()
+  if query == "" then return commands end
+  local filtered = {}
+  for _, command in ipairs(commands) do
+    if command.label:lower():find(query, 1, true) then
+      filtered[#filtered + 1] = command
+    end
+  end
+  return filtered
+end
+
+function UI:run_palette_command(id)
+  self.show_palette = false
+  if id == "run" then self.app:run()
+  elseif id == "save" then self.app:save()
+  elseif id == "load" then self.app:load()
+  elseif id == "extensions" then self.show_extensions = true
+  elseif id == "outline" then self.show_outline = true
+  elseif id == "help" then self.show_help = true
+  end
+end
+
+function UI:draw_palette(pass, width, height)
+  self.palette_rects = {}
+  if not self.show_palette then return end
+  local commands = self:palette_commands()
+  if self.palette_selected > #commands then
+    self.palette_selected = math.max(1, #commands)
+  end
+  local panel_w, panel_h = 460, 100 + #commands * 32
   local x, y = (width - panel_w) / 2, 100
   box(pass, x, y, panel_w, panel_h, { 0.035, 0.045, 0.07, 0.99 })
-  text(pass, self.app.font, "Command palette", x + 18, y + 14, 0.82,
-    { 0.9, 0.94, 1, 1 })
+  text(pass, self.app.font, "Command palette  ·  type to filter", x + 18, y + 12,
+    0.7, { 0.8, 0.86, 0.98, 1 })
+  box(pass, x + 12, y + 34, panel_w - 24, 26, { 0.08, 0.1, 0.15, 1 })
+  text(pass, self.app.font, self.palette_query .. "|", x + 20, y + 39, 0.72,
+    { 0.9, 0.95, 1, 1 })
+  if #commands == 0 then
+    text(pass, self.app.font, "No matching command", x + 20, y + 78, 0.7,
+      { 0.6, 0.65, 0.75, 1 })
+  end
   for index, command in ipairs(commands) do
-    local row_y = y + 46 + (index - 1) * 32
-    box(pass, x + 10, row_y, panel_w - 20, 27, { 0.09, 0.12, 0.18, 1 })
+    local row_y = y + 72 + (index - 1) * 32
+    local selected = index == self.palette_selected
+    box(pass, x + 10, row_y, panel_w - 20, 27,
+      selected and { 0.16, 0.25, 0.4, 1 } or { 0.09, 0.12, 0.18, 1 })
     text(pass, self.app.font, command.label, x + 20, row_y + 6, 0.7,
       { 0.8, 0.88, 1, 1 })
     self.palette_rects[#self.palette_rects + 1] = {
@@ -391,6 +427,11 @@ end
 
 function UI:textinput(value)
   if value == "\r" or value == "\n" then return end
+  if self.show_palette then
+    self.palette_query = self.palette_query .. value
+    self.palette_selected = 1
+    return
+  end
   if self.focused_widget then
     local spec = self.focused_widget.spec
     spec.value = (spec.value or "") .. value
@@ -407,6 +448,22 @@ end
 
 function UI:keypressed(key)
   local notebook = self.app:notebook()
+  if self.show_palette then
+    local commands = self:palette_commands()
+    if key == "escape" or key == "f1" then
+      self.show_palette = false
+    elseif key == "backspace" then
+      self.palette_query = self.palette_query:sub(1, -2)
+      self.palette_selected = 1
+    elseif key == "up" then
+      self.palette_selected = math.max(1, self.palette_selected - 1)
+    elseif key == "down" then
+      self.palette_selected = math.min(#commands, self.palette_selected + 1)
+    elseif key == "return" and commands[self.palette_selected] then
+      self:run_palette_command(commands[self.palette_selected].id)
+    end
+    return
+  end
   if self.focused_widget then
     local widget = self.focused_widget
     local spec = widget.spec
@@ -516,14 +573,7 @@ function UI:mousepressed(x, y, button)
   if self.show_palette then
     for _, rect in ipairs(self.palette_rects) do
       if inside(x, y, rect) then
-        self.show_palette = false
-        if rect.id == "run" then self.app:run()
-        elseif rect.id == "save" then self.app:save()
-        elseif rect.id == "load" then self.app:load()
-        elseif rect.id == "extensions" then self.show_extensions = true
-        elseif rect.id == "outline" then self.show_outline = true
-        elseif rect.id == "help" then self.show_help = true
-        end
+        self:run_palette_command(rect.id)
         return
       end
     end
