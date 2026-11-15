@@ -20,6 +20,7 @@ function Client.new(options)
   return setmetatable({
     send = options.send or function() end,
     on_diagnostics = options.on_diagnostics or function() end,
+    on_initialized = options.on_initialized,
     next_id = 1,
     pending = {},
     documents = {},
