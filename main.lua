@@ -12,6 +12,7 @@ local Format = require("notebook.format")
 local Extensions = require("extensions")
 local UI = require("ui.notebook")
 local LspClient = require("notebook.lsp_client")
+local LspEdits = require("notebook.lsp_edits")
 
 local App = {}
 App.__index = App
@@ -89,6 +90,38 @@ function App:set_tab(index)
   self.active = index
   self.scroll = 0
   self.status = self.notebooks[index].name
+end
+
+function App:rename_symbol(old_word, new_word)
+  local notebook = self:notebook()
+  local cell = notebook.cells[notebook.active]
+  if cell == nil or old_word == nil or old_word == "" or new_word == "" then
+    return
+  end
+  local source = cell.source
+  local line = select(2, source:gsub("\n", ""))
+  local last_newline = source:match(".*()\n") or 0
+  local character = #source - last_newline
+  local uri = "luanb:///notebooks/" .. notebook.name .. "?cell=" .. cell.id
+  if self.lsp_ready then
+    self.lsp:request("textDocument/rename", {
+      textDocument = { uri = uri },
+      position = { line = line, character = character },
+      newName = new_word,
+    }, function(result)
+      if result and result.changes then
+        local count = LspEdits.apply(notebook, result.changes)
+        self.status = "renamed " .. count .. " occurrence(s)"
+      else
+        self.status = "LSP rename failed"
+      end
+    end)
+  else
+    notebook:push_undo()
+    local count = require("notebook.editor_text").rename(notebook, old_word,
+      new_word)
+    self.status = "renamed " .. count .. " occurrence(s) locally"
+  end
 end
 
 function App:server_diagnostic(cell)

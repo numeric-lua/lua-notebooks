@@ -15,8 +15,9 @@ JSON-RPC LSP core:
 
 It is transport-independent and tested through `tests/lsp_protocol.lua`.
 Cross-document definition, references, and rename are implemented over all open
-cell documents; a rename returns versionless `changes` edits and still needs
-host-side atomic application.
+cell documents. `notebook/lsp_edits.lua` validates ranges, applies all edits
+atomically with one undo snapshot, and the editor prompt now routes rename
+through the async client (with a local fallback).
 The standalone stdio service is `notebook/lsp_server.lua`:
 
 ```sh

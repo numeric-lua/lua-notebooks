@@ -735,9 +735,7 @@ function UI:draw_confirm(pass, width, height)
       local prompt = self.symbol_prompt
       self.symbol_prompt = nil
       if prompt.value ~= "" then
-        notebook:push_undo()
-        local count = LSP.rename(notebook, prompt.old, prompt.value)
-        self.app.status = "renamed " .. count .. " occurrence(s)"
+        self.app:rename_symbol(prompt.old, prompt.value)
       end
     end
     return
@@ -897,9 +895,7 @@ function UI:textinput(value)
       local prompt = self.symbol_prompt
       self.symbol_prompt = nil
       if prompt.value ~= "" then
-        notebook:push_undo()
-        local count = LSP.rename(notebook, prompt.old, prompt.value)
-        self.app.status = "renamed " .. count .. " occurrence(s)"
+        self.app:rename_symbol(prompt.old, prompt.value)
       end
     end
     return
@@ -1086,9 +1082,7 @@ function UI:keypressed(key)
       local prompt = self.symbol_prompt
       self.symbol_prompt = nil
       if prompt.value ~= "" then
-        notebook:push_undo()
-        local count = LSP.rename(notebook, prompt.old, prompt.value)
-        self.app.status = "renamed " .. count .. " occurrence(s)"
+        self.app:rename_symbol(prompt.old, prompt.value)
       end
     end
     return
