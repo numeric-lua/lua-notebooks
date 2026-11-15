@@ -377,6 +377,11 @@ function UI:palette_commands()
     { id = "run", label = "Run selected cell  (F5)" },
     { id = "save", label = "Save notebook  (F6)" },
     { id = "load", label = "Load notebook  (F7)" },
+    { id = "new", label = "New notebook" },
+    { id = "tree", label = "Notebook filetree  (F2)" },
+    { id = "vim", label = "Toggle Vim mode  (F3)" },
+    { id = "undo", label = "Undo" },
+    { id = "redo", label = "Redo" },
     { id = "extensions", label = "Extension browser  (F10)" },
     { id = "outline", label = "Heading outline  (F11)" },
     { id = "help", label = "Shortcut help  (F12)" },
@@ -397,6 +402,13 @@ function UI:run_palette_command(id)
   if id == "run" then self.app:run()
   elseif id == "save" then self.app:save()
   elseif id == "load" then self.app:load()
+  elseif id == "new" then self.app:new_notebook()
+  elseif id == "tree" then self.show_tree = true
+  elseif id == "vim" then
+    self.app.vim_mode = not self.app.vim_mode
+    self.vim_normal = false
+  elseif id == "undo" then self.app:notebook():undo()
+  elseif id == "redo" then self.app:notebook():redo()
   elseif id == "extensions" then self.show_extensions = true
   elseif id == "outline" then self.show_outline = true
   elseif id == "help" then self.show_help = true
