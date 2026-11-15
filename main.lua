@@ -457,6 +457,12 @@ function lovr.load()
   if os.getenv("LUANB_QA_SCREENSHOT") then
     app.qa_screenshot = true
   end
+  if os.getenv("LUANB_QA_SCREENSHOT") then
+    app.qa_screenshot = true
+  end
+  if os.getenv("LUANB_QA_ZEN") then
+    app.ui.zen_mode = true
+  end
   if os.getenv("LUANB_QA_COMPLETE") then
     app.qa_complete = true
   end

@@ -153,6 +153,7 @@ function UI.new(app)
     folder_prompt = nil,
     confirm_delete = nil,
     symbol_prompt = nil,
+    zen_mode = false,
   }, UI)
 end
 
@@ -168,12 +169,14 @@ function UI:draw(pass)
   pass:setDepthTest()
 
   box(pass, 0, 0, width, height, { 0.055, 0.06, 0.08, 1 })
+  self.tabs = {}
+  self.buttons = {}
+  if not self.zen_mode then
   box(pass, 0, 0, width, 50, { 0.08, 0.09, 0.12, 1 })
   text(pass, app.title_font, "Lua Notebooks", 18, 14,
     { 0.92, 0.94, 1, 1 })
 
   -- Notebook tabs.
-  self.tabs = {}
   local tab_x = 210
   for index, notebook in ipairs(app.notebooks) do
     local label = notebook.name
@@ -188,7 +191,6 @@ function UI:draw(pass)
   end
 
   -- Toolbar buttons.
-  self.buttons = {}
   local run_x = width - 110
   box(pass, run_x, 10, 92, 30, { 0.18, 0.42, 0.30, 1 })
   text(pass, app.font, "Run  F5", run_x + 12, 18, { 0.92, 1, 0.94, 1 }, 0.8)
@@ -197,13 +199,15 @@ function UI:draw(pass)
   box(pass, add_x, 10, 96, 30, { 0.15, 0.18, 0.25, 1 })
   text(pass, app.font, "+ Cell", add_x + 16, 18, { 0.8, 0.86, 1, 1 }, 0.8)
   self.buttons.add = { x = add_x, y = 10, w = 96, h = 30 }
+  end
 
   local notebook = app:notebook()
   if self.last_active ~= notebook.active then
     self.last_active = notebook.active
     self.scroll_to_selected = true
   end
-  local y = 66 - self.scroll
+  local content_top = self.zen_mode and 12 or 66
+  local y = content_top - self.scroll
   self.rects = {}
   local content_height = 0
 
@@ -451,7 +455,7 @@ function UI:draw(pass)
   -- Content height is independent of the current scroll offset.  Deriving it
   -- from the shifted bottom made max_scroll shrink as the view scrolled, which
   -- produced visible oscillation on tall final cells.
-  local total = Scroll.max_scroll(content_height, height)
+  local total = Scroll.max_scroll(content_height, height, content_top)
   self.max_scroll = total
 
   -- Auto-scroll exactly once when the selected cell changes.  Doing this
@@ -463,7 +467,7 @@ function UI:draw(pass)
       local top = 60
       local bottom = height - 38
       self.scroll = Scroll.target_scroll(self.scroll, selected_rect.y,
-        selected_rect.h, height, content_height)
+        selected_rect.h, height, content_height, content_top, self.zen_mode)
     end
     self.scroll_to_selected = false
   end
@@ -471,14 +475,16 @@ function UI:draw(pass)
 
   -- Status/footer.
   box(pass, 0, height - 28, width, 28, { 0.075, 0.085, 0.11, 1 })
-  local vim_label = app.vim_mode and (self.vim_normal and "VIM NORMAL" or
-    "VIM INSERT") or "VIM OFF"
-  text(pass, app.font, vim_label, width - 160, height - 22,
-    { 0.55, 0.7, 0.85, 1 }, 0.66)
-  text(pass, app.font, app.status, 16, height - 22,
-    { 0.6, 0.68, 0.82, 1 }, 0.72)
-  text(pass, app.font, "F5 run   F6 save   F7 load   Tab indent   Up/Down cell",
-    width - 470, height - 22, { 0.45, 0.5, 0.62, 1 }, 0.65)
+  if not self.zen_mode then
+    local vim_label = app.vim_mode and (self.vim_normal and "VIM NORMAL" or
+      "VIM INSERT") or "VIM OFF"
+    text(pass, app.font, vim_label, width - 160, height - 22,
+      { 0.55, 0.7, 0.85, 1 }, 0.66)
+    text(pass, app.font, app.status, 16, height - 22,
+      { 0.6, 0.68, 0.82, 1 }, 0.72)
+    text(pass, app.font, "F5 run   F6 save   F7 load   Tab indent   Up/Down cell",
+      width - 470, height - 22, { 0.45, 0.5, 0.62, 1 }, 0.65)
+  end
   self:draw_completion(pass, width, height)
   self:draw_hover(pass, width, height)
   self:draw_tree(pass, width, height)
@@ -507,6 +513,7 @@ function UI:palette_commands()
     { id = "new", label = "New notebook" },
     { id = "tree", label = "Notebook filetree  (F2)" },
     { id = "vim", label = "Toggle Vim mode  (F3)" },
+    { id = "zen", label = "Toggle Zen mode  (F4)" },
     { id = "undo", label = "Undo" },
     { id = "redo", label = "Redo" },
     { id = "extensions", label = "Extension browser  (F10)" },
@@ -531,6 +538,10 @@ function UI:run_palette_command(id)
   elseif id == "load" then self.app:load()
   elseif id == "new" then self.app:new_notebook()
   elseif id == "tree" then self.show_tree = true
+  elseif id == "zen" then
+    self.zen_mode = not self.zen_mode
+    self.scroll = 0
+    self.scroll_to_selected = true
   elseif id == "vim" then
     self.app.vim_mode = not self.app.vim_mode
     self.vim_normal = false
@@ -577,6 +588,7 @@ end
 function UI:draw_help(pass, width, height)
   if not self.show_help then return end
   local lines = {
+    "F4   Zen mode: hide top bar and footer",
     "F5   run selected cell",
     "F6   save notebook",
     "F7   load notebook",
@@ -1263,6 +1275,12 @@ function UI:keypressed(key)
     if self.show_outline then self.show_outline = false; return end
     if self.show_tree then self.show_tree = false; return end
     if self.hover then self.hover = nil; return end
+  end
+  if self.zen_mode and key == "escape" then
+    self.zen_mode = false
+    self.scroll = 0
+    self.scroll_to_selected = true
+    return
   end
   if self.completion then
     if key == "escape" then

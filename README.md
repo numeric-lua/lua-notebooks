@@ -77,6 +77,7 @@ Controls:
 | `F1` | open/close the command palette |
 | `F2` | open the hierarchical notebook filetree |
 | `F3` | toggle Vim mode (on by default) |
+| `F4` | toggle Zen mode: hide top bar and footer, show only cells |
 | `F12` | open/close the shortcut help overlay |
 | click a markdown heading arrow | collapse/expand following cells |
 | drag / wheel in 3D | orbit / zoom the focused extension |
@@ -111,6 +112,12 @@ It handles initialization, cell open/change/close, diagnostics, completion,
 and hover, with a transport-independent client and persisted cell IDs. It is
 not yet wired to a LÖVR worker thread or a full semantic scope analyzer; see
 [`docs/lsp.md`](docs/lsp.md).
+
+## Zen mode
+
+**F4** toggles Zen mode. It hides the title/tab/toolbar row and the footer,
+leaving only notebook cells. Escape also leaves Zen. Overlays and the command
+palette still work when explicitly opened.
 
 ## Cell focus
 
