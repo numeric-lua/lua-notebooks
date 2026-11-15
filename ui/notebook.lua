@@ -126,6 +126,7 @@ function UI.new(app)
     hover = nil,
     tree_rects = {},
     tree_items = {},
+    rename_prompt = nil,
   }, UI)
 end
 
@@ -352,6 +353,7 @@ function UI:draw(pass)
   self:draw_completion(pass, width, height)
   self:draw_hover(pass, width, height)
   self:draw_tree(pass, width, height)
+  self:draw_rename(pass, width, height)
   self:draw_outline(pass, width, height)
   self:draw_extension_browser(pass, width, height)
   self:draw_help(pass, width, height)
@@ -490,6 +492,12 @@ function UI:draw_tree(pass, width, height)
       kind = item.kind, name = item.name,
     }
     if item.kind == "file" then
+      text(pass, self.app.font, "✎", x + panel_w - 58, row_y + 3,
+        { 0.7, 0.8, 1, 1 }, 0.7)
+      self.tree_rects[#self.tree_rects + 1] = {
+        x = x + panel_w - 66, y = row_y, w = 24, h = 23,
+        action = "rename", name = item.name,
+      }
       text(pass, self.app.font, "×", x + panel_w - 32, row_y + 3,
         { 0.9, 0.45, 0.45, 1 }, 0.7)
       self.tree_rects[#self.tree_rects + 1] = {
@@ -498,6 +506,18 @@ function UI:draw_tree(pass, width, height)
       }
     end
   end
+end
+
+function UI:draw_rename(pass, width, height)
+  if self.rename_prompt == nil then return end
+  local panel_w, panel_h = 460, 90
+  local x, y = (width - panel_w) / 2, 140
+  box(pass, x, y, panel_w, panel_h, { 0.04, 0.05, 0.08, 1 })
+  text(pass, self.app.font, "Rename notebook", x + 16, y + 12,
+    { 0.9, 0.94, 1, 1 }, 0.72)
+  box(pass, x + 14, y + 40, panel_w - 28, 28, { 0.09, 0.12, 0.18, 1 })
+  text(pass, self.app.font, self.rename_prompt.value .. "|", x + 24, y + 47,
+    { 0.85, 0.92, 1, 1 }, 0.7)
 end
 
 function UI:draw_outline(pass, width, height)
@@ -588,6 +608,22 @@ end
 
 function UI:textinput(value)
   if value == "\r" or value == "\n" then return end
+  if self.rename_prompt then
+    self.rename_prompt.value = self.rename_prompt.value .. value
+    return
+  end
+  if self.rename_prompt then
+    if key == "escape" then
+      self.rename_prompt = nil
+    elseif key == "backspace" then
+      self.rename_prompt.value = self.rename_prompt.value:sub(1, -2)
+    elseif key == "return" then
+      local prompt = self.rename_prompt
+      self.rename_prompt = nil
+      self.app:rename_notebook(prompt.old, prompt.value)
+    end
+    return
+  end
   if key == "h" and lovr.system and lovr.system.isKeyDown and
      (lovr.system.isKeyDown("lctrl") or lovr.system.isKeyDown("rctrl")) then
     local cell = notebook.cells[notebook.active]
@@ -696,6 +732,18 @@ end
 
 function UI:keypressed(key)
   local notebook = self.app:notebook()
+  if self.rename_prompt then
+    if key == "escape" then
+      self.rename_prompt = nil
+    elseif key == "backspace" then
+      self.rename_prompt.value = self.rename_prompt.value:sub(1, -2)
+    elseif key == "return" then
+      local prompt = self.rename_prompt
+      self.rename_prompt = nil
+      self.app:rename_notebook(prompt.old, prompt.value)
+    end
+    return
+  end
   if key == "h" and lovr.system and lovr.system.isKeyDown and
      (lovr.system.isKeyDown("lctrl") or lovr.system.isKeyDown("rctrl")) then
     local cell = notebook.cells[notebook.active]
@@ -901,6 +949,10 @@ function UI:mousepressed(x, y, button)
       if inside(x, y, rect) then
         if rect.action == "new" then
           self.app:new_notebook()
+        elseif rect.action == "rename" then
+          self.rename_prompt = {
+            old = rect.name, value = rect.name:gsub("%.luanb$", ""),
+          }
         elseif rect.action == "delete" then
           self.app:delete_notebook(rect.name)
         elseif rect.kind == "directory" then

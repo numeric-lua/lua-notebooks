@@ -102,6 +102,17 @@ function Format.list_tree(expanded, prefix, depth)
   return entries
 end
 
+function Format.rename(old_name, new_name)
+  if not new_name:match("%.luanb$") then new_name = new_name .. ".luanb" end
+  if new_name:find("%.%.") or new_name:sub(1, 1) == "/" then
+    return nil, "invalid notebook name"
+  end
+  local root = lovr.filesystem.getSaveDirectory() .. "/notebooks/"
+  local ok, err = os.rename(root .. old_name, root .. new_name)
+  if not ok then return nil, err end
+  return new_name
+end
+
 function Format.delete(name)
   local path = "notebooks/" .. name
   local absolute = lovr.filesystem.getSaveDirectory() .. "/" .. path

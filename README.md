@@ -88,8 +88,8 @@ and global state.
 ## File tree and Vim mode
 
 **F2** opens a hierarchical list of saved notebooks under `notebooks/`.
-Clicking a folder expands it, clicking a notebook opens it in a tab, `+ New
-notebook` creates one, and `×` deletes one.
+Clicking a folder expands it, clicking a notebook opens it, `+ New notebook`
+creates one, `✎` renames one, and `×` deletes one.
 
 Vim mode is **on by default** and is shown in the footer:
 

@@ -84,6 +84,19 @@ function App:new_notebook()
   self.status = "created " .. name
 end
 
+function App:rename_notebook(old_name, new_name)
+  local renamed, err = Format.rename(old_name, new_name)
+  if renamed == nil then
+    self.status = "rename failed: " .. tostring(err)
+    return
+  end
+  for _, notebook in ipairs(self.notebooks) do
+    if notebook.name == old_name then notebook.name = renamed; break end
+  end
+  Format.save(self:notebook())
+  self.status = "renamed to " .. renamed
+end
+
 function App:delete_notebook(name)
   local ok, err = Format.delete(name)
   if not ok then self.status = "delete failed: " .. tostring(err); return end
@@ -291,7 +304,15 @@ function lovr.load()
   end
   lovr.filesystem.watch()
   _G.app = app
-  if os.getenv("LUANB_SMOKE_TREE") then
+  if os.getenv("LUANB_SMOKE_RENAME") then
+    app:new_notebook()
+    local old = app:notebook().name
+    app:rename_notebook(old, "renamed-smoke")
+    local new = app:notebook().name
+    print("SMOKE_RENAME=" .. old .. "->" .. new)
+    app:delete_notebook(new)
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_TREE") then
     local before = #Format.list()
     app:new_notebook()
     local name = app:notebook().name
@@ -346,7 +367,15 @@ function lovr.load()
   -- Non-interactive smoke path: run the first welcome cell, print its result,
   -- and quit.  This exercises thread startup, channels, the kernel worker, and
   -- result routing without requiring a human at the window.
-  if os.getenv("LUANB_SMOKE_TREE") then
+  if os.getenv("LUANB_SMOKE_RENAME") then
+    app:new_notebook()
+    local old = app:notebook().name
+    app:rename_notebook(old, "renamed-smoke")
+    local new = app:notebook().name
+    print("SMOKE_RENAME=" .. old .. "->" .. new)
+    app:delete_notebook(new)
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_TREE") then
     local before = #Format.list()
     app:new_notebook()
     local name = app:notebook().name
@@ -410,7 +439,15 @@ function lovr.update(dt)
   if app.smoke then
     local notebook = app:notebook()
     local cell = notebook.cells[notebook.active]
-    if os.getenv("LUANB_SMOKE_TREE") then
+    if os.getenv("LUANB_SMOKE_RENAME") then
+    app:new_notebook()
+    local old = app:notebook().name
+    app:rename_notebook(old, "renamed-smoke")
+    local new = app:notebook().name
+    print("SMOKE_RENAME=" .. old .. "->" .. new)
+    app:delete_notebook(new)
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_TREE") then
     local before = #Format.list()
     app:new_notebook()
     local name = app:notebook().name
