@@ -71,6 +71,8 @@ Controls:
 | `F10` | open/close the extension browser; click a row to enable/disable |
 | `F11` | open/close the heading outline |
 | `Ctrl+Space` | open Lua completion for the selected code cell |
+| `Ctrl+H` | show hover help for the trailing identifier |
+| `Ctrl+G` | jump to a local/function definition of the trailing identifier |
 | `F1` | open/close the command palette |
 | `F2` | open the hierarchical notebook filetree |
 | `F3` | toggle Vim mode (on by default) |

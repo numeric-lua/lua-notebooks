@@ -123,6 +123,7 @@ function UI.new(app)
     completion = nil,
     completion_rects = {},
     show_tree = false,
+    hover = nil,
     tree_rects = {},
     tree_items = {},
   }, UI)
@@ -349,6 +350,7 @@ function UI:draw(pass)
   text(pass, app.font, "F5 run   F6 save   F7 load   Tab indent   Up/Down cell",
     width - 470, height - 22, { 0.45, 0.5, 0.62, 1 }, 0.65)
   self:draw_completion(pass, width, height)
+  self:draw_hover(pass, width, height)
   self:draw_tree(pass, width, height)
   self:draw_outline(pass, width, height)
   self:draw_extension_browser(pass, width, height)
@@ -443,6 +445,17 @@ function UI:draw_help(pass, width, height)
     text(pass, self.app.font, line, x + 26, y + 54 + (index - 1) * 24, 0.72,
       { 0.75, 0.82, 0.94, 1 })
   end
+end
+
+function UI:draw_hover(pass, width, height)
+  if self.hover == nil then return end
+  local panel_w, panel_h = 560, 64
+  local x, y = (width - panel_w) / 2, height - 180
+  box(pass, x, y, panel_w, panel_h, { 0.04, 0.05, 0.08, 1 })
+  text(pass, self.app.font, self.hover.word, x + 14, y + 10,
+    { 0.8, 0.9, 1, 1 }, 0.72)
+  text(pass, self.app.font, self.hover.text, x + 14, y + 34,
+    { 0.75, 0.82, 0.94, 1 }, 0.66)
 end
 
 function UI:draw_tree(pass, width, height)
@@ -562,6 +575,36 @@ end
 
 function UI:textinput(value)
   if value == "\r" or value == "\n" then return end
+  if key == "h" and lovr.system and lovr.system.isKeyDown and
+     (lovr.system.isKeyDown("lctrl") or lovr.system.isKeyDown("rctrl")) then
+    local cell = notebook.cells[notebook.active]
+    local word = cell and LSP.current_word(cell.source) or ""
+    local description = LSP.hover(word)
+    if description then
+      self.hover = { word = word, text = description }
+    else
+      self.app.status = "no hover for " .. tostring(word)
+    end
+    return
+  elseif key == "g" and lovr.system and lovr.system.isKeyDown and
+         (lovr.system.isKeyDown("lctrl") or lovr.system.isKeyDown("rctrl")) then
+    local cell = notebook.cells[notebook.active]
+    local word = cell and LSP.current_word(cell.source) or ""
+    local definition = LSP.find_definition(notebook, word)
+    if definition then
+      notebook:select(definition.cell)
+      self.scroll_to_selected = true
+      self.app.status = "definition in " .. string.format("In [%d]:%d",
+        definition.cell, definition.line)
+    else
+      self.app.status = "no definition for " .. tostring(word)
+    end
+    return
+  end
+  if self.hover and key == "escape" then
+    self.hover = nil
+    return
+  end
   if self.app.vim_mode and self.vim_normal then return end
   if self.completion then self.completion = nil end
   if self.show_palette then
@@ -640,6 +683,36 @@ end
 
 function UI:keypressed(key)
   local notebook = self.app:notebook()
+  if key == "h" and lovr.system and lovr.system.isKeyDown and
+     (lovr.system.isKeyDown("lctrl") or lovr.system.isKeyDown("rctrl")) then
+    local cell = notebook.cells[notebook.active]
+    local word = cell and LSP.current_word(cell.source) or ""
+    local description = LSP.hover(word)
+    if description then
+      self.hover = { word = word, text = description }
+    else
+      self.app.status = "no hover for " .. tostring(word)
+    end
+    return
+  elseif key == "g" and lovr.system and lovr.system.isKeyDown and
+         (lovr.system.isKeyDown("lctrl") or lovr.system.isKeyDown("rctrl")) then
+    local cell = notebook.cells[notebook.active]
+    local word = cell and LSP.current_word(cell.source) or ""
+    local definition = LSP.find_definition(notebook, word)
+    if definition then
+      notebook:select(definition.cell)
+      self.scroll_to_selected = true
+      self.app.status = "definition in " .. string.format("In [%d]:%d",
+        definition.cell, definition.line)
+    else
+      self.app.status = "no definition for " .. tostring(word)
+    end
+    return
+  end
+  if self.hover and key == "escape" then
+    self.hover = nil
+    return
+  end
   if self.app.vim_mode and self.vim_normal then
     if key == "i" or key == "a" then
       self.vim_normal = false
@@ -805,6 +878,10 @@ function UI:mousepressed(x, y, button)
       self.app.status = collapsed and "collapsed heading" or "expanded heading"
       return
     end
+  end
+  if self.hover then
+    self.hover = nil
+    return
   end
   if self.show_tree then
     for _, rect in ipairs(self.tree_rects) do

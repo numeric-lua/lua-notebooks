@@ -26,6 +26,40 @@ function LSP.current_word(source)
   return tail or ""
 end
 
+local HOVERS = {
+  print = "print(...) -> writes values to the cell output",
+  pairs = "pairs(t) -> iterate key/value pairs",
+  ipairs = "ipairs(t) -> iterate array indices and values",
+  table = "table library: insert, remove, sort, concat, ...",
+  string = "string library: format, find, sub, gsub, ...",
+  math = "math library: sin, cos, floor, pi, ...",
+  widgets = "kernel widget API: slider, button, checkbox, select, text, ...",
+  lovr = "host API; only graphics/timer are available in user extensions",
+}
+
+function LSP.hover(word)
+  if word == nil or word == "" then return nil end
+  return HOVERS[word]
+end
+
+function LSP.find_definition(notebook, word)
+  if word == nil or word == "" then return nil end
+  for index, cell in ipairs(notebook.cells or {}) do
+    if cell.kind == "code" then
+      local line = 1
+      for source_line in (cell.source .. "\n"):gmatch("(.-)\n") do
+        if source_line:match("local%s+" .. word .. "%f[%W]") or
+           source_line:match("function%s+" .. word .. "%f[%W]") or
+           source_line:match("^%s*" .. word .. "%s*=") then
+          return { cell = index, line = line }
+        end
+        line = line + 1
+      end
+    end
+  end
+  return nil
+end
+
 function LSP.complete(source)
   local seen, items = {}, {}
   local function add(word)

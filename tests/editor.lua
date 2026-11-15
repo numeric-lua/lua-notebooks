@@ -21,4 +21,11 @@ eq(LSP.diagnostics("if then") ~= nil, true)
 eq(LSP.diagnostics("return 1"), nil)
 eq(LSP.current_word("print(foo"), "foo")
 assert(#LSP.complete("local alpha = 1") > 10)
+eq(LSP.hover("print") ~= nil, true)
+eq(LSP.hover("nope"), nil)
+local notebook = { cells = { { kind = "code", source = "local target = 1" },
+  { kind = "code", source = "target = 2" } } }
+local definition = LSP.find_definition(notebook, "target")
+eq(definition.cell, 1)
+eq(definition.line, 1)
 print("editor/lsp tests ok")
