@@ -44,6 +44,22 @@ local function parse_row(text, position, stop)
           local body, next_position = parse_argument(text, position)
           items[#items + 1] = { kind = "text_group", body = body }
           position = next_position
+        elseif name == "left" or name == "right" then
+          local delimiter = text:sub(position, position)
+          if delimiter ~= "" and delimiter ~= "." then
+            items[#items + 1] = { kind = "text", text = delimiter }
+            position = position + 1
+          elseif delimiter == "." then
+            position = position + 1
+          end
+        elseif name == "," then
+          items[#items + 1] = { kind = "text", text = " " }
+        elseif name == ";" or name == ":" then
+          items[#items + 1] = { kind = "text", text = "  " }
+        elseif name == "quad" then
+          items[#items + 1] = { kind = "text", text = "    " }
+        elseif name == "qquad" then
+          items[#items + 1] = { kind = "text", text = "        " }
         else
           items[#items + 1] = { kind = "text", text = SYMBOLS[name] or name }
         end
@@ -103,11 +119,23 @@ local function empty_box()
   return { w = 0, h = 0, d = 0, ops = {}, items = {} }
 end
 
+local function plain(node)
+  if node == nil then return "" end
+  if node.kind == "text" then return node.text or "" end
+  if node.kind == "text_group" then return plain(node.body) end
+  if node.kind == "row" then
+    local parts = {}
+    for _, child in ipairs(node.items or {}) do parts[#parts + 1] = plain(child) end
+    return table.concat(parts)
+  end
+  if node.kind == "script" then return plain(node.base) end
+  return ""
+end
+
 local function layout(node, style)
   if node == nil then return empty_box() end
   if node.kind == "text" or node.kind == "text_group" then
-    local text = node.kind == "text_group" and node.body and
-      require("notebook.math.text").render_text(node.body) or node.text or ""
+    local text = node.kind == "text_group" and plain(node.body) or node.text or ""
     local w, h, d = measure_text(text, style)
     return { w = w, h = h, d = d, ops = { { op = "text", text = text,
       x = 0, font = style.font, scale = style.scale } }, items = {} }
