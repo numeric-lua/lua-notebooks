@@ -3,6 +3,7 @@
 --
 local Widgets = {}
 local Theme = require("ui.theme")
+local Shader = require("ui.shader")
 
 local function text(pass, font, value, x, y, scale, color, halign, valign)
   color = Theme.map(color)
@@ -46,7 +47,9 @@ local function text_lines(spec)
 end
 
 local function row_height(spec)
-  if spec.kind == "text" and spec.multiline then
+  if spec.kind == "shader" then
+    return (spec.height or 180) + 30
+  elseif spec.kind == "text" and spec.multiline then
     return math.max(36, text_lines(spec) * 18 + 18)
   end
   return 36
@@ -58,7 +61,7 @@ function Widgets.height(widgets)
   return height
 end
 
-function Widgets.draw(pass, font, widgets, x, y, width)
+function Widgets.draw(pass, font, widgets, x, y, width, time)
   local controls = {}
   local row_y = y
   for _, spec in ipairs(widgets or {}) do
@@ -118,6 +121,13 @@ function Widgets.draw(pass, font, widgets, x, y, width)
         { 0.9, 0.9, 1, 1 }, "center")
       rect.minus = { x = control_x, y = row_y + 7, w = 24, h = 22 }
       rect.plus = { x = control_x + 116, y = row_y + 7, w = 24, h = 22 }
+    elseif spec.kind == "shader" then
+      local shader_y = row_y + 24
+      local shader_h = height - 30
+      box(pass, x + 6, shader_y, width - 12, shader_h,
+        { 0.02, 0.025, 0.04, 1 })
+      Shader.draw(pass, spec, time or 0, x + 6, shader_y,
+        width - 12, shader_h)
     elseif spec.kind == "text" then
       local focused = spec._focused
       local field_h = spec.multiline and (height - 14) or 24

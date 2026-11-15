@@ -103,6 +103,9 @@ function Widgets:_add(kind, options, callback)
     spec.max = number(options.max, "number max", false)
     spec.step = number(options.step, "number step", false) or 1
     spec.value = number(options.value, "number value", false) or spec.min or 0
+  elseif kind == "shader" then
+    spec.shader = tostring(options.shader or "star_nest")
+    spec.height = number(options.height, "shader height", false) or 180
   elseif kind == "text" then
     spec.value = tostring(options.value or "")
     spec.placeholder = options.placeholder
@@ -143,6 +146,11 @@ end
 function Widgets:number(options)
   options = validate_options(options)
   return self:_add("number", options, options.on_change)
+end
+
+function Widgets:shader(options)
+  options = validate_options(options)
+  return self:_add("shader", options, nil)
 end
 
 function Widgets:text(options)

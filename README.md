@@ -127,6 +127,19 @@ surfaces keep their own renderer colors.
 leaving only notebook cells. Escape also leaves Zen. Overlays and the command
 palette still work when explicitly opened.
 
+## Shader widgets
+
+Kernels can request a live shader preview:
+
+```lua
+widgets.shader({ label = "Star Nest", shader = "star_nest", height = 180 })
+```
+
+The host compiles the fragment shader once, sends a `time` uniform, and clips it
+to the widget rectangle. The included `star_nest` preset is the MIT-licensed
+Star Nest shader by Pablo Román Andrioli, adapted from the shooter project.
+Custom fragment source can also be supplied through `shader`.
+
 ## Cell focus
 
 Code and output are one cell. Clicking a plot, surface, widget, or text output

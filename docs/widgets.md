@@ -74,6 +74,10 @@ routes changes to `App:widget_event`.
   Enter and cancelled with Escape; `on_change` runs on commit.
 - `widgets.text({ multiline = true })` supports wrapped source text and
   Shift+Enter newlines; Enter commits the whole value.
+- `widgets.shader({ shader = "star_nest", height = 180 })` renders a live
+  host-side shader into the cell. Named presets include the MIT-licensed
+  Star Nest shader from the shooter project. Shader widgets have no kernel
+  callback.
 - Slider dragging updates the host immediately and sends the final value on
   mouse release.
 

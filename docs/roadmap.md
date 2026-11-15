@@ -8,7 +8,8 @@
 - luaplotlib scene rendering.
 - Extension manifests, discovery, hot reload, browser, local user extensions,
   and a restricted Lua environment.
-- Kernel widgets, editable multiline text, callbacks, persistence.
+- Kernel widgets, editable multiline text, callbacks, persistence, and live
+  shader widgets (Star Nest preset).
 - Syntax highlighting, static diagnostics, completion, hover, go-to-definition,
   and workspace rename.
 - Hierarchical notebook filetree with create/delete/rename/folder actions.

@@ -12,7 +12,7 @@ local model = Widgets.new()
 
 local widget_api = {}
 for _, name in ipairs({ "slider", "button", "checkbox", "select", "number",
-                        "text", "progress", "label" }) do
+                        "text", "progress", "label", "shader" }) do
   widget_api[name] = function(options)
     return model[name](model, options)
   end
