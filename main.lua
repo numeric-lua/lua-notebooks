@@ -277,7 +277,8 @@ function lovr.load()
   elseif os.getenv("LUANB_SMOKE") or os.getenv("LUANB_SMOKE_SCENE") or
      os.getenv("LUANB_SMOKE_PLOT") or os.getenv("LUANB_SMOKE_GRID") or
      os.getenv("LUANB_SMOKE_WIDGET") or
-     os.getenv("LUANB_SMOKE_WIDGET_EVENT") then
+     os.getenv("LUANB_SMOKE_WIDGET_EVENT") or
+     os.getenv("LUANB_SMOKE_INPUT") then
     app.smoke = true
     app.smoke_start = lovr.timer.getTime()
     if os.getenv("LUANB_SMOKE_SCENE") then
@@ -286,6 +287,8 @@ function lovr.load()
       app:notebook():select(4)
     elseif os.getenv("LUANB_SMOKE_GRID") then
       app:notebook():select(5)
+    elseif os.getenv("LUANB_SMOKE_INPUT") then
+      app:notebook():select(3)
     elseif os.getenv("LUANB_SMOKE_WIDGET") or
            os.getenv("LUANB_SMOKE_WIDGET_EVENT") then
       app:notebook():select(6)
@@ -313,6 +316,22 @@ function lovr.update(dt)
   elseif os.getenv("LUANB_SMOKE_PROCESS_CRASH") then
       if not cell.running and lovr.timer.getTime() - app.smoke_start > 6 then
         print("SMOKE_CRASH_RECOVERED=" .. tostring(cell.error))
+        app.smoke = false
+        lovr.event.quit()
+      end
+    elseif os.getenv("LUANB_SMOKE_INPUT") then
+      if not app.smoke_input_sent and cell.scene == "cube" and
+         next(app.ui.scene_rects) then
+        local _, rect = next(app.ui.scene_rects)
+        local before = rect.surface.state.yaw or 0.6
+        app.ui:mousepressed(rect.x + 20, rect.y + 20, 1)
+        app.ui:mousemoved(rect.x + 50, rect.y + 35, 30, 15)
+        app.ui:mousereleased(rect.x + 50, rect.y + 35, 1)
+        local after = rect.surface.state.yaw or 0.6
+        print("SMOKE_INPUT_YAW_CHANGED=" .. tostring(before ~= after))
+        app.smoke_input_sent = true
+      elseif app.smoke_input_sent and
+             lovr.timer.getTime() - app.smoke_start > 1 then
         app.smoke = false
         lovr.event.quit()
       end
