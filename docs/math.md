@@ -20,7 +20,8 @@ Supported:
 - superscripts/subscripts for digits and a few letters;
 - inline `$...$` only.
 
-Display lines of the form `$$...$$` are centered on their own row. A display
+Display lines of the form `$$...$$` are centered on their own row and scale
+down when wider than the cell. A display
 row containing exactly `\frac{a}{b}` is drawn as a small stacked fraction with a
 rule, `\sqrt{x}` gets a radical/overline, and a simple
 `\begin{matrix}...\end{matrix}` gets a centered grid; everything else remains

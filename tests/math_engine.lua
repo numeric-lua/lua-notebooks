@@ -32,6 +32,10 @@ assert(punct.box.w > Engine.typeset("ab", { measure = measure }).box.w)
 local styled = assert(Engine.typeset("\\mathbf{F}=m\\mathit{a}",
   { measure = measure }))
 assert(styled.box.w > 0)
+local wide = assert(Engine.typeset(
+  "\\frac{abcdefghijklmnop}{qrstuvwxyz}", { measure = measure,
+    max_width = 80 }))
+assert(wide.box.w <= 80.0001, wide.box.w)
 local stretched = assert(Engine.typeset(
   "\\left(\\frac{a}{b}\\right)", { measure = measure }))
 assert(stretched.box.items[1].box ~= nil)
