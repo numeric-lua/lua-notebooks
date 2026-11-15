@@ -5,3 +5,4 @@
 *.log
 /tmp/
 dist/
+*.src.rock
