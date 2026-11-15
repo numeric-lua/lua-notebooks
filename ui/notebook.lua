@@ -60,6 +60,19 @@ function UI.new(app)
     widget_drag = nil,
     drag = nil,
     focused_surface = nil,
+    focused_widget = nil,
+    scroll_to_selected = true,
+    last_active = nil,
+    heading_rects = {},
+    show_extensions = false,
+    extension_rects = {},
+    show_outline = false,
+    outline_rects = {},
+    show_help = false,
+    show_palette = false,
+    palette_rects = {},
+    palette_query = "",
+    palette_selected = 1,
   }, UI)
 end
 
