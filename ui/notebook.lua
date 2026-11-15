@@ -134,6 +134,8 @@ function UI.new(app)
     vim_char_anchor = nil,
     vim_char_yank = nil,
     vim_command = nil,
+    vim_search = nil,
+    vim_last_search = nil,
     tree_rects = {},
     tree_items = {},
     rename_prompt = nil,
@@ -459,9 +461,11 @@ function UI:draw(pass)
   self:draw_extension_browser(pass, width, height)
   self:draw_help(pass, width, height)
   self:draw_palette(pass, width, height)
-  if self.vim_command ~= nil then
+  if self.vim_command ~= nil or self.vim_search ~= nil then
     box(pass, 0, height - 32, width, 32, { 0.03, 0.04, 0.06, 1 })
-    text(pass, app.font, ":" .. self.vim_command .. "|", 16, height - 25,
+    local prefix = self.vim_search ~= nil and "/" or ":"
+    local value = self.vim_search ~= nil and self.vim_search or self.vim_command
+    text(pass, app.font, prefix .. value .. "|", 16, height - 25,
       { 0.85, 0.92, 1, 1 }, 0.74)
   end
   return self.extension_passes
@@ -651,6 +655,10 @@ function UI:draw_confirm(pass, width, height)
   local panel_w, panel_h = 500, 100
   local x, y = (width - panel_w) / 2, 150
   box(pass, x, y, panel_w, panel_h, { 0.04, 0.05, 0.08, 1 })
+  if self.vim_search ~= nil then
+    self.vim_search = self.vim_search .. value
+    return
+  end
   if self.vim_command ~= nil then
     self.vim_command = self.vim_command .. value
     return
@@ -785,6 +793,10 @@ end
 
 function UI:textinput(value)
   if value == "\r" or value == "\n" then return end
+  if self.vim_search ~= nil then
+    self.vim_search = self.vim_search .. value
+    return
+  end
   if self.vim_command ~= nil then
     self.vim_command = self.vim_command .. value
     return
@@ -799,6 +811,10 @@ function UI:textinput(value)
   end
   if self.folder_prompt then
     self.folder_prompt.value = self.folder_prompt.value .. value
+    return
+  end
+  if self.vim_search ~= nil then
+    self.vim_search = self.vim_search .. value
     return
   end
   if self.vim_command ~= nil then
@@ -898,6 +914,23 @@ function UI:draw_completion(pass, width, height)
   end
 end
 
+function UI:search_vim(query)
+  self.vim_last_search = query
+  if query == "" then return end
+  local notebook = self.app:notebook()
+  for offset = 1, #notebook.cells do
+    local index = ((notebook.active + offset - 2) % #notebook.cells) + 1
+    local cell = notebook.cells[index]
+    if cell.source:find(query, 1, true) then
+      notebook:select(index)
+      self.scroll_to_selected = true
+      self.app.status = "found " .. query .. " in " .. string.format("In [%d]", index)
+      return
+    end
+  end
+  self.app.status = "not found: " .. query
+end
+
 function UI:run_vim_command(command)
   command = command:gsub("^%s+", ""):gsub("%s+$", "")
   if command == "w" then
@@ -922,6 +955,18 @@ end
 
 function UI:keypressed(key)
   local notebook = self.app:notebook()
+  if self.vim_search ~= nil then
+    if key == "escape" then
+      self.vim_search = nil
+    elseif key == "backspace" then
+      self.vim_search = self.vim_search:sub(1, -2)
+    elseif key == "return" then
+      local query = self.vim_search
+      self.vim_search = nil
+      self:search_vim(query)
+    end
+    return
+  end
   if self.vim_command ~= nil then
     if key == "escape" then
       self.vim_command = nil
@@ -932,6 +977,10 @@ function UI:keypressed(key)
       self.vim_command = nil
       self:run_vim_command(command)
     end
+    return
+  end
+  if self.vim_search ~= nil then
+    self.vim_search = self.vim_search .. value
     return
   end
   if self.vim_command ~= nil then
@@ -1036,7 +1085,13 @@ function UI:keypressed(key)
     return
   end
   if self.app.vim_mode and self.vim_normal then
-    if key == ":" then
+    if key == "/" then
+      self.vim_search = ""
+      return
+    elseif key == "n" and self.vim_last_search then
+      self:search_vim(self.vim_last_search)
+      return
+    elseif key == ":" then
       self.vim_command = ""
       return
     elseif key == "v" then
