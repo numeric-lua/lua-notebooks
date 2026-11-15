@@ -338,23 +338,40 @@ function Analyzer:parse_postfix(index, value)
         unknown()
       index = next_index
     elseif token.text == "(" then
-      local depth = 1
-      local next_index = index + 1
-      while self.tokens[next_index] and depth > 0 do
-        local current = self.tokens[next_index].text
-        if current == "(" then depth = depth + 1
-        elseif current == ")" then depth = depth - 1 end
-        next_index = next_index + 1
-      end
-      local returns = value.kind == "function" and value.returns or unknown()
+      local first_arg = self.tokens[skip_space(self, index + 1)]
+      if value == GLOBALS.require and first_arg and
+         first_arg.kind == "string" then
+        local module_name = first_arg.text:sub(2, -2)
+        local module_type = GLOBALS[module_name]
+        local depth = 1
+        local next_index = index + 1
+        while self.tokens[next_index] and depth > 0 do
+          local current = self.tokens[next_index].text
+          if current == "(" then depth = depth + 1
+          elseif current == ")" then depth = depth - 1 end
+          next_index = next_index + 1
+        end
+        value = module_type or unknown()
+        index = next_index
+      else
+        local depth = 1
+        local next_index = index + 1
+        while self.tokens[next_index] and depth > 0 do
+          local current = self.tokens[next_index].text
+          if current == "(" then depth = depth + 1
+          elseif current == ")" then depth = depth - 1 end
+          next_index = next_index + 1
+        end
+        local returns = value.kind == "function" and value.returns or unknown()
       if value.kind == "table" and value.fields then
         local call = value.fields.__call
         if call and call.type and call.type.kind == "function" then
           returns = call.type.returns
         end
       end
-      value = returns or unknown()
-      index = next_index
+        value = returns or unknown()
+        index = next_index
+      end
     else
       break
     end

@@ -31,7 +31,7 @@ local nested_fields = Types.complete(nested, #nested)
 assert(labels(nested_fields) == "c", labels(nested_fields))
 
 local string_source = [[
-local s = string.format("%d", 1)
+local s = require("string")
 s.
 ]]
 local string_fields = Types.complete(string_source, #string_source)

@@ -476,7 +476,22 @@ function lovr.load()
   end
   lovr.filesystem.watch()
   _G.app = app
-  if os.getenv("LUANB_SMOKE_TYPECOMP") then
+  if os.getenv("LUANB_SMOKE_GUNDO") then
+    local notebook = app:notebook()
+    notebook.cells[1].source = ""
+    notebook.cells[1].cursor = 1
+    notebook:reset_history()
+    notebook:insert("a")
+    app.ui.vim_normal = true
+    app.ui:keypressed("g")
+    app.ui:keypressed("-")
+    local undone = notebook.cells[1].source
+    app.ui:keypressed("g")
+    app.ui:keypressed("+")
+    print("SMOKE_GUNDO=" .. tostring(undone == "") .. ":" ..
+      notebook.cells[1].source)
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_TYPECOMP") then
     local cell = app:notebook():selected()
     cell.source = 'local config = { name = "x", count = 1 }\nconfig.'
     cell.cursor = #cell.source + 1
