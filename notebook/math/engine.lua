@@ -330,10 +330,14 @@ function Engine.typeset(source, options)
     display = options.display, measure = options.measure,
     fonts = options.fonts }
   local box = layout(tree, style)
-  if options.max_width and box.w > options.max_width then
-    local factor = math.max(0.5, options.max_width / box.w)
-    style.scale = style.scale * factor
-    box = layout(tree, style)
+  if options.max_width then
+    for _ = 1, 8 do
+      if box.w <= options.max_width or style.scale < 0.1 then break end
+      local factor = math.max(0.1, math.min(1,
+        options.max_width / box.w * 0.995))
+      style.scale = style.scale * factor
+      box = layout(tree, style)
+    end
   end
   return { tree = tree, box = box, w = box.w, h = box.h + box.d,
     scale = style.scale }
