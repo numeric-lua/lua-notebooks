@@ -1,0 +1,6 @@
+.lovrshadercache/
+*.so
+*.dylib
+*.o
+*.log
+/tmp/

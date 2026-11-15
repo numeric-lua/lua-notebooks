@@ -1,0 +1,8 @@
+{
+    "name": "LÖVR",
+    "words": ["lovr%.%w+"],
+    "settings": {
+        "Lua.runtime.version": "LuaJIT",
+        "Lua.diagnostics.globals": ["lovr"]
+    }
+}

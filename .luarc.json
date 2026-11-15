@@ -1,0 +1,11 @@
+{
+  "runtime": {
+    "version": "LuaJIT"
+  },
+  "workspace.library": [
+    "docs/lovr/library"
+  ],
+  "diagnostics": {
+    "globals": ["lovr", "vector", "quaternion", "utf8"]
+  }
+}

@@ -1,0 +1,143 @@
+Luau
+===
+
+LÖVR supports [Luau](https://luau.org) in addition to PUC Lua and LuaJIT.  Compared to Lua, Luau
+supports gradual typing, a builtin vector type, native code generation, and several convenient
+[syntax improvements](https://luau.org/syntax).
+
+LÖVR's Luau support is still early and should be considered experimental.  With that said, Luau can
+run most LÖVR projects without any modifications.
+
+Compiling
+---
+
+Currently, LÖVR has to be recompiled to enable Luau.  Set the `-DLOVR_USE_LUAU=ON` CMake variable
+and rebuild.  See the `Compiling` guide for details.
+
+Note that LÖVR uses a fork of Luau that makes Luau's C API closer to Lua's official C API and adds a
+`quaternion` type in addition to the existing `vector` type.
+
+Compatibility
+---
+
+While Luau is very close to Lua, there are some notable differences.
+
+- No `io` library.
+- The `os` library is missing many functions.
+- The `debug` library is missing many functions.
+
+See Luau's own [Compatibility with Lua](https://luau.org/compatibility) page for more details.
+
+File Extensions
+---
+
+When Luau is enabled, the default require path is `?.luau;?/init.luau;?.lua;?/init.lua`, so
+`require` will prioritize .luau files and fall back to .lua files.
+
+Vectors
+---
+
+Luau's `vector` type is a fast builtin type natively supported by the VM.  Unlike tables, vectors do
+not create any garbage, and they use the same amount of space as a single number value.
+
+LÖVR makes a few modifications to Luau's `vector` library:
+
+- In addition to `vector.create`, there is a `vector.pack` function that supports more overloads.
+- Adds `vector.unpack` that unpacks the components of a vector.
+- Adds `vector.length` as an alias for Luau's `vector.magnitude`.
+- Adds `vector.distance`.
+
+The `vector` library is also implemented on Lua and LuaJIT using tables, allowing the same code to
+run on Lua, LuaJIT, and Luau.
+
+Quaternions
+---
+
+In addition to `vector`, LÖVR's Luau fork implements a `quaternion` type.  Like `vector`, this is a
+native, garbage-free type with optimizations in the VM.
+
+Currently the quaternion type uses 16-bit signed normalized integers for storage.  This should be
+enough precision for most game code, but please open an issue if it causes problems.
+
+Plugins
+---
+
+Luau's C API is not compatible with Lua's C API.  This means that some plugins will fail to build
+when compiling with Luau enabled.  All of LÖVR's builtin plugins (enet, http) currently support
+Luau.
+
+Native Codegen
+---
+
+LÖVR does not currently implement Luau's native codegen.
+
+Luau LSP
+---
+
+[Luau LSP](https://github.com/JohnnyMorganz/luau-lsp) is able to provide type checking for LÖVR's
+API.
+
+Luau LSP needs a definition file so it understands LÖVR's API.  To generate the definition file, run
+`lovr api luau` from lovr-docs.  This will generate a `lovr.d.luau` file in the `api/luau` folder.
+Then, configure Luau LSP to start with the `--definitions:lovr=/path/to/lovr.d.luau` argument (your
+editor may also have its own way of specifying paths to definition files).
+
+:::note
+These type definitions are compatible with Luau's new "V2" type solver, not the old solver.
+:::
+
+### Require
+
+LÖVR and Luau use different `require` systems, so by default luau-lsp won't understand LÖVR require
+paths.  To fix this, use an [LSP plugin](https://github.com/JohnnyMorganz/luau-lsp/blob/main/src/Plugin/README.md)
+to tell luau-lsp to treat require paths as relative to the root of the project.  The plugin can be
+found [here](https://github.com/bjornbytes/lovr-docs/tree/api/luau/require.luau), and the necessary
+config is:
+
+    {
+      ['luau-lsp'] = {
+        plugins = {
+          enabled = true,
+          fileSystem = { enabled = true },
+          paths = {
+            '/path/to/require.luau'
+          }
+        }
+      }
+    }
+
+### Example
+
+A full neovim LSP config for Luau + LÖVR might look something like this:
+
+    vim.lsp.enable('luau_lsp')
+    vim.lsp.config('luau_lsp', {
+      cmd = {
+        'luau-lsp',
+        'lsp',
+        '--flag:LuauSolverV2=true',
+        '--definitions:lovr=/path/to/lovr-docs/api/luau/lovr.d.luau'
+      },
+      filetypes = { 'luau' },
+      root_markers = { '.git' },
+      settings = {
+        ['luau-lsp'] = {
+          platform = {
+            type = 'standard'
+          },
+          sourcemap = {
+            enabled = false
+          },
+          index = {
+            enabled = false
+          },
+          plugins = {
+            enabled = true,
+            fileSystem = { enabled = true },
+            paths = {
+              '/path/to/lovr-docs/api/luau/require.luau'
+            }
+          }
+        }
+      }
+    })
