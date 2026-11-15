@@ -60,6 +60,43 @@ function Server:diagnostics_notification(uri, text)
   })
 end
 
+local function location(uri, text, start_byte)
+  local before = text:sub(1, start_byte - 1)
+  local line = 0
+  local last_newline = 0
+  for newline in before:gmatch("()\n") do
+    line = line + 1
+    last_newline = newline
+  end
+  return { uri = uri, range = {
+    start = { line = line, character = start_byte - last_newline - 1 },
+    ["end"] = { line = line, character = start_byte - last_newline },
+  } }
+end
+
+function Server:word_at(uri, position)
+  local text = self.documents[uri] and self.documents[uri].text or ""
+  return Editor.word_at(text, position.line, position.character)
+end
+
+function Server:definitions(word)
+  local found = {}
+  for uri, document in pairs(self.documents) do
+    local escaped = word:gsub("([^%w])", "%%%1")
+    for start_at in document.text:gmatch("()%f[%w_]" .. escaped .. "%f[^%w_]") do
+      local prefix = document.text:sub(1, start_at - 1)
+      local line_start = prefix:match(".*()\n") or 0
+      local current_line = document.text:sub(line_start + 1,
+        start_at - 1)
+      if current_line:match("local%s+$") or current_line:match("function%s+$") or
+         current_line:match("^%s*$") then
+        found[#found + 1] = location(uri, document.text, start_at)
+      end
+    end
+  end
+  return found
+end
+
 function Server:handle(message)
   if message == nil or message.jsonrpc ~= "2.0" or type(message.method) ~= "string" then
     return error_response(message and message.id or json.null, -32600,
@@ -77,6 +114,7 @@ function Server:handle(message)
         completionProvider = { triggerCharacters = { ".", ":" } },
         hoverProvider = true,
         definitionProvider = true,
+        referencesProvider = true,
         renameProvider = { prepareProvider = false },
       },
       serverInfo = { name = "lua-notebooks-lsp", version = "0.1.0" },
@@ -118,8 +156,14 @@ function Server:handle(message)
     local document = self.documents[params.textDocument and params.textDocument.uri]
     if document == nil then return response(id, { isIncomplete = false, items = {} }) end
     local items = {}
+    local seen = {}
     for _, word in ipairs(Editor.complete(document.text)) do
-      items[#items + 1] = { label = word, kind = 1 }
+      if not seen[word] then seen[word] = true; items[#items + 1] = { label = word, kind = 1 } end
+    end
+    for _, other in pairs(self.documents) do
+      for word in other.text:gmatch("[%a_][%w_]*") do
+        if not seen[word] then seen[word] = true; items[#items + 1] = { label = word, kind = 6 } end
+      end
     end
     return response(id, { isIncomplete = false, items = items })
   elseif message.method == "textDocument/hover" then
@@ -129,9 +173,44 @@ function Server:handle(message)
     if not info then return response(id, json.null) end
     return response(id, { contents = { kind = "plaintext", value = info } })
   elseif message.method == "textDocument/definition" then
-    return response(id, json.null)
+    local uri = params.textDocument and params.textDocument.uri
+    local word = self:word_at(uri, params.position or {})
+    local locations = word and self:definitions(word.word) or {}
+    if #locations == 0 then return response(id, json.null) end
+    return response(id, locations)
+  elseif message.method == "textDocument/references" then
+    local uri = params.textDocument and params.textDocument.uri
+    local word = self:word_at(uri, params.position or {})
+    local locations = {}
+    if word then
+      for other_uri, document in pairs(self.documents) do
+        for _, occurrence in ipairs(Editor.occurrences(document.text, word.word)) do
+          locations[#locations + 1] = location(other_uri, document.text,
+            occurrence.start)
+        end
+      end
+    end
+    return response(id, locations)
   elseif message.method == "textDocument/rename" then
-    return error_response(id, -32601, "rename is not implemented by the protocol server yet")
+    local uri = params.textDocument and params.textDocument.uri
+    local word = self:word_at(uri, params.position or {})
+    local new_name = params.newName
+    if not word or type(new_name) ~= "string" or
+       not new_name:match("^[%a_][%w_]*$") then
+      return error_response(id, -32602, "invalid rename")
+    end
+    local changes = {}
+    for other_uri, document in pairs(self.documents) do
+      local edits = {}
+      for _, occurrence in ipairs(Editor.occurrences(document.text, word.word)) do
+        local start_location = location(other_uri, document.text, occurrence.start)
+        local end_location = location(other_uri, document.text, occurrence.finish)
+        edits[#edits + 1] = { range = { start = start_location.range.start,
+          ["end"] = end_location.range["end"] }, newText = new_name }
+      end
+      if #edits > 0 then changes[other_uri] = edits end
+    end
+    return response(id, { changes = changes })
   elseif message.method == "shutdown" then
     return response(id, json.null)
   elseif message.method == "$/cancelRequest" then

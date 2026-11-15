@@ -28,6 +28,29 @@ local completion = server:handle({ jsonrpc = "2.0", id = 2,
     textDocument = { uri = "luanb:///a.luanb?cell=c1" }, position = { line = 0, character = 0 },
   } })
 assert(#completion.result.items > 5)
+
+-- Cross-cell language features
+local uri2 = "luanb:///a.luanb?cell=c2"
+server:handle({ jsonrpc = "2.0", method = "textDocument/didOpen", params = {
+  textDocument = { uri = uri2, text = "local shared = 1\nprint(shared)", version = 1 },
+} })
+local definition = server:handle({ jsonrpc = "2.0", id = 10,
+  method = "textDocument/definition", params = {
+    textDocument = { uri = uri2 }, position = { line = 1, character = 8 },
+  } })
+assert(definition.result and #definition.result >= 1)
+local references = server:handle({ jsonrpc = "2.0", id = 11,
+  method = "textDocument/references", params = {
+    textDocument = { uri = uri2 }, position = { line = 1, character = 8 },
+    context = { includeDeclaration = true },
+  } })
+assert(references.result and #references.result >= 2)
+local rename = server:handle({ jsonrpc = "2.0", id = 12,
+  method = "textDocument/rename", params = {
+    textDocument = { uri = uri2 }, position = { line = 1, character = 8 },
+    newName = "renamed",
+  } })
+assert(rename.result and rename.result.changes[uri2])
 local shutdown = server:handle({ jsonrpc = "2.0", id = 3, method = "shutdown", params = json.null })
 eq(shutdown.result, json.null)
 print("lsp protocol tests ok")

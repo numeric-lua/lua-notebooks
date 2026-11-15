@@ -113,6 +113,46 @@ function LSP.rename(notebook, old_word, new_word)
   return count
 end
 
+function LSP.word_at(text, line, character)
+  local current = 1
+  for _ = 1, line do
+    local newline = text:find("\n", current, true)
+    if newline == nil then current = #text + 1; break end
+    current = newline + 1
+  end
+  local next_newline = text:find("\n", current, true)
+  local line_text = text:sub(current, (next_newline or #text + 1) - 1)
+  local byte = math.min(character, #line_text)
+  local start_at = byte + 1
+  while start_at > 1 and line_text:sub(start_at - 1, start_at - 1):match("[%w_]") do
+    start_at = start_at - 1
+  end
+  local end_at = byte + 1
+  while end_at <= #line_text and line_text:sub(end_at, end_at):match("[%w_]") do
+    end_at = end_at + 1
+  end
+  if end_at <= start_at then return nil end
+  return {
+    word = line_text:sub(start_at, end_at - 1),
+    start = start_at - 1,
+    finish = end_at - 1,
+    line_text = line_text,
+  }
+end
+
+function LSP.occurrences(text, word)
+  local result = {}
+  local escaped = word:gsub("([^%w])", "%%%1")
+  local position = 1
+  while true do
+    local start_at, end_at = text:find("%f[%w_]" .. escaped .. "%f[^%w_]", position)
+    if start_at == nil then break end
+    result[#result + 1] = { start = start_at, finish = end_at }
+    position = end_at + 1
+  end
+  return result
+end
+
 function LSP.complete_notebook(notebook, source)
   local items = LSP.complete(source)
   local seen = {}

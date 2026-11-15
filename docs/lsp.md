@@ -14,6 +14,9 @@ JSON-RPC LSP core:
 - explicit JSON null and empty object/array encoding.
 
 It is transport-independent and tested through `tests/lsp_protocol.lua`.
+Cross-document definition, references, and rename are implemented over all open
+cell documents; a rename returns versionless `changes` edits and still needs
+host-side atomic application.
 The standalone stdio service is `notebook/lsp_server.lua`:
 
 ```sh
