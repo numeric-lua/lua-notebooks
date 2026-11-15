@@ -245,7 +245,33 @@ function UI:draw(pass)
     width - 470, height - 22, { 0.45, 0.5, 0.62, 1 }, 0.65)
   self:draw_outline(pass, width, height)
   self:draw_extension_browser(pass, width, height)
+  self:draw_help(pass, width, height)
   return self.extension_passes
+end
+
+function UI:draw_help(pass, width, height)
+  if not self.show_help then return end
+  local lines = {
+    "F5   run selected cell",
+    "F6   save notebook",
+    "F7   load notebook",
+    "F8   reload focused extension",
+    "F9   reload user extensions",
+    "F10  extension browser",
+    "F11  heading outline",
+    "F12  close this help",
+    "Tab  indent · Backspace/Delete · arrows move",
+    "Drag a 3D surface to orbit; wheel to zoom",
+  }
+  local panel_w, panel_h = 560, 90 + #lines * 24
+  local x, y = (width - panel_w) / 2, (height - panel_h) / 2
+  box(pass, x, y, panel_w, panel_h, { 0.035, 0.045, 0.07, 0.99 })
+  text(pass, self.app.font, "Lua Notebooks shortcuts", x + 20, y + 16, 0.85,
+    { 0.9, 0.94, 1, 1 })
+  for index, line in ipairs(lines) do
+    text(pass, self.app.font, line, x + 26, y + 54 + (index - 1) * 24, 0.72,
+      { 0.75, 0.82, 0.94, 1 })
+  end
 end
 
 function UI:draw_outline(pass, width, height)
@@ -457,6 +483,10 @@ function UI:mousepressed(x, y, button)
       self.app.status = collapsed and "collapsed heading" or "expanded heading"
       return
     end
+  end
+  if self.show_help then
+    self.show_help = false
+    return
   end
   if self.show_outline then
     for _, rect in ipairs(self.outline_rects) do
