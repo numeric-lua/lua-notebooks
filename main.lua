@@ -126,6 +126,14 @@ function App:widget_event(cell_index, spec, event)
   self.status = "widget " .. tostring(spec.id)
 end
 
+function App:reload_user_extensions()
+  local loaded, errors = Extensions.discover_user()
+  self.status = string.format("loaded %d user extension(s)", #loaded)
+  if #errors > 0 then
+    self.status = self.status .. "; " .. #errors .. " error(s)"
+  end
+end
+
 function App:reload_extension(id)
   local renderer, err = Extensions.reload(id)
   if renderer then self.last_reload = id end
@@ -212,14 +220,20 @@ function lovr.load()
   app.ui = UI.new(app)
   app:open_all_kernels()
   local loaded, errors = Extensions.discover()
-  app.status = string.format("%d kernels, %d extensions",
-    #app.notebooks, 1 + #loaded)
-  if #errors > 0 then
-    app.status = app.status .. "; " .. #errors .. " extension error(s)"
+  local user_loaded, user_errors = Extensions.discover_user()
+  app.status = string.format("%d kernels, %d extensions, %d user",
+    #app.notebooks, 1 + #loaded, #user_loaded)
+  if #errors + #user_errors > 0 then
+    app.status = app.status .. "; " ..
+      (#errors + #user_errors) .. " extension error(s)"
   end
   lovr.filesystem.watch()
   _G.app = app
-  if os.getenv("LUANB_SMOKE_WATCH") then
+  if os.getenv("LUANB_SMOKE_USER_EXT") then
+    local loaded, errors = Extensions.discover_user()
+    print("SMOKE_USER_EXT=" .. #loaded .. " errors=" .. #errors)
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_WATCH") then
     app.smoke_watch = true
     app.smoke_watch_started = lovr.timer.getTime()
     app.smoke_watch_touched = false
@@ -243,7 +257,11 @@ function lovr.load()
   -- Non-interactive smoke path: run the first welcome cell, print its result,
   -- and quit.  This exercises thread startup, channels, the kernel worker, and
   -- result routing without requiring a human at the window.
-  if os.getenv("LUANB_SMOKE_WATCH") then
+  if os.getenv("LUANB_SMOKE_USER_EXT") then
+    local loaded, errors = Extensions.discover_user()
+    print("SMOKE_USER_EXT=" .. #loaded .. " errors=" .. #errors)
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_WATCH") then
     -- handled in update, after the watcher is installed
   elseif os.getenv("LUANB_SMOKE_RELOAD") then
     local renderer, err = Extensions.reload("cube")
@@ -282,7 +300,11 @@ function lovr.update(dt)
   if app.smoke then
     local notebook = app:notebook()
     local cell = notebook.cells[notebook.active]
-    if os.getenv("LUANB_SMOKE_WATCH") then
+    if os.getenv("LUANB_SMOKE_USER_EXT") then
+    local loaded, errors = Extensions.discover_user()
+    print("SMOKE_USER_EXT=" .. #loaded .. " errors=" .. #errors)
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_WATCH") then
     -- handled in update, after the watcher is installed
   elseif os.getenv("LUANB_SMOKE_RELOAD") then
     local renderer, err = Extensions.reload("cube")

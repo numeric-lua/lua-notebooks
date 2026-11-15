@@ -67,12 +67,24 @@ Controls:
 | mouse wheel | scroll (or zoom a 3D surface under the pointer) |
 | drag in 3D surface | orbit the extension camera |
 | `F8` | hot-reload the focused extension renderer |
+| `F9` | reload extensions from the save directory |
 | drag / wheel in 3D | orbit / zoom the focused extension |
 | tabs / **+ Cell** | switch notebook / add cell |
 
 The welcome notebook has runnable cells for hello, a loop, a 3D cube scene, a
 luaplotlib scene, a grid extension, and widgets. The second notebook has an independent kernel
 and global state.
+
+## User extensions
+
+Drop a `.lua` extension module into:
+
+```text
+~/.local/share/LOVR/lua-notebooks/user-extensions/
+```
+
+Press **F9** to reload them. User files override built-in extensions with the
+same id. This is a local install path, not a marketplace or permission sandbox.
 
 ## Package
 

@@ -66,6 +66,38 @@ function Extensions.reload(id)
   return descriptor
 end
 
+local function register_or_replace(descriptor)
+  if Extensions.registry[descriptor.id] then
+    Extensions.registry[descriptor.id] = descriptor
+    return descriptor
+  end
+  return register(descriptor)
+end
+
+function Extensions.discover_user()
+  local Loader = require("extensions.loader")
+  local directory = "user-extensions"
+  pcall(lovr.filesystem.createDirectory, directory)
+  local loaded, errors = {}, {}
+  local ok, items = pcall(lovr.filesystem.getDirectoryItems, directory)
+  if not ok then return loaded, { tostring(items) } end
+  for _, filename in ipairs(items) do
+    local name = filename:match("^([a-z][a-z0-9_-]*)%.lua$")
+    if name then
+      local descriptor, err = Loader.load_file(directory .. "/" .. filename,
+        name)
+      if descriptor then
+        register_or_replace(descriptor, true)
+        loaded[#loaded + 1] = descriptor
+      else
+        errors[#errors + 1] = name .. ": " .. tostring(err)
+      end
+    end
+  end
+  Extensions.user_errors = errors
+  return loaded, errors
+end
+
 function Extensions.discover()
   local Loader = require("extensions.loader")
   local loaded, errors = Loader.discover({

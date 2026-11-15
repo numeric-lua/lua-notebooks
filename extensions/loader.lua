@@ -25,6 +25,20 @@ function Loader.load(name, options)
   return Manifest.validate(descriptor, "extensions/" .. name .. ".lua")
 end
 
+function Loader.load_file(path, name, options)
+  options = options or {}
+  local load = options.load or lovr.filesystem.load
+  local chunk, load_error = load(path)
+  if chunk == nil then return nil, load_error end
+  local ok, descriptor = pcall(chunk)
+  if not ok then return nil, descriptor end
+  if type(descriptor) ~= "table" then
+    return nil, path .. " must return a table"
+  end
+  descriptor.id = descriptor.id or name
+  return Manifest.validate(descriptor, path)
+end
+
 function Loader.reload(name, options)
   package.loaded["extensions." .. name] = nil
   return Loader.load(name, options)
