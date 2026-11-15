@@ -135,6 +135,16 @@ The repeatable check is:
 It launches a seat session, sends six Down keys, captures two frames one second
 apart, and fails if the stable-frame difference exceeds 5000 pixels.
 
+## Visual smoke
+
+```sh
+./scripts/visual-smoke.sh
+```
+
+Captures the 3D, plot, widget, and math cells, crops the notebook window, and
+fails on a flat/blank capture or an unexpected crop size. It is not part of
+`make test` because it needs a display.
+
 ## Local install
 
 ```sh
