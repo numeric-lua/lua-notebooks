@@ -6,21 +6,26 @@
 local Math = {}
 
 local SYMBOLS = {
-  alpha = "alpha", beta = "beta", gamma = "gamma", delta = "delta", epsilon = "epsilon",
-  theta = "theta", lambda = "lambda", mu = "mu", pi = "pi", rho = "rho",
-  sigma = "sigma", tau = "tau", phi = "phi", omega = "omega", Gamma = "Gamma",
+  alpha = "α", beta = "β", gamma = "γ", delta = "δ", epsilon = "ε",
+  theta = "θ", lambda = "λ", mu = "μ", pi = "π", rho = "ρ",
+  sigma = "σ", tau = "τ", phi = "φ", omega = "ω", Gamma = "Gamma",
   Delta = "Delta", Theta = "Theta", Lambda = "Lambda", Pi = "Pi", Sigma = "Sigma",
-  Phi = "Phi", Omega = "Omega", sum = "sum", prod = "prod", int = "int",
-  infty = "inf", partial = "partial", nabla = "nabla", pm = "+/-", mp = "-/+",
-  times = "x", cdot = ".", le = "<=", leq = "<=", ge = ">=",
-  geq = ">=", ne = "!=", neq = "!=", to = "->", rightarrow = "->",
-  approx = "~=", sqrt = "sqrt", quad = "  ", space = " ",
+  Phi = "Phi", Omega = "Omega", sum = "∑", prod = "∏", int = "∫",
+  infty = "∞", partial = "partial", nabla = "nabla", pm = "±", mp = "-/+",
+  times = "×", cdot = "·", le = "≤", leq = "≤", ge = "≥",
+  geq = "≥", ne = "≠", neq = "≠", to = "→", rightarrow = "→",
+  approx = "≈", sqrt = "√", quad = "  ", space = " ",
 }
 
 local SUPER = {
-  ["1"]="¹", ["2"]="²", ["3"]="³",
+  ["0"]="⁰", ["1"]="¹", ["2"]="²", ["3"]="³", ["4"]="⁴",
+  ["5"]="⁵", ["6"]="⁶", ["7"]="⁷", ["8"]="⁸", ["9"]="⁹",
+  ["+"]="⁺", ["-"]="⁻", ["="]="⁼", ["("]="⁽", [")"]="⁾",
 }
 local SUB = {
+  ["0"]="₀", ["1"]="₁", ["2"]="₂", ["3"]="₃", ["4"]="₄",
+  ["5"]="₅", ["6"]="₆", ["7"]="₇", ["8"]="₈", ["9"]="₉",
+  ["+"]="₊", ["-"]="₋", ["="]="₌", ["("]="₍", [")"]="₎",
 
 }
 

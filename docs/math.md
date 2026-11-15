@@ -1,8 +1,8 @@
 # Math rendering
 
-Notebook markdown supports a small **inline LaTeX subset**, rendered to readable
-text using the LÖVR font. The font lacks Greek/math glyphs, so symbols use ASCII
-names (`alpha`, `pi`, `<=`, `inf`).
+Notebook markdown supports a small **inline LaTeX subset**. Math segments use a
+vendored DejaVu Sans font with real Greek/math glyphs; body text keeps the
+notebook font. Display math uses the same font through the box-layout engine.
 
 ```markdown
 Energy: $E = mc^2$

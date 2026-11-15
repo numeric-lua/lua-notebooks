@@ -5,12 +5,12 @@
 local Engine = {}
 
 local SYMBOLS = {
-  alpha = "alpha", beta = "beta", gamma = "gamma", delta = "delta",
-  theta = "theta", lambda = "lambda", mu = "mu", pi = "pi", sigma = "sigma",
-  phi = "phi", omega = "omega", sum = "sum", prod = "prod", int = "int",
-  infty = "inf", partial = "partial", nabla = "nabla", pm = "+/-",
-  times = "x", cdot = ".", le = "<=", ge = ">=", ne = "!=", to = "->",
-  approx = "~=", sqrt = "sqrt",
+  alpha = "α", beta = "β", gamma = "γ", delta = "δ",
+  theta = "θ", lambda = "λ", mu = "μ", pi = "π", sigma = "σ",
+  phi = "φ", omega = "ω", sum = "∑", prod = "∏", int = "∫",
+  infty = "∞", partial = "∂", nabla = "∇", pm = "±",
+  times = "×", cdot = "·", le = "≤", ge = "≥", ne = "≠", to = "→",
+  approx = "≈", sqrt = "√",
 }
 
 local plain

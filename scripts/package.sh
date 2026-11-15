@@ -8,6 +8,6 @@ mkdir -p "$ROOT/dist"
 cd "$ROOT"
 zip -q -r "$OUT" \
   conf.lua main.lua README.md LICENSE \
-  notebook kernel ui extensions
+  notebook kernel ui extensions assets
 echo "wrote $OUT"
 unzip -l "$OUT" | tail -3

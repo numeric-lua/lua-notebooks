@@ -168,7 +168,7 @@ current = "math"
 test("renders common inline math", function()
   local Math = require("notebook.math")
   eq(Math.render("E = mc^2"), "E = mc²")
-  eq(Math.render("\\alpha + \\beta = \\pi"), "alpha + beta = pi")
+  eq(Math.render("\\alpha + \\beta = \\pi"), "α + β = π")
   eq(Math.render("\\frac{1}{2}"), "(1)/(2)")
   eq(Math.inline("energy $E = mc^2$"), "energy E = mc²")
 end)

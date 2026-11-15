@@ -25,7 +25,7 @@ build = {
   build_command = "true",
   install_command = [[
     mkdir -p "$(PREFIX)/share/lua-notebooks" "$(PREFIX)/bin"
-    cp -R conf.lua main.lua README.md LICENSE notebook kernel ui extensions \
+    cp -R conf.lua main.lua README.md LICENSE notebook kernel ui extensions assets \
       "$(PREFIX)/share/lua-notebooks/"
     cp scripts/lua-notebooks "$(PREFIX)/bin/lua-notebooks"
     chmod +x "$(PREFIX)/bin/lua-notebooks"

@@ -240,7 +240,7 @@ function UI:draw(pass)
         source_line:match("^%$%$(.-)%$%$$")
       if expression and not source_line:find("\\begin{matrix}", 1, true) then
         local result = MathEngine.typeset(expression, {
-          font = app.title_font, scale = 1.0, display = true,
+          font = app.math_font, scale = 1.1, display = true,
         })
         if result then
           math_layouts[line_index] = result
@@ -398,7 +398,8 @@ function UI:draw(pass)
         elseif cell.kind == "markdown" then
           local x = 36
           for _, segment in ipairs(Math.segments(display)) do
-            local line_font = app.font
+            local line_font = segment.math and (app.math_font or app.font) or
+              app.font
             text(pass, line_font, segment.text, x, line_y, source_color, 0.86)
             x = x + line_font:getWidth(segment.text) * 0.86
           end

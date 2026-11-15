@@ -6,7 +6,7 @@ PREFIX=${PREFIX:-$HOME/.local/share/lua-notebooks}
 rm -rf "$PREFIX"
 mkdir -p "$PREFIX"
 cp -R "$ROOT"/conf.lua "$ROOT"/main.lua "$ROOT"/notebook "$ROOT"/kernel \
-  "$ROOT"/ui "$ROOT"/extensions "$ROOT"/README.md "$ROOT"/LICENSE "$PREFIX"/
+  "$ROOT"/ui "$ROOT"/extensions "$ROOT"/assets "$ROOT"/README.md "$ROOT"/LICENSE "$PREFIX"/
 echo "installed $PREFIX"
 echo "run: lovr $PREFIX"
 if [ "${INSTALL_DESKTOP:-0}" = "1" ]; then
