@@ -10,6 +10,7 @@ local Scroll = require("ui.scroll")
 local Math = require("notebook.math")
 local NotebookModel = require("notebook.model")
 local Theme = require("ui.theme")
+local Markdown = require("notebook.markdown")
 local Highlight = require("ui.highlight")
 local LSP = require("notebook.editor_text")
 local MathEngine = require("notebook.math.engine")
@@ -20,16 +21,6 @@ UI.__index = UI
 
 local function cell_label(index)
   return string.format("In [%d]", index)
-end
-
-local function markdown_preview(line)
-  line = line:gsub("^%s*#+%s*", "")
-  line = line:gsub("^%s*[-*+]%s+", "• ")
-  line = line:gsub("%*%*(.-)%*%*", "%1")
-  line = line:gsub("__(.-)__", "%1")
-  line = line:gsub("`([^`]*)`", "%1")
-  line = line:gsub("%[([^%]]+)%]%b()", "%1")
-  return line
 end
 
 local function split_lines(text)
@@ -340,7 +331,7 @@ function UI:draw(pass)
       local line_y = source_y
       for line_index = 1, math.min(#source_lines, 14) do
         local raw_display = source_lines[line_index]
-        local display = preview and markdown_preview(raw_display) or raw_display
+        local display = preview and Markdown.preview(raw_display) or raw_display
         local engine_layout = math_layouts[line_index]
         local display_fraction = cell.kind == "markdown" and
           Math.display_fraction(raw_display)
