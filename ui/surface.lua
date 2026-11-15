@@ -51,7 +51,7 @@ function Surface:render_display(descriptor, time)
   local pass = self.pass
   pass:reset()
   pass:setClear(0.02, 0.025, 0.04, 1)
-  require("extensions.display_list").replay(pass, descriptor,
+  require("extensions.support.display_list").replay(pass, descriptor,
     self.width, self.height)
 end
 

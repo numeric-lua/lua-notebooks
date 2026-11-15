@@ -4,7 +4,7 @@
 -- filesystem, home, network, or graphics access.
 --
 local json = require("notebook.json")
-local DisplayList = require("extensions.display_list")
+local DisplayList = require("extensions.support.display_list")
 
 local Sandbox = {}
 
@@ -24,7 +24,7 @@ function Sandbox.run(source_path, id, root)
   os.execute("rm -rf " .. quote(stamp))
   os.execute("mkdir -p " .. quote(stamp .. "/notebook"))
   os.execute("cp " .. quote(source_path) .. " " .. quote(stamp .. "/user.lua"))
-  os.execute("cp " .. quote(root .. "/extensions/sandbox_worker.lua") .. " " ..
+  os.execute("cp " .. quote(root .. "/extensions/support/sandbox_worker.lua") .. " " ..
     quote(stamp .. "/worker.lua"))
   os.execute("cp " .. quote(root .. "/notebook/json.lua") .. " " ..
     quote(stamp .. "/notebook/json.lua"))

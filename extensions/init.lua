@@ -122,7 +122,7 @@ function Extensions.save_preferences()
 end
 
 function Extensions.discover_user()
-  local DisplayList = require("extensions.display_list")
+  local DisplayList = require("extensions.support.display_list")
   local directory = "user-extensions"
   pcall(lovr.filesystem.createDirectory, directory)
   local loaded, errors = {}, {}
@@ -163,7 +163,7 @@ function Extensions.discover_user()
       if Extensions.registry[sandbox_name] then
         errors[#errors + 1] = sandbox_name .. ": built-in ids are reserved"
       else
-        local Sandbox = require("extensions.sandbox")
+        local Sandbox = require("extensions.support.sandbox")
         local absolute = lovr.filesystem.getSaveDirectory() .. "/" ..
           directory .. "/" .. filename
         local descriptor, err = Sandbox.run(absolute,

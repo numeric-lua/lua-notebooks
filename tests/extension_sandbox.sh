@@ -18,7 +18,7 @@ return {
 LUA
 luajit -e '
 package.path = "./?.lua;./?/init.lua;" .. package.path
-local Sandbox = require("extensions.sandbox")
+local Sandbox = require("extensions.support.sandbox")
 local descriptor, err = Sandbox.run(arg[0], "leak", ".")
 assert(descriptor, err)
 assert(descriptor.display)

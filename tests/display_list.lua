@@ -1,6 +1,6 @@
 local root = (arg and arg[0] or "tests/display_list.lua"):match("^(.*)/tests/") or "."
 package.path = root .. "/?.lua;" .. root .. "/?/init.lua;" .. package.path
-local DisplayList = require("extensions.display_list")
+local DisplayList = require("extensions.support.display_list")
 local function eq(a, b) if a ~= b then error(tostring(a) .. " ~= " .. tostring(b), 2) end end
 local descriptor = {
   id = "bars", title = "Bars", display = { clear = { 0, 0, 0, 1 }, commands = {
