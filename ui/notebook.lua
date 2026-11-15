@@ -1239,6 +1239,14 @@ function UI:keypressed(key)
     self.vim_normal = true
     return
   end
+  if key == "escape" then
+    if self.show_help then self.show_help = false; return end
+    if self.show_palette then self.show_palette = false; return end
+    if self.show_extensions then self.show_extensions = false; return end
+    if self.show_outline then self.show_outline = false; return end
+    if self.show_tree then self.show_tree = false; return end
+    if self.hover then self.hover = nil; return end
+  end
   if self.completion then
     if key == "escape" then
       self.completion = nil

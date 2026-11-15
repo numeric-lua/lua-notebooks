@@ -110,6 +110,11 @@ Code and output are one cell. Clicking a plot, surface, widget, or text output
 selects the parent cell and draws a unified focus border around the whole cell.
 Clicking the source returns focus to editing and clears output focus.
 
+The filetree and outline are **overlays, not a persistent sidebar**. They are
+closed at startup and only open from F2/F11 or the command palette. Escape
+closes any open overlay. The icon rail visible in desktop screenshots is the
+Wayland compositor dock, outside the notebook window.
+
 ## Math and collapsible headings
 
 Markdown supports a small inline LaTeX-to-Unicode subset (`$E = mc^2$`,
