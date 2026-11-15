@@ -276,6 +276,19 @@ test("matches brackets", function()
   eq(notebook:matching_bracket(17), 11)
 end)
 
+current = "notebook title"
+test("derives the title from the first level-one markdown heading", function()
+  local Notebook = require("notebook.model")
+  local notebook = Notebook.new({ name = "welcome.luanb", cells = {
+    { kind = "code", source = "print(1)" },
+    { kind = "markdown", source = "# A 3D notebook\nbody" },
+    { kind = "markdown", source = "# Second title" },
+  } })
+  eq(notebook:title(), "A 3D notebook")
+  notebook.cells[2].source = "## Not a title"
+  eq(notebook:title(), "Second title")
+end)
+
 current = "undo tree"
 test("preserves branches after undo and edit", function()
   local Notebook = require("notebook.model")

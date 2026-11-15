@@ -159,6 +159,12 @@ Markdown cells show formatted text when unfocused: heading markers, emphasis,
 inline code, links, and list markers are removed for display. Selecting the cell
 returns to editable source. Display math renders in both states.
 
+## Notebook title
+
+The first `#` heading in a markdown cell is the notebook title. Tabs show this
+title, not the `.luanb` filename; the title updates as the heading is edited.
+`##` and lower headings do not become the title. The title bar is 40px high.
+
 ## Cell labels
 
 Cells no longer have a `CODE In [x]` header row. A compact number is drawn at

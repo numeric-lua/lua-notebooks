@@ -196,33 +196,33 @@ function UI:draw(pass)
   self.widget_rects = {}
   self.output_rects = {}
   if not self.zen_mode then
-  box(pass, 0, 0, width, 50, { 0.08, 0.09, 0.12, 1 })
-  text(pass, app.title_font, "Lua Notebooks", 18, 14,
-    { 0.92, 0.94, 1, 1 })
+  box(pass, 0, 0, width, 40, { 0.08, 0.09, 0.12, 1 })
 
-  -- Notebook tabs.
-  local tab_x = 210
+  -- Tabs are notebook titles, derived from the first markdown `#` heading.
+  local tab_x = 12
   for index, notebook in ipairs(app.notebooks) do
-    local label = notebook.name
-    local tab_w = 180
+    local label = notebook:title()
+    local tab_w = math.max(92, math.min(240,
+      app.font:getWidth(label) * 0.76 + 24))
     local active = index == app.active
-    box(pass, tab_x, 10, tab_w, 30,
+    box(pass, tab_x, 7, tab_w, 26,
       active and { 0.18, 0.22, 0.32, 1 } or { 0.11, 0.12, 0.16, 1 })
-    text(pass, app.font, label, tab_x + 10, 17,
-      active and { 0.95, 0.96, 1, 1 } or { 0.55, 0.6, 0.7, 1 }, 0.85)
-    self.tabs[#self.tabs + 1] = { x = tab_x, y = 10, w = tab_w, h = 30, index = index }
-    tab_x = tab_x + tab_w + 8
+    text(pass, app.font, label, tab_x + 10, 12,
+      active and { 0.95, 0.96, 1, 1 } or { 0.55, 0.6, 0.7, 1 }, 0.76)
+    self.tabs[#self.tabs + 1] = { x = tab_x, y = 7, w = tab_w, h = 26,
+      index = index }
+    tab_x = tab_x + tab_w + 6
   end
 
   -- Toolbar buttons.
-  local run_x = width - 110
-  box(pass, run_x, 10, 92, 30, { 0.18, 0.42, 0.30, 1 })
-  text(pass, app.font, "Run  F5", run_x + 12, 18, { 0.92, 1, 0.94, 1 }, 0.8)
-  self.buttons.run = { x = run_x, y = 10, w = 92, h = 30 }
-  local add_x = run_x - 110
-  box(pass, add_x, 10, 96, 30, { 0.15, 0.18, 0.25, 1 })
-  text(pass, app.font, "+ Cell", add_x + 16, 18, { 0.8, 0.86, 1, 1 }, 0.8)
-  self.buttons.add = { x = add_x, y = 10, w = 96, h = 30 }
+  local run_x = width - 98
+  box(pass, run_x, 7, 86, 26, { 0.18, 0.42, 0.30, 1 })
+  text(pass, app.font, "Run  F5", run_x + 10, 12, { 0.92, 1, 0.94, 1 }, 0.72)
+  self.buttons.run = { x = run_x, y = 7, w = 86, h = 26 }
+  local add_x = run_x - 96
+  box(pass, add_x, 7, 88, 26, { 0.15, 0.18, 0.25, 1 })
+  text(pass, app.font, "+ Cell", add_x + 14, 12, { 0.8, 0.86, 1, 1 }, 0.72)
+  self.buttons.add = { x = add_x, y = 7, w = 88, h = 26 }
   end
 
   local notebook = app:notebook()
@@ -230,7 +230,7 @@ function UI:draw(pass)
     self.last_active = notebook.active
     self.scroll_to_selected = true
   end
-  local content_top = self.zen_mode and 12 or 66
+  local content_top = self.zen_mode and 12 or 52
   local y = content_top - self.scroll
   self.rects = {}
   local content_height = 0
@@ -745,7 +745,7 @@ function UI:draw_tree(pass, width, height)
   local items = self.app:library_items()
   local panel_w = 360
   local panel_h = 122 + math.max(1, #items) * 26
-  local x, y = 20, 66
+  local x, y = 20, 52
   box(pass, x, y, panel_w, panel_h, { 0.035, 0.045, 0.07, 1 })
   text(pass, self.app.font, "Files  (F2 to close)", x + 14, y + 12,
     { 0.9, 0.94, 1, 1 }, 0.74)
@@ -866,7 +866,7 @@ function UI:draw_outline(pass, width, height)
   local headings = self.app:notebook():headings()
   local panel_w = 320
   local panel_h = 90 + math.max(1, #headings) * 30
-  local x, y = 20, 70
+  local x, y = 20, 54
   box(pass, x, y, panel_w, panel_h, { 0.045, 0.055, 0.08, 0.98 })
   text(pass, self.app.font, "Outline  (F11 to close)", x + 14, y + 14,
     { 0.9, 0.94, 1, 1 }, 0.78)

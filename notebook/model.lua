@@ -194,6 +194,19 @@ function Notebook:cell(index)
   return self.cells[index]
 end
 
+function Notebook:title()
+  for _, cell in ipairs(self.cells) do
+    if cell.kind == "markdown" then
+      local title = cell.source:match("^%s*#%s+([^\n]+)")
+      if title then
+        title = title:gsub("%s+#*%s*$", ""):gsub("^%s+", ""):gsub("%s+$", "")
+        if title ~= "" then return title end
+      end
+    end
+  end
+  return (self.name or "Untitled"):gsub("%.luanb$", "")
+end
+
 function Notebook:selected()
   return self.cells[self.active]
 end
@@ -647,6 +660,7 @@ widgets.shader({ label = "Star Nest", shader = "star_nest", height = 180 })]]),
   local second = Notebook.new({
     name = "second-kernel.luanb",
     cells = {
+      cell("markdown", "# Second kernel"),
       cell("code", [[
 -- This kernel has its own globals and lifetime.
 counter = 0
