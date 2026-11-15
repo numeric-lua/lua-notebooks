@@ -181,6 +181,21 @@ test("collapses markdown headings", function()
   eq(notebook.cells[1].collapsed, true)
 end)
 
+current = "outline"
+test("lists heading cells and levels", function()
+  local Notebook = require("notebook.model")
+  local notebook = Notebook.new({ cells = {
+    { kind = "markdown", source = "# First\nbody" },
+    { kind = "code", source = "x" },
+    { kind = "markdown", source = "## Second" },
+  } })
+  local headings = notebook:headings()
+  eq(#headings, 2)
+  eq(headings[1].level, 1)
+  eq(headings[1].text, "First")
+  eq(headings[2].index, 3)
+end)
+
 io.write(string.format("\n\n%d tests, %d passed, %d failed\n", passed + failed,
   passed, failed))
 if failed > 0 then

@@ -243,8 +243,37 @@ function UI:draw(pass)
     { 0.6, 0.68, 0.82, 1 }, 0.72)
   text(pass, app.font, "F5 run   F6 save   F7 load   Tab indent   Up/Down cell",
     width - 470, height - 22, { 0.45, 0.5, 0.62, 1 }, 0.65)
+  self:draw_outline(pass, width, height)
   self:draw_extension_browser(pass, width, height)
   return self.extension_passes
+end
+
+function UI:draw_outline(pass, width, height)
+  self.outline_rects = {}
+  if not self.show_outline then return end
+  local headings = self.app:notebook():headings()
+  local panel_w = 320
+  local panel_h = 90 + math.max(1, #headings) * 30
+  local x, y = 20, 70
+  box(pass, x, y, panel_w, panel_h, { 0.045, 0.055, 0.08, 0.98 })
+  text(pass, self.app.font, "Outline  (F11 to close)", x + 14, y + 14, 0.78,
+    { 0.9, 0.94, 1, 1 })
+  if #headings == 0 then
+    text(pass, self.app.font, "No markdown headings", x + 14, y + 52, 0.7,
+      { 0.55, 0.6, 0.7, 1 })
+  end
+  for index, heading in ipairs(headings) do
+    local row_y = y + 46 + (index - 1) * 30
+    local selected = heading.index == self.app:notebook().active
+    box(pass, x + 8, row_y, panel_w - 16, 26,
+      selected and { 0.14, 0.22, 0.34, 1 } or { 0.07, 0.08, 0.11, 1 })
+    text(pass, self.app.font, (heading.collapsed and "▸ " or "▾ ") ..
+      string.rep("  ", heading.level - 1) .. heading.text,
+      x + 18, row_y + 6, 0.68, { 0.8, 0.86, 0.98, 1 })
+    self.outline_rects[#self.outline_rects + 1] = {
+      x = x + 8, y = row_y, w = panel_w - 16, h = 26, index = heading.index,
+    }
+  end
 end
 
 function UI:draw_extension_browser(pass, width, height)
@@ -427,6 +456,16 @@ function UI:mousepressed(x, y, button)
       local collapsed = self.app:notebook():toggle_collapsed(index)
       self.app.status = collapsed and "collapsed heading" or "expanded heading"
       return
+    end
+  end
+  if self.show_outline then
+    for _, rect in ipairs(self.outline_rects) do
+      if inside(x, y, rect) then
+        self.app:notebook():select(rect.index)
+        self.show_outline = false
+        self.app.status = "jumped to heading"
+        return
+      end
     end
   end
   if self.show_extensions then

@@ -69,6 +69,7 @@ Controls:
 | `F8` | hot-reload the focused extension renderer |
 | `F9` | reload extensions from the save directory |
 | `F10` | open/close the extension browser; click a row to enable/disable |
+| `F11` | open/close the heading outline |
 | click a markdown heading arrow | collapse/expand following cells |
 | drag / wheel in 3D | orbit / zoom the focused extension |
 | tabs / **+ Cell** | switch notebook / add cell |

@@ -164,6 +164,23 @@ function Notebook.heading_level(cell)
   return hashes and #hashes or nil
 end
 
+function Notebook:headings()
+  local result = {}
+  for index, cell in ipairs(self.cells) do
+    local level = Notebook.heading_level(cell)
+    if level then
+      local text = cell.source:gsub("^#+%s*", ""):gsub("\n.*$", "")
+      result[#result + 1] = {
+        index = index,
+        level = level,
+        text = text,
+        collapsed = cell.collapsed == true,
+      }
+    end
+  end
+  return result
+end
+
 function Notebook:toggle_collapsed(index)
   local cell = self.cells[index]
   if cell == nil or Notebook.heading_level(cell) == nil then return false end
