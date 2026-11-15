@@ -110,6 +110,7 @@ LUANB_SMOKE_WIDGET_EVENT=1 lovr . # run the widget cell and change a slider
 LUANB_SMOKE_SAVE=1 lovr .   # save/load the active notebook, then quit
 LUANB_QA_CELL=6 lovr .      # run one cell and keep the window open for visual QA
 LUANB_SMOKE_RELOAD=1 lovr . # reload the cube renderer module, then quit
+LUANB_SMOKE_WATCH=1 lovr .  # touch cube.lua and verify filesystem hot reload
 LUANB_KERNEL_MODE=process LUANB_SMOKE=1 lovr . # process kernel
 LUANB_KERNEL_MODE=process LUANB_SMOKE_PROCESS_CRASH=1 lovr . # crash recovery
 ```

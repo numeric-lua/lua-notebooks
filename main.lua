@@ -128,6 +128,7 @@ end
 
 function App:reload_extension(id)
   local renderer, err = Extensions.reload(id)
+  if renderer then self.last_reload = id end
   if renderer == nil then
     self.status = "reload failed: " .. tostring(err)
   else
@@ -166,6 +167,22 @@ end
 
 function App:update()
   self.supervisor:poll()
+  if self.smoke_watch then
+    local elapsed = lovr.timer.getTime() - self.smoke_watch_started
+    if elapsed > 1 and not self.smoke_watch_touched then
+      self.smoke_watch_touched = true
+      os.execute("cp extensions/cube.lua /tmp/luanb-cube-watch.bak && " ..
+        "printf '\n-- watch probe\n' >> extensions/cube.lua")
+    elseif self.smoke_watch_touched and self.last_reload == "cube" then
+      print("SMOKE_WATCH=ok")
+      self.smoke_watch = false
+      lovr.event.quit()
+    elseif elapsed > 6 then
+      print("SMOKE_WATCH=timeout")
+      self.smoke_watch = false
+      lovr.event.quit()
+    end
+  end
   local now = lovr.timer.getTime()
   for request, target in pairs(self.pending) do
     if now - (target.started or now) > 8 then
@@ -202,6 +219,11 @@ function lovr.load()
   end
   lovr.filesystem.watch()
   _G.app = app
+  if os.getenv("LUANB_SMOKE_WATCH") then
+    app.smoke_watch = true
+    app.smoke_watch_started = lovr.timer.getTime()
+    app.smoke_watch_touched = false
+  end
 
   -- Visual QA/demo: select and run one cell, then leave the window open.
   local qa_cell = tonumber(os.getenv("LUANB_QA_CELL") or "")
@@ -221,7 +243,9 @@ function lovr.load()
   -- Non-interactive smoke path: run the first welcome cell, print its result,
   -- and quit.  This exercises thread startup, channels, the kernel worker, and
   -- result routing without requiring a human at the window.
-  if os.getenv("LUANB_SMOKE_RELOAD") then
+  if os.getenv("LUANB_SMOKE_WATCH") then
+    -- handled in update, after the watcher is installed
+  elseif os.getenv("LUANB_SMOKE_RELOAD") then
     local renderer, err = Extensions.reload("cube")
     print("SMOKE_RELOAD=" .. (renderer and "ok" or tostring(err)))
     lovr.event.quit()
@@ -258,7 +282,9 @@ function lovr.update(dt)
   if app.smoke then
     local notebook = app:notebook()
     local cell = notebook.cells[notebook.active]
-    if os.getenv("LUANB_SMOKE_RELOAD") then
+    if os.getenv("LUANB_SMOKE_WATCH") then
+    -- handled in update, after the watcher is installed
+  elseif os.getenv("LUANB_SMOKE_RELOAD") then
     local renderer, err = Extensions.reload("cube")
     print("SMOKE_RELOAD=" .. (renderer and "ok" or tostring(err)))
     lovr.event.quit()
@@ -348,7 +374,7 @@ function lovr.quit()
 end
 
 function lovr.filechanged(path, action)
-  local id = path:match("^extensions/([a-z][a-z0-9_-]*)%.lua$")
+  local id = path:match("extensions/([a-z][a-z0-9_-]*)%.lua$")
   if app and id and id ~= "init" and id ~= "loader" and id ~= "manifest" then
     app:reload_extension(id)
   end
