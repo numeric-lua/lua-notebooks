@@ -417,7 +417,22 @@ function lovr.load()
   end
   lovr.filesystem.watch()
   _G.app = app
-  if os.getenv("LUANB_SMOKE_NBSUB") then
+  if os.getenv("LUANB_SMOKE_VIMEDGE") then
+    app.ui.vim_normal = true
+    app.ui:keypressed("m")
+    app.ui:keypressed("a")
+    app.ui:keypressed("j")
+    app.ui:keypressed("'")
+    app.ui:keypressed("a")
+    local cell = app:notebook().selected()
+    cell.source = "abc"
+    cell.cursor = 4
+    app.ui:keypressed("x")
+    app.ui:keypressed(".")
+    print("SMOKE_VIMEDGE=" .. tostring(app:notebook().active) .. ":" ..
+      cell.source)
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_NBSUB") then
     local notebook = app:notebook()
     notebook.cells[1].source = "local old = 1"
     notebook.cells[2].source = "print(old)"
@@ -551,7 +566,22 @@ function lovr.load()
   -- Non-interactive smoke path: run the first welcome cell, print its result,
   -- and quit.  This exercises thread startup, channels, the kernel worker, and
   -- result routing without requiring a human at the window.
-  if os.getenv("LUANB_SMOKE_NBSUB") then
+  if os.getenv("LUANB_SMOKE_VIMEDGE") then
+    app.ui.vim_normal = true
+    app.ui:keypressed("m")
+    app.ui:keypressed("a")
+    app.ui:keypressed("j")
+    app.ui:keypressed("'")
+    app.ui:keypressed("a")
+    local cell = app:notebook().selected()
+    cell.source = "abc"
+    cell.cursor = 4
+    app.ui:keypressed("x")
+    app.ui:keypressed(".")
+    print("SMOKE_VIMEDGE=" .. tostring(app:notebook().active) .. ":" ..
+      cell.source)
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_NBSUB") then
     local notebook = app:notebook()
     notebook.cells[1].source = "local old = 1"
     notebook.cells[2].source = "print(old)"
@@ -675,7 +705,22 @@ function lovr.update(dt)
   if app.smoke then
     local notebook = app:notebook()
     local cell = notebook.cells[notebook.active]
-    if os.getenv("LUANB_SMOKE_NBSUB") then
+    if os.getenv("LUANB_SMOKE_VIMEDGE") then
+    app.ui.vim_normal = true
+    app.ui:keypressed("m")
+    app.ui:keypressed("a")
+    app.ui:keypressed("j")
+    app.ui:keypressed("'")
+    app.ui:keypressed("a")
+    local cell = app:notebook().selected()
+    cell.source = "abc"
+    cell.cursor = 4
+    app.ui:keypressed("x")
+    app.ui:keypressed(".")
+    print("SMOKE_VIMEDGE=" .. tostring(app:notebook().active) .. ":" ..
+      cell.source)
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_NBSUB") then
     local notebook = app:notebook()
     notebook.cells[1].source = "local old = 1"
     notebook.cells[2].source = "print(old)"

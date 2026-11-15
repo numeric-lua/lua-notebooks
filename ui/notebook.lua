@@ -147,6 +147,9 @@ function UI.new(app)
     vim_macros = {},
     vim_last_macro = nil,
     vim_replaying = false,
+    vim_marks = {},
+    vim_pending_mark = nil,
+    vim_last_change = nil,
     vim_char_visual = false,
     vim_char_anchor = nil,
     vim_char_yank = nil,
@@ -1330,6 +1333,7 @@ function UI:keypressed(key)
       self.app.status = notebook:undo() and "undo" or "nothing to undo"
       return
     elseif key == "x" then
+      self.vim_last_change = "x"
       local cell = notebook.cells[notebook.active]
       if cell and cell.kind == "code" then
         cell.source = cell.source:sub(1, -2)
