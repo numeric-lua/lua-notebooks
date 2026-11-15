@@ -266,6 +266,28 @@ test("undoes and redoes text and cell edits", function()
   eq(#notebook.cells, 1)
 end)
 
+current = "undo tree"
+test("preserves branches after undo and edit", function()
+  local Notebook = require("notebook.model")
+  local notebook = Notebook.new({ cells = { { kind = "code", source = "" } } })
+  notebook:insert("a")
+  notebook:undo()
+  notebook:insert("b")
+  notebook:flush_history()
+  local nodes = notebook:history_nodes_flat()
+  assert(#nodes >= 3, #nodes)
+  notebook:undo()
+  eq(notebook.cells[1].source, "")
+  notebook:redo()
+  eq(notebook.cells[1].source, "b")
+  local target
+  for _, item in ipairs(nodes) do
+    if item.node.label == "insert text" then target = item.node.id; break end
+  end
+  assert(notebook:restore_history(target))
+  eq(notebook.cells[1].source, "a")
+end)
+
 current = "insertion"
 test("adds a cell after the focused cell", function()
   local Notebook = require("notebook.model")

@@ -140,6 +140,12 @@ to the widget rectangle. The included `star_nest` preset is the MIT-licensed
 Star Nest shader by Pablo Román Andrioli, adapted from the shooter project.
 Custom fragment source can also be supplied through `shader`.
 
+## Undo tree
+
+Edits are stored as a branching history instead of a single linear stack. Undo
+after a change and start a new edit to create a branch; `:history` shows the
+tree, and `g-`/`g+` walk older/newer states.
+
 ## Markdown editing
 
 Markdown cells are fully editable: typing, backspace/delete, newline, cursor

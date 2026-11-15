@@ -34,6 +34,11 @@ function Notebook.new(options)
     dirty = false,
     undo_stack = {},
     redo_stack = {},
+    history_nodes = {},
+    history_current = nil,
+    history_sequence = 0,
+    history_dirty = false,
+    history_pending_label = nil,
   }, Notebook)
   if #self.cells == 0 then
     self.cells[1] = cell("code", "")
@@ -44,6 +49,8 @@ function Notebook.new(options)
     seen[item.id] = true
     item.cursor = item.cursor or (#(item.source or "") + 1)
   end
+  self.history_root = self:add_history_node(nil, "initial", self:snapshot())
+  self.history_current = self.history_root
   return self
 end
 
@@ -60,29 +67,126 @@ function Notebook:snapshot()
   return { active = self.active, cells = cells }
 end
 
+function Notebook:copy_snapshot(snapshot)
+  local cells = {}
+  for index, item in ipairs(snapshot.cells) do
+    local copy = {}
+    for key, value in pairs(item) do copy[key] = value end
+    cells[index] = copy
+  end
+  return { active = snapshot.active, cells = cells }
+end
+
 function Notebook:restore(snapshot)
-  self.cells = snapshot.cells
-  self.active = snapshot.active
+  local copy = self:copy_snapshot(snapshot)
+  self.cells = copy.cells
+  self.active = copy.active
   self.dirty = true
 end
 
-function Notebook:push_undo()
-  self.undo_stack[#self.undo_stack + 1] = self:snapshot()
-  if #self.undo_stack > 50 then table.remove(self.undo_stack, 1) end
-  self.redo_stack = {}
+function Notebook:add_history_node(parent, label, snapshot)
+  self.history_sequence = self.history_sequence + 1
+  local node = {
+    id = self.history_sequence,
+    parent = parent,
+    children = {},
+    snapshot = snapshot or self:snapshot(),
+    label = label or "edit",
+  }
+  if parent then
+    parent.children[#parent.children + 1] = node
+    parent.active_child = node.id
+  end
+  self.history_nodes[#self.history_nodes + 1] = node
+  return node
+end
+
+function Notebook:flush_history()
+  if self.history_dirty then
+    self:checkpoint_history(self.history_pending_label)
+  end
+end
+
+function Notebook:checkpoint_history(label)
+  local node = self:add_history_node(self.history_current,
+    label or self.history_pending_label or "edit")
+  self.history_current = node
+  self.history_dirty = false
+  self.history_pending_label = nil
+  return node
+end
+
+function Notebook:push_undo(label)
+  if self.history_dirty then
+    self:checkpoint_history(self.history_pending_label)
+  end
+  self.history_pending_label = label or "edit"
+  self.history_dirty = true
 end
 
 function Notebook:undo()
-  if #self.undo_stack == 0 then return false end
-  self.redo_stack[#self.redo_stack + 1] = self:snapshot()
-  self:restore(table.remove(self.undo_stack))
+  if self.history_dirty then
+    self:checkpoint_history(self.history_pending_label)
+  end
+  local current = self.history_current
+  if current == nil or current.parent == nil then return false end
+  current.parent.active_child = current.id
+  self.history_current = current.parent
+  self:restore(current.parent.snapshot)
+  self.history_dirty = false
+  self.history_pending_label = nil
   return true
 end
 
 function Notebook:redo()
-  if #self.redo_stack == 0 then return false end
-  self.undo_stack[#self.undo_stack + 1] = self:snapshot()
-  self:restore(table.remove(self.redo_stack))
+  if self.history_dirty then
+    self:checkpoint_history(self.history_pending_label)
+  end
+  local current = self.history_current
+  if current == nil or #current.children == 0 then return false end
+  local target
+  for _, child in ipairs(current.children) do
+    if child.id == current.active_child then target = child; break end
+  end
+  target = target or current.children[#current.children]
+  self.history_current = target
+  self:restore(target.snapshot)
+  self.history_dirty = false
+  self.history_pending_label = nil
+  return true
+end
+
+function Notebook:reset_history()
+  self.history_nodes = {}
+  self.history_sequence = 0
+  self.history_root = self:add_history_node(nil, "initial", self:snapshot())
+  self.history_current = self.history_root
+  self.history_dirty = false
+  self.history_pending_label = nil
+end
+
+function Notebook:history_nodes_flat()
+  local result = {}
+  local function walk(node, depth)
+    result[#result + 1] = { node = node, depth = depth,
+      current = node == self.history_current }
+    for _, child in ipairs(node.children) do walk(child, depth + 1) end
+  end
+  if self.history_root then walk(self.history_root, 0) end
+  return result
+end
+
+function Notebook:restore_history(id)
+  local target
+  for _, node in ipairs(self.history_nodes) do
+    if node.id == id then target = node; break end
+  end
+  if target == nil then return false end
+  if target == self.history_current then return true end
+  self.history_current = target
+  self:restore(target.snapshot)
+  self.history_dirty = false
+  self.history_pending_label = nil
   return true
 end
 
@@ -111,7 +215,7 @@ function Notebook:set_cell_kind(index, kind)
   if cell == nil or (kind ~= "code" and kind ~= "markdown") then
     return false
   end
-  self:push_undo()
+  self:push_undo("change cell kind")
   cell.kind = kind
   cell.output = ""
   cell.scene = nil
@@ -123,7 +227,7 @@ end
 
 function Notebook:delete_cell(index)
   if self.cells[index] == nil or #self.cells <= 1 then return false end
-  self:push_undo()
+  self:push_undo("delete cell")
   table.remove(self.cells, index)
   self.active = math.max(1, math.min(self.active, #self.cells))
   self.dirty = true
@@ -131,7 +235,7 @@ function Notebook:delete_cell(index)
 end
 
 function Notebook:insert_cell(index, cell)
-  self:push_undo()
+  self:push_undo("insert cell")
   table.insert(self.cells, index, cell)
   self.active = index
   self.dirty = true
@@ -154,7 +258,7 @@ function Notebook:copy_cell(index)
 end
 
 function Notebook:add_cell(kind, after_index)
-  self:push_undo()
+  self:push_undo("add cell")
   local index = (after_index or self.active or #self.cells) + 1
   index = math.max(1, math.min(#self.cells + 1, index))
   table.insert(self.cells, index, cell(kind or "code", ""))
@@ -275,7 +379,7 @@ function Notebook:delete_range(anchor, cursor)
 end
 
 function Notebook:insert(text)
-  self:push_undo()
+  self:push_undo("insert text")
   local current = self:selected()
   if current.kind ~= "code" and current.kind ~= "markdown" then return end
   local cursor = current.cursor or (#current.source + 1)
@@ -308,7 +412,7 @@ local function next_end(text, cursor)
 end
 
 function Notebook:backspace()
-  self:push_undo()
+  self:push_undo("backspace")
   local current = self:selected()
   if current.kind ~= "code" and current.kind ~= "markdown" then return end
   local cursor = current.cursor or (#current.source + 1)
@@ -423,7 +527,7 @@ function Notebook:toggle_collapsed(index)
 end
 
 function Notebook:newline()
-  self:push_undo()
+  self:push_undo("newline")
   self:insert("\n")
 end
 

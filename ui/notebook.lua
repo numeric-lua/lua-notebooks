@@ -169,6 +169,9 @@ function UI.new(app)
     confirm_delete = nil,
     symbol_prompt = nil,
     zen_mode = false,
+    show_history = false,
+    history_items = {},
+    history_selected = 1,
     vim_normal = app.vim_mode,
   }, UI)
 end
@@ -564,6 +567,7 @@ function UI:draw(pass)
   self:draw_confirm(pass, width, height)
   self:draw_symbol_prompt(pass, width, height)
   self:draw_outline(pass, width, height)
+  self:draw_history(pass, width, height)
   self:draw_extension_browser(pass, width, height)
   self:draw_help(pass, width, height)
   self:draw_palette(pass, width, height)
@@ -588,6 +592,7 @@ function UI:palette_commands()
     { id = "zen", label = "Toggle Zen mode  (F4)" },
     { id = "screenshot", label = "Save screenshot  (Ctrl+Shift+S)" },
     { id = "theme", label = "Toggle light/dark theme  (Ctrl+Shift+T)" },
+    { id = "history", label = "Undo history  (Ctrl+Shift+U)" },
     { id = "cell-below", label = "Insert code cell below  (Alt+B)" },
     { id = "cell-above", label = "Insert code cell above  (Alt+A)" },
     { id = "markdown-below", label = "Insert markdown cell below  (Alt+M)" },
@@ -618,6 +623,7 @@ function UI:run_palette_command(id)
   elseif id == "load" then self.app:load()
   elseif id == "new" then self.app:new_notebook()
   elseif id == "tree" then self.show_tree = true
+  elseif id == "history" then self:open_history()
   elseif id == "cell-below" then self.app:add_cell("code")
   elseif id == "cell-above" then self.app:add_cell_above("code")
   elseif id == "markdown-below" then self.app:add_cell("markdown")
@@ -997,6 +1003,46 @@ function UI:textinput(value)
   self.app:notebook():insert(value)
 end
 
+function UI:open_history()
+  self.app:notebook():flush_history()
+  self.history_items = self.app:notebook():history_nodes_flat()
+  self.history_selected = 1
+  for index, item in ipairs(self.history_items) do
+    if item.current then self.history_selected = index; break end
+  end
+  self.show_history = true
+end
+
+function UI:draw_history(pass, width, height)
+  if not self.show_history then return end
+  local app = self.app
+  local panel_w = math.min(640, width - 80)
+  local rows = math.min(#self.history_items, 14)
+  local panel_h = 64 + rows * 24
+  local x = (width - panel_w) / 2
+  local y = math.max(70, (height - panel_h) / 2)
+  box(pass, x, y, panel_w, panel_h, { 0.035, 0.045, 0.065, 0.98 })
+  box(pass, x, y, panel_w, 2, { 0.35, 0.62, 0.95, 1 })
+  box(pass, x, y + panel_h - 1, panel_w, 1, { 0.2, 0.3, 0.45, 1 })
+  text(pass, app.font, "Undo history  (Enter restore · g- / g+ undo/redo)",
+    x + 16, y + 12, { 0.8, 0.86, 1, 1 }, 0.78)
+  local first = math.max(1, self.history_selected - rows + 1)
+  for row = 0, rows - 1 do
+    local index = first + row
+    local item = self.history_items[index]
+    if item == nil then break end
+    local row_y = y + 44 + row * 24
+    if index == self.history_selected then
+      box(pass, x + 8, row_y - 4, panel_w - 16, 22,
+        { 0.16, 0.24, 0.38, 1 })
+    end
+    text(pass, app.font, string.rep("  ", item.depth) ..
+      (item.current and "● " or "○ ") .. "#" .. item.node.id .. "  " ..
+      item.node.label, x + 18, row_y,
+      item.current and { 0.45, 0.85, 1, 1 } or { 0.7, 0.76, 0.9, 1 }, 0.7)
+  end
+end
+
 function UI:update(dt)
   if self.nav_repeat == nil then return end
   local key = self.nav_repeat.key
@@ -1109,6 +1155,12 @@ function UI:run_vim_command(command)
     self.app:notebook():undo()
   elseif command == "redo" then
     self.app:notebook():redo()
+  elseif command == "history" then
+    self:open_history()
+  elseif command == "earlier" then
+    self.app.status = self.app:notebook():undo() and "earlier" or "start of history"
+  elseif command == "later" then
+    self.app.status = self.app:notebook():redo() and "later" or "end of history"
   elseif command:match("^%%sr/(.-)/(.-)/g?$") then
     local pattern, replacement = command:match("^%%sr/(.-)/(.-)/g?$")
     local global = command:sub(-1) == "g"
@@ -1201,6 +1253,24 @@ function UI:keypressed(key)
     end
     return
   end
+  if self.show_history then
+    if key == "escape" or key == "q" then
+      self.show_history = false
+    elseif key == "up" then
+      self.history_selected = math.max(1, self.history_selected - 1)
+    elseif key == "down" then
+      self.history_selected = math.min(#self.history_items,
+        self.history_selected + 1)
+    elseif key == "return" then
+      local item = self.history_items[self.history_selected]
+      if item then
+        self.app:notebook():restore_history(item.node.id)
+        self.show_history = false
+        self.app.status = "history restored"
+      end
+    end
+    return
+  end
   if self.vim_recording and not self.vim_replaying and key ~= "q" then
     self.vim_recording[#self.vim_recording + 1] = key
   end
@@ -1284,6 +1354,11 @@ function UI:keypressed(key)
     end
     return
   end
+  if key == "u" and lovr.system and lovr.system.isKeyDown and
+     (lovr.system.isKeyDown("lctrl") or lovr.system.isKeyDown("rctrl")) and
+     (lovr.system.isKeyDown("lshift") or lovr.system.isKeyDown("rshift")) then
+    self:open_history(); return
+  end
   if key == "r" and lovr.system and lovr.system.isKeyDown and
      (lovr.system.isKeyDown("lctrl") or lovr.system.isKeyDown("rctrl")) and
      (lovr.system.isKeyDown("lshift") or lovr.system.isKeyDown("rshift")) then
@@ -1298,6 +1373,11 @@ function UI:keypressed(key)
      (lovr.system.isKeyDown("lctrl") or lovr.system.isKeyDown("rctrl")) then
     self.app:set_cell_kind(key == "1" and "code" or "markdown")
     return
+  end
+  if key == "u" and lovr.system and lovr.system.isKeyDown and
+     (lovr.system.isKeyDown("lctrl") or lovr.system.isKeyDown("rctrl")) and
+     (lovr.system.isKeyDown("lshift") or lovr.system.isKeyDown("rshift")) then
+    self:open_history(); return
   end
   if key == "r" and lovr.system and lovr.system.isKeyDown and
      (lovr.system.isKeyDown("lctrl") or lovr.system.isKeyDown("rctrl")) then
@@ -1420,6 +1500,12 @@ function UI:keypressed(key)
       self.vim_pending = nil
       if pending == "g" and key == "g" then
         notebook:select(1); self.scroll_to_selected = true; return
+      elseif pending == "g" and key == "-" then
+        self.app.status = notebook:undo() and "undo" or "nothing to undo"
+        return
+      elseif pending == "g" and key == "+" then
+        self.app.status = notebook:redo() and "redo" or "nothing to redo"
+        return
       elseif pending == "d" and key == "d" then
         self.vim_last_change = "dd"
         notebook:delete_cell(notebook.active); return

@@ -453,6 +453,17 @@ function lovr.load()
   app.ui = UI.new(app)
   Theme.load()
   if os.getenv("LUANB_QA_THEME") then Theme.set(os.getenv("LUANB_QA_THEME")) end
+  if os.getenv("LUANB_QA_HISTORY") then
+    local notebook = app:notebook()
+    notebook.cells[notebook.active].source = ""
+    notebook.cells[notebook.active].cursor = 1
+    notebook:reset_history()
+    notebook:insert("a")
+    notebook:undo()
+    notebook:insert("b")
+    notebook:flush_history()
+    app.ui:open_history()
+  end
   app:open_all_kernels()
   local loaded, errors = Extensions.discover()
   local user_loaded, user_errors = Extensions.discover_user()
@@ -465,7 +476,21 @@ function lovr.load()
   end
   lovr.filesystem.watch()
   _G.app = app
-  if os.getenv("LUANB_SMOKE_VIMOBJ") then
+  if os.getenv("LUANB_SMOKE_UNDOTREE") then
+    app:notebook().cells[1].source = ""
+    app:notebook().cells[1].cursor = 1
+    app:notebook():reset_history()
+    app:notebook():insert("a")
+    app:notebook():undo()
+    app:notebook():insert("b")
+    app:notebook():flush_history()
+    local nodes = app:notebook():history_nodes_flat()
+    app:notebook():undo()
+    app:notebook():redo()
+    print("SMOKE_UNDOTREE=" .. #nodes .. ":" ..
+      app:notebook():selected().source)
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_VIMOBJ") then
     app.ui.vim_normal = true
     local cell = app:notebook():selected()
     cell.source = 'print("hello")'
