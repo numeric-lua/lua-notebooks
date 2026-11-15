@@ -98,24 +98,62 @@ function Scope.analyze(source)
     return nil
   end
 
+  local function skip_space_tokens(position)
+    while tokens[position] and tokens[position].kind == "symbol" and
+          tokens[position].text:match("%s") do
+      position = position + 1
+    end
+    return position
+  end
+
+  local function add_parameters(index)
+    local position = skip_space_tokens(index + 1)
+    if not tokens[position] or tokens[position].text ~= "(" then return end
+    position = position + 1
+    while tokens[position] and tokens[position].text ~= ")" do
+      local token = tokens[position]
+      if token.kind == "word" and not KEYWORDS[token.text] then
+        add_binding(token.text, index, token)
+      end
+      position = position + 1
+    end
+  end
+
+  local function add_for_bindings(index)
+    local position = skip_space_tokens(index + 1)
+    while tokens[position] and tokens[position].text ~= "=" and
+          tokens[position].text ~= "in" do
+      local token = tokens[position]
+      if token.kind == "word" and not KEYWORDS[token.text] then
+        add_binding(token.text, index, token)
+      end
+      position = position + 1
+    end
+  end
+
+  local expected_do = false
   for index, token in ipairs(tokens) do
     if token.kind == "word" then
       if BLOCK_OPEN[token.text] then
-        scopes[#scopes + 1] = { bindings = {} }
+        if token.text == "do" and expected_do then
+          expected_do = false
+        else
+          scopes[#scopes + 1] = { bindings = {} }
+          if token.text == "for" then
+            add_for_bindings(index)
+            expected_do = true
+          elseif token.text == "while" then
+            expected_do = true
+          elseif token.text == "function" then
+            add_parameters(index)
+          end
+        end
       elseif token.text == "end" or token.text == "until" then
         if #scopes > 1 then table.remove(scopes) end
       elseif token.text == "local" then
-        local next_index = index + 1
-        local function skip_space(position)
-          while tokens[position] and tokens[position].kind == "symbol" and
-                tokens[position].text:match("%s") do
-            position = position + 1
-          end
-          return position
-        end
-        next_index = skip_space(next_index)
+        local next_index = skip_space_tokens(index + 1)
         if tokens[next_index] and tokens[next_index].text == "function" then
-          next_index = skip_space(next_index + 1)
+          next_index = skip_space_tokens(next_index + 1)
           if tokens[next_index] and tokens[next_index].kind == "word" then
             add_binding(tokens[next_index].text, index, tokens[next_index])
           end
@@ -123,9 +161,9 @@ function Scope.analyze(source)
           while tokens[next_index] and tokens[next_index].kind == "word" and
                 not KEYWORDS[tokens[next_index].text] do
             add_binding(tokens[next_index].text, index, tokens[next_index])
-            next_index = skip_space(next_index + 1)
+            next_index = skip_space_tokens(next_index + 1)
             if tokens[next_index] and tokens[next_index].text == "," then
-              next_index = skip_space(next_index + 1)
+              next_index = skip_space_tokens(next_index + 1)
             else
               break
             end
