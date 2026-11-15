@@ -102,6 +102,17 @@ function Format.list_tree(expanded, prefix, depth)
   return entries
 end
 
+function Format.create_folder(name)
+  name = (name or ""):gsub("^%s+", ""):gsub("%s+$", ""):gsub("%s+", "-")
+  if name == "" or name:find("%.%.") or name:find("/") then
+    return nil, "invalid folder name"
+  end
+  local path = "notebooks/" .. name
+  local ok, err = lovr.filesystem.createDirectory(path)
+  if not ok then return nil, err end
+  return path
+end
+
 function Format.rename(old_name, new_name)
   if not new_name:match("%.luanb$") then new_name = new_name .. ".luanb" end
   if new_name:find("%.%.") or new_name:sub(1, 1) == "/" then

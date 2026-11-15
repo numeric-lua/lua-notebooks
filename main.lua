@@ -84,6 +84,13 @@ function App:new_notebook()
   self.status = "created " .. name
 end
 
+function App:create_folder(name)
+  local path, err = Format.create_folder(name)
+  if path == nil then self.status = "folder failed: " .. tostring(err); return end
+  self.tree_expanded[path] = true
+  self.status = "created " .. path
+end
+
 function App:rename_notebook(old_name, new_name)
   local renamed, err = Format.rename(old_name, new_name)
   if renamed == nil then
@@ -304,7 +311,12 @@ function lovr.load()
   end
   lovr.filesystem.watch()
   _G.app = app
-  if os.getenv("LUANB_SMOKE_RENAME") then
+  if os.getenv("LUANB_SMOKE_FOLDER") then
+    local path, err = Format.create_folder("folder-smoke")
+    print("SMOKE_FOLDER=" .. tostring(path) .. " err=" .. tostring(err))
+    os.remove(lovr.filesystem.getSaveDirectory() .. "/" .. tostring(path))
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_RENAME") then
     app:new_notebook()
     local old = app:notebook().name
     app:rename_notebook(old, "renamed-smoke")
@@ -367,7 +379,12 @@ function lovr.load()
   -- Non-interactive smoke path: run the first welcome cell, print its result,
   -- and quit.  This exercises thread startup, channels, the kernel worker, and
   -- result routing without requiring a human at the window.
-  if os.getenv("LUANB_SMOKE_RENAME") then
+  if os.getenv("LUANB_SMOKE_FOLDER") then
+    local path, err = Format.create_folder("folder-smoke")
+    print("SMOKE_FOLDER=" .. tostring(path) .. " err=" .. tostring(err))
+    os.remove(lovr.filesystem.getSaveDirectory() .. "/" .. tostring(path))
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_RENAME") then
     app:new_notebook()
     local old = app:notebook().name
     app:rename_notebook(old, "renamed-smoke")
@@ -439,7 +456,12 @@ function lovr.update(dt)
   if app.smoke then
     local notebook = app:notebook()
     local cell = notebook.cells[notebook.active]
-    if os.getenv("LUANB_SMOKE_RENAME") then
+    if os.getenv("LUANB_SMOKE_FOLDER") then
+    local path, err = Format.create_folder("folder-smoke")
+    print("SMOKE_FOLDER=" .. tostring(path) .. " err=" .. tostring(err))
+    os.remove(lovr.filesystem.getSaveDirectory() .. "/" .. tostring(path))
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_RENAME") then
     app:new_notebook()
     local old = app:notebook().name
     app:rename_notebook(old, "renamed-smoke")

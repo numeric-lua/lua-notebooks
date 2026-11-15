@@ -89,7 +89,8 @@ and global state.
 
 **F2** opens a hierarchical list of saved notebooks under `notebooks/`.
 Clicking a folder expands it, clicking a notebook opens it, `+ New notebook`
-creates one, `✎` renames one, and `×` deletes one.
+creates one, `+ Folder` creates a folder, `✎` renames one, and `×` asks for
+confirmation before deleting one.
 
 Vim mode is **on by default** and is shown in the footer:
 

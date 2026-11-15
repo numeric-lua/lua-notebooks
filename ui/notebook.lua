@@ -130,6 +130,8 @@ function UI.new(app)
     tree_rects = {},
     tree_items = {},
     rename_prompt = nil,
+    folder_prompt = nil,
+    confirm_delete = nil,
   }, UI)
 end
 
@@ -362,6 +364,7 @@ function UI:draw(pass)
   self:draw_hover(pass, width, height)
   self:draw_tree(pass, width, height)
   self:draw_rename(pass, width, height)
+  self:draw_confirm(pass, width, height)
   self:draw_outline(pass, width, height)
   self:draw_extension_browser(pass, width, height)
   self:draw_help(pass, width, height)
@@ -478,11 +481,19 @@ function UI:draw_tree(pass, width, height)
   box(pass, x, y, panel_w, panel_h, { 0.035, 0.045, 0.07, 1 })
   text(pass, self.app.font, "Files  (F2 to close)", x + 14, y + 12,
     { 0.9, 0.94, 1, 1 }, 0.74)
-  box(pass, x + 12, y + 36, panel_w - 24, 26, { 0.12, 0.22, 0.16, 1 })
-  text(pass, self.app.font, "+ New notebook", x + 24, y + 42,
-    { 0.8, 0.95, 0.85, 1 }, 0.68)
+  box(pass, x + 12, y + 36, (panel_w - 28) / 2, 26, { 0.12, 0.22, 0.16, 1 })
+  text(pass, self.app.font, "+ Notebook", x + 22, y + 42,
+    { 0.8, 0.95, 0.85, 1 }, 0.66)
   self.tree_rects[#self.tree_rects + 1] = {
-    x = x + 12, y = y + 36, w = panel_w - 24, h = 26, action = "new",
+    x = x + 12, y = y + 36, w = (panel_w - 28) / 2, h = 26, action = "new",
+  }
+  box(pass, x + 18 + (panel_w - 28) / 2, y + 36, (panel_w - 28) / 2, 26,
+    { 0.12, 0.16, 0.26, 1 })
+  text(pass, self.app.font, "+ Folder", x + 28 + (panel_w - 28) / 2, y + 42,
+    { 0.8, 0.88, 1, 1 }, 0.66)
+  self.tree_rects[#self.tree_rects + 1] = {
+    x = x + 18 + (panel_w - 28) / 2, y = y + 36,
+    w = (panel_w - 28) / 2, h = 26, action = "folder",
   }
   for index, item in ipairs(items) do
     local row_y = y + 72 + (index - 1) * 26
@@ -526,6 +537,25 @@ function UI:draw_rename(pass, width, height)
   box(pass, x + 14, y + 40, panel_w - 28, 28, { 0.09, 0.12, 0.18, 1 })
   text(pass, self.app.font, self.rename_prompt.value .. "|", x + 24, y + 47,
     { 0.85, 0.92, 1, 1 }, 0.7)
+end
+
+function UI:draw_confirm(pass, width, height)
+  if self.confirm_delete == nil and self.folder_prompt == nil then return end
+  local panel_w, panel_h = 500, 100
+  local x, y = (width - panel_w) / 2, 150
+  box(pass, x, y, panel_w, panel_h, { 0.04, 0.05, 0.08, 1 })
+  if self.confirm_delete then
+    text(pass, self.app.font, "Delete " .. self.confirm_delete.name .. "?",
+      x + 16, y + 14, { 0.95, 0.7, 0.7, 1 }, 0.72)
+    text(pass, self.app.font, "Enter/Y confirms · Escape/N cancels", x + 16,
+      y + 48, { 0.7, 0.76, 0.9, 1 }, 0.66)
+  else
+    text(pass, self.app.font, "New folder", x + 16, y + 14,
+      { 0.85, 0.92, 1, 1 }, 0.72)
+    box(pass, x + 14, y + 42, panel_w - 28, 28, { 0.09, 0.12, 0.18, 1 })
+    text(pass, self.app.font, self.folder_prompt.value .. "|", x + 24, y + 49,
+      { 0.85, 0.92, 1, 1 }, 0.7)
+  end
 end
 
 function UI:draw_outline(pass, width, height)
@@ -616,8 +646,56 @@ end
 
 function UI:textinput(value)
   if value == "\r" or value == "\n" then return end
+  if self.confirm_delete then
+    if key == "return" or key == "y" then
+      local name = self.confirm_delete.name
+      self.confirm_delete = nil
+      self.app:delete_notebook(name)
+    elseif key == "escape" or key == "n" then
+      self.confirm_delete = nil
+    end
+    return
+  end
+  if self.folder_prompt then
+    if key == "escape" then
+      self.folder_prompt = nil
+    elseif key == "backspace" then
+      self.folder_prompt.value = self.folder_prompt.value:sub(1, -2)
+    elseif key == "return" then
+      local value = self.folder_prompt.value
+      self.folder_prompt = nil
+      self.app:create_folder(value)
+    end
+    return
+  end
   if self.rename_prompt then
     self.rename_prompt.value = self.rename_prompt.value .. value
+    return
+  end
+  if self.folder_prompt then
+    self.folder_prompt.value = self.folder_prompt.value .. value
+    return
+  end
+  if self.confirm_delete then
+    if key == "return" or key == "y" then
+      local name = self.confirm_delete.name
+      self.confirm_delete = nil
+      self.app:delete_notebook(name)
+    elseif key == "escape" or key == "n" then
+      self.confirm_delete = nil
+    end
+    return
+  end
+  if self.folder_prompt then
+    if key == "escape" then
+      self.folder_prompt = nil
+    elseif key == "backspace" then
+      self.folder_prompt.value = self.folder_prompt.value:sub(1, -2)
+    elseif key == "return" then
+      local value = self.folder_prompt.value
+      self.folder_prompt = nil
+      self.app:create_folder(value)
+    end
     return
   end
   if self.rename_prompt then
@@ -740,6 +818,28 @@ end
 
 function UI:keypressed(key)
   local notebook = self.app:notebook()
+  if self.confirm_delete then
+    if key == "return" or key == "y" then
+      local name = self.confirm_delete.name
+      self.confirm_delete = nil
+      self.app:delete_notebook(name)
+    elseif key == "escape" or key == "n" then
+      self.confirm_delete = nil
+    end
+    return
+  end
+  if self.folder_prompt then
+    if key == "escape" then
+      self.folder_prompt = nil
+    elseif key == "backspace" then
+      self.folder_prompt.value = self.folder_prompt.value:sub(1, -2)
+    elseif key == "return" then
+      local value = self.folder_prompt.value
+      self.folder_prompt = nil
+      self.app:create_folder(value)
+    end
+    return
+  end
   if self.rename_prompt then
     if key == "escape" then
       self.rename_prompt = nil
@@ -995,8 +1095,10 @@ function UI:mousepressed(x, y, button)
           self.rename_prompt = {
             old = rect.name, value = rect.name:gsub("%.luanb$", ""),
           }
+        elseif rect.action == "folder" then
+          self.folder_prompt = { value = "" }
         elseif rect.action == "delete" then
-          self.app:delete_notebook(rect.name)
+          self.confirm_delete = { name = rect.name }
         elseif rect.kind == "directory" then
           self.app.tree_expanded[rect.path] =
             not self.app.tree_expanded[rect.path]
