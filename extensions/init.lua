@@ -123,6 +123,14 @@ end
 
 function Extensions.discover_user()
   local Loader = require("extensions.loader")
+  local Sandbox = require("extensions.sandbox")
+  local env = Sandbox.create({
+    graphics = lovr.graphics,
+    timer = lovr.timer,
+    vec3 = vec3,
+    mat4 = mat4,
+    quat = quat,
+  })
   local directory = "user-extensions"
   pcall(lovr.filesystem.createDirectory, directory)
   local loaded, errors = {}, {}
@@ -132,7 +140,7 @@ function Extensions.discover_user()
     local name = filename:match("^([a-z][a-z0-9_-]*)%.lua$")
     if name then
       local descriptor, err = Loader.load_file(directory .. "/" .. filename,
-        name)
+        name, { env = env })
       if descriptor then
         register_or_replace(descriptor, true)
         loaded[#loaded + 1] = descriptor

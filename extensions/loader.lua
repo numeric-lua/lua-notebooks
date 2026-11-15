@@ -30,6 +30,12 @@ function Loader.load_file(path, name, options)
   local load = options.load or lovr.filesystem.load
   local chunk, load_error = load(path)
   if chunk == nil then return nil, load_error end
+  if options.env then
+    if type(setfenv) ~= "function" then
+      return nil, "this Lua runtime has no setfenv; refusing user extension"
+    end
+    setfenv(chunk, options.env)
+  end
   local ok, descriptor = pcall(chunk)
   if not ok then return nil, descriptor end
   if type(descriptor) ~= "table" then

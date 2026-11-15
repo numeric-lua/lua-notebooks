@@ -7,6 +7,7 @@ test:
 	$(LUA) tests/run.lua
 	$(LUA) tests/widgets.lua
 	$(LUA) tests/process.lua
+	$(LUA) tests/sandbox.lua
 
 run:
 	lovr .

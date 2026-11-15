@@ -94,7 +94,11 @@ Drop a `.lua` extension module into:
 ```
 
 Press **F9** to reload them. User files override built-in extensions with the
-same id. This is a local install path, not a marketplace or permission sandbox.
+same id. This is a local install path, not a marketplace. User extensions are loaded
+with a restricted environment: no `os`, `io`, `package`, `debug`, `require`,
+`loadstring`, or filesystem access. They receive read-only graphics/timer
+proxies, math/string/table, and the vector/matrix constructors. This is a
+best-effort Lua environment, not an OS sandbox.
 
 ## Package
 
