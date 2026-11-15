@@ -1,7 +1,7 @@
 local root = (arg and arg[0] or "tests/editor.lua"):match("^(.*)/tests/") or "."
 package.path = root .. "/?.lua;" .. root .. "/?/init.lua;" .. package.path
 local Highlight = require("ui.highlight")
-local LSP = require("notebook.lsp")
+local LSP = require("notebook.editor_text")
 local function eq(a, b)
   if a ~= b then error("expected " .. tostring(b) .. ", got " .. tostring(a), 2) end
 end

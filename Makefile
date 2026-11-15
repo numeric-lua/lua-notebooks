@@ -10,6 +10,7 @@ test:
 	$(LUA) tests/sandbox.lua
 	$(LUA) tests/platform.lua
 	$(LUA) tests/editor.lua
+	$(LUA) tests/lsp_protocol.lua
 
 run:
 	lovr .

@@ -11,6 +11,8 @@ json.null = setmetatable({}, {
     return "null"
   end,
 })
+json.empty_object = setmetatable({}, { __jsontype = "object" })
+json.empty_array = setmetatable({}, { __jsontype = "array" })
 
 local function fail(position, message)
   error(string.format("invalid JSON at byte %d: %s", position, message), 3)
@@ -272,6 +274,10 @@ encode_value = function(value)
   local kind = type(value)
   if value == json.null or value == nil then
     return "null"
+  elseif value == json.empty_object then
+    return "{}"
+  elseif value == json.empty_array then
+    return "[]"
   elseif kind == "boolean" then
     return value and "true" or "false"
   elseif kind == "number" then

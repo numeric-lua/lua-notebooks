@@ -10,7 +10,7 @@ local Scroll = require("ui.scroll")
 local Math = require("notebook.math")
 local NotebookModel = require("notebook.model")
 local Highlight = require("ui.highlight")
-local LSP = require("notebook.lsp")
+local LSP = require("notebook.editor_text")
 local Extensions = require("extensions")
 
 local UI = {}
