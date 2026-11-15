@@ -180,6 +180,10 @@ function UI:draw(pass)
   box(pass, 0, 0, width, height, { 0.055, 0.06, 0.08, 1 })
   self.tabs = {}
   self.buttons = {}
+  self.extension_passes = {}
+  self.scene_rects = {}
+  self.widget_rects = {}
+  self.output_rects = {}
   if not self.zen_mode then
   box(pass, 0, 0, width, 50, { 0.08, 0.09, 0.12, 1 })
   text(pass, app.title_font, "Lua Notebooks", 18, 14,

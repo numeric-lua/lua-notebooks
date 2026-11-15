@@ -716,7 +716,15 @@ end
 
 function lovr.update(dt)
   if app == nil then return end
+  local profile_start = os.getenv("LUANB_PROFILE") and lovr.timer.getTime()
   app:update()
+  if profile_start then
+    local elapsed = lovr.timer.getTime() - profile_start
+    if elapsed > 0.02 then
+      print(string.format("PROFILE update %.3fs", elapsed))
+      io.stdout:flush()
+    end
+  end
   if app.smoke then
     local notebook = app:notebook()
     local cell = notebook.cells[notebook.active]
@@ -844,8 +852,10 @@ end
 
 function lovr.draw(window)
   if app == nil then return end
+  local draw_start = os.getenv("LUANB_PROFILE") and lovr.timer.getTime()
   local width, height = window:getDimensions()
   local canvas, canvas_pass = app:ensure_canvas(width, height)
+  canvas_pass:reset()
   if app.screenshot_requested then
     app.screenshot_requested = false
     app.screenshot_readback = canvas:newReadback()
@@ -854,7 +864,15 @@ function lovr.draw(window)
   window:fill(canvas)
   passes[#passes + 1] = canvas_pass
   passes[#passes + 1] = window
-  return lovr.graphics.submit(passes)
+  local result = lovr.graphics.submit(passes)
+  if draw_start then
+    local elapsed = lovr.timer.getTime() - draw_start
+    if elapsed > 0.02 then
+      print(string.format("PROFILE draw %.3fs", elapsed))
+      io.stdout:flush()
+    end
+  end
+  return result
 end
 
 function lovr.textinput(text, code)
