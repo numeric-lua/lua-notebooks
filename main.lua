@@ -453,6 +453,7 @@ function lovr.load()
   app.ui = UI.new(app)
   Theme.load()
   if os.getenv("LUANB_QA_THEME") then Theme.set(os.getenv("LUANB_QA_THEME")) end
+  if os.getenv("LUANB_QA_HELP") then app.ui.show_help = true end
   if os.getenv("LUANB_QA_HISTORY") then
     local notebook = app:notebook()
     notebook.cells[notebook.active].source = ""
@@ -476,7 +477,12 @@ function lovr.load()
   end
   lovr.filesystem.watch()
   _G.app = app
-  if os.getenv("LUANB_SMOKE_FKEYS") then
+  if os.getenv("LUANB_SMOKE_HELP") then
+    app.ui.vim_normal = true
+    app.ui:keypressed("?")
+    print("SMOKE_HELP=" .. tostring(app.ui.show_help))
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_FKEYS") then
     app.ui:keypressed("f1")
     local palette = app.ui.show_palette
     app.ui:keypressed("f1")

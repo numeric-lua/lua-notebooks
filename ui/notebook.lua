@@ -687,29 +687,45 @@ end
 function UI:draw_help(pass, width, height)
   if not self.show_help then return end
   local lines = {
-    "F4   Zen mode: hide top bar and footer",
-    "F5   run selected cell",
-    "F6   save notebook",
-    "F7   load notebook",
-    "F8   reload focused extension",
-    "F9   reload user extensions",
-    "F10  extension browser",
-    "F11  heading outline",
-    "F12  close this help",
-    "Alt+J/K move cells · j/k move text lines in normal mode",
-    "Ctrl+Shift+T theme · Ctrl+Shift+S screenshot",
-    "Tab  indent · Backspace/Delete · arrows move",
+    "# Modes and cells",
+    "F3 Vim on/off · Escape normal · i/a insert",
+    "Alt+J/K select cells (hold repeats) · j/k text lines",
+    "h/l characters · w/b words · gg/G cells",
+    "+Cell / Alt+B below · Alt+A above · Alt+M markdown",
+    "Alt+X / dd delete · Ctrl+1 code · Ctrl+2 markdown",
+    "o/O insert below/above and edit",
+    "# Editing",
+    "Tab indent · >>/<< indent line · D/C to line end",
+    "diw/daw/ciw words · di\"/ci( delimiter objects",
+    "A/I line end/start · % bracket · * search word",
+    "u undo · Ctrl+R redo · g-/g+ history · :history",
+    "# LSP",
+    "Ctrl+Space completion · Ctrl+H hover · Ctrl+G definition",
+    "Ctrl+Shift+R rename · Ctrl+Shift+U undo tree",
+    "# View and files",
+    "F1 palette · F2 filetree · F4 Zen · F11 outline",
+    "F5 run · F6 save · F7 load",
+    "F8 reload extension · F9 user extensions · F10 browser",
+    "Ctrl+Shift+S screenshot · Ctrl+Shift+T theme",
+    "F12 or ? open/close this cheatsheet",
     "Drag a 3D surface to orbit; wheel to zoom",
   }
-  local panel_w, panel_h = 560, 90 + #lines * 24
-  local x, y = (width - panel_w) / 2, (height - panel_h) / 2
+  local panel_w = math.min(760, width - 80)
+  local panel_h = 84 + #lines * 22
+  local x, y = (width - panel_w) / 2, math.max(60, (height - panel_h) / 2)
   box(pass, x, y, panel_w, panel_h, { 0.035, 0.045, 0.07, 0.99 })
-  text(pass, self.app.font, "Lua Notebooks shortcuts", x + 20, y + 16, 0.85,
-    { 0.9, 0.94, 1, 1 })
+  box(pass, x, y, panel_w, 2, { 0.35, 0.62, 0.95, 1 })
+  text(pass, self.app.font, "Lua Notebooks keybindings", x + 20, y + 14,
+    { 0.9, 0.94, 1, 1 }, 0.82)
   for index, line in ipairs(lines) do
-    text(pass, self.app.font, line, x + 26, y + 54 + (index - 1) * 24, 0.72,
-      { 0.75, 0.82, 0.94, 1 })
+    local heading = line:sub(1, 1) == "#"
+    if heading then line = line:sub(2) end
+    text(pass, self.app.font, line, x + 26, y + 52 + (index - 1) * 22,
+      heading and { 0.45, 0.72, 1, 1 } or { 0.75, 0.82, 0.94, 1 },
+      heading and 0.72 or 0.66)
   end
+  text(pass, self.app.font, "F12 / ? close", x + panel_w - 130,
+    y + panel_h - 24, { 0.55, 0.65, 0.8, 1 }, 0.64)
 end
 
 function UI:draw_hover(pass, width, height)
@@ -1616,6 +1632,12 @@ function UI:keypressed(key)
       self.vim_pending = "d"; return
     elseif key == "c" and not self.vim_visual then
       self.vim_pending = "c"; return
+    elseif key == "?" or (key == "/" and lovr.system and
+      lovr.system.isKeyDown and
+      (lovr.system.isKeyDown("lshift") or
+       lovr.system.isKeyDown("rshift"))) then
+      self.show_help = not self.show_help
+      return
     elseif key == "/" then
       self.vim_search = ""
       return

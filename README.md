@@ -80,7 +80,7 @@ Controls:
 | `F4` | toggle Zen mode: hide top bar and footer, show only cells |
 | `Ctrl+Shift+S` | save a PNG screenshot of the offscreen notebook canvas |
 | `Ctrl+Shift+T` | toggle light/dark theme; persisted |
-| `F12` | open/close the shortcut help overlay |
+| `?` or `F12` | open/close the keybindings cheatsheet |
 | click a markdown heading arrow | collapse/expand following cells |
 | drag / wheel in 3D | orbit / zoom the focused extension |
 | tabs / **+ Cell** | switch notebook / add cell |
