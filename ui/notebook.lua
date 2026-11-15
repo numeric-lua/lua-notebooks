@@ -7,6 +7,7 @@ local Plot = require("ui.plot")
 local Surface = require("ui.surface")
 local Widgets = require("ui.widgets")
 local Scroll = require("ui.scroll")
+local Math = require("notebook.math")
 local Extensions = require("extensions")
 
 local UI = {}
@@ -112,7 +113,17 @@ function UI:draw(pass)
   self.rects = {}
   local content_height = 0
 
+  local visible = {}
+  local hide_until = nil
   for index, cell in ipairs(notebook.cells) do
+    local level = Notebook.heading_level(cell)
+    if hide_until and level and level <= hide_until then hide_until = nil end
+    if not hide_until then visible[#visible + 1] = index end
+    if cell.collapsed and level then hide_until = level end
+  end
+
+  for _, index in ipairs(visible) do
+    local cell = notebook.cells[index]
     cell._index = index
     local source_lines = split_lines(cell.source)
     local source_height = math.max(3, #source_lines) * 21
@@ -143,6 +154,12 @@ function UI:draw(pass)
       end
       local kind_color = cell.kind == "markdown" and
         { 0.7, 0.65, 0.95, 1 } or { 0.45, 0.75, 0.95, 1 }
+      local heading = Notebook.heading_level(cell)
+      if heading then
+        text(pass, app.font, cell.collapsed and "▸" or "▾", 25, y + 8,
+          { 0.7, 0.8, 1, 1 }, 0.8)
+        self.heading_rects[index] = { x = 20, y = y, w = width - 40, h = 30 }
+      end
       text(pass, app.font, string.upper(cell.kind) .. "  " .. cell_label(index),
         34, y + 8, kind_color, 0.72)
       if cell.running then
@@ -154,7 +171,9 @@ function UI:draw(pass)
       local source_color = cell.kind == "markdown" and
         { 0.75, 0.78, 0.9, 1 } or { 0.86, 0.88, 0.94, 1 }
       for line_index = 1, math.min(#source_lines, 14) do
-        text(pass, app.font, source_lines[line_index], 36,
+        local display = source_lines[line_index]
+        if cell.kind == "markdown" then display = Math.inline(display) end
+        text(pass, app.font, display, 36,
           source_y + (line_index - 1) * 21, source_color, 0.86)
       end
       if cell.kind == "code" and selected then
@@ -254,6 +273,7 @@ end
 
 function UI:toggle_extension(id)
   Extensions.set_enabled(id, not Extensions.is_enabled(id))
+  Extensions.save_preferences()
   self.app.status = (Extensions.is_enabled(id) and "enabled " or "disabled ") .. id
 end
 
@@ -402,6 +422,13 @@ end
 
 function UI:mousepressed(x, y, button)
   if button ~= 1 then return end
+  for index, rect in pairs(self.heading_rects) do
+    if inside(x, y, rect) then
+      local collapsed = self.app:notebook():toggle_collapsed(index)
+      self.app.status = collapsed and "collapsed heading" or "expanded heading"
+      return
+    end
+  end
   if self.show_extensions then
     for _, rect in ipairs(self.extension_rects) do
       if inside(x, y, rect) then

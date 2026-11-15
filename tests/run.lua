@@ -164,6 +164,23 @@ test("can disable and re-enable a renderer", function()
   eq(Extensions.get("cube") ~= nil, true)
 end)
 
+current = "math"
+test("renders common inline math", function()
+  local Math = require("notebook.math")
+  eq(Math.render("E = mc^2"), "E = mc²")
+  eq(Math.render("\\alpha + \\beta = \\pi"), "α + β = π")
+  eq(Math.render("\\frac{1}{2}"), "(1)/(2)")
+  eq(Math.inline("energy $E = mc^2$"), "energy E = mc²")
+end)
+test("collapses markdown headings", function()
+  local Notebook = require("notebook.model")
+  local cell = { kind = "markdown", source = "## Details" }
+  eq(Notebook.heading_level(cell), 2)
+  local notebook = Notebook.new({ cells = { cell, { kind = "code", source = "x" } } })
+  eq(notebook:toggle_collapsed(1), true)
+  eq(notebook.cells[1].collapsed, true)
+end)
+
 io.write(string.format("\n\n%d tests, %d passed, %d failed\n", passed + failed,
   passed, failed))
 if failed > 0 then

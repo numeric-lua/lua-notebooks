@@ -69,12 +69,20 @@ Controls:
 | `F8` | hot-reload the focused extension renderer |
 | `F9` | reload extensions from the save directory |
 | `F10` | open/close the extension browser; click a row to enable/disable |
+| click a markdown heading arrow | collapse/expand following cells |
 | drag / wheel in 3D | orbit / zoom the focused extension |
 | tabs / **+ Cell** | switch notebook / add cell |
 
 The welcome notebook has runnable cells for hello, a loop, a 3D cube scene, a
 luaplotlib scene, a grid extension, and widgets. The second notebook has an independent kernel
 and global state.
+
+## Math and collapsible headings
+
+Markdown supports a small inline LaTeX-to-Unicode subset (`$E = mc^2$`,
+`$\alpha + \beta$`, simple fractions/roots). Headings with a `▾`/`▸` marker
+collapse following cells when clicked. See [`docs/math.md`](docs/math.md) and
+[`docs/collapsible-headings.md`](docs/collapsible-headings.md).
 
 ## User extensions
 

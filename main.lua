@@ -221,6 +221,7 @@ function lovr.load()
   app:open_all_kernels()
   local loaded, errors = Extensions.discover()
   local user_loaded, user_errors = Extensions.discover_user()
+  Extensions.load_preferences()
   app.status = string.format("%d kernels, %d extensions, %d user",
     #app.notebooks, 1 + #loaded, #user_loaded)
   if #errors + #user_errors > 0 then
@@ -229,7 +230,16 @@ function lovr.load()
   end
   lovr.filesystem.watch()
   _G.app = app
-  if os.getenv("LUANB_SMOKE_USER_EXT") then
+  if os.getenv("LUANB_SMOKE_EXT_PREFS") then
+    Extensions.set_enabled("grid", false)
+    Extensions.save_preferences()
+    Extensions.disabled = {}
+    Extensions.load_preferences()
+    print("SMOKE_EXT_PREFS=" .. tostring(not Extensions.is_enabled("grid")))
+    Extensions.set_enabled("grid", true)
+    Extensions.save_preferences()
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_USER_EXT") then
     local loaded, errors = Extensions.discover_user()
     print("SMOKE_USER_EXT=" .. #loaded .. " errors=" .. #errors)
     lovr.event.quit()
@@ -260,7 +270,16 @@ function lovr.load()
   -- Non-interactive smoke path: run the first welcome cell, print its result,
   -- and quit.  This exercises thread startup, channels, the kernel worker, and
   -- result routing without requiring a human at the window.
-  if os.getenv("LUANB_SMOKE_USER_EXT") then
+  if os.getenv("LUANB_SMOKE_EXT_PREFS") then
+    Extensions.set_enabled("grid", false)
+    Extensions.save_preferences()
+    Extensions.disabled = {}
+    Extensions.load_preferences()
+    print("SMOKE_EXT_PREFS=" .. tostring(not Extensions.is_enabled("grid")))
+    Extensions.set_enabled("grid", true)
+    Extensions.save_preferences()
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_USER_EXT") then
     local loaded, errors = Extensions.discover_user()
     print("SMOKE_USER_EXT=" .. #loaded .. " errors=" .. #errors)
     lovr.event.quit()
@@ -306,7 +325,16 @@ function lovr.update(dt)
   if app.smoke then
     local notebook = app:notebook()
     local cell = notebook.cells[notebook.active]
-    if os.getenv("LUANB_SMOKE_USER_EXT") then
+    if os.getenv("LUANB_SMOKE_EXT_PREFS") then
+    Extensions.set_enabled("grid", false)
+    Extensions.save_preferences()
+    Extensions.disabled = {}
+    Extensions.load_preferences()
+    print("SMOKE_EXT_PREFS=" .. tostring(not Extensions.is_enabled("grid")))
+    Extensions.set_enabled("grid", true)
+    Extensions.save_preferences()
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_USER_EXT") then
     local loaded, errors = Extensions.discover_user()
     print("SMOKE_USER_EXT=" .. #loaded .. " errors=" .. #errors)
     lovr.event.quit()

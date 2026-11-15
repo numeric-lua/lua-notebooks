@@ -16,6 +16,8 @@
 --
 -- The host owns the Pass/Texture, composition, resizing, and global input.
 --
+local json = require("notebook.json")
+
 local Extensions = {
   registry = {},
   order = {},
@@ -99,6 +101,24 @@ local function register_or_replace(descriptor)
     return descriptor
   end
   return register(descriptor)
+end
+
+function Extensions.load_preferences()
+  local ok, text = pcall(lovr.filesystem.read, "extensions.json")
+  if not ok or text == nil then return end
+  local ok_decode, data = pcall(json.decode, text)
+  if not ok_decode or type(data) ~= "table" then return end
+  for id, disabled in pairs(data) do
+    if Extensions.registry[id] then
+      Extensions.disabled[id] = disabled == true
+    end
+  end
+end
+
+function Extensions.save_preferences()
+  local ok, encoded = pcall(json.encode, Extensions.disabled)
+  if not ok then return false end
+  return pcall(lovr.filesystem.write, "extensions.json", encoded)
 end
 
 function Extensions.discover_user()

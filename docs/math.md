@@ -1,0 +1,24 @@
+# Math rendering
+
+Notebook markdown supports a small **inline LaTeX subset**, rendered to Unicode
+text in the LÖVR font:
+
+```markdown
+Energy: $E = mc^2$
+Symbols: $\alpha + \beta = \pi$
+Fraction: $\frac{1}{2}$
+Root: $\sqrt{x}$
+```
+
+Supported:
+
+- common Greek letters;
+- `\sum`, `\int`, `\infty`, `\pm`, `\times`, `\cdot`, comparison arrows;
+- `\sqrt{...}` and simple `\frac{a}{b}`;
+- superscripts/subscripts for digits and a few letters;
+- inline `$...$` only.
+
+This is **not MathJax or TeX**. There is no display-mode math, fraction layout,
+matrix, or real typesetting engine. The Unicode output also depends on glyphs
+available in the current LÖVR font. A future backend should render TeX to an
+image/texture or use a proper math layout engine.

@@ -16,6 +16,7 @@ function Format.encode(notebook)
       output = cell.output or "",
       scene = cell.scene,
       widgets = cell.widgets or {},
+      collapsed = cell.collapsed and true or false,
     }
   end
   return json.encode({
@@ -50,6 +51,7 @@ function Format.decode(text)
       output = type(cell.output) == "string" and cell.output or "",
       scene = cell.scene,
       widgets = type(cell.widgets) == "table" and cell.widgets or {},
+      collapsed = cell.collapsed == true,
       running = false,
     }
   end

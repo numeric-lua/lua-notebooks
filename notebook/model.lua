@@ -14,6 +14,7 @@ local function cell(kind, source)
     error = nil,
     cursor = #(source or "") + 1,
     widgets = {},
+    collapsed = false,
   }
 end
 
@@ -157,6 +158,20 @@ function Notebook:cursor_end()
     (#current.source + 1)
 end
 
+function Notebook.heading_level(cell)
+  if cell == nil or cell.kind ~= "markdown" then return nil end
+  local hashes = cell.source:match("^(#+)%s+")
+  return hashes and #hashes or nil
+end
+
+function Notebook:toggle_collapsed(index)
+  local cell = self.cells[index]
+  if cell == nil or Notebook.heading_level(cell) == nil then return false end
+  cell.collapsed = not cell.collapsed
+  self.dirty = true
+  return cell.collapsed
+end
+
 function Notebook:newline()
   self:insert("\n")
 end
@@ -236,7 +251,7 @@ widgets.checkbox({ label = "enabled", value = true })
 widgets.select({ label = "mode", options = { "fast", "slow" }, value = "fast" })
 widgets.text({ label = "name", value = "notebook",
   on_change = function(value) print("name", value) end })]]),
-      cell("markdown", "# A 3D notebook\nCells, kernels, and a real-time viewport."),
+      cell("markdown", "# A 3D notebook\nMath: $E = mc^2$ and $\\alpha + \\beta = \\pi$.\n## Collapsible section\nClick the heading arrow to fold the next cells."),
     },
   })
   local second = Notebook.new({
