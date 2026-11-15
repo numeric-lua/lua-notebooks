@@ -135,6 +135,7 @@ function UI.new(app)
     rename_prompt = nil,
     folder_prompt = nil,
     confirm_delete = nil,
+    symbol_prompt = nil,
   }, UI)
 end
 
@@ -380,6 +381,7 @@ function UI:draw(pass)
   self:draw_tree(pass, width, height)
   self:draw_rename(pass, width, height)
   self:draw_confirm(pass, width, height)
+  self:draw_symbol_prompt(pass, width, height)
   self:draw_outline(pass, width, height)
   self:draw_extension_browser(pass, width, height)
   self:draw_help(pass, width, height)
@@ -571,6 +573,22 @@ function UI:draw_confirm(pass, width, height)
   local panel_w, panel_h = 500, 100
   local x, y = (width - panel_w) / 2, 150
   box(pass, x, y, panel_w, panel_h, { 0.04, 0.05, 0.08, 1 })
+  if self.symbol_prompt then
+    if key == "escape" then
+      self.symbol_prompt = nil
+    elseif key == "backspace" then
+      self.symbol_prompt.value = self.symbol_prompt.value:sub(1, -2)
+    elseif key == "return" then
+      local prompt = self.symbol_prompt
+      self.symbol_prompt = nil
+      if prompt.value ~= "" then
+        notebook:push_undo()
+        local count = LSP.rename(notebook, prompt.old, prompt.value)
+        self.app.status = "renamed " .. count .. " occurrence(s)"
+      end
+    end
+    return
+  end
   if self.confirm_delete then
     text(pass, self.app.font, "Delete " .. self.confirm_delete.name .. "?",
       x + 16, y + 14, { 0.95, 0.7, 0.7, 1 }, 0.72)
@@ -583,6 +601,18 @@ function UI:draw_confirm(pass, width, height)
     text(pass, self.app.font, self.folder_prompt.value .. "|", x + 24, y + 49,
       { 0.85, 0.92, 1, 1 }, 0.7)
   end
+end
+
+function UI:draw_symbol_prompt(pass, width, height)
+  if self.symbol_prompt == nil then return end
+  local panel_w, panel_h = 500, 100
+  local x, y = (width - panel_w) / 2, 180
+  box(pass, x, y, panel_w, panel_h, { 0.04, 0.05, 0.08, 1 })
+  text(pass, self.app.font, "Rename symbol: " .. self.symbol_prompt.old,
+    x + 16, y + 14, { 0.85, 0.92, 1, 1 }, 0.7)
+  box(pass, x + 14, y + 44, panel_w - 28, 28, { 0.09, 0.12, 0.18, 1 })
+  text(pass, self.app.font, self.symbol_prompt.value .. "|", x + 24, y + 51,
+    { 0.85, 0.92, 1, 1 }, 0.7)
 end
 
 function UI:draw_outline(pass, width, height)
@@ -673,12 +703,32 @@ end
 
 function UI:textinput(value)
   if value == "\r" or value == "\n" then return end
+  if self.symbol_prompt then
+    self.symbol_prompt.value = self.symbol_prompt.value .. value
+    return
+  end
   if self.rename_prompt then
     self.rename_prompt.value = self.rename_prompt.value .. value
     return
   end
   if self.folder_prompt then
     self.folder_prompt.value = self.folder_prompt.value .. value
+    return
+  end
+  if self.symbol_prompt then
+    if key == "escape" then
+      self.symbol_prompt = nil
+    elseif key == "backspace" then
+      self.symbol_prompt.value = self.symbol_prompt.value:sub(1, -2)
+    elseif key == "return" then
+      local prompt = self.symbol_prompt
+      self.symbol_prompt = nil
+      if prompt.value ~= "" then
+        notebook:push_undo()
+        local count = LSP.rename(notebook, prompt.old, prompt.value)
+        self.app.status = "renamed " .. count .. " occurrence(s)"
+      end
+    end
     return
   end
   if self.confirm_delete then return end
@@ -760,6 +810,22 @@ end
 
 function UI:keypressed(key)
   local notebook = self.app:notebook()
+  if self.symbol_prompt then
+    if key == "escape" then
+      self.symbol_prompt = nil
+    elseif key == "backspace" then
+      self.symbol_prompt.value = self.symbol_prompt.value:sub(1, -2)
+    elseif key == "return" then
+      local prompt = self.symbol_prompt
+      self.symbol_prompt = nil
+      if prompt.value ~= "" then
+        notebook:push_undo()
+        local count = LSP.rename(notebook, prompt.old, prompt.value)
+        self.app.status = "renamed " .. count .. " occurrence(s)"
+      end
+    end
+    return
+  end
   if self.confirm_delete then
     if key == "return" or key == "y" then
       local path = self.confirm_delete.path
@@ -791,6 +857,16 @@ function UI:keypressed(key)
       local prompt = self.rename_prompt
       self.rename_prompt = nil
       self.app:rename_notebook(prompt.old, prompt.value)
+    end
+    return
+  end
+  if key == "r" and lovr.system and lovr.system.isKeyDown and
+     (lovr.system.isKeyDown("lctrl") or lovr.system.isKeyDown("rctrl")) and
+     (lovr.system.isKeyDown("lshift") or lovr.system.isKeyDown("rshift")) then
+    local cell = notebook.cells[notebook.active]
+    local word = cell and LSP.current_word(cell.source) or ""
+    if word == "" then self.app.status = "no symbol at cursor" else
+      self.symbol_prompt = { old = word, value = "" }
     end
     return
   end

@@ -60,6 +60,30 @@ function LSP.find_definition(notebook, word)
   return nil
 end
 
+local function pattern_escape(text)
+  return (text:gsub("([^%w])", "%%%1"))
+end
+
+function LSP.rename(notebook, old_word, new_word)
+  if old_word == nil or old_word == "" or new_word == nil or new_word == "" then
+    return 0
+  end
+  local old = pattern_escape(old_word)
+  local count = 0
+  for _, cell in ipairs(notebook.cells or {}) do
+    if cell.kind == "code" then
+      local source, replacements = cell.source:gsub(
+        "%f[%w_]" .. old .. "%f[^%w_]", new_word)
+      if replacements > 0 then
+        cell.source = source
+        cell.cursor = #source + 1
+        count = count + replacements
+      end
+    end
+  end
+  return count
+end
+
 function LSP.complete_notebook(notebook, source)
   local items = LSP.complete(source)
   local seen = {}

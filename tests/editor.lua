@@ -21,6 +21,13 @@ eq(LSP.diagnostics("if then") ~= nil, true)
 eq(LSP.diagnostics("return 1"), nil)
 eq(LSP.current_word("print(foo"), "foo")
 assert(#LSP.complete("local alpha = 1") > 10)
+local rename_notebook = { cells = {
+  { kind = "code", source = "local old = 1" },
+  { kind = "code", source = "print(old + old)" },
+} }
+eq(LSP.rename(rename_notebook, "old", "new"), 3)
+eq(rename_notebook.cells[1].source, "local new = 1")
+eq(rename_notebook.cells[2].source, "print(new + new)")
 local workspace = { cells = {
   { kind = "code", source = "local workspace_symbol = 1" },
 } }

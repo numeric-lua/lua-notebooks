@@ -73,6 +73,7 @@ Controls:
 | `Ctrl+Space` | open Lua completion for the selected code cell |
 | `Ctrl+H` | show hover help for the trailing identifier |
 | `Ctrl+G` | jump to a local/function definition of the trailing identifier |
+| `Ctrl+Shift+R` | rename the trailing identifier across code cells |
 | `F1` | open/close the command palette |
 | `F2` | open the hierarchical notebook filetree |
 | `F3` | toggle Vim mode (on by default) |
