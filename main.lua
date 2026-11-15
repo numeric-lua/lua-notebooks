@@ -337,8 +337,10 @@ function App:update()
       if self.qa_screenshot then lovr.event.quit() end
     end
   end
+  local active_cell = self:notebook().cells[self:notebook().active]
   if self.qa_screenshot and not self.screenshot_requested and
-     not self.screenshot_readback and lovr.timer.getTime() > 2 then
+     not self.screenshot_readback and lovr.timer.getTime() > 3 and
+     (active_cell == nil or not active_cell.running) then
     self.screenshot_requested = true
   end
   if os.getenv("LUANB_LSP_SMOKE") and self.lsp_ready and
