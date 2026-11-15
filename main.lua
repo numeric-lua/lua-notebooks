@@ -651,13 +651,6 @@ end
 
 function lovr.draw(pass)
   if app == nil then return end
-  if os.getenv("LUANB_PROBE_CANVAS") and not app.probed_canvas then
-    app.probed_canvas = true
-    local canvas = pass:getCanvas()
-    print("PROBE_CANVAS=" .. tostring(canvas) .. " n=" ..
-      tostring(canvas and #canvas or 0))
-    io.stdout:flush()
-  end
   local passes
   if app.smoke then
     local ok, result = pcall(app.ui.draw, app.ui, pass)

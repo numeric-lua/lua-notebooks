@@ -36,10 +36,19 @@ local function inside(x, y, rect)
          y >= rect.y and y <= rect.y + rect.h
 end
 
-local function text(pass, font, value, x, y, color, scale)
+local function text(pass, font, value, x, y, color, scale, align)
   pass:setFont(font)
   pass:setColor(color[1], color[2], color[3], color[4] or 1)
-  pass:text(value, x, y, 0, scale or 1, 0, 0, 1, 0, 0, "left", "top")
+  pass:text(value, x, y, 0, scale or 1, 0, 0, 1, 0, 0,
+    align or "left", "top")
+end
+
+local function stroke(pass, x1, y1, x2, y2, thickness, color)
+  local dx, dy = x2 - x1, y2 - y1
+  local length = math.sqrt(dx * dx + dy * dy)
+  pass:setColor(color[1], color[2], color[3], color[4] or 1)
+  pass:plane((x1 + x2) / 2, (y1 + y2) / 2, 0, length, thickness,
+    math.atan2(dy, dx), 0, 0, 1)
 end
 
 local function box(pass, x, y, w, h, color)
@@ -332,13 +341,20 @@ function UI:draw(pass)
           end
           line_y = line_y + 90
         elseif display_root then
-          local root_width = app.title_font:getWidth(display_root) * 0.9
-          text(pass, app.title_font, "√", width / 2 - root_width / 2 - 16,
-            line_y + 8, { 0.88, 0.9, 1, 1 }, 0.9)
-          box(pass, width / 2 - root_width / 2 - 4, line_y + 10,
-            root_width + 8, 1.5, { 0.75, 0.8, 0.95, 1 })
-          text(pass, app.title_font, display_root, width / 2,
-            line_y + 12, { 0.88, 0.9, 1, 1 }, 0.9, "center")
+          local body_w = app.title_font:getWidth(display_root) * 0.9
+          local rad_w = 18
+          local total_w = rad_w + body_w + 10
+          local left = width / 2 - total_w / 2
+          local top = line_y + 12
+          local bottom = line_y + 34
+          stroke(pass, left, top + 10, left + 6, bottom, 2,
+            { 0.8, 0.86, 1, 1 })
+          stroke(pass, left + 6, bottom, left + rad_w, top, 2,
+            { 0.8, 0.86, 1, 1 })
+          stroke(pass, left + rad_w, top, left + total_w, top, 1.5,
+            { 0.8, 0.86, 1, 1 })
+          text(pass, app.title_font, display_root, left + rad_w + 5,
+            line_y + 12, { 0.88, 0.9, 1, 1 }, 0.9)
           line_y = line_y + 44
         elseif display_math then
           text(pass, app.title_font, display_math, width / 2, line_y,
