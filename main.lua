@@ -397,6 +397,13 @@ function lovr.load()
   if os.getenv("LUANB_QA_TREE") then
     app.ui.show_tree = true
   end
+  if os.getenv("LUANB_QA_VIM") then
+    app.ui.vim_normal = true
+    app.ui.vim_char_visual = true
+    app.ui.vim_char_anchor = 1
+    local cell = app:notebook():selected()
+    cell.cursor = math.min(18, #cell.source + 1)
+  end
   local qa_cell = tonumber(os.getenv("LUANB_QA_CELL") or "")
   if qa_cell then
     app:notebook():select(qa_cell)
