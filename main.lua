@@ -311,7 +311,14 @@ function lovr.load()
   end
   lovr.filesystem.watch()
   _G.app = app
-  if os.getenv("LUANB_SMOKE_FOLDER") then
+  if os.getenv("LUANB_SMOKE_TYPE") then
+    app.ui:textinput("X")
+    local typed = app:notebook():selected().source:match("X$") ~= nil
+    app.ui:keypressed("backspace")
+    local removed = app:notebook():selected().source:match("X$") == nil
+    print("SMOKE_TYPE=" .. tostring(typed and removed))
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_FOLDER") then
     local path, err = Format.create_folder("folder-smoke")
     print("SMOKE_FOLDER=" .. tostring(path) .. " err=" .. tostring(err))
     os.remove(lovr.filesystem.getSaveDirectory() .. "/" .. tostring(path))
@@ -379,7 +386,14 @@ function lovr.load()
   -- Non-interactive smoke path: run the first welcome cell, print its result,
   -- and quit.  This exercises thread startup, channels, the kernel worker, and
   -- result routing without requiring a human at the window.
-  if os.getenv("LUANB_SMOKE_FOLDER") then
+  if os.getenv("LUANB_SMOKE_TYPE") then
+    app.ui:textinput("X")
+    local typed = app:notebook():selected().source:match("X$") ~= nil
+    app.ui:keypressed("backspace")
+    local removed = app:notebook():selected().source:match("X$") == nil
+    print("SMOKE_TYPE=" .. tostring(typed and removed))
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_FOLDER") then
     local path, err = Format.create_folder("folder-smoke")
     print("SMOKE_FOLDER=" .. tostring(path) .. " err=" .. tostring(err))
     os.remove(lovr.filesystem.getSaveDirectory() .. "/" .. tostring(path))
@@ -456,7 +470,14 @@ function lovr.update(dt)
   if app.smoke then
     local notebook = app:notebook()
     local cell = notebook.cells[notebook.active]
-    if os.getenv("LUANB_SMOKE_FOLDER") then
+    if os.getenv("LUANB_SMOKE_TYPE") then
+    app.ui:textinput("X")
+    local typed = app:notebook():selected().source:match("X$") ~= nil
+    app.ui:keypressed("backspace")
+    local removed = app:notebook():selected().source:match("X$") == nil
+    print("SMOKE_TYPE=" .. tostring(typed and removed))
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_FOLDER") then
     local path, err = Format.create_folder("folder-smoke")
     print("SMOKE_FOLDER=" .. tostring(path) .. " err=" .. tostring(err))
     os.remove(lovr.filesystem.getSaveDirectory() .. "/" .. tostring(path))

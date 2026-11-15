@@ -843,6 +843,9 @@ function UI:keypressed(key)
       notebook:move(-1); self.scroll_to_selected = true; return
     elseif key == "o" then
       notebook:add_cell("code"); self.vim_normal = false; return
+    elseif key == "u" then
+      self.app.status = notebook:undo() and "undo" or "nothing to undo"
+      return
     elseif key == "x" then
       local cell = notebook.cells[notebook.active]
       if cell and cell.kind == "code" then

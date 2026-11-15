@@ -25,6 +25,8 @@ function Notebook.new(options)
     cells = options.cells or { cell("code", "") },
     active = 1,
     dirty = false,
+    undo_stack = {},
+    redo_stack = {},
   }, Notebook)
   if #self.cells == 0 then
     self.cells[1] = cell("code", "")
@@ -33,6 +35,45 @@ function Notebook.new(options)
     item.cursor = item.cursor or (#(item.source or "") + 1)
   end
   return self
+end
+
+function Notebook:snapshot()
+  local cells = {}
+  for index, item in ipairs(self.cells) do
+    cells[index] = {
+      kind = item.kind, source = item.source, output = item.output,
+      scene = item.scene, running = false, error = item.error,
+      cursor = item.cursor, widgets = item.widgets,
+      collapsed = item.collapsed,
+    }
+  end
+  return { active = self.active, cells = cells }
+end
+
+function Notebook:restore(snapshot)
+  self.cells = snapshot.cells
+  self.active = snapshot.active
+  self.dirty = true
+end
+
+function Notebook:push_undo()
+  self.undo_stack[#self.undo_stack + 1] = self:snapshot()
+  if #self.undo_stack > 50 then table.remove(self.undo_stack, 1) end
+  self.redo_stack = {}
+end
+
+function Notebook:undo()
+  if #self.undo_stack == 0 then return false end
+  self.redo_stack[#self.redo_stack + 1] = self:snapshot()
+  self:restore(table.remove(self.undo_stack))
+  return true
+end
+
+function Notebook:redo()
+  if #self.redo_stack == 0 then return false end
+  self.undo_stack[#self.undo_stack + 1] = self:snapshot()
+  self:restore(table.remove(self.redo_stack))
+  return true
 end
 
 function Notebook:cell(index)
@@ -53,6 +94,7 @@ end
 
 function Notebook:delete_cell(index)
   if self.cells[index] == nil or #self.cells <= 1 then return false end
+  self:push_undo()
   table.remove(self.cells, index)
   self.active = math.max(1, math.min(self.active, #self.cells))
   self.dirty = true
@@ -60,6 +102,7 @@ function Notebook:delete_cell(index)
 end
 
 function Notebook:insert_cell(index, cell)
+  self:push_undo()
   table.insert(self.cells, index, cell)
   self.active = index
   self.dirty = true
@@ -81,6 +124,7 @@ function Notebook:copy_cell(index)
 end
 
 function Notebook:add_cell(kind)
+  self:push_undo()
   self.cells[#self.cells + 1] = cell(kind or "code", "")
   self.active = #self.cells
   self.dirty = true
@@ -97,6 +141,7 @@ function Notebook:move(delta)
 end
 
 function Notebook:insert(text)
+  self:push_undo()
   local current = self:selected()
   if current.kind ~= "code" then return end
   local cursor = current.cursor or (#current.source + 1)
@@ -129,6 +174,7 @@ local function next_end(text, cursor)
 end
 
 function Notebook:backspace()
+  self:push_undo()
   local current = self:selected()
   if current.kind ~= "code" then return end
   local cursor = current.cursor or (#current.source + 1)
@@ -212,6 +258,7 @@ end
 
 function Notebook:toggle_collapsed(index)
   local cell = self.cells[index]
+  if cell then self:push_undo() end
   if cell == nil or Notebook.heading_level(cell) == nil then return false end
   cell.collapsed = not cell.collapsed
   self.dirty = true
@@ -219,6 +266,7 @@ function Notebook:toggle_collapsed(index)
 end
 
 function Notebook:newline()
+  self:push_undo()
   self:insert("\n")
 end
 

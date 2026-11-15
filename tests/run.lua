@@ -236,6 +236,22 @@ test("deletes and inserts cells", function()
   eq(notebook.cells[2].source, "two")
 end)
 
+current = "undo"
+test("undoes and redoes text and cell edits", function()
+  local Notebook = require("notebook.model")
+  local notebook = Notebook.new({ cells = { { kind = "code", source = "" } } })
+  notebook:insert("abc")
+  eq(notebook.cells[1].source, "abc")
+  notebook:undo()
+  eq(notebook.cells[1].source, "")
+  notebook:redo()
+  eq(notebook.cells[1].source, "abc")
+  notebook:add_cell("code")
+  eq(#notebook.cells, 2)
+  notebook:undo()
+  eq(#notebook.cells, 1)
+end)
+
 io.write(string.format("\n\n%d tests, %d passed, %d failed\n", passed + failed,
   passed, failed))
 if failed > 0 then
