@@ -113,6 +113,19 @@ The archive contains `conf.lua`, `main.lua`, `notebook/`, `kernel/`, `ui/`, and
 `extensions/`. It runs in thread mode. Process mode needs a real project
 directory because the child is launched from `lovr.filesystem.getSource()`.
 
+## Physical input testing
+
+On Wayland/Hyprland, `ydotool` can drive real key events when `/dev/uinput` is
+accessible:
+
+```sh
+ydotoold --socket-path /tmp/ydotool.sock &
+YDOTOOL_SOCKET=/tmp/ydotool.sock ydotool key 108:1 108:0  # Down
+```
+
+This was used to move selection to the final cell; two captures one second
+apart showed the scroll position stable and the last cell fully visible.
+
 ## Local install
 
 ```sh

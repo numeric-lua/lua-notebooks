@@ -1,7 +1,8 @@
 # Math rendering
 
-Notebook markdown supports a small **inline LaTeX subset**, rendered to Unicode
-text in the LÖVR font:
+Notebook markdown supports a small **inline LaTeX subset**, rendered to readable
+text using the LÖVR font. The font lacks Greek/math glyphs, so symbols use ASCII
+names (`alpha`, `pi`, `<=`, `inf`).
 
 ```markdown
 Energy: $E = mc^2$

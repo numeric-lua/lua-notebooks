@@ -123,7 +123,7 @@ end
 
 function Extensions.discover_user()
   local Loader = require("extensions.loader")
-  local Sandbox = require("extensions.sandbox")
+  local Sandbox = require("ui.extension_sandbox")
   local env = Sandbox.create({
     graphics = lovr.graphics,
     timer = lovr.timer,

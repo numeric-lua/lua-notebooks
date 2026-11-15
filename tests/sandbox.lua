@@ -1,6 +1,6 @@
 local root = (arg and arg[0] or "tests/sandbox.lua"):match("^(.*)/tests/") or "."
 package.path = root .. "/?.lua;" .. root .. "/?/init.lua;" .. package.path
-local Sandbox = require("extensions.sandbox")
+local Sandbox = require("ui.extension_sandbox")
 local env = Sandbox.create({
   graphics = { newTexture = function() end },
   timer = { getTime = function() return 0 end },

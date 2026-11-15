@@ -6,15 +6,15 @@
 local Math = {}
 
 local SYMBOLS = {
-  alpha = "α", beta = "β", gamma = "γ", delta = "δ", epsilon = "ε",
-  theta = "θ", lambda = "λ", mu = "μ", pi = "π", rho = "ρ",
-  sigma = "σ", tau = "τ", phi = "φ", omega = "ω", Gamma = "Γ",
-  Delta = "Δ", Theta = "Θ", Lambda = "Λ", Pi = "Π", Sigma = "Σ",
-  Phi = "Φ", Omega = "Ω", sum = "∑", prod = "∏", int = "∫",
-  infty = "∞", partial = "∂", nabla = "∇", pm = "±", mp = "∓",
-  times = "×", cdot = "·", le = "≤", leq = "≤", ge = "≥",
-  geq = "≥", ne = "≠", neq = "≠", to = "→", rightarrow = "→",
-  approx = "≈", sqrt = "√", quad = "  ", space = " ",
+  alpha = "alpha", beta = "beta", gamma = "gamma", delta = "delta", epsilon = "epsilon",
+  theta = "theta", lambda = "lambda", mu = "mu", pi = "pi", rho = "rho",
+  sigma = "sigma", tau = "tau", phi = "phi", omega = "omega", Gamma = "Gamma",
+  Delta = "Delta", Theta = "Theta", Lambda = "Lambda", Pi = "Pi", Sigma = "Sigma",
+  Phi = "Phi", Omega = "Omega", sum = "sum", prod = "prod", int = "int",
+  infty = "inf", partial = "partial", nabla = "nabla", pm = "+/-", mp = "-/+",
+  times = "x", cdot = ".", le = "<=", leq = "<=", ge = ">=",
+  geq = ">=", ne = "!=", neq = "!=", to = "->", rightarrow = "->",
+  approx = "~=", sqrt = "sqrt", quad = "  ", space = " ",
 }
 
 local SUPER = {
