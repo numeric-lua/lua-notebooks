@@ -31,8 +31,12 @@ function App:new(notebooks)
     title_font = nil,
     supervisor = nil,
   }, App)
-  local SupervisorClass = os.getenv("LUANB_KERNEL_MODE") == "process" and
-    ProcessSupervisor or Supervisor
+  local process_requested = os.getenv("LUANB_KERNEL_MODE") == "process"
+  if process_requested and not ProcessSupervisor.supported() then
+    print("process kernels are unavailable on this platform; using threads")
+    process_requested = false
+  end
+  local SupervisorClass = process_requested and ProcessSupervisor or Supervisor
   self.supervisor = SupervisorClass.new({
     root = lovr.filesystem.getSource(),
     memory_kb = tonumber(os.getenv("LUANB_KERNEL_MEMORY_KB") or "") or 524288,

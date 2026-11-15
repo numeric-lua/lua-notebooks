@@ -6,6 +6,11 @@
 local json = require("notebook.json")
 
 local ProcessSupervisor = {}
+
+function ProcessSupervisor.supported()
+  -- The file-backed backend currently relies on a POSIX shell.
+  return package.config:sub(1, 1) ~= "\\"
+end
 ProcessSupervisor.__index = ProcessSupervisor
 
 local function shell_quote(value)

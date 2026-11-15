@@ -1,7 +1,7 @@
 SHELL := /bin/sh
 LUA ?= luajit
 
-.PHONY: test run package install clean
+.PHONY: test run package install install-desktop clean
 
 test:
 	$(LUA) tests/run.lua
@@ -17,6 +17,9 @@ package:
 
 install:
 	./scripts/install.sh
+
+install-desktop:
+	INSTALL_DESKTOP=1 ./scripts/install.sh
 
 clean:
 	rm -rf .lovrshadercache dist

@@ -152,8 +152,14 @@ make install
 lovr ~/.local/share/lua-notebooks
 ```
 
-`PREFIX=/path make install` installs elsewhere. This copies the runnable source;
-it does not register a desktop entry or install system-wide.
+`PREFIX=/path make install` installs elsewhere. To also create a local desktop
+entry:
+
+```sh
+make install-desktop
+```
+
+This still does not install system-wide.
 
 ## Process kernels
 
