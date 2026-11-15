@@ -72,6 +72,8 @@ routes changes to `App:widget_event`.
 - Widget IDs are kernel-scoped and change when the kernel restarts.
 - Text widgets are editable on the host. Text is committed to the kernel on
   Enter and cancelled with Escape; `on_change` runs on commit.
+- `widgets.text({ multiline = true })` supports wrapped source text and
+  Shift+Enter newlines; Enter commits the whole value.
 - Slider dragging updates the host immediately and sends the final value on
   mouse release.
 

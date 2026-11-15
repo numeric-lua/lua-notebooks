@@ -128,7 +128,7 @@ function UI:draw(pass)
     cell._index = index
     local source_lines = split_lines(cell.source)
     local source_height = math.max(3, #source_lines) * 21
-    local widget_height = #(cell.widgets or {}) * 36 + 4
+    local widget_height = Widgets.height(cell.widgets)
     local output_lines = cell.output ~= "" and split_lines(cell.output) or {}
     local output_height = 0
     if #output_lines > 0 then

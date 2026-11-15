@@ -23,15 +23,44 @@ local function value_text(value)
   return tostring(value)
 end
 
+local function split_lines(value)
+  local lines = {}
+  for line in (value .. "\n"):gmatch("(.-)\n") do lines[#lines + 1] = line end
+  if #lines == 0 then lines[1] = "" end
+  return lines
+end
+
 local function clamp(value, minimum, maximum)
   return math.max(minimum, math.min(maximum, value))
 end
 
+local function text_lines(spec)
+  if spec.kind ~= "text" or not spec.multiline then return 1 end
+  local value = tostring(spec.value or "")
+  local count = 1
+  for _ in value:gmatch("\n") do count = count + 1 end
+  return count
+end
+
+local function row_height(spec)
+  if spec.kind == "text" and spec.multiline then
+    return math.max(36, text_lines(spec) * 18 + 18)
+  end
+  return 36
+end
+
+function Widgets.height(widgets)
+  local height = 4
+  for _, spec in ipairs(widgets or {}) do height = height + row_height(spec) end
+  return height
+end
+
 function Widgets.draw(pass, font, widgets, x, y, width)
-  local row_height = 36
   local controls = {}
-  for index, spec in ipairs(widgets or {}) do
-    local row_y = y + (index - 1) * row_height
+  local row_y = y
+  for _, spec in ipairs(widgets or {}) do
+    local height = row_height(spec)
+    local row_height = height
     box(pass, x, row_y, width, row_height - 4, { 0.065, 0.075, 0.10, 1 })
     text(pass, font, spec.label or spec.id, x + 10, row_y + 9, 0.68,
       { 0.78, 0.83, 0.95, 1 })
@@ -88,13 +117,20 @@ function Widgets.draw(pass, font, widgets, x, y, width)
       rect.plus = { x = control_x + 116, y = row_y + 7, w = 24, h = 22 }
     elseif spec.kind == "text" then
       local focused = spec._focused
-      box(pass, control_x, row_y + 5, control_w, 24,
+      local field_h = spec.multiline and (height - 14) or 24
+      box(pass, control_x, row_y + 5, control_w, field_h,
         focused and { 0.12, 0.18, 0.28, 1 } or { 0.09, 0.11, 0.15, 1 })
-      text(pass, font, spec.value or "", control_x + 8, row_y + 11, 0.68,
-        { 0.85, 0.9, 1, 1 })
+      local lines = spec.multiline and split_lines(spec.value or "") or
+        { spec.value or "" }
+      for line_index, line in ipairs(lines) do
+        text(pass, font, line, control_x + 8,
+          row_y + 10 + (line_index - 1) * 18, 0.68, { 0.85, 0.9, 1, 1 })
+      end
       if focused then
-        local caret_x = control_x + 8 + font:getWidth(spec.value or "") * 0.68
-        box(pass, caret_x + 1, row_y + 9, 2, 17, { 0.45, 0.8, 1, 1 })
+        local last = lines[#lines] or ""
+        local caret_x = control_x + 8 + font:getWidth(last) * 0.68
+        local caret_y = row_y + 8 + (#lines - 1) * 18
+        box(pass, caret_x + 1, caret_y, 2, 17, { 0.45, 0.8, 1, 1 })
       end
     elseif spec.kind == "progress" then
       box(pass, control_x, row_y + 12, control_w, 10, { 0.15, 0.18, 0.24, 1 })
@@ -107,8 +143,9 @@ function Widgets.draw(pass, font, widgets, x, y, width)
         { 0.8, 0.85, 0.95, 1 })
     end
     controls[#controls + 1] = rect
+    row_y = row_y + height
   end
-  return #(widgets or {}) * row_height + 4, controls
+  return row_y - y + 4, controls
 end
 
 return Widgets

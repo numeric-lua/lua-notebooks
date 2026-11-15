@@ -106,6 +106,7 @@ function Widgets:_add(kind, options, callback)
   elseif kind == "text" then
     spec.value = tostring(options.value or "")
     spec.placeholder = options.placeholder
+    spec.multiline = options.multiline == true
   elseif kind == "progress" then
     spec.min = number(options.min, "progress min", false) or 0
     spec.max = number(options.max, "progress max", false) or 1
