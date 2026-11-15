@@ -159,6 +159,11 @@ The repeatable check is:
 It launches a seat session, sends six Down keys, captures two frames one second
 apart, and fails if the stable-frame difference exceeds 5000 pixels.
 
+## Status
+
+See [`docs/roadmap.md`](docs/roadmap.md) for the implemented surface and the
+remaining gaps.
+
 ## Tests
 
 `make test` runs the pure model, widget, process-kernel, sandbox, and editor
@@ -212,6 +217,11 @@ LUANB_KERNEL_MODE=process lovr .
 Each notebook then gets a plain-LuaJIT child with a file-backed job/result
 channel. See [`docs/process-kernels.md`](docs/process-kernels.md) for the
 protocol, timeout behavior, and limitations.
+
+## Status
+
+See [`docs/roadmap.md`](docs/roadmap.md) for the implemented surface and the
+remaining gaps.
 
 ## Tests
 
