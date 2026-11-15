@@ -78,6 +78,7 @@ function App:new_notebook()
     cells = { { kind = "code", source = "print('new notebook')" } },
   })
   Format.save(notebook)
+  notebook._path = "notebooks/" .. name
   self.notebooks[#self.notebooks + 1] = notebook
   self.active = #self.notebooks
   self.supervisor:open("nb" .. self.active)
@@ -91,39 +92,43 @@ function App:create_folder(name)
   self.status = "created " .. path
 end
 
-function App:rename_notebook(old_name, new_name)
-  local renamed, err = Format.rename(old_name, new_name)
-  if renamed == nil then
+function App:rename_notebook(old_path, new_name)
+  local new_path, err = Format.rename_path(old_path, new_name)
+  if new_path == nil then
     self.status = "rename failed: " .. tostring(err)
     return
   end
+  local basename = new_path:match("([^/]+)$")
   for _, notebook in ipairs(self.notebooks) do
-    if notebook.name == old_name then notebook.name = renamed; break end
+    if notebook._path == old_path then
+      notebook._path = new_path
+      notebook.name = basename
+      break
+    end
   end
-  Format.save(self:notebook())
-  self.status = "renamed to " .. renamed
+  self.status = "renamed to " .. new_path
 end
 
-function App:delete_notebook(name)
-  local ok, err = Format.delete(name)
+function App:delete_notebook(path)
+  local ok, err = Format.delete_path(path)
   if not ok then self.status = "delete failed: " .. tostring(err); return end
   for index, notebook in ipairs(self.notebooks) do
-    if notebook.name == name then table.remove(self.notebooks, index); break end
+    if notebook._path == path then table.remove(self.notebooks, index); break end
   end
   self.active = math.max(1, math.min(self.active, #self.notebooks))
-  self.status = "deleted " .. name
+  self.status = "deleted " .. path
 end
 
-function App:open_path(name)
+function App:open_path(path)
   local existing
   for index, notebook in ipairs(self.notebooks) do
-    if notebook.name == name then existing = index; break end
+    if notebook._path == path then existing = index; break end
   end
   if existing then
     self:set_tab(existing)
     return
   end
-  local notebook, err = Format.load(name)
+  local notebook, err = Format.load_path(path)
   if notebook == nil then
     self.status = "open failed: " .. tostring(err)
     return
@@ -325,18 +330,19 @@ function lovr.load()
     lovr.event.quit()
   elseif os.getenv("LUANB_SMOKE_RENAME") then
     app:new_notebook()
-    local old = app:notebook().name
+    local old = app:notebook()._path
     app:rename_notebook(old, "renamed-smoke")
     local new = app:notebook().name
     print("SMOKE_RENAME=" .. old .. "->" .. new)
-    app:delete_notebook(new)
+    app:delete_notebook(app:notebook()._path)
     lovr.event.quit()
   elseif os.getenv("LUANB_SMOKE_TREE") then
     local before = #Format.list()
     app:new_notebook()
     local name = app:notebook().name
+    local path = app:notebook()._path
     local after = #Format.list()
-    app:delete_notebook(name)
+    app:delete_notebook(path)
     local final = #Format.list()
     print(string.format("SMOKE_TREE=%d->%d->%d", before, after, final))
     lovr.event.quit()
@@ -400,18 +406,19 @@ function lovr.load()
     lovr.event.quit()
   elseif os.getenv("LUANB_SMOKE_RENAME") then
     app:new_notebook()
-    local old = app:notebook().name
+    local old = app:notebook()._path
     app:rename_notebook(old, "renamed-smoke")
     local new = app:notebook().name
     print("SMOKE_RENAME=" .. old .. "->" .. new)
-    app:delete_notebook(new)
+    app:delete_notebook(app:notebook()._path)
     lovr.event.quit()
   elseif os.getenv("LUANB_SMOKE_TREE") then
     local before = #Format.list()
     app:new_notebook()
     local name = app:notebook().name
+    local path = app:notebook()._path
     local after = #Format.list()
-    app:delete_notebook(name)
+    app:delete_notebook(path)
     local final = #Format.list()
     print(string.format("SMOKE_TREE=%d->%d->%d", before, after, final))
     lovr.event.quit()
@@ -484,18 +491,19 @@ function lovr.update(dt)
     lovr.event.quit()
   elseif os.getenv("LUANB_SMOKE_RENAME") then
     app:new_notebook()
-    local old = app:notebook().name
+    local old = app:notebook()._path
     app:rename_notebook(old, "renamed-smoke")
     local new = app:notebook().name
     print("SMOKE_RENAME=" .. old .. "->" .. new)
-    app:delete_notebook(new)
+    app:delete_notebook(app:notebook()._path)
     lovr.event.quit()
   elseif os.getenv("LUANB_SMOKE_TREE") then
     local before = #Format.list()
     app:new_notebook()
     local name = app:notebook().name
+    local path = app:notebook()._path
     local after = #Format.list()
-    app:delete_notebook(name)
+    app:delete_notebook(path)
     local final = #Format.list()
     print(string.format("SMOKE_TREE=%d->%d->%d", before, after, final))
     lovr.event.quit()

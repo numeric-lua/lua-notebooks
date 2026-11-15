@@ -124,12 +124,36 @@ function Format.rename(old_name, new_name)
   return new_name
 end
 
-function Format.delete(name)
-  local path = "notebooks/" .. name
+function Format.delete_path(path)
   local absolute = lovr.filesystem.getSaveDirectory() .. "/" .. path
   local ok, err = os.remove(absolute)
   if not ok then return nil, err end
   return true
+end
+
+function Format.delete(name)
+  return Format.delete_path("notebooks/" .. name)
+end
+
+function Format.load_path(path)
+  local text = lovr.filesystem.read(path)
+  if text == nil then return nil, "not found: " .. path end
+  local notebook = Format.decode(text)
+  notebook._path = path
+  return notebook
+end
+
+function Format.rename_path(old_path, new_name)
+  if not new_name:match("%.luanb$") then new_name = new_name .. ".luanb" end
+  if new_name:find("%.%.") or new_name:sub(1, 1) == "/" then
+    return nil, "invalid notebook name"
+  end
+  local root = lovr.filesystem.getSaveDirectory() .. "/"
+  local target = old_path:match("^(.*)/") or "notebooks"
+  local new_path = target .. "/" .. new_name
+  local ok, err = os.rename(root .. old_path, root .. new_path)
+  if not ok then return nil, err end
+  return new_path
 end
 
 function Format.load(name)

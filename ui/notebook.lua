@@ -498,8 +498,8 @@ function UI:draw_tree(pass, width, height)
   for index, item in ipairs(items) do
     local row_y = y + 72 + (index - 1) * 26
     local indent = 14 + item.depth * 18
-    local active = item.kind == "file" and self.app:notebook().name ==
-      item.name
+    local active = item.kind == "file" and self.app:notebook()._path ==
+      item.path
     box(pass, x + 10, row_y, panel_w - 20, 23,
       active and { 0.14, 0.22, 0.34, 1 } or { 0.065, 0.075, 0.1, 1 })
     local marker = item.kind == "directory" and
@@ -735,9 +735,9 @@ function UI:keypressed(key)
   local notebook = self.app:notebook()
   if self.confirm_delete then
     if key == "return" or key == "y" then
-      local name = self.confirm_delete.name
+      local path = self.confirm_delete.path
       self.confirm_delete = nil
-      self.app:delete_notebook(name)
+      self.app:delete_notebook(path)
     elseif key == "escape" or key == "n" then
       self.confirm_delete = nil
     end
@@ -765,6 +765,13 @@ function UI:keypressed(key)
       self.rename_prompt = nil
       self.app:rename_notebook(prompt.old, prompt.value)
     end
+    return
+  end
+  if (key == "r" or key == "z") and lovr.system and lovr.system.isKeyDown and
+     (lovr.system.isKeyDown("lctrl") or lovr.system.isKeyDown("rctrl")) then
+    local changed = key == "r" and notebook:redo() or notebook:undo()
+    self.app.status = changed and (key == "r" and "redo" or "undo") or
+      "no history"
     return
   end
   if key == "h" and lovr.system and lovr.system.isKeyDown and
@@ -1011,17 +1018,17 @@ function UI:mousepressed(x, y, button)
           self.app:new_notebook()
         elseif rect.action == "rename" then
           self.rename_prompt = {
-            old = rect.name, value = rect.name:gsub("%.luanb$", ""),
+            old = rect.path, value = rect.name:gsub("%.luanb$", ""),
           }
         elseif rect.action == "folder" then
           self.folder_prompt = { value = "" }
         elseif rect.action == "delete" then
-          self.confirm_delete = { name = rect.name }
+          self.confirm_delete = { name = rect.name, path = rect.path }
         elseif rect.kind == "directory" then
           self.app.tree_expanded[rect.path] =
             not self.app.tree_expanded[rect.path]
-        elseif rect.name then
-          self.app:open_path(rect.name)
+        elseif rect.path then
+          self.app:open_path(rect.path)
           self.show_tree = false
         end
         return
