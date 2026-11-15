@@ -21,4 +21,8 @@ local spaced = assert(Engine.typeset("a\\,b\\quad c", { measure = measure }))
 assert(spaced.box.w > 0)
 local text_group = assert(Engine.typeset("\\text{if }x>0", { measure = measure }))
 assert(text_group.box.w > 0)
+local stretched = assert(Engine.typeset(
+  "\\left(\\frac{a}{b}\\right)", { measure = measure }))
+assert(stretched.box.items[1].box ~= nil)
+assert(stretched.box.w > 0)
 print("math engine tests ok")

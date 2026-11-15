@@ -13,6 +13,8 @@ local SYMBOLS = {
   approx = "~=", sqrt = "sqrt",
 }
 
+local plain
+
 local function parse_row(text, position, stop)
   local items = {}
   while position <= #text do
@@ -44,6 +46,13 @@ local function parse_row(text, position, stop)
           local body, next_position = parse_argument(text, position)
           items[#items + 1] = { kind = "text_group", body = body }
           position = next_position
+        elseif name == "delimited" then
+          local open, first = parse_argument(text, position)
+          local body, second = parse_argument(text, first)
+          local close, final = parse_argument(text, second)
+          items[#items + 1] = { kind = "delimited", open = plain(open),
+            body = body, close = plain(close) }
+          position = final
         elseif name == "left" or name == "right" then
           local delimiter = text:sub(position, position)
           if delimiter ~= "" and delimiter ~= "." then
@@ -119,7 +128,7 @@ local function empty_box()
   return { w = 0, h = 0, d = 0, ops = {}, items = {} }
 end
 
-local function plain(node)
+plain = function(node)
   if node == nil then return "" end
   if node.kind == "text" then return node.text or "" end
   if node.kind == "text_group" then return plain(node.body) end
@@ -150,6 +159,26 @@ local function layout(node, style)
       box.d = math.max(box.d, child_box.d)
     end
     box.w = cursor
+    return box
+  elseif node.kind == "delimited" then
+    local body = layout(node.body, style)
+    local em = 18 * style.scale
+    local factor = math.max(1, math.min(2.5, (body.h + body.d) / em))
+    local open_node = { kind = "text", text = node.open or "" }
+    local close_node = { kind = "text", text = node.close or "" }
+    local open_style = { font = style.font, scale = style.scale * factor,
+      display = style.display, measure = style.measure }
+    local close_style = open_style
+    local open_box = layout(open_node, open_style)
+    local close_box = layout(close_node, close_style)
+    local box = empty_box()
+    box.w = open_box.w + body.w + close_box.w + 4
+    box.h = math.max(body.h, open_box.h, close_box.h)
+    box.d = math.max(body.d, open_box.d, close_box.d)
+    box.items[#box.items + 1] = { box = open_box, dx = 0, shift = 0 }
+    box.items[#box.items + 1] = { box = body, dx = open_box.w + 2, shift = 0 }
+    box.items[#box.items + 1] = { box = close_box,
+      dx = open_box.w + body.w + 4, shift = 0 }
     return box
   elseif node.kind == "frac" then
     local numerator = layout(node.numerator, style)
@@ -211,9 +240,36 @@ local function layout(node, style)
   return empty_box()
 end
 
+local function rewrite_delimiters(source)
+  local changed = true
+  while changed do
+    changed = false
+    local start_at = source:find("\\left", 1, true)
+    if start_at then
+      local open_at = start_at + 5
+      while source:sub(open_at, open_at):match("%s") do open_at = open_at + 1 end
+      local open = source:sub(open_at, open_at)
+      local right_at = source:find("\\right", open_at + 1, true)
+      if right_at then
+        local close_at = right_at + 6
+        while source:sub(close_at, close_at):match("%s") do close_at = close_at + 1 end
+        local close = source:sub(close_at, close_at)
+        local body = source:sub(open_at + 1, right_at - 1)
+        local replacement = "\\delimited{" .. open .. "}{" .. body .. "}{" ..
+          close .. "}"
+        source = source:sub(1, start_at - 1) .. replacement ..
+          source:sub(close_at + 1)
+        changed = true
+      end
+    end
+  end
+  return source
+end
+
 function Engine.typeset(source, options)
   options = options or {}
-  local ok, tree = pcall(parse_row, source, 1)
+  local rewritten = rewrite_delimiters(source)
+  local ok, tree = pcall(parse_row, rewritten, 1)
   if not ok then return nil, tostring(tree) end
   local style = { font = options.font, scale = options.scale or 0.86,
     display = options.display, measure = options.measure }
