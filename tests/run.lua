@@ -221,6 +221,21 @@ test("lists heading cells and levels", function()
   eq(headings[2].index, 3)
 end)
 
+current = "vim model"
+test("deletes and inserts cells", function()
+  local Notebook = require("notebook.model")
+  local notebook = Notebook.new({ cells = {
+    { kind = "code", source = "one" },
+    { kind = "code", source = "two" },
+  } })
+  local copy = notebook:copy_cell(2)
+  assert(copy)
+  notebook:delete_cell(2)
+  eq(#notebook.cells, 1)
+  notebook:insert_cell(2, copy)
+  eq(notebook.cells[2].source, "two")
+end)
+
 io.write(string.format("\n\n%d tests, %d passed, %d failed\n", passed + failed,
   passed, failed))
 if failed > 0 then

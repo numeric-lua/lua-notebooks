@@ -124,6 +124,9 @@ function UI.new(app)
     completion_rects = {},
     show_tree = false,
     hover = nil,
+    vim_visual = false,
+    vim_anchor = nil,
+    vim_yank = nil,
     tree_rects = {},
     tree_items = {},
     rename_prompt = nil,
@@ -221,8 +224,13 @@ function UI:draw(pass)
 
     if y + cell_height > 55 and y < height - 10 then
       local selected = index == notebook.active
-      box(pass, 20, y, width - 40, cell_height,
-        selected and { 0.095, 0.11, 0.15, 1 } or { 0.075, 0.085, 0.11, 1 })
+      local in_visual = self.vim_visual and self.vim_anchor and
+        index >= math.min(self.vim_anchor, notebook.active) and
+        index <= math.max(self.vim_anchor, notebook.active)
+      local fill = in_visual and { 0.13, 0.16, 0.24, 1 } or
+        (selected and { 0.095, 0.11, 0.15, 1 } or
+        { 0.075, 0.085, 0.11, 1 })
+      box(pass, 20, y, width - 40, cell_height, fill)
       if selected then
         local accent = { 0.35, 0.62, 0.95, 1 }
         box(pass, 20, y, 4, cell_height, accent)
@@ -775,7 +783,43 @@ function UI:keypressed(key)
     return
   end
   if self.app.vim_mode and self.vim_normal then
-    if key == "i" or key == "a" then
+    if key == "escape" then
+      self.vim_visual = false
+      self.vim_anchor = nil
+      return
+    elseif key == "v" then
+      self.vim_visual = not self.vim_visual
+      self.vim_anchor = self.vim_visual and notebook.active or nil
+      return
+    elseif key == "y" and self.vim_visual then
+      local first = math.min(self.vim_anchor, notebook.active)
+      local last = math.max(self.vim_anchor, notebook.active)
+      self.vim_yank = {}
+      for index = first, last do
+        self.vim_yank[#self.vim_yank + 1] = notebook:copy_cell(index)
+      end
+      self.vim_visual = false
+      self.vim_anchor = nil
+      self.app.status = "yanked " .. #self.vim_yank .. " cell(s)"
+      return
+    elseif key == "d" and self.vim_visual then
+      local first = math.min(self.vim_anchor, notebook.active)
+      local last = math.max(self.vim_anchor, notebook.active)
+      for _ = first, last do notebook:delete_cell(first) end
+      self.vim_visual = false
+      self.vim_anchor = nil
+      return
+    elseif key == "p" and self.vim_yank then
+      for offset, cell in ipairs(self.vim_yank) do
+        notebook:insert_cell(notebook.active + offset,
+          notebook:copy_cell(notebook.active))
+        local target = notebook.cells[notebook.active + offset]
+        if target then
+          for field, value in pairs(cell) do target[field] = value end
+        end
+      end
+      return
+    elseif key == "i" or key == "a" then
       self.vim_normal = false
       return
     elseif key == "j" then
@@ -789,8 +833,6 @@ function UI:keypressed(key)
       if cell and cell.kind == "code" then
         cell.source = cell.source:sub(1, -2)
       end
-      return
-    elseif key == "escape" then
       return
     end
   elseif self.app.vim_mode and key == "escape" then

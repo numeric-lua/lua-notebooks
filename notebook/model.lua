@@ -51,6 +51,35 @@ function Notebook:select(index)
   return true
 end
 
+function Notebook:delete_cell(index)
+  if self.cells[index] == nil or #self.cells <= 1 then return false end
+  table.remove(self.cells, index)
+  self.active = math.max(1, math.min(self.active, #self.cells))
+  self.dirty = true
+  return true
+end
+
+function Notebook:insert_cell(index, cell)
+  table.insert(self.cells, index, cell)
+  self.active = index
+  self.dirty = true
+  return cell
+end
+
+function Notebook:copy_cell(index)
+  local cell = self.cells[index]
+  if cell == nil then return nil end
+  return {
+    kind = cell.kind,
+    source = cell.source,
+    output = "",
+    scene = nil,
+    widgets = {},
+    collapsed = false,
+    running = false,
+  }
+end
+
 function Notebook:add_cell(kind)
   self.cells[#self.cells + 1] = cell(kind or "code", "")
   self.active = #self.cells
