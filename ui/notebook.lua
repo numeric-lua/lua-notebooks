@@ -156,6 +156,7 @@ function UI.new(app)
     vim_register = '"',
     vim_pending_register = false,
     vim_pending = nil,
+    vim_text_object = nil,
     vim_recording = nil,
     vim_macros = {},
     vim_last_macro = nil,
@@ -1354,7 +1355,21 @@ function UI:keypressed(key)
     return
   end
   if self.app.vim_mode and self.vim_normal then
-    if self.vim_pending_mark then
+    if self.vim_text_object then
+      local operation = self.vim_text_object
+      self.vim_text_object = nil
+      if key == "w" then
+        local first, last = notebook:word_range(not operation.inner)
+        if first then
+          notebook:push_undo()
+          notebook:delete_range(first, last + 1)
+          if operation.op == "c" then self.vim_normal = false end
+          self.app.status = (operation.op == "c" and "change" or "delete") ..
+            " word"
+        end
+      end
+      return
+    elseif self.vim_pending_mark then
       local operation = self.vim_pending_mark
       self.vim_pending_mark = nil
       if key:match("^[a-z]$") then
@@ -1380,6 +1395,10 @@ function UI:keypressed(key)
       elseif pending == "d" and key == "d" then
         self.vim_last_change = "dd"
         notebook:delete_cell(notebook.active); return
+      elseif (pending == "d" or pending == "c") and key == "i" then
+        self.vim_text_object = { op = pending, inner = true }; return
+      elseif (pending == "d" or pending == "c") and key == "a" then
+        self.vim_text_object = { op = pending, inner = false }; return
       end
     end
     if key == "q" then
@@ -1442,6 +1461,8 @@ function UI:keypressed(key)
       return
     elseif key == "d" and not self.vim_visual then
       self.vim_pending = "d"; return
+    elseif key == "c" and not self.vim_visual then
+      self.vim_pending = "c"; return
     elseif key == "/" then
       self.vim_search = ""
       return

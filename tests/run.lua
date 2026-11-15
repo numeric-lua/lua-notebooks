@@ -282,6 +282,20 @@ test("adds a cell after the focused cell", function()
   eq(notebook.active, 3)
 end)
 
+current = "vim word objects"
+test("finds inner and around word ranges", function()
+  local Notebook = require("notebook.model")
+  local notebook = Notebook.new({ cells = {
+    { kind = "code", source = "alpha beta gamma" },
+  } })
+  notebook:selected().cursor = 8
+  local first, last = notebook:word_range(true)
+  eq(first, 7)
+  eq(last, 11)
+  notebook:delete_range(first, last + 1)
+  eq(notebook:selected().source, "alpha gamma")
+end)
+
 current = "cell ops"
 test("inserts above and converts cell kinds", function()
   local Notebook = require("notebook.model")

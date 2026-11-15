@@ -178,6 +178,39 @@ function Notebook:selection_text(anchor, cursor)
   return self:selected().source:sub(first, last - 1)
 end
 
+function Notebook:word_range(around)
+  local cell = self:selected()
+  if cell == nil then return nil end
+  local source = cell.source
+  local function word_at(position)
+    local char = source:sub(position, position)
+    return char ~= "" and char:match("[%w_]") ~= nil
+  end
+  local position = math.min(cell.cursor or 1, #source)
+  if position < 1 then return nil end
+  if not word_at(position) then
+    while position <= #source and not word_at(position) do
+      position = position + 1
+    end
+    if position > #source then
+      position = math.min(cell.cursor or 1, #source)
+      while position >= 1 and not word_at(position) do
+        position = position - 1
+      end
+    end
+  end
+  if position < 1 or not word_at(position) then return nil end
+  local first, last = position, position
+  while first > 1 and word_at(first - 1) do first = first - 1 end
+  while last < #source and word_at(last + 1) do last = last + 1 end
+  if around then
+    while last < #source and source:sub(last + 1, last + 1):match("%s") do
+      last = last + 1
+    end
+  end
+  return first, last
+end
+
 function Notebook:delete_range(anchor, cursor)
   local first = math.min(anchor or 1, cursor or 1)
   local last = math.max(anchor or 1, cursor or 1)
