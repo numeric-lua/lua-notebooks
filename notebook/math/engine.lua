@@ -79,7 +79,11 @@ local function parse_row(text, position, stop)
         end
       end
     elseif char:match("[%+%-=<>]") then
-      items[#items + 1] = { kind = "text", text = " " .. char .. " " }
+      items[#items + 1] = { kind = "op", text = char,
+        cls = char:match("[=<>]") and "rel" or "bin" }
+      position = position + 1
+    elseif char == "," or char == ";" then
+      items[#items + 1] = { kind = "punct", text = char }
       position = position + 1
     else
       local start = position
@@ -169,7 +173,9 @@ end
 
 local function layout(node, style)
   if node == nil then return empty_box() end
-  if node.kind == "text" or node.kind == "text_group" then
+  if node.kind == "op" or node.kind == "punct" then
+    return layout({ kind = "text", text = node.text }, style)
+  elseif node.kind == "text" or node.kind == "text_group" then
     local text = node.kind == "text_group" and plain(node.body) or node.text or ""
     local w, h, d = measure_text(text, style)
     return { w = w, h = h, d = d, ops = { { op = "text", text = text,
@@ -177,10 +183,24 @@ local function layout(node, style)
   elseif node.kind == "row" then
     local box = empty_box()
     local cursor = 0
-    for _, child in ipairs(node.items or {}) do
+    local em = 18 * style.scale
+    local items = node.items or {}
+    for index, child in ipairs(items) do
+      local before, after = 0, 0
+      if child.kind == "op" then
+        local previous = items[index - 1]
+        local unary = previous == nil or previous.kind == "op"
+        if not unary then
+          before = child.cls == "rel" and 0.278 * em or 0.222 * em
+          after = before
+        end
+      elseif child.kind == "punct" then
+        after = 0.166 * em
+      end
+      cursor = cursor + before
       local child_box = layout(child, style)
       box.items[#box.items + 1] = { box = child_box, dx = cursor, shift = 0 }
-      cursor = cursor + child_box.w
+      cursor = cursor + child_box.w + after
       box.h = math.max(box.h, child_box.h)
       box.d = math.max(box.d, child_box.d)
     end
