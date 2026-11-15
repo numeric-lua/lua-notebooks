@@ -240,6 +240,9 @@ function lovr.load()
   end
 
   -- Visual QA/demo: select and run one cell, then leave the window open.
+  if os.getenv("LUANB_QA_EXT") then
+    app.ui.show_extensions = true
+  end
   local qa_cell = tonumber(os.getenv("LUANB_QA_CELL") or "")
   if qa_cell then
     app:notebook():select(qa_cell)

@@ -153,6 +153,17 @@ test("target scroll is stable for a tall final cell", function()
   eq(first <= Scroll.max_scroll(1200, 800), true)
 end)
 
+current = "extension browser"
+test("can disable and re-enable a renderer", function()
+  local Extensions = require("extensions")
+  eq(Extensions.is_enabled("cube"), true)
+  Extensions.set_enabled("cube", false)
+  eq(Extensions.get("cube"), nil)
+  eq(Extensions.is_enabled("cube"), false)
+  Extensions.set_enabled("cube", true)
+  eq(Extensions.get("cube") ~= nil, true)
+end)
+
 io.write(string.format("\n\n%d tests, %d passed, %d failed\n", passed + failed,
   passed, failed))
 if failed > 0 then

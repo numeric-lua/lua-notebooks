@@ -224,7 +224,37 @@ function UI:draw(pass)
     { 0.6, 0.68, 0.82, 1 }, 0.72)
   text(pass, app.font, "F5 run   F6 save   F7 load   Tab indent   Up/Down cell",
     width - 470, height - 22, { 0.45, 0.5, 0.62, 1 }, 0.65)
+  self:draw_extension_browser(pass, width, height)
   return self.extension_passes
+end
+
+function UI:draw_extension_browser(pass, width, height)
+  self.extension_rects = {}
+  if not self.show_extensions then return end
+  local panel_w, panel_h = 520, 120 + #Extensions.list() * 36
+  local x, y = (width - panel_w) / 2, 90
+  box(pass, x, y, panel_w, panel_h, { 0.06, 0.07, 0.1, 0.98 })
+  text(pass, self.app.font, "Extensions  (F10 to close)", x + 16, y + 14,
+    0.8, { 0.9, 0.94, 1, 1 })
+  for index, extension in ipairs(Extensions.list()) do
+    local row_y = y + 50 + (index - 1) * 36
+    local selected = extension.enabled
+    box(pass, x + 12, row_y, panel_w - 24, 30,
+      selected and { 0.12, 0.22, 0.16, 1 } or { 0.12, 0.13, 0.17, 1 })
+    box(pass, x + 22, row_y + 7, 16, 16,
+      selected and { 0.35, 0.8, 0.55, 1 } or { 0.25, 0.28, 0.35, 1 })
+    text(pass, self.app.font, extension.id .. "  ·  " .. extension.title,
+      x + 50, row_y + 7, 0.72,
+      selected and { 0.85, 0.95, 0.9, 1 } or { 0.55, 0.6, 0.7, 1 })
+    self.extension_rects[#self.extension_rects + 1] = {
+      x = x + 12, y = row_y, w = panel_w - 24, h = 30, id = extension.id,
+    }
+  end
+end
+
+function UI:toggle_extension(id)
+  Extensions.set_enabled(id, not Extensions.is_enabled(id))
+  self.app.status = (Extensions.is_enabled(id) and "enabled " or "disabled ") .. id
 end
 
 function UI:draw_scene(pass, x, y, w, h, cell)
@@ -372,6 +402,15 @@ end
 
 function UI:mousepressed(x, y, button)
   if button ~= 1 then return end
+  if self.show_extensions then
+    for _, rect in ipairs(self.extension_rects) do
+      if inside(x, y, rect) then
+        self:toggle_extension(rect.id)
+        return
+      end
+    end
+    return
+  end
   for cell_index, controls in pairs(self.widget_rects) do
     for _, rect in ipairs(controls) do
       if inside(x, y, rect) then

@@ -20,6 +20,7 @@ local Extensions = {
   registry = {},
   order = {},
   errors = {},
+  disabled = {},
 }
 
 local function register(descriptor)
@@ -42,7 +43,33 @@ function Extensions.register(descriptor_or_name, maybe_renderer)
 end
 
 function Extensions.get(id)
+  if Extensions.disabled[id] then return nil end
   return Extensions.registry[id]
+end
+
+function Extensions.set_enabled(id, enabled)
+  if Extensions.registry[id] == nil then return false end
+  Extensions.disabled[id] = not enabled
+  return true
+end
+
+function Extensions.is_enabled(id)
+  return Extensions.registry[id] ~= nil and not Extensions.disabled[id]
+end
+
+function Extensions.list()
+  local result = {}
+  for _, id in ipairs(Extensions.order) do
+    local descriptor = Extensions.registry[id]
+    if descriptor then
+      result[#result + 1] = {
+        id = id,
+        title = descriptor.title or id,
+        enabled = not Extensions.disabled[id],
+      }
+    end
+  end
+  return result
 end
 
 function Extensions.ids()
