@@ -70,9 +70,21 @@ Controls:
 | drag / wheel in 3D | orbit / zoom the focused extension |
 | tabs / **+ Cell** | switch notebook / add cell |
 
-The welcome notebook has four runnable cells: hello, a loop, a
-`return { scene = "cube" }` cell, and a luaplotlib-style line/scatter scene. The second notebook has an independent kernel
+The welcome notebook has runnable cells for hello, a loop, a 3D cube scene, a
+luaplotlib scene, a grid extension, and widgets. The second notebook has an independent kernel
 and global state.
+
+## Process kernels
+
+Threads are the default. An experimental process backend is available:
+
+```sh
+LUANB_KERNEL_MODE=process lovr .
+```
+
+Each notebook then gets a plain-LuaJIT child with a file-backed job/result
+channel. See [`docs/process-kernels.md`](docs/process-kernels.md) for the
+protocol, timeout behavior, and limitations.
 
 ## Tests
 
@@ -85,6 +97,8 @@ LUANB_SMOKE_GRID=1 lovr .   # run the grid extension cell, then quit
 LUANB_SMOKE_WIDGET=1 lovr . # run the widget cell, then quit
 LUANB_SMOKE_WIDGET_EVENT=1 lovr . # run the widget cell and change a slider
 LUANB_SMOKE_SAVE=1 lovr .   # save/load the active notebook, then quit
+LUANB_KERNEL_MODE=process LUANB_SMOKE=1 lovr . # process kernel
+LUANB_KERNEL_MODE=process LUANB_SMOKE_PROCESS_CRASH=1 lovr . # crash recovery
 ```
 
 `docs/lovr/` is a vendored, offline LÖVR 0.19 reference: API metadata, generated

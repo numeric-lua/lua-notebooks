@@ -108,12 +108,15 @@ See [`docs/widgets.md`](docs/widgets.md).
 
 ## 6. Kernel isolation roadmap
 
-Today: LÖVR threads (separate Lua states, shared process). Good for state
-isolation, low overhead, and crash containment at the Lua level.
+Default: LÖVR threads (separate Lua states, shared process). Low overhead and
+state isolation.
 
-Next: OS-process kernels with a pipe/socket protocol. That gives memory limits,
-crash containment at the process level, and the ability to run kernels without a
-graphics context. The channel message schema is the compatibility boundary.
+Experimental: a plain-LuaJIT child process per notebook, communicating through
+atomically renamed JSON job/result files. The child has no graphics context; a
+crash or `os.exit` only affects that child. The host polls results, times out
+after 8 seconds, and restarts the child. See `docs/process-kernels.md`.
+
+The message schema is shared between both backends.
 
 ## 7. Startup and resource goals
 

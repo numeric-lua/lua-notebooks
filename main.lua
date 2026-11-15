@@ -7,6 +7,7 @@
 --
 local Notebook = require("notebook.model")
 local Supervisor = require("notebook.supervisor")
+local ProcessSupervisor = require("notebook.process_supervisor")
 local Format = require("notebook.format")
 local Extensions = require("extensions")
 local UI = require("ui.notebook")
@@ -30,7 +31,10 @@ function App:new(notebooks)
     title_font = nil,
     supervisor = nil,
   }, App)
-  self.supervisor = Supervisor.new({
+  local SupervisorClass = os.getenv("LUANB_KERNEL_MODE") == "process" and
+    ProcessSupervisor or Supervisor
+  self.supervisor = SupervisorClass.new({
+    root = lovr.filesystem.getSource(),
     on_result = function(kernel_id, request, message)
       self:on_result(kernel_id, request, message)
     end,
@@ -84,7 +88,7 @@ function App:run()
     return
   end
   self.pending[request] = { notebook = self.active, cell = index,
-    kind = "run" }
+    kind = "run", started = lovr.timer.getTime() }
   self.status = "running " .. cell_label(index)
 end
 
@@ -118,7 +122,7 @@ function App:widget_event(cell_index, spec, event)
     return
   end
   self.pending[request] = { notebook = self.active, cell = cell_index,
-    kind = "widget" }
+    kind = "widget", started = lovr.timer.getTime() }
   self.status = "widget " .. tostring(spec.id)
 end
 
@@ -162,6 +166,24 @@ end
 
 function App:update()
   self.supervisor:poll()
+  local now = lovr.timer.getTime()
+  for request, target in pairs(self.pending) do
+    if now - (target.started or now) > 8 then
+      self.pending[request] = nil
+      local notebook = self.notebooks[target.notebook]
+      local cell = notebook and notebook.cells[target.cell]
+      if cell then
+        cell.running = false
+        cell.error = "kernel did not answer (timeout)"
+      end
+      if self.supervisor.restart then
+        self.supervisor:restart("nb" .. target.notebook)
+        self.status = "kernel restarted after timeout in " .. cell_label(target.cell)
+      else
+        self.status = "kernel timeout in " .. cell_label(target.cell)
+      end
+    end
+  end
 end
 
 function lovr.load()
@@ -192,7 +214,14 @@ function lovr.load()
   -- Non-interactive smoke path: run the first welcome cell, print its result,
   -- and quit.  This exercises thread startup, channels, the kernel worker, and
   -- result routing without requiring a human at the window.
-  if os.getenv("LUANB_SMOKE") or os.getenv("LUANB_SMOKE_SCENE") or
+  if os.getenv("LUANB_SMOKE_PROCESS_CRASH") then
+    app.smoke = true
+    app.smoke_start = lovr.timer.getTime()
+    local notebook = app:notebook()
+    notebook:add_cell("code")
+    notebook:selected().source = "os.exit(1)"
+    app:run()
+  elseif os.getenv("LUANB_SMOKE") or os.getenv("LUANB_SMOKE_SCENE") or
      os.getenv("LUANB_SMOKE_PLOT") or os.getenv("LUANB_SMOKE_GRID") or
      os.getenv("LUANB_SMOKE_WIDGET") or
      os.getenv("LUANB_SMOKE_WIDGET_EVENT") then
@@ -218,7 +247,13 @@ function lovr.update(dt)
   if app.smoke then
     local notebook = app:notebook()
     local cell = notebook.cells[notebook.active]
-    if os.getenv("LUANB_SMOKE_WIDGET_EVENT") then
+    if os.getenv("LUANB_SMOKE_PROCESS_CRASH") then
+      if not cell.running and lovr.timer.getTime() - app.smoke_start > 6 then
+        print("SMOKE_CRASH_RECOVERED=" .. tostring(cell.error))
+        app.smoke = false
+        lovr.event.quit()
+      end
+    elseif os.getenv("LUANB_SMOKE_WIDGET_EVENT") then
       if not app.smoke_widget_sent and #cell.widgets > 0 then
         app.smoke_widget_sent = true
         app:widget_event(6, cell.widgets[1],
@@ -291,6 +326,10 @@ end
 
 function lovr.threaderror(thread, message)
   if app then app.supervisor:threaderror(thread, message) end
+end
+
+function lovr.quit()
+  if app and app.supervisor.close then app.supervisor:close() end
 end
 
 function lovr.filechanged(path, action)
