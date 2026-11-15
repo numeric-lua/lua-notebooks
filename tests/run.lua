@@ -77,17 +77,17 @@ test("records errors", function()
   eq(notebook.cells[1].error, "boom")
 end)
 
+current = "extensions"
+test("registers and resolves extension renderers", function()
+  local Extensions = require("extensions")
+  eq(Extensions.get("cube") ~= nil, true, "cube extension")
+  Extensions.register("dummy", { render = function() end })
+  eq(Extensions.get("dummy") ~= nil, true, "dummy extension")
+end)
+
 io.write(string.format("\n\n%d tests, %d passed, %d failed\n", passed + failed,
   passed, failed))
 if failed > 0 then
   for _, failure in ipairs(failures) do io.write("\n" .. failure .. "\n") end
   os.exit(1)
 end
-
-current = "extensions"
-test("registers and resolves extension renderers", function()
-  local Extensions = require("extensions")
-  assert_true(Extensions.get("cube") ~= nil, "cube extension")
-  Extensions.register("dummy", { render = function() end })
-  assert_true(Extensions.get("dummy") ~= nil, "dummy extension")
-end)
