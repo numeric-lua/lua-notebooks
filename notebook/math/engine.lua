@@ -73,13 +73,17 @@ local function parse_row(text, position, stop)
           items[#items + 1] = { kind = "text", text = SYMBOLS[name] or name }
         end
       end
+    elseif char:match("[%+%-=<>]") then
+      items[#items + 1] = { kind = "text", text = " " .. char .. " " }
+      position = position + 1
     else
       local start = position
       position = position + 1
       while position <= #text do
         local current = text:sub(position, position)
         if current == "\\" or current == "{" or current == "}" or
-           current == "^" or current == "_" or current:match("%s") then break end
+           current == "^" or current == "_" or current:match("%s") or
+           current:match("[%+%-=<>]") then break end
         position = position + 1
       end
       local atom = { kind = "text", text = text:sub(start, position - 1) }
