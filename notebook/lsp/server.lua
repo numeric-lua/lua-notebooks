@@ -4,6 +4,7 @@
 local json = require("notebook.json")
 local Editor = require("notebook.editor_text")
 local Scope = require("notebook.lsp.scope")
+local Types = require("notebook.lsp.types")
 
 local Server = {}
 Server.__index = Server
@@ -158,6 +159,21 @@ function Server:handle(message)
     if document == nil then return response(id, { isIncomplete = false, items = {} }) end
     local items = {}
     local seen = {}
+    local absolute = Editor.offset_at(document.text, params.position.line,
+      params.position.character)
+    local typed = Types.complete(document.text, absolute)
+    if typed then
+      for _, item in ipairs(typed) do
+        if not seen[item.label] then
+          seen[item.label] = true
+          items[#items + 1] = item
+        end
+      end
+      return response(id, { isIncomplete = false, items = items })
+    end
+    for _, item in ipairs(Types.symbols(document.text, absolute)) do
+      if not seen[item.label] then seen[item.label] = true; items[#items + 1] = item end
+    end
     for _, word in ipairs(Editor.complete(document.text)) do
       if not seen[word] then seen[word] = true; items[#items + 1] = { label = word, kind = 1 } end
     end
@@ -183,6 +199,19 @@ function Server:handle(message)
         info = "local `" .. word .. "` (line " .. line .. ")"
       end
     end
+    if info == nil and document then
+      local absolute = Editor.offset_at(document.text, params.position.line,
+        params.position.character)
+      local typed = Types.resolve(document.text, absolute)
+      if typed and typed.field then
+        info = "field `" .. word .. "`: " .. typed.type.kind
+        if typed.declaration then
+          local line = select(2, document.text:sub(1,
+            typed.declaration.start - 1):gsub("\n", "")) + 1
+          info = info .. " (line " .. line .. ")"
+        end
+      end
+    end
     info = info or Editor.hover(word)
     if not info then return response(id, json.null) end
     return response(id, { contents = { kind = "plaintext", value = info } })
@@ -199,7 +228,13 @@ function Server:handle(message)
       if binding then
         locations[1] = location(uri, document.text, binding.token.start)
       else
-        locations = self:definitions(word.word)
+        local typed = Types.resolve(document.text, absolute)
+        if typed and typed.declaration then
+          locations[1] = location(uri, document.text,
+            typed.declaration.start)
+        else
+          locations = self:definitions(word.word)
+        end
       end
     end
     if #locations == 0 then return response(id, json.null) end
@@ -212,9 +247,16 @@ function Server:handle(message)
     if word and document then
       local absolute = Editor.offset_at(document.text, params.position.line,
         params.position.character)
+      local typed = Types.resolve(document.text, absolute)
       local ranges, is_local = Scope.resolved_ranges(document.text, absolute,
         word.word)
-      if is_local then
+      if typed and typed.field then
+        for _, range in ipairs(Types.field_occurrences(document.text,
+          word.word, typed.declaration.start)) do
+          locations[#locations + 1] = location(uri, document.text,
+            range.start)
+        end
+      elseif is_local then
         for _, range in ipairs(ranges or {}) do
           locations[#locations + 1] = location(uri, document.text,
             range.start)
@@ -259,9 +301,14 @@ function Server:handle(message)
     local changes = {}
     local absolute = Editor.offset_at(document.text,
       params.position.line, params.position.character)
+    local typed = Types.resolve(document.text, absolute)
     local target_ranges, is_local = Scope.resolved_ranges(document.text,
       absolute, word.word)
-    if is_local then
+    if typed and typed.field then
+      add_edits(changes, uri, document.text,
+        Types.field_occurrences(document.text, word.word,
+          typed.declaration.start))
+    elseif is_local then
       add_edits(changes, uri, document.text, target_ranges or {})
     else
       for other_uri, other in pairs(self.documents) do

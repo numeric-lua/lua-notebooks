@@ -11,6 +11,7 @@ local Math = require("notebook.math")
 local NotebookModel = require("notebook.model")
 local Theme = require("ui.theme")
 local Markdown = require("notebook.markdown")
+local Types = require("notebook.lsp.types")
 local Highlight = require("ui.highlight")
 local LSP = require("notebook.editor_text")
 local MathEngine = require("notebook.math.engine")
@@ -1072,8 +1073,19 @@ function UI:open_completion()
   local notebook = self.app:notebook()
   local cell = notebook.cells[notebook.active]
   if cell == nil or cell.kind ~= "code" then return end
-  local prefix = LSP.current_word(cell.source, cell.cursor)
-  local items = LSP.complete_notebook(notebook, cell.source)
+  local cursor = cell.cursor or (#cell.source + 1)
+  local prefix = LSP.current_word(cell.source, cursor)
+  local typed = Types.complete(cell.source, cursor)
+  local items, seen = {}, {}
+  local function add(label)
+    if label and not seen[label] then seen[label] = true; items[#items + 1] = label end
+  end
+  if typed then
+    for _, item in ipairs(typed) do add(item.label) end
+  else
+    for _, item in ipairs(Types.symbols(cell.source, cursor)) do add(item.label) end
+    for _, item in ipairs(LSP.complete_notebook(notebook, cell.source)) do add(item) end
+  end
   if prefix ~= "" then
     local filtered = {}
     for _, item in ipairs(items) do

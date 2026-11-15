@@ -86,6 +86,43 @@ local hover_inner = server:handle({ jsonrpc = "2.0", id = 16,
 assert(hover_inner.result and
   hover_inner.result.contents.value:find("local `x`", 1, true),
   hover_inner.result and hover_inner.result.contents.value)
+
+local uri4 = "luanb:///a.luanb?cell=c4"
+server:handle({ jsonrpc = "2.0", method = "textDocument/didOpen", params = {
+  textDocument = { uri = uri4,
+    text = "local cfg = { name = \"x\", count = 1 }\nprint(cfg.name)\ncfg.name = \"y\"",
+    version = 1 },
+} })
+local field_hover = server:handle({ jsonrpc = "2.0", id = 17,
+  method = "textDocument/hover", params = {
+    textDocument = { uri = uri4 }, position = { line = 1, character = 10 },
+  } })
+assert(field_hover.result and
+  field_hover.result.contents.value:find("field `name`", 1, true),
+  field_hover.result and field_hover.result.contents.value)
+local field_definition = server:handle({ jsonrpc = "2.0", id = 18,
+  method = "textDocument/definition", params = {
+    textDocument = { uri = uri4 }, position = { line = 1, character = 10 },
+  } })
+assert(field_definition.result and #field_definition.result == 1)
+assert(field_definition.result[1].range.start.line == 0)
+local field_refs = server:handle({ jsonrpc = "2.0", id = 19,
+  method = "textDocument/references", params = {
+    textDocument = { uri = uri4 }, position = { line = 1, character = 10 },
+  } })
+assert(#field_refs.result == 3, #field_refs.result)
+local field_rename = server:handle({ jsonrpc = "2.0", id = 20,
+  method = "textDocument/rename", params = {
+    textDocument = { uri = uri4 }, position = { line = 1, character = 10 },
+    newName = "title",
+  } })
+assert(field_rename.result and #field_rename.result.changes[uri4] == 3,
+  field_rename.result and #field_rename.result.changes[uri4])
+local field_completion = server:handle({ jsonrpc = "2.0", id = 21,
+  method = "textDocument/completion", params = {
+    textDocument = { uri = uri4 }, position = { line = 3, character = 0 },
+  } })
+assert(field_completion.result and #field_completion.result.items > 0)
 local shutdown = server:handle({ jsonrpc = "2.0", id = 3, method = "shutdown", params = json.null })
 eq(shutdown.result, json.null)
 print("lsp protocol tests ok")
