@@ -29,7 +29,8 @@
 - Native Windows process kernels (thread fallback is used).
 - Remote LuaRocks publishing.
 - Full Vim (undo tree, regex semantics, text objects, macros).
-- Pixel-level visual regression baselines.
+- Pixel-level visual regression baselines for cells 4/6/7 now exist under
+  `tests/visual/baseline`; broader coverage and CI display runners remain.
 
 ## Verify
 

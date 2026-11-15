@@ -67,6 +67,19 @@ function App:new(notebooks)
   return self
 end
 
+function App:ensure_canvas(width, height)
+  if self.canvas and self.canvas_width == width and self.canvas_height == height then
+    return self.canvas, self.canvas_pass
+  end
+  self.canvas = lovr.graphics.newTexture(width, height, {
+    format = "rgba8", mipmaps = false, samples = 1,
+    usage = { "sample", "render", "transfer" },
+  })
+  self.canvas_pass = lovr.graphics.newPass(self.canvas)
+  self.canvas_width, self.canvas_height = width, height
+  return self.canvas, self.canvas_pass
+end
+
 function App:notebook()
   return self.notebooks[self.active]
 end
@@ -278,6 +291,23 @@ end
 
 function App:update()
   self.supervisor:poll()
+  if self.screenshot_readback and self.screenshot_readback:isComplete() then
+    local image = self.screenshot_readback:getImage()
+    self.screenshot_readback = nil
+    if image and image:getFormat() == "rgba8" then
+      local blob = image:encode()
+      lovr.filesystem.createDirectory("screenshots")
+      local path = "screenshots/notebook-" .. tostring(os.time()) .. ".png"
+      lovr.filesystem.write(path, blob:getString())
+      self.status = "screenshot " .. path
+      print("SCREENSHOT=" .. path)
+      if self.qa_screenshot then lovr.event.quit() end
+    end
+  end
+  if self.qa_screenshot and not self.screenshot_requested and
+     not self.screenshot_readback and lovr.timer.getTime() > 2 then
+    self.screenshot_requested = true
+  end
   if os.getenv("LUANB_LSP_SMOKE") and self.lsp_ready and
      not self.lsp_smoke_done then
     self.lsp_smoke_done = true
@@ -424,6 +454,9 @@ function lovr.load()
   end
 
   -- Visual QA/demo: select and run one cell, then leave the window open.
+  if os.getenv("LUANB_QA_SCREENSHOT") then
+    app.qa_screenshot = true
+  end
   if os.getenv("LUANB_QA_COMPLETE") then
     app.qa_complete = true
   end
@@ -685,22 +718,18 @@ function lovr.update(dt)
   end
 end
 
-function lovr.draw(pass)
+function lovr.draw(window)
   if app == nil then return end
-  local passes
-  if app.smoke then
-    local ok, result = pcall(app.ui.draw, app.ui, pass)
-    if not ok then
-      print("SMOKE_DRAW_ERROR=" .. tostring(result))
-      app.smoke = false
-      lovr.event.quit()
-      return
-    end
-    passes = result
-  else
-    passes = app.ui:draw(pass)
+  local width, height = window:getDimensions()
+  local canvas, canvas_pass = app:ensure_canvas(width, height)
+  if app.screenshot_requested then
+    app.screenshot_requested = false
+    app.screenshot_readback = canvas:newReadback()
   end
-  passes[#passes + 1] = pass
+  local passes = app.ui:draw(canvas_pass)
+  window:fill(canvas)
+  passes[#passes + 1] = canvas_pass
+  passes[#passes + 1] = window
   return lovr.graphics.submit(passes)
 end
 

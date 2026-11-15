@@ -192,12 +192,17 @@ manual because they need a display and seat.
 ## Visual smoke
 
 ```sh
-./scripts/visual-smoke.sh
+./scripts/visual-smoke.sh       # coarse live-window check
+./scripts/visual-baseline.sh    # pixel baselines from the offscreen canvas
+./scripts/visual-baseline.sh --update
 ```
 
-Captures the 3D, plot, widget, and math cells, crops the notebook window, and
-fails on a flat/blank capture or an unexpected crop size. It is not part of
-`make test` because it needs a display.
+`visual-baseline.sh` renders the notebook through an offscreen rgba8 canvas,
+reads it back from the GPU, and compares 50%-scale PNGs for cells 4, 6, and 7.
+It is display-dependent and not part of `make test`.
+
+The offscreen canvas is also what makes screenshots independent of the
+compositor and window stacking.
 
 ## LuaRocks
 
