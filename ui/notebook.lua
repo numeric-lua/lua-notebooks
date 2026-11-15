@@ -1859,8 +1859,41 @@ function UI:keypressed(key)
       return
     end
   end
-  if key == "f5" then
+  if key == "f1" then
+    self.show_palette = not self.show_palette
+    self.palette_query = ""
+    self.palette_selected = 1
+  elseif key == "f2" then
+    self.show_tree = not self.show_tree
+  elseif key == "f3" then
+    self.app.vim_mode = not self.app.vim_mode
+    self.vim_normal = self.app.vim_mode
+    self.app.status = self.app.vim_mode and "Vim on" or "Vim off"
+  elseif key == "f4" then
+    self.zen_mode = not self.zen_mode
+    self.scroll = 0
+    self.scroll_to_selected = true
+  elseif key == "f5" then
     self.app:run()
+  elseif key == "f6" then
+    self.app:save()
+  elseif key == "f7" then
+    self.app:load()
+  elseif key == "f8" then
+    local cell = notebook:selected()
+    if type(cell.scene) == "string" then
+      self.app:reload_extension(cell.scene)
+    else
+      self.app.status = "no extension in selected cell"
+    end
+  elseif key == "f9" then
+    self.app:reload_user_extensions()
+  elseif key == "f10" then
+    self.show_extensions = not self.show_extensions
+  elseif key == "f11" then
+    self.show_outline = not self.show_outline
+  elseif key == "f12" then
+    self.show_help = not self.show_help
   elseif key == "tab" then
     if notebook:selected().kind == "code" or
        notebook:selected().kind == "markdown" then

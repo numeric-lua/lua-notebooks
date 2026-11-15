@@ -476,7 +476,33 @@ function lovr.load()
   end
   lovr.filesystem.watch()
   _G.app = app
-  if os.getenv("LUANB_SMOKE_GUNDO") then
+  if os.getenv("LUANB_SMOKE_FKEYS") then
+    app.ui:keypressed("f1")
+    local palette = app.ui.show_palette
+    app.ui:keypressed("f1")
+    app.ui:keypressed("f2")
+    local tree = app.ui.show_tree
+    app.ui:keypressed("f2")
+    app.ui:keypressed("f3")
+    local vim = app.vim_mode
+    app.ui:keypressed("f3")
+    app.ui:keypressed("f4")
+    local zen = app.ui.zen_mode
+    app.ui:keypressed("f4")
+    app.ui:keypressed("f10")
+    local extensions = app.ui.show_extensions
+    app.ui:keypressed("f10")
+    app.ui:keypressed("f11")
+    local outline = app.ui.show_outline
+    app.ui:keypressed("f11")
+    app.ui:keypressed("f12")
+    local help = app.ui.show_help
+    print("SMOKE_FKEYS=" .. tostring(palette) .. ":" .. tostring(tree) ..
+      ":" .. tostring(not vim) .. ":" .. tostring(zen) .. ":" ..
+      tostring(extensions) .. ":" .. tostring(outline) .. ":" ..
+      tostring(help))
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_GUNDO") then
     local notebook = app:notebook()
     notebook.cells[1].source = ""
     notebook.cells[1].cursor = 1
