@@ -11,6 +11,7 @@ local Math = require("notebook.math")
 local NotebookModel = require("notebook.model")
 local Highlight = require("ui.highlight")
 local LSP = require("notebook.editor_text")
+local MathEngine = require("notebook.math.engine")
 local Extensions = require("extensions")
 
 local UI = {}
@@ -224,12 +225,27 @@ function UI:draw(pass)
     local cell = notebook.cells[index]
     cell._index = index
     local source_lines = split_lines(cell.source)
+    local math_layouts = {}
     local source_height = 0
-    for _, source_line in ipairs(source_lines) do
-      source_height = source_height +
-        (Math.display_fraction(source_line) and 56 or
-          (Math.display_matrix(source_line) and 90 or
-          (Math.display_root(source_line) and 44 or 21)))
+    for line_index, source_line in ipairs(source_lines) do
+      local expression = cell.kind == "markdown" and
+        source_line:match("^%$%$(.-)%$%$$")
+      if expression and not source_line:find("\\begin{matrix}", 1, true) then
+        local result = MathEngine.typeset(expression, {
+          font = app.title_font, scale = 1.0, display = true,
+        })
+        if result then
+          math_layouts[line_index] = result
+          source_height = source_height + result.h + 10
+        else
+          source_height = source_height + 21
+        end
+      else
+        source_height = source_height +
+          (Math.display_fraction(source_line) and 56 or
+            (Math.display_matrix(source_line) and 90 or
+            (Math.display_root(source_line) and 44 or 21)))
+      end
     end
     source_height = math.max(63, source_height)
     local widget_height = Widgets.height(cell.widgets)
@@ -299,6 +315,7 @@ function UI:draw(pass)
       local line_y = source_y
       for line_index = 1, math.min(#source_lines, 14) do
         local display = source_lines[line_index]
+        local engine_layout = math_layouts[line_index]
         local display_fraction = cell.kind == "markdown" and
           Math.display_fraction(display)
         local display_matrix = cell.kind == "markdown" and
@@ -307,7 +324,12 @@ function UI:draw(pass)
           Math.display_root(display)
         local display_math = cell.kind == "markdown" and
           Math.display(display)
-        if display_fraction then
+        if engine_layout then
+          MathEngine.draw(pass, engine_layout.box,
+            width / 2 - engine_layout.box.w / 2,
+            line_y + engine_layout.box.h, { 0.88, 0.9, 1, 1 })
+          line_y = line_y + engine_layout.h + 10
+        elseif display_fraction then
           local total = math_width(app.title_font, display_fraction, 1.2)
           draw_math(pass, app.title_font, display_fraction,
             width / 2 - total / 2, line_y + 22, 1.2,
