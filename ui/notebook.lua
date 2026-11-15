@@ -133,6 +133,7 @@ function UI.new(app)
     vim_char_visual = false,
     vim_char_anchor = nil,
     vim_char_yank = nil,
+    vim_command = nil,
     tree_rects = {},
     tree_items = {},
     rename_prompt = nil,
@@ -458,6 +459,11 @@ function UI:draw(pass)
   self:draw_extension_browser(pass, width, height)
   self:draw_help(pass, width, height)
   self:draw_palette(pass, width, height)
+  if self.vim_command ~= nil then
+    box(pass, 0, height - 32, width, 32, { 0.03, 0.04, 0.06, 1 })
+    text(pass, app.font, ":" .. self.vim_command .. "|", 16, height - 25,
+      { 0.85, 0.92, 1, 1 }, 0.74)
+  end
   return self.extension_passes
 end
 
@@ -645,6 +651,10 @@ function UI:draw_confirm(pass, width, height)
   local panel_w, panel_h = 500, 100
   local x, y = (width - panel_w) / 2, 150
   box(pass, x, y, panel_w, panel_h, { 0.04, 0.05, 0.08, 1 })
+  if self.vim_command ~= nil then
+    self.vim_command = self.vim_command .. value
+    return
+  end
   if self.symbol_prompt then
     if key == "escape" then
       self.symbol_prompt = nil
@@ -775,6 +785,10 @@ end
 
 function UI:textinput(value)
   if value == "\r" or value == "\n" then return end
+  if self.vim_command ~= nil then
+    self.vim_command = self.vim_command .. value
+    return
+  end
   if self.symbol_prompt then
     self.symbol_prompt.value = self.symbol_prompt.value .. value
     return
@@ -785,6 +799,10 @@ function UI:textinput(value)
   end
   if self.folder_prompt then
     self.folder_prompt.value = self.folder_prompt.value .. value
+    return
+  end
+  if self.vim_command ~= nil then
+    self.vim_command = self.vim_command .. value
     return
   end
   if self.symbol_prompt then
@@ -880,8 +898,46 @@ function UI:draw_completion(pass, width, height)
   end
 end
 
+function UI:run_vim_command(command)
+  command = command:gsub("^%s+", ""):gsub("%s+$", "")
+  if command == "w" then
+    self.app:save()
+  elseif command == "q" then
+    lovr.event.quit()
+  elseif command == "wq" then
+    self.app:save()
+    lovr.event.quit()
+  elseif command == "new" then
+    self.app:new_notebook()
+  elseif command == "undo" then
+    self.app:notebook():undo()
+  elseif command == "redo" then
+    self.app:notebook():redo()
+  elseif command:match("^e%s+") then
+    self.app:open_path("notebooks/" .. command:gsub("^e%s+", ""))
+  else
+    self.app.status = "unknown command: " .. command
+  end
+end
+
 function UI:keypressed(key)
   local notebook = self.app:notebook()
+  if self.vim_command ~= nil then
+    if key == "escape" then
+      self.vim_command = nil
+    elseif key == "backspace" then
+      self.vim_command = self.vim_command:sub(1, -2)
+    elseif key == "return" then
+      local command = self.vim_command
+      self.vim_command = nil
+      self:run_vim_command(command)
+    end
+    return
+  end
+  if self.vim_command ~= nil then
+    self.vim_command = self.vim_command .. value
+    return
+  end
   if self.symbol_prompt then
     if key == "escape" then
       self.symbol_prompt = nil
@@ -980,7 +1036,10 @@ function UI:keypressed(key)
     return
   end
   if self.app.vim_mode and self.vim_normal then
-    if key == "v" then
+    if key == ":" then
+      self.vim_command = ""
+      return
+    elseif key == "v" then
       local cell = notebook.cells[notebook.active]
       if cell.kind == "code" then
         self.vim_char_visual = true
