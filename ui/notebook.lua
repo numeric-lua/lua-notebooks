@@ -142,6 +142,7 @@ function UI.new(app)
     vim_registers = {},
     vim_register = '"',
     vim_pending_register = false,
+    vim_pending = nil,
     vim_char_visual = false,
     vim_char_anchor = nil,
     vim_char_yank = nil,
