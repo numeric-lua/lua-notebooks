@@ -294,9 +294,28 @@ function App:reload_extension(id)
   end
 end
 
-function App:add_cell()
-  self:notebook():add_cell("code")
-  self.status = "new cell"
+function App:add_cell(kind)
+  self:notebook():add_cell(kind or "code")
+  self.status = "new " .. (kind or "code") .. " cell below"
+end
+
+function App:add_cell_above(kind)
+  self:notebook():add_cell_above(kind or "code")
+  self.status = "new " .. (kind or "code") .. " cell above"
+end
+
+function App:delete_cell()
+  local notebook = self:notebook()
+  local index = notebook.active
+  notebook:delete_cell(index)
+  self.status = "deleted cell"
+end
+
+function App:set_cell_kind(kind)
+  local notebook = self:notebook()
+  if notebook:set_cell_kind(notebook.active, kind) then
+    self.status = "cell is " .. kind
+  end
 end
 
 function App:save()
@@ -446,7 +465,19 @@ function lovr.load()
   end
   lovr.filesystem.watch()
   _G.app = app
-  if os.getenv("LUANB_SMOKE_ADDN") then
+  if os.getenv("LUANB_SMOKE_CELLOPS") then
+    app:notebook():select(2)
+    app:add_cell("markdown")
+    local markdown = app:notebook():selected().kind
+    app:set_cell_kind("code")
+    local code = app:notebook():selected().kind
+    app:add_cell_above("markdown")
+    local above = app:notebook().cells[2].kind
+    app:delete_cell()
+    print("SMOKE_CELLOPS=" .. markdown .. ":" .. code .. ":" .. above ..
+      ":" .. #app:notebook().cells)
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_ADDN") then
     app:notebook():select(2)
     app:add_cell()
     print("SMOKE_ADDN=" .. #app:notebook().cells .. ":" ..

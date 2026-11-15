@@ -557,6 +557,12 @@ function UI:palette_commands()
     { id = "zen", label = "Toggle Zen mode  (F4)" },
     { id = "screenshot", label = "Save screenshot  (Ctrl+Shift+S)" },
     { id = "theme", label = "Toggle light/dark theme  (Ctrl+Shift+T)" },
+    { id = "cell-below", label = "Insert code cell below  (Alt+B)" },
+    { id = "cell-above", label = "Insert code cell above  (Alt+A)" },
+    { id = "markdown-below", label = "Insert markdown cell below  (Alt+M)" },
+    { id = "cell-delete", label = "Delete current cell  (Alt+X or dd)" },
+    { id = "cell-code", label = "Make current cell code  (Ctrl+1)" },
+    { id = "cell-markdown", label = "Make current cell markdown  (Ctrl+2)" },
     { id = "undo", label = "Undo" },
     { id = "redo", label = "Redo" },
     { id = "extensions", label = "Extension browser  (F10)" },
@@ -581,6 +587,12 @@ function UI:run_palette_command(id)
   elseif id == "load" then self.app:load()
   elseif id == "new" then self.app:new_notebook()
   elseif id == "tree" then self.show_tree = true
+  elseif id == "cell-below" then self.app:add_cell("code")
+  elseif id == "cell-above" then self.app:add_cell_above("code")
+  elseif id == "markdown-below" then self.app:add_cell("markdown")
+  elseif id == "cell-delete" then self.app:delete_cell()
+  elseif id == "cell-code" then self.app:set_cell_kind("code")
+  elseif id == "cell-markdown" then self.app:set_cell_kind("markdown")
   elseif id == "theme" then
     local mode = Theme.toggle()
     Theme.save()
@@ -886,9 +898,10 @@ end
 
 function UI:textinput(value)
   if value == "\r" or value == "\n" then return end
-  if (value == "j" or value == "k") and lovr.system and
-     lovr.system.isKeyDown and (lovr.system.isKeyDown("lalt") or
-     lovr.system.isKeyDown("ralt")) then return end
+  if lovr.system and lovr.system.isKeyDown and
+     (lovr.system.isKeyDown("lalt") or lovr.system.isKeyDown("ralt")) then
+    return
+  end
   if self.vim_search ~= nil then
     self.vim_search = self.vim_search .. value
     return
@@ -1137,6 +1150,15 @@ function UI:keypressed(key)
   local notebook = self.app:notebook()
   local alt_down = lovr.system and lovr.system.isKeyDown and
     (lovr.system.isKeyDown("lalt") or lovr.system.isKeyDown("ralt"))
+  if alt_down and key == "b" then
+    self.app:add_cell("code"); return
+  elseif alt_down and key == "a" then
+    self.app:add_cell_above("code"); return
+  elseif alt_down and key == "m" then
+    self.app:add_cell("markdown"); return
+  elseif alt_down and key == "x" then
+    self.app:delete_cell(); return
+  end
   if alt_down and (key == "j" or key == "k") then
     if self.nav_repeat == nil or self.nav_repeat.key ~= key then
       notebook:move(key == "j" and 1 or -1)
@@ -1239,6 +1261,11 @@ function UI:keypressed(key)
     if word == "" then self.app.status = "no symbol at cursor" else
       self.symbol_prompt = { old = word, value = "" }
     end
+    return
+  end
+  if (key == "1" or key == "2") and lovr.system and lovr.system.isKeyDown and
+     (lovr.system.isKeyDown("lctrl") or lovr.system.isKeyDown("rctrl")) then
+    self.app:set_cell_kind(key == "1" and "code" or "markdown")
     return
   end
   if key == "t" and lovr.system and lovr.system.isKeyDown and
@@ -1502,6 +1529,8 @@ function UI:keypressed(key)
       return
     elseif key == "o" then
       notebook:add_cell("code"); self.vim_normal = false; return
+    elseif key == "O" then
+      notebook:add_cell_above("code"); self.vim_normal = false; return
     elseif key == "u" then
       self.app.status = notebook:undo() and "undo" or "nothing to undo"
       return

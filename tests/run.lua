@@ -282,6 +282,22 @@ test("adds a cell after the focused cell", function()
   eq(notebook.active, 3)
 end)
 
+current = "cell ops"
+test("inserts above and converts cell kinds", function()
+  local Notebook = require("notebook.model")
+  local notebook = Notebook.new({ cells = {
+    { kind = "code", source = "a" },
+    { kind = "code", source = "b" },
+  } })
+  notebook:select(2)
+  notebook:add_cell_above("markdown")
+  eq(notebook.active, 2)
+  eq(notebook.cells[2].kind, "markdown")
+  eq(notebook.cells[3].source, "b")
+  eq(notebook:set_cell_kind(2, "code"), true)
+  eq(notebook.cells[2].kind, "code")
+end)
+
 io.write(string.format("\n\n%d tests, %d passed, %d failed\n", passed + failed,
   passed, failed))
 if failed > 0 then

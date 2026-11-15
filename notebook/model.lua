@@ -102,6 +102,25 @@ function Notebook:select(index)
   return true
 end
 
+function Notebook:add_cell_above(kind)
+  return self:add_cell(kind, math.max(0, (self.active or 1) - 1))
+end
+
+function Notebook:set_cell_kind(index, kind)
+  local cell = self.cells[index]
+  if cell == nil or (kind ~= "code" and kind ~= "markdown") then
+    return false
+  end
+  self:push_undo()
+  cell.kind = kind
+  cell.output = ""
+  cell.scene = nil
+  cell.widgets = {}
+  cell.error = nil
+  self.dirty = true
+  return true
+end
+
 function Notebook:delete_cell(index)
   if self.cells[index] == nil or #self.cells <= 1 then return false end
   self:push_undo()
