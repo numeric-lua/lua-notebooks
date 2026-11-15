@@ -1223,7 +1223,95 @@ function UI:keypressed(key)
     return
   end
   if self.app.vim_mode and self.vim_normal then
-    if key == "/" then
+    if self.vim_pending_mark then
+      local operation = self.vim_pending_mark
+      self.vim_pending_mark = nil
+      if key:match("^[a-z]$") then
+        if operation == "set" then
+          self.vim_marks[key] = { cell = notebook.active,
+            cursor = notebook.cells[notebook.active].cursor }
+          self.app.status = "mark " .. key .. " set"
+        else
+          local mark = self.vim_marks[key]
+          if mark then
+            notebook:select(mark.cell)
+            notebook.cells[mark.cell].cursor = mark.cursor
+            self.scroll_to_selected = true
+          end
+        end
+      end
+      return
+    elseif self.vim_pending then
+      local pending = self.vim_pending
+      self.vim_pending = nil
+      if pending == "g" and key == "g" then
+        notebook:select(1); self.scroll_to_selected = true; return
+      elseif pending == "d" and key == "d" then
+        self.vim_last_change = "dd"
+        notebook:delete_cell(notebook.active); return
+      end
+    end
+    if key == "q" then
+      if self.vim_recording then
+        self.vim_macros.a = self.vim_recording
+        self.vim_last_macro = self.vim_recording
+        self.app.status = "recorded macro"
+        self.vim_recording = nil
+      else
+        self.vim_recording = {}
+        self.app.status = "recording macro"
+      end
+      return
+    elseif key == "@" then
+      self:play_macro(); return
+    elseif key == "m" then
+      self.vim_pending_mark = "set"; return
+    elseif key == "'" then
+      self.vim_pending_mark = "jump"; return
+    elseif key == "." and self.vim_last_change then
+      if self.vim_last_change == "x" then
+        local cell = notebook.cells[notebook.active]
+        if cell and cell.kind == "code" then cell.source = cell.source:sub(1, -2) end
+      elseif self.vim_last_change == "J" then
+        local cell = notebook.cells[notebook.active]
+        notebook:push_undo()
+        cell.source = cell.source:gsub("%s*\n%s*", " ")
+        cell.cursor = #cell.source + 1
+      elseif self.vim_last_change == "dd" then
+        notebook:delete_cell(notebook.active)
+      end
+      return
+    elseif key == "g" then
+      self.vim_pending = "g"; return
+    elseif key == "G" then
+      notebook:select(#notebook.cells); self.scroll_to_selected = true; return
+    elseif key == "0" then
+      notebook.cells[notebook.active].cursor = 1; return
+    elseif key == "$" then
+      local cell = notebook.cells[notebook.active]
+      cell.cursor = #cell.source + 1; return
+    elseif key == "w" then
+      local cell = notebook.cells[notebook.active]
+      local rest = cell.source:sub(cell.cursor or 1)
+      local offset = rest:find("%f[%w+]%w+")
+      if offset then cell.cursor = (cell.cursor or 1) + offset - 1 end
+      return
+    elseif key == "b" then
+      local cell = notebook.cells[notebook.active]
+      local before = cell.source:sub(1, (cell.cursor or 1) - 1)
+      local start_at = before:match(".*()%f[%w+]%w+")
+      if start_at then cell.cursor = start_at end
+      return
+    elseif key == "J" then
+      self.vim_last_change = "J"
+      local cell = notebook.cells[notebook.active]
+      notebook:push_undo()
+      cell.source = cell.source:gsub("%s*\n%s*", " ")
+      cell.cursor = #cell.source + 1
+      return
+    elseif key == "d" and not self.vim_visual then
+      self.vim_pending = "d"; return
+    elseif key == "/" then
       self.vim_search = ""
       return
     elseif key == "n" and self.vim_last_search then

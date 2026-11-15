@@ -424,7 +424,7 @@ function lovr.load()
     app.ui:keypressed("j")
     app.ui:keypressed("'")
     app.ui:keypressed("a")
-    local cell = app:notebook().selected()
+    local cell = app:notebook():selected()
     cell.source = "abc"
     cell.cursor = 4
     app.ui:keypressed("x")
@@ -519,6 +519,15 @@ function lovr.load()
     app.smoke_watch_started = lovr.timer.getTime()
     app.smoke_watch_touched = false
   end
+  if os.getenv("LUANB_SMOKE_SUBST") or os.getenv("LUANB_SMOKE_VIMSEARCH") or
+     os.getenv("LUANB_SMOKE_VIMCMD") or os.getenv("LUANB_SMOKE_TYPE") or
+     os.getenv("LUANB_SMOKE_FOLDER") or os.getenv("LUANB_SMOKE_RENAME") or
+     os.getenv("LUANB_SMOKE_TREE") or os.getenv("LUANB_SMOKE_EXT_PREFS") or
+     os.getenv("LUANB_SMOKE_USER_EXT") or os.getenv("LUANB_SMOKE_WATCH") or
+     os.getenv("LUANB_SMOKE_VIMEDGE") or os.getenv("LUANB_SMOKE_NBSUB") or
+     os.getenv("LUANB_SMOKE_VIMREC") then
+    return
+  end
 
   -- Visual QA/demo: select and run one cell, then leave the window open.
   if os.getenv("LUANB_QA_SCREENSHOT") then
@@ -573,7 +582,7 @@ function lovr.load()
     app.ui:keypressed("j")
     app.ui:keypressed("'")
     app.ui:keypressed("a")
-    local cell = app:notebook().selected()
+    local cell = app:notebook():selected()
     cell.source = "abc"
     cell.cursor = 4
     app.ui:keypressed("x")
@@ -705,38 +714,7 @@ function lovr.update(dt)
   if app.smoke then
     local notebook = app:notebook()
     local cell = notebook.cells[notebook.active]
-    if os.getenv("LUANB_SMOKE_VIMEDGE") then
-    app.ui.vim_normal = true
-    app.ui:keypressed("m")
-    app.ui:keypressed("a")
-    app.ui:keypressed("j")
-    app.ui:keypressed("'")
-    app.ui:keypressed("a")
-    local cell = app:notebook().selected()
-    cell.source = "abc"
-    cell.cursor = 4
-    app.ui:keypressed("x")
-    app.ui:keypressed(".")
-    print("SMOKE_VIMEDGE=" .. tostring(app:notebook().active) .. ":" ..
-      cell.source)
-    lovr.event.quit()
-  elseif os.getenv("LUANB_SMOKE_NBSUB") then
-    local notebook = app:notebook()
-    notebook.cells[1].source = "local old = 1"
-    notebook.cells[2].source = "print(old)"
-    app.ui:run_vim_command("%s/old/new/g")
-    print("SMOKE_NBSUB=" .. notebook.cells[1].source .. "|" ..
-      notebook.cells[2].source)
-    lovr.event.quit()
-  elseif os.getenv("LUANB_SMOKE_VIMREC") then
-    app.ui.vim_normal = true
-    app.ui:keypressed("q")
-    app.ui:keypressed("j")
-    app.ui:keypressed("q")
-    app.ui:keypressed("@")
-    print("SMOKE_VIMREC=" .. tostring(app:notebook().active))
-    lovr.event.quit()
-  elseif os.getenv("LUANB_SMOKE_SUBST") then
+    if os.getenv("LUANB_SMOKE_SUBST") then
     local cell = app:notebook():selected()
     cell.source = "hello hello"
     cell.cursor = #cell.source + 1
