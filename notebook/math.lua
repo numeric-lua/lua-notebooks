@@ -105,6 +105,12 @@ local function parse_expression(text, position)
   return node, #text + 1
 end
 
+function Math.display_root(text)
+  local body = text:match("^%$%$\\sqrt%s*{([^{}]*)}%$%$$")
+  if body == nil then return nil end
+  return Math.render(body)
+end
+
 function Math.display_fraction(text)
   local expression = text:match("^%$%$(.-)%$%$$")
   if expression == nil then return nil end

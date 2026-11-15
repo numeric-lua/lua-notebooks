@@ -205,7 +205,8 @@ function UI:draw(pass)
     local source_height = 0
     for _, source_line in ipairs(source_lines) do
       source_height = source_height +
-        (Math.display_fraction(source_line) and 56 or 21)
+        (Math.display_fraction(source_line) and 56 or
+          (Math.display_root(source_line) and 44 or 21))
     end
     source_height = math.max(63, source_height)
     local widget_height = Widgets.height(cell.widgets)
@@ -263,6 +264,8 @@ function UI:draw(pass)
         local display = source_lines[line_index]
         local display_fraction = cell.kind == "markdown" and
           Math.display_fraction(display)
+        local display_root = cell.kind == "markdown" and
+          Math.display_root(display)
         local display_math = cell.kind == "markdown" and
           Math.display(display)
         if display_fraction then
@@ -271,6 +274,15 @@ function UI:draw(pass)
             width / 2 - total / 2, line_y + 22, 1.2,
             { 0.88, 0.9, 1, 1 })
           line_y = line_y + 56
+        elseif display_root then
+          local root_width = app.title_font:getWidth(display_root) * 0.9
+          text(pass, app.title_font, "√", width / 2 - root_width / 2 - 16,
+            line_y + 8, { 0.88, 0.9, 1, 1 }, 0.9)
+          box(pass, width / 2 - root_width / 2 - 4, line_y + 10,
+            root_width + 8, 1.5, { 0.75, 0.8, 0.95, 1 })
+          text(pass, app.title_font, display_root, width / 2,
+            line_y + 12, { 0.88, 0.9, 1, 1 }, 0.9, "center")
+          line_y = line_y + 44
         elseif display_math then
           text(pass, app.title_font, display_math, width / 2, line_y,
             { 0.88, 0.9, 1, 1 }, 0.8, "center")
