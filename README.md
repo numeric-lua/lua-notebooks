@@ -113,6 +113,16 @@ The archive contains `conf.lua`, `main.lua`, `notebook/`, `kernel/`, `ui/`, and
 `extensions/`. It runs in thread mode. Process mode needs a real project
 directory because the child is launched from `lovr.filesystem.getSource()`.
 
+## Local install
+
+```sh
+make install
+lovr ~/.local/share/lua-notebooks
+```
+
+`PREFIX=/path make install` installs elsewhere. This copies the runnable source;
+it does not register a desktop entry or install system-wide.
+
 ## Process kernels
 
 Threads are the default. An experimental process backend is available:
