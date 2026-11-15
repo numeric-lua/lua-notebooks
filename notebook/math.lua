@@ -66,6 +66,12 @@ function Math.render(expression)
   return text
 end
 
+function Math.display(text)
+  local expression = text:match("^%$%$(.-)%$%$$")
+  if expression == nil then return nil end
+  return Math.render(expression)
+end
+
 function Math.segments(text)
   local segments = {}
   local position = 1

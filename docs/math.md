@@ -19,7 +19,8 @@ Supported:
 - superscripts/subscripts for digits and a few letters;
 - inline `$...$` only.
 
-This is **not MathJax or TeX**. There is no display-mode math, fraction layout,
-matrix, or real typesetting engine. The Unicode output also depends on glyphs
+Display lines of the form `$$...$$` are centered on their own row, but they
+still use the same linear text layout as inline math. This is **not MathJax or
+TeX**: there is no stacked fraction layout, matrix, or real typesetting engine. The Unicode output also depends on glyphs
 available in the current LÖVR font. A future backend should render TeX to an
 image/texture or use a proper math layout engine.

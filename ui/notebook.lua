@@ -187,7 +187,11 @@ function UI:draw(pass)
       for line_index = 1, math.min(#source_lines, 14) do
         local display = source_lines[line_index]
         local line_y = source_y + (line_index - 1) * 21
-        if cell.kind == "markdown" then
+        local display_math = cell.kind == "markdown" and Math.display(display)
+        if display_math then
+          text(pass, app.title_font, display_math, width / 2, line_y,
+            { 0.88, 0.9, 1, 1 }, 0.8, "center")
+        elseif cell.kind == "markdown" then
           local x = 36
           for _, segment in ipairs(Math.segments(display)) do
             local line_font = app.font
