@@ -45,6 +45,32 @@ local function box(pass, x, y, w, h, color)
   pass:plane(x + w / 2, y + h / 2, 0, w, h)
 end
 
+local function math_width(font, node, scale)
+  if node.kind == "text" then return font:getWidth(node.text or "") * scale end
+  local prefix = font:getWidth(node.prefix or "") * scale
+  local suffix = font:getWidth(node.suffix or "") * scale
+  local width = math.max(math_width(font, node.numerator, scale * 0.8),
+    math_width(font, node.denominator, scale * 0.8))
+  return prefix + width + suffix
+end
+
+local function draw_math(pass, font, node, x, y, scale, color)
+  if node.kind == "text" then
+    text(pass, font, node.text, x, y, color, scale)
+    return
+  end
+  local prefix_width = font:getWidth(node.prefix or "") * scale
+  local width = math.max(math_width(font, node.numerator, scale * 0.8),
+    math_width(font, node.denominator, scale * 0.8))
+  local left = x + prefix_width + width / 2
+  draw_math(pass, font, node.numerator, left, y - 7 * scale,
+    scale * 0.8, color)
+  box(pass, left - width / 2, y + 1, width, 1.5, color)
+  draw_math(pass, font, node.denominator, left, y + 4 * scale,
+    scale * 0.8, color)
+  text(pass, font, node.suffix or "", x + prefix_width + width, y, color, scale)
+end
+
 function UI.new(app)
   return setmetatable({
     app = app,
@@ -140,7 +166,12 @@ function UI:draw(pass)
     local cell = notebook.cells[index]
     cell._index = index
     local source_lines = split_lines(cell.source)
-    local source_height = math.max(3, #source_lines) * 21
+    local source_height = 0
+    for _, source_line in ipairs(source_lines) do
+      source_height = source_height +
+        (Math.display_fraction(source_line) and 56 or 21)
+    end
+    source_height = math.max(63, source_height)
     local widget_height = Widgets.height(cell.widgets)
     local output_lines = cell.output ~= "" and split_lines(cell.output) or {}
     local output_height = 0
@@ -184,22 +215,23 @@ function UI:draw(pass)
       local source_y = y + 30
       local source_color = cell.kind == "markdown" and
         { 0.75, 0.78, 0.9, 1 } or { 0.86, 0.88, 0.94, 1 }
+      local line_y = source_y
       for line_index = 1, math.min(#source_lines, 14) do
         local display = source_lines[line_index]
-        local line_y = source_y + (line_index - 1) * 21
         local display_fraction = cell.kind == "markdown" and
           Math.display_fraction(display)
         local display_math = cell.kind == "markdown" and
           Math.display(display)
         if display_fraction then
-          text(pass, app.font, display_fraction.numerator, width / 2,
-            line_y - 5, { 0.88, 0.9, 1, 1 }, 0.6, "center")
-          box(pass, width / 2 - 30, line_y + 8, 60, 2, { 0.75, 0.8, 0.95, 1 })
-          text(pass, app.font, display_fraction.denominator, width / 2,
-            line_y + 11, { 0.88, 0.9, 1, 1 }, 0.6, "center")
+          local total = math_width(app.title_font, display_fraction, 1.2)
+          draw_math(pass, app.title_font, display_fraction,
+            width / 2 - total / 2, line_y + 22, 1.2,
+            { 0.88, 0.9, 1, 1 })
+          line_y = line_y + 56
         elseif display_math then
           text(pass, app.title_font, display_math, width / 2, line_y,
             { 0.88, 0.9, 1, 1 }, 0.8, "center")
+          line_y = line_y + 21
         elseif cell.kind == "markdown" then
           local x = 36
           for _, segment in ipairs(Math.segments(display)) do
@@ -207,8 +239,10 @@ function UI:draw(pass)
             text(pass, line_font, segment.text, x, line_y, source_color, 0.86)
             x = x + line_font:getWidth(segment.text) * 0.86
           end
+          line_y = line_y + 21
         else
           text(pass, app.font, display, 36, line_y, source_color, 0.86)
+          line_y = line_y + 21
         end
       end
       if cell.kind == "code" and selected then

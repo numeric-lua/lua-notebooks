@@ -66,12 +66,51 @@ function Math.render(expression)
   return text
 end
 
+local function read_group(text, position)
+  if text:sub(position, position) ~= "{" then return nil end
+  local depth = 0
+  for index = position, #text do
+    local char = text:sub(index, index)
+    if char == "{" then depth = depth + 1
+    elseif char == "}" then
+      depth = depth - 1
+      if depth == 0 then
+        return text:sub(position + 1, index - 1), index + 1
+      end
+    end
+  end
+  return nil
+end
+
+local function parse_expression(text, position)
+  position = position or 1
+  local start = text:find("\\frac", position, true)
+  if start == nil then
+    return { kind = "text", text = Math.render(text:sub(position)) }, #text + 1
+  end
+  local numerator, after_numerator = read_group(text, start + 5)
+  if numerator == nil then
+    return { kind = "text", text = Math.render(text:sub(position)) }, #text + 1
+  end
+  local denominator, after_denominator = read_group(text, after_numerator)
+  if denominator == nil then
+    return { kind = "text", text = Math.render(text:sub(position)) }, #text + 1
+  end
+  local before = text:sub(position, start - 1)
+  local numerator_node = parse_expression(numerator)
+  local denominator_node = parse_expression(denominator)
+  local node = { kind = "frac", numerator = numerator_node,
+    denominator = denominator_node, prefix = before,
+    suffix = text:sub(after_denominator) }
+  return node, #text + 1
+end
+
 function Math.display_fraction(text)
-  local numerator, denominator = text:match(
-    "^%$%$\\frac%s*{([^{}]*)}%s*{([^{}]*)}%$%$$")
-  if numerator == nil then return nil end
-  return { numerator = Math.render(numerator),
-    denominator = Math.render(denominator) }
+  local expression = text:match("^%$%$(.-)%$%$$")
+  if expression == nil then return nil end
+  local node = parse_expression(expression)
+  if node.kind ~= "frac" then return nil end
+  return node
 end
 
 function Math.display(text)
