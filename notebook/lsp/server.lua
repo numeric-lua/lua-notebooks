@@ -3,6 +3,7 @@
 --
 local json = require("notebook.json")
 local Editor = require("notebook.editor_text")
+local Scope = require("notebook.lsp.scope")
 
 local Server = {}
 Server.__index = Server
@@ -184,7 +185,7 @@ function Server:handle(message)
     local locations = {}
     if word then
       for other_uri, document in pairs(self.documents) do
-        for _, occurrence in ipairs(Editor.occurrences(document.text, word.word)) do
+        for _, occurrence in ipairs(Scope.occurrences(document.text, word.word)) do
           locations[#locations + 1] = location(other_uri, document.text,
             occurrence.start)
         end
@@ -202,7 +203,7 @@ function Server:handle(message)
     local changes = {}
     for other_uri, document in pairs(self.documents) do
       local edits = {}
-      for _, occurrence in ipairs(Editor.occurrences(document.text, word.word)) do
+      for _, occurrence in ipairs(Scope.occurrences(document.text, word.word)) do
         local start_location = location(other_uri, document.text, occurrence.start)
         local end_location = location(other_uri, document.text, occurrence.finish)
         edits[#edits + 1] = { range = { start = start_location.range.start,

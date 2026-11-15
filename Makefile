@@ -17,6 +17,7 @@ test:
 	sh tests/extension_sandbox.sh
 	$(LUA) tests/lsp_client.lua
 	$(LUA) tests/lsp_edits.lua
+	$(LUA) tests/scope.lua
 
 run:
 	lovr .
