@@ -646,28 +646,6 @@ end
 
 function UI:textinput(value)
   if value == "\r" or value == "\n" then return end
-  if self.confirm_delete then
-    if key == "return" or key == "y" then
-      local name = self.confirm_delete.name
-      self.confirm_delete = nil
-      self.app:delete_notebook(name)
-    elseif key == "escape" or key == "n" then
-      self.confirm_delete = nil
-    end
-    return
-  end
-  if self.folder_prompt then
-    if key == "escape" then
-      self.folder_prompt = nil
-    elseif key == "backspace" then
-      self.folder_prompt.value = self.folder_prompt.value:sub(1, -2)
-    elseif key == "return" then
-      local value = self.folder_prompt.value
-      self.folder_prompt = nil
-      self.app:create_folder(value)
-    end
-    return
-  end
   if self.rename_prompt then
     self.rename_prompt.value = self.rename_prompt.value .. value
     return
@@ -676,70 +654,7 @@ function UI:textinput(value)
     self.folder_prompt.value = self.folder_prompt.value .. value
     return
   end
-  if self.confirm_delete then
-    if key == "return" or key == "y" then
-      local name = self.confirm_delete.name
-      self.confirm_delete = nil
-      self.app:delete_notebook(name)
-    elseif key == "escape" or key == "n" then
-      self.confirm_delete = nil
-    end
-    return
-  end
-  if self.folder_prompt then
-    if key == "escape" then
-      self.folder_prompt = nil
-    elseif key == "backspace" then
-      self.folder_prompt.value = self.folder_prompt.value:sub(1, -2)
-    elseif key == "return" then
-      local value = self.folder_prompt.value
-      self.folder_prompt = nil
-      self.app:create_folder(value)
-    end
-    return
-  end
-  if self.rename_prompt then
-    if key == "escape" then
-      self.rename_prompt = nil
-    elseif key == "backspace" then
-      self.rename_prompt.value = self.rename_prompt.value:sub(1, -2)
-    elseif key == "return" then
-      local prompt = self.rename_prompt
-      self.rename_prompt = nil
-      self.app:rename_notebook(prompt.old, prompt.value)
-    end
-    return
-  end
-  if key == "h" and lovr.system and lovr.system.isKeyDown and
-     (lovr.system.isKeyDown("lctrl") or lovr.system.isKeyDown("rctrl")) then
-    local cell = notebook.cells[notebook.active]
-    local word = cell and LSP.current_word(cell.source) or ""
-    local description = LSP.hover(word)
-    if description then
-      self.hover = { word = word, text = description }
-    else
-      self.app.status = "no hover for " .. tostring(word)
-    end
-    return
-  elseif key == "g" and lovr.system and lovr.system.isKeyDown and
-         (lovr.system.isKeyDown("lctrl") or lovr.system.isKeyDown("rctrl")) then
-    local cell = notebook.cells[notebook.active]
-    local word = cell and LSP.current_word(cell.source) or ""
-    local definition = LSP.find_definition(notebook, word)
-    if definition then
-      notebook:select(definition.cell)
-      self.scroll_to_selected = true
-      self.app.status = "definition in " .. string.format("In [%d]:%d",
-        definition.cell, definition.line)
-    else
-      self.app.status = "no definition for " .. tostring(word)
-    end
-    return
-  end
-  if self.hover and key == "escape" then
-    self.hover = nil
-    return
-  end
+  if self.confirm_delete then return end
   if self.app.vim_mode and self.vim_normal then return end
   if self.completion then self.completion = nil end
   if self.show_palette then
