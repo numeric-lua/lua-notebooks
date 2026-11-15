@@ -465,7 +465,17 @@ function lovr.load()
   end
   lovr.filesystem.watch()
   _G.app = app
-  if os.getenv("LUANB_SMOKE_CELLOPS") then
+  if os.getenv("LUANB_SMOKE_VIMOBJ") then
+    app.ui.vim_normal = true
+    local cell = app:notebook():selected()
+    cell.source = 'print("hello")'
+    cell.cursor = 8
+    app.ui:keypressed("d")
+    app.ui:keypressed("i")
+    app.ui:keypressed('"')
+    print("SMOKE_VIMOBJ=" .. cell.source)
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_CELLOPS") then
     app:notebook():select(2)
     app:add_cell("markdown")
     local markdown = app:notebook():selected().kind

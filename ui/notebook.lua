@@ -1296,6 +1296,11 @@ function UI:keypressed(key)
     self.app:set_cell_kind(key == "1" and "code" or "markdown")
     return
   end
+  if key == "r" and lovr.system and lovr.system.isKeyDown and
+     (lovr.system.isKeyDown("lctrl") or lovr.system.isKeyDown("rctrl")) then
+    self.app.status = self.app:notebook():redo() and "redo" or "nothing to redo"
+    return
+  end
   if key == "t" and lovr.system and lovr.system.isKeyDown and
      (lovr.system.isKeyDown("lctrl") or lovr.system.isKeyDown("rctrl")) and
      (lovr.system.isKeyDown("lshift") or lovr.system.isKeyDown("rshift")) then
@@ -1358,14 +1363,34 @@ function UI:keypressed(key)
     if self.vim_text_object then
       local operation = self.vim_text_object
       self.vim_text_object = nil
+      local delimiters = {
+        ['"'] = '"', ["'"] = "'", ["`"] = "`",
+        ["("] = ")", [")"] = ")", ["["] = "]", ["]"] = "]",
+        ["{"] = "}", ["}"] = "}", ["<"] = ">", [">"] = ">",
+      }
+      local first, last
       if key == "w" then
-        local first, last = notebook:word_range(not operation.inner)
-        if first then
+        first, last = notebook:word_range(not operation.inner)
+      elseif delimiters[key] then
+        local close = delimiters[key]
+        local open = key
+        if key == ")" then open = "("
+        elseif key == "]" then open = "["
+        elseif key == "}" then open = "{" end
+        first, last = notebook:delimiter_range(open, close,
+          not operation.inner)
+      end
+      if first then
+        if operation.op == "y" then
+          self.vim_char_yank = notebook:selection_text(first, last + 1)
+          self.app.status = "yanked " .. #self.vim_char_yank ..
+            " character(s)"
+        else
           notebook:push_undo()
           notebook:delete_range(first, last + 1)
           if operation.op == "c" then self.vim_normal = false end
           self.app.status = (operation.op == "c" and "change" or "delete") ..
-            " word"
+            " object"
         end
       end
       return
@@ -1395,9 +1420,16 @@ function UI:keypressed(key)
       elseif pending == "d" and key == "d" then
         self.vim_last_change = "dd"
         notebook:delete_cell(notebook.active); return
-      elseif (pending == "d" or pending == "c") and key == "i" then
+      elseif pending == "y" and key == "y" then
+        self.vim_yank = { notebook:copy_cell(notebook.active) }
+        self.vim_registers[self.vim_register] = self.vim_yank
+        self.app.status = "yanked current cell to " .. self.vim_register
+        return
+      elseif (pending == "d" or pending == "c" or pending == "y") and
+             key == "i" then
         self.vim_text_object = { op = pending, inner = true }; return
-      elseif (pending == "d" or pending == "c") and key == "a" then
+      elseif (pending == "d" or pending == "c" or pending == "y") and
+             key == "a" then
         self.vim_text_object = { op = pending, inner = false }; return
       end
     end
@@ -1544,10 +1576,7 @@ function UI:keypressed(key)
       self.vim_anchor = nil
       return
     elseif key == "y" then
-      self.vim_yank = { notebook:copy_cell(notebook.active) }
-      self.vim_registers[self.vim_register] = self.vim_yank
-      self.app.status = "yanked current cell to " .. self.vim_register
-      return
+      self.vim_pending = "y"; return
     elseif key == "p" and (self.vim_registers[self.vim_register] or
                            self.vim_yank) then
       local cells = self.vim_registers[self.vim_register] or self.vim_yank

@@ -72,7 +72,7 @@ local BLOCK_OPEN = { ["function"] = true, ["if"] = true, ["for"] = true,
 
 function Scope.analyze(source)
   local tokens = Scope.tokens(source)
-  local scopes = { { bindings = {} } }
+  local scopes = { { bindings = {}, kind = "chunk" } }
   local bindings = {}
   local references = {}
 
@@ -138,7 +138,7 @@ function Scope.analyze(source)
         if token.text == "do" and expected_do then
           expected_do = false
         else
-          scopes[#scopes + 1] = { bindings = {} }
+          scopes[#scopes + 1] = { bindings = {}, kind = token.text }
           if token.text == "for" then
             add_for_bindings(index)
             expected_do = true
@@ -147,6 +147,11 @@ function Scope.analyze(source)
           elseif token.text == "function" then
             add_parameters(index)
           end
+        end
+      elseif token.text == "elseif" or token.text == "else" then
+        if #scopes > 1 and scopes[#scopes].kind == "if" then
+          table.remove(scopes)
+          scopes[#scopes + 1] = { bindings = {}, kind = "if" }
         end
       elseif token.text == "end" or token.text == "until" then
         if #scopes > 1 then table.remove(scopes) end

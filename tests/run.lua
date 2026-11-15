@@ -296,6 +296,22 @@ test("finds inner and around word ranges", function()
   eq(notebook:selected().source, "alpha gamma")
 end)
 
+current = "vim delimiter objects"
+test("finds quoted and bracketed ranges", function()
+  local Notebook = require("notebook.model")
+  local notebook = Notebook.new({ cells = {
+    { kind = "code", source = 'print("hello world")' },
+  } })
+  notebook:selected().cursor = 10
+  local first, last = notebook:delimiter_range('"', '"', false)
+  eq(first, 8)
+  eq(last, 18)
+  notebook:selected().cursor = 14
+  local bfirst, blast = notebook:delimiter_range("(", ")", true)
+  eq(bfirst, 6)
+  eq(blast, 20)
+end)
+
 current = "cell ops"
 test("inserts above and converts cell kinds", function()
   local Notebook = require("notebook.model")

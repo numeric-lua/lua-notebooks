@@ -211,6 +211,60 @@ function Notebook:word_range(around)
   return first, last
 end
 
+function Notebook:delimiter_range(open, close, around)
+  local cell = self:selected()
+  if cell == nil then return nil end
+  local source = cell.source
+  local cursor = cell.cursor or 1
+  if open == '"' or open == "'" or open == "`" then
+    local line_start = (source:sub(1, cursor - 1):match(".*()\n") or 0) + 1
+    local line_end = source:find("\n", cursor, true) or (#source + 1)
+    local opening
+    local best
+    local index = line_start
+    while index < line_end do
+      local char = source:sub(index, index)
+      if char == open then
+        local escaped = index > 1 and source:sub(index - 1, index - 1) == "\\"
+        if not escaped then
+          if opening == nil then
+            opening = index
+          else
+            if opening <= cursor and cursor <= index then
+              best = { opening, index }
+            end
+            opening = nil
+          end
+        end
+      end
+      index = index + 1
+    end
+    if best == nil then return nil end
+    if around then return best[1], best[2] end
+    return best[1] + 1, best[2] - 1
+  end
+  local pairs = { ["("] = ")", ["["] = "]", ["{"] = "}", ["<"] = ">" }
+  if pairs[open] ~= close then return nil end
+  local stack = {}
+  local best
+  local index = 1
+  while index <= #source do
+    local char = source:sub(index, index)
+    if char == open then
+      stack[#stack + 1] = index
+    elseif char == close and #stack > 0 then
+      local start = table.remove(stack)
+      if start <= cursor and cursor <= index then
+        if best == nil or start > best[1] then best = { start, index } end
+      end
+    end
+    index = index + 1
+  end
+  if best == nil then return nil end
+  if around then return best[1], best[2] end
+  return best[1] + 1, best[2] - 1
+end
+
 function Notebook:delete_range(anchor, cursor)
   local first = math.min(anchor or 1, cursor or 1)
   local last = math.max(anchor or 1, cursor or 1)
