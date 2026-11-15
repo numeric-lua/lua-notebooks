@@ -211,7 +211,7 @@ function Scope.resolved_ranges(source, byte_offset, word)
         finish = reference.token.finish }
     end
   end
-  return ranges, true
+  return ranges, true, target
 end
 
 function Scope.occurrences(source, word)

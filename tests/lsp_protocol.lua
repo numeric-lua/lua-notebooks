@@ -64,6 +64,20 @@ local scoped_rename = server:handle({ jsonrpc = "2.0", id = 13,
 assert(scoped_rename.result and scoped_rename.result.changes[uri3])
 assert(#scoped_rename.result.changes[uri3] == 2,
   #scoped_rename.result.changes[uri3])
+
+local refs_inner = server:handle({ jsonrpc = "2.0", id = 14,
+  method = "textDocument/references", params = {
+    textDocument = { uri = uri3 }, position = { line = 3, character = 8 },
+    context = { includeDeclaration = true },
+  } })
+assert(#refs_inner.result == 2, #refs_inner.result)
+local definition_inner = server:handle({ jsonrpc = "2.0", id = 15,
+  method = "textDocument/definition", params = {
+    textDocument = { uri = uri3 }, position = { line = 3, character = 8 },
+  } })
+assert(definition_inner.result and #definition_inner.result == 1)
+assert(definition_inner.result[1].range.start.line == 2,
+  definition_inner.result[1].range.start.line)
 local shutdown = server:handle({ jsonrpc = "2.0", id = 3, method = "shutdown", params = json.null })
 eq(shutdown.result, json.null)
 print("lsp protocol tests ok")

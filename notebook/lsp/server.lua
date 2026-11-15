@@ -176,18 +176,47 @@ function Server:handle(message)
   elseif message.method == "textDocument/definition" then
     local uri = params.textDocument and params.textDocument.uri
     local word = self:word_at(uri, params.position or {})
-    local locations = word and self:definitions(word.word) or {}
+    local document = self.documents[uri]
+    local locations = {}
+    if word and document then
+      local absolute = Editor.offset_at(document.text, params.position.line,
+        params.position.character)
+      local _, _, binding = Scope.resolved_ranges(document.text, absolute,
+        word.word)
+      if binding then
+        locations[1] = location(uri, document.text, binding.token.start)
+      else
+        locations = self:definitions(word.word)
+      end
+    end
     if #locations == 0 then return response(id, json.null) end
     return response(id, locations)
   elseif message.method == "textDocument/references" then
     local uri = params.textDocument and params.textDocument.uri
     local word = self:word_at(uri, params.position or {})
+    local document = self.documents[uri]
     local locations = {}
-    if word then
-      for other_uri, document in pairs(self.documents) do
-        for _, occurrence in ipairs(Scope.occurrences(document.text, word.word)) do
-          locations[#locations + 1] = location(other_uri, document.text,
-            occurrence.start)
+    if word and document then
+      local absolute = Editor.offset_at(document.text, params.position.line,
+        params.position.character)
+      local ranges, is_local = Scope.resolved_ranges(document.text, absolute,
+        word.word)
+      if is_local then
+        for _, range in ipairs(ranges or {}) do
+          locations[#locations + 1] = location(uri, document.text,
+            range.start)
+        end
+      else
+        for other_uri, other in pairs(self.documents) do
+          for _, occurrence in ipairs(Scope.occurrences(other.text,
+            word.word)) do
+            local _, local_binding = Scope.resolved_ranges(other.text,
+              occurrence.start, word.word)
+            if not local_binding then
+              locations[#locations + 1] = location(other_uri, other.text,
+                occurrence.start)
+            end
+          end
         end
       end
     end
