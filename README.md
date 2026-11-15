@@ -15,6 +15,8 @@ Working in this milestone:
 - **one persistent Lua kernel per notebook**, each in a separate LÖVR thread
 - cell execution with captured `print`/`io.write`, errors, and return values
 - a **3D cube output** rendered by the host, never by the kernel
+- a **luaplotlib scene renderer**: line/scatter/bar/hist scenes, axes, grid,
+  title, labels, and category ticks
 - F5 run, cell selection, add-cell, mouse tabs, scroll
 - offline LÖVR 0.19 API docs, examples, and LuaLS annotations under `docs/lovr/`
 - noninteractive smoke tests that exercise the kernel and renderer
@@ -25,7 +27,8 @@ Not yet implemented:
 - full text editor features, syntax highlighting, undo, IME
 - process-level kernel isolation (threads currently)
 - extension render-target surfaces and widget event protocol
-- a luaplotlib scene backend (design in `docs/architecture.md`)
+- a luaplotlib scene **backend** (the scene IR and LÖVR renderer are working;
+  the SVG and LÖVR backends now share the scene model)
 - package distribution / single-file build
 
 ## Requirements
@@ -55,8 +58,8 @@ Controls:
 | mouse wheel | scroll |
 | tabs / **+ Cell** | switch notebook / add cell |
 
-The welcome notebook has three runnable cells: hello, a loop, and a
-`return { scene = "cube" }` cell. The second notebook has an independent kernel
+The welcome notebook has four runnable cells: hello, a loop, a
+`return { scene = "cube" }` cell, and a luaplotlib-style line/scatter scene. The second notebook has an independent kernel
 and global state.
 
 ## Tests
@@ -65,6 +68,7 @@ and global state.
 make test                 # pure-Lua JSON/model tests
 LUANB_SMOKE=1 lovr .      # run first cell through a real kernel, then quit
 LUANB_SMOKE_SCENE=1 lovr . # run the 3D cell, draw the viewport, then quit
+LUANB_SMOKE_PLOT=1 lovr .  # run the luaplotlib scene cell, draw it, then quit
 ```
 
 `docs/lovr/` is a vendored, offline LÖVR 0.19 reference: API metadata, generated

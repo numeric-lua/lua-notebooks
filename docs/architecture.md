@@ -70,8 +70,9 @@ protocol. Both point to the same separation.
 
 ## 4. luaplotlib backend
 
-luaplotlib currently renders SVG. The LÖVR backend should consume a **scene
-IR**, not SVG strings:
+luaplotlib has a renderer-agnostic **scene IR** (`luaplotlib.scene` /
+`figure:to_scene()`) in addition to its SVG renderer. The LÖVR backend consumes
+that IR, not SVG strings:
 
 ```lua
 {
@@ -84,10 +85,10 @@ IR**, not SVG strings:
 }
 ```
 
-Then:
-- the host converts IR to meshes/buffers and draws through a Pass;
-- the kernel can return the IR;
-- a future static/PNG backend can consume the same IR.
+The notebook's `ui/plot.lua` currently implements the 2D line/scatter/bar/hist
+part of this IR. It maps data coordinates into the cell viewport, draws axes and
+ticks, and renders through the host pass. A future 3D backend can consume the
+same IR; a kernel can return it without touching graphics.
 
 Do not make luaplotlib depend on LÖVR. The adapter belongs in a separate module
 or repository.

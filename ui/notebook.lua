@@ -3,6 +3,8 @@
 -- dependency for the first milestone: cells, tabs, a tiny text editor, and a
 -- real 3D viewport are enough to validate the architecture.
 --
+local Plot = require("ui.plot")
+
 local UI = {}
 UI.__index = UI
 
@@ -103,7 +105,12 @@ function UI:draw(pass)
     if #output_lines > 0 then
       output_height = math.min(#output_lines, 6) * 19 + 14
     end
-    local scene_height = cell.scene and 170 or 0
+    local scene_height = 0
+    if type(cell.scene) == "table" and cell.scene.type == "luaplotlib" then
+      scene_height = 230
+    elseif cell.scene then
+      scene_height = 170
+    end
     local cell_height = 30 + source_height + output_height + scene_height + 14
     self.rects[index] = { x = 20, y = y, w = width - 40, h = cell_height }
     content_bottom = y + cell_height
@@ -153,7 +160,10 @@ function UI:draw(pass)
         output_y = output_y + output_height + 4
       end
 
-      if cell.scene then
+      if type(cell.scene) == "table" and cell.scene.type == "luaplotlib" then
+        Plot.draw(pass, app.font, cell.scene, 34, output_y, width - 68,
+          scene_height)
+      elseif cell.scene then
         self:draw_scene(pass, 34, output_y, width - 68, scene_height, cell)
       end
     end

@@ -120,11 +120,14 @@ function lovr.load()
   -- Non-interactive smoke path: run the first welcome cell, print its result,
   -- and quit.  This exercises thread startup, channels, the kernel worker, and
   -- result routing without requiring a human at the window.
-  if os.getenv("LUANB_SMOKE") or os.getenv("LUANB_SMOKE_SCENE") then
+  if os.getenv("LUANB_SMOKE") or os.getenv("LUANB_SMOKE_SCENE") or
+     os.getenv("LUANB_SMOKE_PLOT") then
     app.smoke = true
     app.smoke_start = lovr.timer.getTime()
     if os.getenv("LUANB_SMOKE_SCENE") then
       app:notebook():select(3)
+    elseif os.getenv("LUANB_SMOKE_PLOT") then
+      app:notebook():select(4)
     end
     app:run()
   end

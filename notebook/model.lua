@@ -116,6 +116,26 @@ return total]]),
       cell("code", [[
 -- A cell may return a scene request.
 return { scene = "cube" }]]),
+      cell("code", [[
+-- A renderer-agnostic luaplotlib scene table.
+local xs, ys = {}, {}
+for i = 1, 80 do
+  local x = (i - 1) * 0.1
+  xs[i] = x
+  ys[i] = math.sin(x)
+end
+return { scene = {
+  type = "luaplotlib", width = 800, height = 300,
+  title = "sin(x)", xlabel = "x", ylabel = "y",
+  xlim = { 0, 8 }, ylim = { -1.2, 1.2 }, grid = true,
+  series = {
+    { kind = "line", x = xs, y = ys,
+      style = { color = "#1f77b4", alpha = 1, label = "sin" } },
+    { kind = "scatter", x = { 0, math.pi / 2, math.pi },
+      y = { 0, 1, 0 },
+      style = { color = "#ff7f0e", radius = 5, label = "samples" } },
+  },
+} }]]),
       cell("markdown", "# A 3D notebook\nCells, kernels, and a real-time viewport."),
     },
   })
