@@ -190,6 +190,13 @@ lua-notebooks
 The rockspec installs the app source under the LuaRocks share tree and a
 `lua-notebooks` launcher under its bin directory.
 
+```sh
+make rock
+luarocks install lua-notebooks-0.1.0-1.src.rock
+```
+
+Publishing to a remote rock server is intentionally not automated.
+
 ## Local install
 
 ```sh

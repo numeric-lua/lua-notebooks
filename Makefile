@@ -1,7 +1,7 @@
 SHELL := /bin/sh
 LUA ?= luajit
 
-.PHONY: test run package install install-desktop clean
+.PHONY: test run package install install-desktop rock clean
 
 test:
 	$(LUA) tests/run.lua
@@ -22,5 +22,9 @@ install:
 install-desktop:
 	INSTALL_DESKTOP=1 ./scripts/install.sh
 
+rock:
+	luarocks lint lua-notebooks-0.1.0-1.rockspec
+	luarocks pack lua-notebooks-0.1.0-1.rockspec
+
 clean:
-	rm -rf .lovrshadercache dist
+	rm -rf .lovrshadercache dist *.src.rock
