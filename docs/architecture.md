@@ -55,15 +55,17 @@ kernel graphics access.
 - The kernel may send commands/events to the extension over a protocol; it does
   not own the Pass.
 
-The first milestone uses a single host viewport for the cube, so the render
-target path is intentionally not on the critical path yet. The next milestone
-should add:
+The extension registry and render-target path are now implemented:
 
-1. `Pass`/texture per extension surface,
-2. resizing the surface with the cell,
-3. pointer events forwarded to the extension,
-4. a hot-reload boundary that reloads the renderer without reloading the
-   kernel.
+1. each scene cell owns a `Texture` and a `Pass` (`ui/surface.lua`),
+2. the surface is recreated when the cell resizes,
+3. extension passes are submitted before the window pass, which composites the
+   texture with `pass:draw(texture, ...)`,
+4. `extensions/init.lua` exposes `register`/`get`; `extensions/cube.lua` is the
+   first renderer.
+
+Still missing: pointer events for surfaces, hot reload of renderers, and a
+user-installed extension loader with permissions.
 
 `lovr-ent` uses entity-app surfaces; `lite-lovr` uses a host/thread draw-command
 protocol. Both point to the same separation.

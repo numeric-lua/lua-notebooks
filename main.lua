@@ -153,16 +153,21 @@ end
 
 function lovr.draw(pass)
   if app == nil then return end
+  local passes
   if app.smoke then
-    local ok, err = pcall(app.ui.draw, app.ui, pass)
+    local ok, result = pcall(app.ui.draw, app.ui, pass)
     if not ok then
-      print("SMOKE_DRAW_ERROR=" .. tostring(err))
+      print("SMOKE_DRAW_ERROR=" .. tostring(result))
       app.smoke = false
       lovr.event.quit()
+      return
     end
+    passes = result
   else
-    app.ui:draw(pass)
+    passes = app.ui:draw(pass)
   end
+  passes[#passes + 1] = pass
+  return lovr.graphics.submit(passes)
 end
 
 function lovr.textinput(text, code)

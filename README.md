@@ -17,6 +17,8 @@ Working in this milestone:
 - a **3D cube output** rendered by the host, never by the kernel
 - a **luaplotlib scene renderer**: line/scatter/bar/hist scenes, axes, grid,
   title, labels, and category ticks
+- a **render-target extension surface**: one `Pass` + `Texture` per scene cell,
+  composited into the notebook; the first extension is `extensions/cube.lua`
 - F5 run, cell selection, add-cell, mouse tabs, scroll
 - offline LÖVR 0.19 API docs, examples, and LuaLS annotations under `docs/lovr/`
 - noninteractive smoke tests that exercise the kernel and renderer
@@ -26,7 +28,8 @@ Not yet implemented:
 - notebook open/save UI (a JSON document model exists)
 - full text editor features, syntax highlighting, undo, IME
 - process-level kernel isolation (threads currently)
-- extension render-target surfaces and widget event protocol
+- extension pointer/event protocol and hot reload
+- external extension loading with permissions
 - a luaplotlib scene **backend** (the scene IR and LÖVR renderer are working;
   the SVG and LÖVR backends now share the scene model)
 - package distribution / single-file build

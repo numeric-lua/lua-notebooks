@@ -83,3 +83,11 @@ if failed > 0 then
   for _, failure in ipairs(failures) do io.write("\n" .. failure .. "\n") end
   os.exit(1)
 end
+
+current = "extensions"
+test("registers and resolves extension renderers", function()
+  local Extensions = require("extensions")
+  assert_true(Extensions.get("cube") ~= nil, "cube extension")
+  Extensions.register("dummy", { render = function() end })
+  assert_true(Extensions.get("dummy") ~= nil, "dummy extension")
+end)

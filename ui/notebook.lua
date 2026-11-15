@@ -4,6 +4,8 @@
 -- real 3D viewport are enough to validate the architecture.
 --
 local Plot = require("ui.plot")
+local Surface = require("ui.surface")
+local Extensions = require("extensions")
 
 local UI = {}
 UI.__index = UI
@@ -47,6 +49,8 @@ function UI.new(app)
     rects = {},
     tabs = {},
     buttons = {},
+    extension_passes = {},
+    surfaces = {},
   }, UI)
 end
 
@@ -98,6 +102,7 @@ function UI:draw(pass)
   local content_bottom = 0
 
   for index, cell in ipairs(notebook.cells) do
+    cell._index = index
     local source_lines = split_lines(cell.source)
     local source_height = math.max(3, #source_lines) * 21
     local output_lines = cell.output ~= "" and split_lines(cell.output) or {}
@@ -194,26 +199,32 @@ function UI:draw(pass)
     { 0.6, 0.68, 0.82, 1 }, 0.72)
   text(pass, app.font, "F5 run   Tab indent   Backspace   Up/Down cell",
     width - 390, height - 22, { 0.45, 0.5, 0.62, 1 }, 0.65)
+  return self.extension_passes
 end
 
 function UI:draw_scene(pass, x, y, w, h, cell)
-  box(pass, x, y, w, h, { 0.02, 0.025, 0.04, 1 })
-  pass:setViewport(x, y, w, h)
-  pass:setProjection(1, mat4():perspective(math.rad(55), w / h, 0.1, 100))
-  pass:setViewPose(1, mat4():lookAt(vec3(2.4, 2.0, 3.2), vec3(0, 0, 0)), true)
-  pass:setDepthTest("lequal")
-  local angle = lovr.timer.getTime()
-  pass:setColor(0.95, 0.55, 0.3, 1)
-  pass:cube(0, 0, 0, 1, angle, 0, 1, 0)
-  pass:setColor(0.25, 0.55, 0.9, 1)
-  pass:cube(0, -1.15, 0, 0.8, -angle, 0, 1, 0)
-  pass:setViewport()
-  pass:setProjection("orthographic")
-  pass:setViewPose(1, mat4():identity())
-  pass:setDepthTest()
+  local index = cell._index
+  local surface = self.surfaces[index]
+  if surface == nil then
+    surface = Surface.new()
+    self.surfaces[index] = surface
+  end
+  local renderer = Extensions.get(cell.scene)
+  if renderer == nil then
+    box(pass, x, y, w, h, { 0.03, 0.03, 0.04, 1 })
+    text(pass, self.app.font, "unknown extension: " .. tostring(cell.scene),
+      x + 10, y + 10, { 1, 0.55, 0.55, 1 }, 0.75)
+    return
+  end
+  surface:ensure(w, h)
+  surface:render(renderer, lovr.timer.getTime())
+  surface:composite(pass, x, y, w, h)
+  table.insert(self.extension_passes, surface.pass)
+
+  box(pass, x, y, w, h, { 0.02, 0.025, 0.04, 0 })
   pass:setFont(self.app.font)
   pass:setColor(0.8, 0.85, 0.95, 1)
-  pass:text("scene: cube (host-rendered)", x + 10, y + 8, 0, 0.75,
+  pass:text("surface: Pass + Texture (host-rendered)", x + 10, y + 8, 0, 0.72,
     0, 0, 1, 0, 0, "left", "top")
 end
 
