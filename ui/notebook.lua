@@ -704,7 +704,7 @@ function UI:draw_help(pass, width, height)
     "Ctrl+Shift+R rename · Ctrl+Shift+U undo tree",
     "# View and files",
     "F1 palette · F2 filetree · F4 Zen · F11 outline",
-    "F5 run · F6 save · F7 load",
+    "p run · Alt+P run and next · F5 run · F6 save · F7 load",
     "F8 reload extension · F9 user extensions · F10 browser",
     "Ctrl+Shift+S screenshot · Ctrl+Shift+T theme",
     "F12 or ? open/close this cheatsheet",
@@ -1269,6 +1269,10 @@ function UI:keypressed(key)
     self.app:add_cell("markdown"); return
   elseif alt_down and key == "x" then
     self.app:delete_cell(); return
+  elseif alt_down and key == "p" then
+    self.app:run_next()
+    if self.app.vim_mode then self.vim_normal = true end
+    return
   end
   if alt_down and (key == "j" or key == "k") then
     if self.nav_repeat == nil or self.nav_repeat.key ~= key then
@@ -1693,6 +1697,9 @@ function UI:keypressed(key)
         notebook.cells[notebook.active].cursor)
       self.vim_char_visual = false
       self.vim_char_anchor = nil
+      return
+    elseif key == "p" and not self.vim_char_visual and not self.vim_visual then
+      self.app:run()
       return
     elseif key == "p" and self.vim_char_yank and #self.vim_char_yank > 0 then
       notebook:push_undo()

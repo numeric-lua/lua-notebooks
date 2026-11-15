@@ -55,6 +55,8 @@ Controls:
 | --- | --- |
 | click cell | select |
 | type | append to selected code cell |
+| `p` | run selected cell in Vim normal mode |
+| `Alt+P` | run selected cell, then select the next cell |
 | `F5` or **Run** | execute selected cell |
 | `F6` | save active notebook to the LÖVR save directory |
 | `F7` | load it back |

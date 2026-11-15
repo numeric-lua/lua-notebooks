@@ -213,6 +213,18 @@ function App:open_all_kernels()
   end
 end
 
+function App:run_next()
+  self:run()
+  local notebook = self:notebook()
+  if notebook.active < #notebook.cells then
+    notebook:move(1)
+    self.ui.scroll_to_selected = true
+    self.status = "running; selected next cell"
+  else
+    self.status = "running last cell"
+  end
+end
+
 function App:run()
   local notebook = self:notebook()
   local index = notebook.active
@@ -479,7 +491,19 @@ function lovr.load()
   end
   lovr.filesystem.watch()
   _G.app = app
-  if os.getenv("LUANB_SMOKE_HELP") then
+  if os.getenv("LUANB_SMOKE_PRUN") then
+    app:notebook():select(2)
+    app.ui.vim_normal = true
+    app.ui:keypressed("p")
+    print("SMOKE_PRUN=" .. tostring(app:notebook().cells[2].running) .. ":" ..
+      tostring(app:notebook().active))
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_PRUNNEXT") then
+    app:notebook():select(2)
+    app:run_next()
+    print("SMOKE_PRUNNEXT=" .. tostring(app:notebook().active))
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_HELP") then
     app.ui.vim_normal = true
     app.ui:keypressed("?")
     print("SMOKE_HELP=" .. tostring(app.ui.show_help))
