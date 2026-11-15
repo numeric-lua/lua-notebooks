@@ -140,6 +140,12 @@ to the widget rectangle. The included `star_nest` preset is the MIT-licensed
 Star Nest shader by Pablo Román Andrioli, adapted from the shooter project.
 Custom fragment source can also be supplied through `shader`.
 
+## Markdown preview
+
+Markdown cells show formatted text when unfocused: heading markers, emphasis,
+inline code, links, and list markers are removed for display. Selecting the cell
+returns to editable source. Display math renders in both states.
+
 ## Cell labels
 
 Cells no longer have a `CODE In [x]` header row. A compact number is drawn at

@@ -22,6 +22,16 @@ local function cell_label(index)
   return string.format("In [%d]", index)
 end
 
+local function markdown_preview(line)
+  line = line:gsub("^%s*#+%s*", "")
+  line = line:gsub("^%s*[-*+]%s+", "• ")
+  line = line:gsub("%*%*(.-)%*%*", "%1")
+  line = line:gsub("__(.-)__", "%1")
+  line = line:gsub("`([^`]*)`", "%1")
+  line = line:gsub("%[([^%]]+)%]%b()", "%1")
+  return line
+end
+
 local function split_lines(text)
   local lines = {}
   if text == nil or text == "" then
@@ -325,18 +335,20 @@ function UI:draw(pass)
         char_a = math.min(self.vim_char_anchor, cell.cursor or 1)
         char_b = math.max(self.vim_char_anchor, cell.cursor or 1)
       end
+      local preview = cell.kind == "markdown" and not selected
       local line_y = source_y
       for line_index = 1, math.min(#source_lines, 14) do
-        local display = source_lines[line_index]
+        local raw_display = source_lines[line_index]
+        local display = preview and markdown_preview(raw_display) or raw_display
         local engine_layout = math_layouts[line_index]
         local display_fraction = cell.kind == "markdown" and
-          Math.display_fraction(display)
+          Math.display_fraction(raw_display)
         local display_matrix = cell.kind == "markdown" and
-          Math.display_matrix(display)
+          Math.display_matrix(raw_display)
         local display_root = cell.kind == "markdown" and
-          Math.display_root(display)
+          Math.display_root(raw_display)
         local display_math = cell.kind == "markdown" and
-          Math.display(display)
+          Math.display(raw_display)
         if engine_layout then
           MathEngine.draw(pass, engine_layout.box,
             width / 2 - engine_layout.box.w / 2,
@@ -402,11 +414,16 @@ function UI:draw(pass)
           line_y = line_y + 21
         elseif cell.kind == "markdown" then
           local x = 36
+          local heading_preview = preview and raw_display:match("^%s*#")
+          local text_color = heading_preview and { 0.88, 0.92, 1, 1 } or
+            source_color
+          local text_scale = heading_preview and 0.98 or 0.86
           for _, segment in ipairs(Math.segments(display)) do
             local line_font = segment.math and (app.math_font or app.font) or
               app.font
-            text(pass, line_font, segment.text, x, line_y, source_color, 0.86)
-            x = x + line_font:getWidth(segment.text) * 0.86
+            text(pass, line_font, segment.text, x, line_y, text_color,
+              text_scale)
+            x = x + line_font:getWidth(segment.text) * text_scale
           end
           line_y = line_y + 21
         else
