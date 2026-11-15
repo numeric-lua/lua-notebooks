@@ -11,6 +11,7 @@ local ProcessSupervisor = require("notebook.process_supervisor")
 local Format = require("notebook.format")
 local Extensions = require("extensions")
 local UI = require("ui.notebook")
+local LspClient = require("notebook.lsp_client")
 
 local App = {}
 App.__index = App
@@ -31,7 +32,20 @@ function App:new(notebooks)
     title_font = nil,
     supervisor = nil,
     vim_mode = true,
+    lsp = nil,
+    lsp_thread = nil,
+    lsp_in = lovr.thread.getChannel("lua-notebooks:lsp:in"),
+    lsp_out = lovr.thread.getChannel("lua-notebooks:lsp:out"),
   }, App)
+  self.lsp_thread = lovr.thread.newThread("notebook/lsp_worker.lua")
+  self.lsp_thread:start("lua-notebooks:lsp:in", "lua-notebooks:lsp:out")
+  self.lsp = LspClient.new({
+    send = function(bytes) self.lsp_in:push(bytes) end,
+    on_initialized = function() self.lsp_ready = true end,
+    on_diagnostics = function(uri, items) self.lsp_diagnostics[uri] = items end,
+  })
+  self.lsp_diagnostics = {}
+  self.lsp:initialize("luanb:///")
   local process_requested = os.getenv("LUANB_KERNEL_MODE") == "process"
   if process_requested and not ProcessSupervisor.supported() then
     print("process kernels are unavailable on this platform; using threads")
@@ -62,6 +76,13 @@ function App:set_tab(index)
   self.active = index
   self.scroll = 0
   self.status = self.notebooks[index].name
+end
+
+function App:server_diagnostic(cell)
+  local uri = "luanb:///notebooks/" .. self:notebook().name .. "?cell=" ..
+    tostring(cell.id)
+  local items = self.lsp_diagnostics and self.lsp_diagnostics[uri]
+  return items and items[1] or nil
 end
 
 function App:library_items()
@@ -257,6 +278,21 @@ end
 
 function App:update()
   self.supervisor:poll()
+  if os.getenv("LUANB_LSP_SMOKE") and self.lsp_ready and
+     not self.lsp_smoke_done then
+    self.lsp_smoke_done = true
+    print("SMOKE_LSP=ready")
+    lovr.event.quit()
+  end
+  if self.lsp then
+    while true do
+      local bytes = self.lsp_out:pop(false)
+      if bytes == nil then break end
+      local messages = require("notebook.lsp.framing").new_decoder():feed(bytes)
+      for _, message in ipairs(messages) do self.lsp:handle(message) end
+    end
+    self.lsp:sync(self:notebook(), "notebooks/" .. self:notebook().name)
+  end
   if self.qa_complete and self.ui.width and not self.qa_completion_opened then
     self.qa_completion_opened = true
     self.ui:open_completion()
@@ -698,6 +734,7 @@ end
 
 function lovr.quit()
   if app and app.supervisor.close then app.supervisor:close() end
+  if app and app.lsp_in then app.lsp_in:push("__quit") end
 end
 
 function lovr.filechanged(path, action)

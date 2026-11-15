@@ -240,7 +240,8 @@ function UI:draw(pass)
     elseif cell.scene then
       scene_height = 170
     end
-    local diagnostic = cell.kind == "code" and LSP.diagnostics(cell.source)
+    local diagnostic = cell.kind == "code" and
+      (self.app:server_diagnostic(cell) or LSP.diagnostics(cell.source))
     local diagnostic_height = diagnostic and 18 or 0
     local cell_height = 30 + source_height + widget_height +
       output_height + scene_height + diagnostic_height + 14
