@@ -61,6 +61,116 @@ function Scope.tokens(source)
   return tokens
 end
 
+local KEYWORDS = {}
+for word in ([[and break do else elseif end false for function if in local nil
+  not or repeat return then true until while goto]]):gmatch("%S+") do
+  KEYWORDS[word] = true
+end
+
+local BLOCK_OPEN = { ["function"] = true, ["if"] = true, ["for"] = true,
+  ["while"] = true, ["repeat"] = true, ["do"] = true }
+
+function Scope.analyze(source)
+  local tokens = Scope.tokens(source)
+  local scopes = { { bindings = {} } }
+  local bindings = {}
+  local references = {}
+
+  local function add_binding(name, index, token)
+    local binding = { name = name, index = index, token = token,
+      scope = scopes[#scopes] }
+    scopes[#scopes].bindings[#scopes[#scopes].bindings + 1] = binding
+    bindings[#bindings + 1] = binding
+    return binding
+  end
+
+  local function resolve(name, index)
+    for scope_index = #scopes, 1, -1 do
+      local found
+      for _, binding in ipairs(scopes[scope_index].bindings) do
+        if binding.name == name and binding.index < index and
+           (found == nil or binding.index > found.index) then
+          found = binding
+        end
+      end
+      if found then return found end
+    end
+    return nil
+  end
+
+  for index, token in ipairs(tokens) do
+    if token.kind == "word" then
+      if BLOCK_OPEN[token.text] then
+        scopes[#scopes + 1] = { bindings = {} }
+      elseif token.text == "end" or token.text == "until" then
+        if #scopes > 1 then table.remove(scopes) end
+      elseif token.text == "local" then
+        local next_index = index + 1
+        local function skip_space(position)
+          while tokens[position] and tokens[position].kind == "symbol" and
+                tokens[position].text:match("%s") do
+            position = position + 1
+          end
+          return position
+        end
+        next_index = skip_space(next_index)
+        if tokens[next_index] and tokens[next_index].text == "function" then
+          next_index = skip_space(next_index + 1)
+          if tokens[next_index] and tokens[next_index].kind == "word" then
+            add_binding(tokens[next_index].text, index, tokens[next_index])
+          end
+        else
+          while tokens[next_index] and tokens[next_index].kind == "word" and
+                not KEYWORDS[tokens[next_index].text] do
+            add_binding(tokens[next_index].text, index, tokens[next_index])
+            next_index = skip_space(next_index + 1)
+            if tokens[next_index] and tokens[next_index].text == "," then
+              next_index = skip_space(next_index + 1)
+            else
+              break
+            end
+          end
+        end
+      elseif not KEYWORDS[token.text] then
+        local previous = tokens[index - 1]
+        if previous == nil or (previous.text ~= "." and previous.text ~= ":") then
+          references[#references + 1] = { token = token,
+            binding = resolve(token.text, index) }
+        end
+      end
+    end
+  end
+  return { tokens = tokens, bindings = bindings, references = references }
+end
+
+function Scope.resolved_ranges(source, byte_offset, word)
+  local analysis = Scope.analyze(source)
+  local target
+  for _, binding in ipairs(analysis.bindings) do
+    if binding.name == word and binding.token.start <= byte_offset and
+       binding.token.finish >= byte_offset then target = binding; break end
+  end
+  if target == nil then
+    for _, reference in ipairs(analysis.references) do
+      if reference.token.text == word and reference.token.start <= byte_offset and
+         reference.token.finish >= byte_offset then
+        target = reference.binding
+        break
+      end
+    end
+  end
+  if target == nil then return nil, false end
+  local ranges = { { start = target.token.start, finish = target.token.finish } }
+  for _, reference in ipairs(analysis.references) do
+    if reference.binding == target and
+       reference.token.start ~= target.token.start then
+      ranges[#ranges + 1] = { start = reference.token.start,
+        finish = reference.token.finish }
+    end
+  end
+  return ranges, true
+end
+
 function Scope.occurrences(source, word)
   local result = {}
   local tokens = Scope.tokens(source)

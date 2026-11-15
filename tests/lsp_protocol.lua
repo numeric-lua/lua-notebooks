@@ -51,6 +51,19 @@ local rename = server:handle({ jsonrpc = "2.0", id = 12,
     newName = "renamed",
   } })
 assert(rename.result and rename.result.changes[uri2])
+
+local uri3 = "luanb:///a.luanb?cell=c3"
+server:handle({ jsonrpc = "2.0", method = "textDocument/didOpen", params = {
+  textDocument = { uri = uri3, text = "local x = 1\ndo\n  local x = 2\n  print(x)\nend\nprint(x)", version = 1 },
+} })
+local scoped_rename = server:handle({ jsonrpc = "2.0", id = 13,
+  method = "textDocument/rename", params = {
+    textDocument = { uri = uri3 }, position = { line = 2, character = 8 },
+    newName = "inner",
+  } })
+assert(scoped_rename.result and scoped_rename.result.changes[uri3])
+assert(#scoped_rename.result.changes[uri3] == 2,
+  #scoped_rename.result.changes[uri3])
 local shutdown = server:handle({ jsonrpc = "2.0", id = 3, method = "shutdown", params = json.null })
 eq(shutdown.result, json.null)
 print("lsp protocol tests ok")

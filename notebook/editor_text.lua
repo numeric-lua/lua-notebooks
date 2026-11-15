@@ -113,6 +113,16 @@ function LSP.rename(notebook, old_word, new_word)
   return count
 end
 
+function LSP.offset_at(text, line, character)
+  local current = 1
+  for _ = 1, line do
+    local newline = text:find("\n", current, true)
+    if newline == nil then return #text + 1 end
+    current = newline + 1
+  end
+  return current + (character or 0)
+end
+
 function LSP.word_at(text, line, character)
   local current = 1
   for _ = 1, line do

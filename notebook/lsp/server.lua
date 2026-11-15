@@ -194,22 +194,43 @@ function Server:handle(message)
     return response(id, locations)
   elseif message.method == "textDocument/rename" then
     local uri = params.textDocument and params.textDocument.uri
+    local document = self.documents[uri]
     local word = self:word_at(uri, params.position or {})
     local new_name = params.newName
-    if not word or type(new_name) ~= "string" or
+    if not document or not word or type(new_name) ~= "string" or
        not new_name:match("^[%a_][%w_]*$") then
       return error_response(id, -32602, "invalid rename")
     end
-    local changes = {}
-    for other_uri, document in pairs(self.documents) do
-      local edits = {}
-      for _, occurrence in ipairs(Scope.occurrences(document.text, word.word)) do
-        local start_location = location(other_uri, document.text, occurrence.start)
-        local end_location = location(other_uri, document.text, occurrence.finish)
-        edits[#edits + 1] = { range = { start = start_location.range.start,
-          ["end"] = end_location.range["end"] }, newText = new_name }
+    local function add_edits(changes, target_uri, source, ranges)
+      local edits = changes[target_uri] or {}
+      for _, range in ipairs(ranges) do
+        local start_location = location(target_uri, source, range.start)
+        local end_location = location(target_uri, source, range.finish)
+        edits[#edits + 1] = {
+          range = { start = start_location.range.start,
+            ["end"] = end_location.range["end"] },
+          newText = new_name,
+        }
       end
-      if #edits > 0 then changes[other_uri] = edits end
+      changes[target_uri] = edits
+    end
+    local changes = {}
+    local absolute = Editor.offset_at(document.text,
+      params.position.line, params.position.character)
+    local target_ranges, is_local = Scope.resolved_ranges(document.text,
+      absolute, word.word)
+    if is_local then
+      add_edits(changes, uri, document.text, target_ranges or {})
+    else
+      for other_uri, other in pairs(self.documents) do
+        for _, occurrence in ipairs(Scope.occurrences(other.text, word.word)) do
+          local _, local_binding = Scope.resolved_ranges(other.text,
+            occurrence.start, word.word)
+          if not local_binding then
+            add_edits(changes, other_uri, other.text, { occurrence })
+          end
+        end
+      end
     end
     return response(id, { changes = changes })
   elseif message.method == "shutdown" then
