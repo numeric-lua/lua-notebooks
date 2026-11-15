@@ -127,6 +127,9 @@ function UI.new(app)
     vim_visual = false,
     vim_anchor = nil,
     vim_yank = nil,
+    vim_registers = {},
+    vim_register = '"',
+    vim_pending_register = false,
     tree_rects = {},
     tree_items = {},
     rename_prompt = nil,
@@ -817,7 +820,17 @@ function UI:keypressed(key)
     return
   end
   if self.app.vim_mode and self.vim_normal then
-    if key == "escape" then
+    if self.vim_pending_register then
+      if key:match("^[a-z]$") then
+        self.vim_register = key
+        self.app.status = "register " .. key
+      end
+      self.vim_pending_register = false
+      return
+    elseif key == '"' then
+      self.vim_pending_register = true
+      return
+    elseif key == "escape" then
       self.vim_visual = false
       self.vim_anchor = nil
       return
@@ -832,9 +845,11 @@ function UI:keypressed(key)
       for index = first, last do
         self.vim_yank[#self.vim_yank + 1] = notebook:copy_cell(index)
       end
+      self.vim_registers[self.vim_register] = self.vim_yank
       self.vim_visual = false
       self.vim_anchor = nil
-      self.app.status = "yanked " .. #self.vim_yank .. " cell(s)"
+      self.app.status = "yanked " .. #self.vim_yank .. " cell(s) to " ..
+        self.vim_register
       return
     elseif key == "d" and self.vim_visual then
       local first = math.min(self.vim_anchor, notebook.active)
@@ -843,8 +858,15 @@ function UI:keypressed(key)
       self.vim_visual = false
       self.vim_anchor = nil
       return
-    elseif key == "p" and self.vim_yank then
-      for offset, cell in ipairs(self.vim_yank) do
+    elseif key == "y" then
+      self.vim_yank = { notebook:copy_cell(notebook.active) }
+      self.vim_registers[self.vim_register] = self.vim_yank
+      self.app.status = "yanked current cell to " .. self.vim_register
+      return
+    elseif key == "p" and (self.vim_registers[self.vim_register] or
+                           self.vim_yank) then
+      local cells = self.vim_registers[self.vim_register] or self.vim_yank
+      for offset, cell in ipairs(cells) do
         notebook:insert_cell(notebook.active + offset,
           notebook:copy_cell(notebook.active))
         local target = notebook.cells[notebook.active + offset]
