@@ -186,9 +186,17 @@ function UI:draw(pass)
         { 0.75, 0.78, 0.9, 1 } or { 0.86, 0.88, 0.94, 1 }
       for line_index = 1, math.min(#source_lines, 14) do
         local display = source_lines[line_index]
-        if cell.kind == "markdown" then display = Math.inline(display) end
-        text(pass, app.font, display, 36,
-          source_y + (line_index - 1) * 21, source_color, 0.86)
+        local line_y = source_y + (line_index - 1) * 21
+        if cell.kind == "markdown" then
+          local x = 36
+          for _, segment in ipairs(Math.segments(display)) do
+            local line_font = app.font
+            text(pass, line_font, segment.text, x, line_y, source_color, 0.86)
+            x = x + line_font:getWidth(segment.text) * 0.86
+          end
+        else
+          text(pass, app.font, display, 36, line_y, source_color, 0.86)
+        end
       end
       if cell.kind == "code" and selected then
         local cursor_line = math.min(#source_lines, 14)

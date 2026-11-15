@@ -66,6 +66,27 @@ function Math.render(expression)
   return text
 end
 
+function Math.segments(text)
+  local segments = {}
+  local position = 1
+  while position <= #text do
+    local start_pos, end_pos = text:find("%$(.-)%$", position)
+    if start_pos == nil then
+      segments[#segments + 1] = { text = text:sub(position) }
+      break
+    end
+    if start_pos > position then
+      segments[#segments + 1] = { text = text:sub(position, start_pos - 1) }
+    end
+    segments[#segments + 1] = {
+      text = Math.render(text:sub(start_pos + 1, end_pos - 1)), math = true,
+    }
+    position = end_pos + 1
+  end
+  if #segments == 0 then segments[1] = { text = "" } end
+  return segments
+end
+
 function Math.inline(text)
   return (text:gsub("%$(.-)%$", function(expression)
     return Math.render(expression)
