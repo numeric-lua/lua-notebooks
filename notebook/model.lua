@@ -12,6 +12,7 @@ local function cell(kind, source)
     scene = nil,
     running = false,
     error = nil,
+    cursor = #(source or "") + 1,
   }
 end
 
@@ -25,6 +26,9 @@ function Notebook.new(options)
   }, Notebook)
   if #self.cells == 0 then
     self.cells[1] = cell("code", "")
+  end
+  for _, item in ipairs(self.cells) do
+    item.cursor = item.cursor or (#(item.source or "") + 1)
   end
   return self
 end
@@ -64,25 +68,92 @@ end
 function Notebook:insert(text)
   local current = self:selected()
   if current.kind ~= "code" then return end
-  current.source = current.source .. text
+  local cursor = current.cursor or (#current.source + 1)
+  current.source = current.source:sub(1, cursor - 1) .. text ..
+    current.source:sub(cursor)
+  current.cursor = cursor + #text
   self.dirty = true
+end
+
+local function previous_start(text, cursor)
+  local position = cursor - 1
+  if position < 1 then return nil end
+  while position > 1 do
+    local byte = text:byte(position)
+    if byte < 0x80 or byte >= 0xC0 then break end
+    position = position - 1
+  end
+  return position
+end
+
+local function next_end(text, cursor)
+  if cursor > #text then return #text + 1 end
+  local position = cursor + 1
+  while position <= #text do
+    local byte = text:byte(position)
+    if byte < 0x80 or byte >= 0xC0 then break end
+    position = position + 1
+  end
+  return position
 end
 
 function Notebook:backspace()
   local current = self:selected()
   if current.kind ~= "code" then return end
-  -- Remove one UTF-8 codepoint, not one byte.
-  local text = current.source
-  local cut = #text
-  while cut > 1 do
-    local byte = text:byte(cut)
-    if byte < 0x80 or byte >= 0xC0 then break end
-    cut = cut - 1
-  end
-  if cut >= 1 then
-    current.source = text:sub(1, cut - 1)
-  end
+  local cursor = current.cursor or (#current.source + 1)
+  local start = previous_start(current.source, cursor)
+  if start == nil then return end
+  current.source = current.source:sub(1, start - 1) .. current.source:sub(cursor)
+  current.cursor = start
   self.dirty = true
+end
+
+function Notebook:delete()
+  local current = self:selected()
+  if current.kind ~= "code" then return end
+  local cursor = current.cursor or (#current.source + 1)
+  if cursor > #current.source then return end
+  local finish = next_end(current.source, cursor)
+  current.source = current.source:sub(1, cursor - 1) ..
+    current.source:sub(finish)
+  current.cursor = cursor
+  self.dirty = true
+end
+
+function Notebook:move_cursor(delta)
+  local current = self:selected()
+  if current.kind ~= "code" then return end
+  local cursor = current.cursor or (#current.source + 1)
+  if delta < 0 then
+    for _ = 1, -delta do
+      local start = previous_start(current.source, cursor)
+      if start == nil then break end
+      cursor = start
+    end
+  else
+    for _ = 1, delta do
+      if cursor > #current.source then break end
+      cursor = next_end(current.source, cursor)
+    end
+  end
+  current.cursor = math.max(1, math.min(#current.source + 1, cursor))
+end
+
+function Notebook:cursor_home()
+  local current = self:selected()
+  if current.kind ~= "code" then return end
+  local before = current.source:sub(1, (current.cursor or 1) - 1)
+  local newline = before:match(".*()\n")
+  current.cursor = (newline or 0) + 1
+end
+
+function Notebook:cursor_end()
+  local current = self:selected()
+  if current.kind ~= "code" then return end
+  local after = current.source:sub(current.cursor or (#current.source + 1))
+  local newline = after:find("\n", 1, true)
+  current.cursor = (newline and current.cursor + newline - 1) or
+    (#current.source + 1)
 end
 
 function Notebook:newline()

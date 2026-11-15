@@ -245,6 +245,16 @@ function UI:keypressed(key)
     end
   elseif key == "backspace" then
     notebook:backspace()
+  elseif key == "delete" then
+    notebook:delete()
+  elseif key == "left" then
+    notebook:move_cursor(-1)
+  elseif key == "right" then
+    notebook:move_cursor(1)
+  elseif key == "home" then
+    notebook:cursor_home()
+  elseif key == "end" then
+    notebook:cursor_end()
   elseif key == "return" then
     if notebook:selected().kind == "code" then
       notebook:newline()

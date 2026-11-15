@@ -57,7 +57,9 @@ Controls:
 | `F6` | save active notebook to the LÖVR save directory |
 | `F7` | load it back |
 | `Tab` | insert two spaces |
-| `Backspace` | delete last code point |
+| `Left` / `Right` | move the caret |
+| `Home` / `End` | start / end of line |
+| `Backspace` / `Delete` | delete before / after the caret |
 | `Enter` | newline |
 | `Up` / `Down` | previous / next cell |
 | mouse wheel | scroll |
