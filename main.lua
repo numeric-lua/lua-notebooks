@@ -65,7 +65,33 @@ function App:set_tab(index)
 end
 
 function App:library_items()
-  return Format.list()
+  self.tree_expanded = self.tree_expanded or { notebooks = true }
+  return Format.list_tree(self.tree_expanded)
+end
+
+function App:new_notebook()
+  local index = 1
+  while Format.load("untitled-" .. index .. ".luanb") do index = index + 1 end
+  local name = "untitled-" .. index .. ".luanb"
+  local notebook = Notebook.new({
+    name = name,
+    cells = { { kind = "code", source = "print('new notebook')" } },
+  })
+  Format.save(notebook)
+  self.notebooks[#self.notebooks + 1] = notebook
+  self.active = #self.notebooks
+  self.supervisor:open("nb" .. self.active)
+  self.status = "created " .. name
+end
+
+function App:delete_notebook(name)
+  local ok, err = Format.delete(name)
+  if not ok then self.status = "delete failed: " .. tostring(err); return end
+  for index, notebook in ipairs(self.notebooks) do
+    if notebook.name == name then table.remove(self.notebooks, index); break end
+  end
+  self.active = math.max(1, math.min(self.active, #self.notebooks))
+  self.status = "deleted " .. name
 end
 
 function App:open_path(name)
@@ -265,7 +291,16 @@ function lovr.load()
   end
   lovr.filesystem.watch()
   _G.app = app
-  if os.getenv("LUANB_SMOKE_EXT_PREFS") then
+  if os.getenv("LUANB_SMOKE_TREE") then
+    local before = #Format.list()
+    app:new_notebook()
+    local name = app:notebook().name
+    local after = #Format.list()
+    app:delete_notebook(name)
+    local final = #Format.list()
+    print(string.format("SMOKE_TREE=%d->%d->%d", before, after, final))
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_EXT_PREFS") then
     Extensions.set_enabled("grid", false)
     Extensions.save_preferences()
     Extensions.disabled = {}
@@ -311,7 +346,16 @@ function lovr.load()
   -- Non-interactive smoke path: run the first welcome cell, print its result,
   -- and quit.  This exercises thread startup, channels, the kernel worker, and
   -- result routing without requiring a human at the window.
-  if os.getenv("LUANB_SMOKE_EXT_PREFS") then
+  if os.getenv("LUANB_SMOKE_TREE") then
+    local before = #Format.list()
+    app:new_notebook()
+    local name = app:notebook().name
+    local after = #Format.list()
+    app:delete_notebook(name)
+    local final = #Format.list()
+    print(string.format("SMOKE_TREE=%d->%d->%d", before, after, final))
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_EXT_PREFS") then
     Extensions.set_enabled("grid", false)
     Extensions.save_preferences()
     Extensions.disabled = {}
@@ -366,7 +410,16 @@ function lovr.update(dt)
   if app.smoke then
     local notebook = app:notebook()
     local cell = notebook.cells[notebook.active]
-    if os.getenv("LUANB_SMOKE_EXT_PREFS") then
+    if os.getenv("LUANB_SMOKE_TREE") then
+    local before = #Format.list()
+    app:new_notebook()
+    local name = app:notebook().name
+    local after = #Format.list()
+    app:delete_notebook(name)
+    local final = #Format.list()
+    print(string.format("SMOKE_TREE=%d->%d->%d", before, after, final))
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_EXT_PREFS") then
     Extensions.set_enabled("grid", false)
     Extensions.save_preferences()
     Extensions.disabled = {}

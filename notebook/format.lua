@@ -76,6 +76,40 @@ function Format.list()
   return names
 end
 
+function Format.list_tree(expanded, prefix, depth)
+  prefix = prefix or "notebooks"
+  depth = depth or 0
+  local entries = {}
+  local ok, items = pcall(lovr.filesystem.getDirectoryItems, prefix)
+  if not ok then return entries end
+  table.sort(items)
+  for _, item in ipairs(items) do
+    local path = prefix .. "/" .. item
+    local info = lovr.filesystem.getInfo(path)
+    if info and info.type == "directory" then
+      entries[#entries + 1] = { path = path, name = item, depth = depth,
+        kind = "directory" }
+      if expanded[path] then
+        for _, child in ipairs(Format.list_tree(expanded, path, depth + 1)) do
+          entries[#entries + 1] = child
+        end
+      end
+    elseif item:match("%.luanb$") then
+      entries[#entries + 1] = { path = path, name = item, depth = depth,
+        kind = "file" }
+    end
+  end
+  return entries
+end
+
+function Format.delete(name)
+  local path = "notebooks/" .. name
+  local absolute = lovr.filesystem.getSaveDirectory() .. "/" .. path
+  local ok, err = os.remove(absolute)
+  if not ok then return nil, err end
+  return true
+end
+
 function Format.load(name)
   local path = "notebooks/" .. name
   local text = lovr.filesystem.read(path)

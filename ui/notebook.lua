@@ -462,28 +462,41 @@ function UI:draw_tree(pass, width, height)
   self.tree_rects = {}
   if not self.show_tree then return end
   local items = self.app:library_items()
-  local panel_w = 340
-  local panel_h = 80 + math.max(1, #items) * 26
+  local panel_w = 360
+  local panel_h = 122 + math.max(1, #items) * 26
   local x, y = 20, 66
   box(pass, x, y, panel_w, panel_h, { 0.035, 0.045, 0.07, 1 })
   text(pass, self.app.font, "Files  (F2 to close)", x + 14, y + 12,
     { 0.9, 0.94, 1, 1 }, 0.74)
-  text(pass, self.app.font, "notebooks/", x + 16, y + 42,
-    { 0.65, 0.72, 0.85, 1 }, 0.66)
-  if #items == 0 then
-    text(pass, self.app.font, "(no saved notebooks)", x + 36, y + 70,
-      { 0.55, 0.6, 0.7, 1 }, 0.66)
-  end
-  for index, name in ipairs(items) do
-    local row_y = y + 64 + (index - 1) * 26
-    local active = self.app:notebook().name == name
+  box(pass, x + 12, y + 36, panel_w - 24, 26, { 0.12, 0.22, 0.16, 1 })
+  text(pass, self.app.font, "+ New notebook", x + 24, y + 42,
+    { 0.8, 0.95, 0.85, 1 }, 0.68)
+  self.tree_rects[#self.tree_rects + 1] = {
+    x = x + 12, y = y + 36, w = panel_w - 24, h = 26, action = "new",
+  }
+  for index, item in ipairs(items) do
+    local row_y = y + 72 + (index - 1) * 26
+    local indent = 14 + item.depth * 18
+    local active = item.kind == "file" and self.app:notebook().name ==
+      item.name
     box(pass, x + 10, row_y, panel_w - 20, 23,
       active and { 0.14, 0.22, 0.34, 1 } or { 0.065, 0.075, 0.1, 1 })
-    text(pass, self.app.font, "• " .. name, x + 30, row_y + 4,
+    local marker = item.kind == "directory" and
+      (self.app.tree_expanded[item.path] and "▾ " or "▸ ") or "• "
+    text(pass, self.app.font, marker .. item.name, x + indent, row_y + 4,
       { 0.82, 0.88, 1, 1 }, 0.66)
     self.tree_rects[#self.tree_rects + 1] = {
-      x = x + 10, y = row_y, w = panel_w - 20, h = 23, name = name,
+      x = x + 10, y = row_y, w = panel_w - 52, h = 23, path = item.path,
+      kind = item.kind, name = item.name,
     }
+    if item.kind == "file" then
+      text(pass, self.app.font, "×", x + panel_w - 32, row_y + 3,
+        { 0.9, 0.45, 0.45, 1 }, 0.7)
+      self.tree_rects[#self.tree_rects + 1] = {
+        x = x + panel_w - 40, y = row_y, w = 26, h = 23,
+        action = "delete", name = item.name,
+      }
+    end
   end
 end
 
@@ -886,8 +899,17 @@ function UI:mousepressed(x, y, button)
   if self.show_tree then
     for _, rect in ipairs(self.tree_rects) do
       if inside(x, y, rect) then
-        self.app:open_path(rect.name)
-        self.show_tree = false
+        if rect.action == "new" then
+          self.app:new_notebook()
+        elseif rect.action == "delete" then
+          self.app:delete_notebook(rect.name)
+        elseif rect.kind == "directory" then
+          self.app.tree_expanded[rect.path] =
+            not self.app.tree_expanded[rect.path]
+        elseif rect.name then
+          self.app:open_path(rect.name)
+          self.show_tree = false
+        end
         return
       end
     end
