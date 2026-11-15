@@ -66,6 +66,16 @@ function Format.save(notebook)
   return path, lovr.filesystem.getSaveDirectory() .. "/" .. path
 end
 
+function Format.list()
+  local items = lovr.filesystem.getDirectoryItems("notebooks")
+  local names = {}
+  for _, item in ipairs(items) do
+    if item:match("%.luanb$") then names[#names + 1] = item end
+  end
+  table.sort(names)
+  return names
+end
+
 function Format.load(name)
   local path = "notebooks/" .. name
   local text = lovr.filesystem.read(path)

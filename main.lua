@@ -30,6 +30,7 @@ function App:new(notebooks)
     font = nil,
     title_font = nil,
     supervisor = nil,
+    vim_mode = true,
   }, App)
   local process_requested = os.getenv("LUANB_KERNEL_MODE") == "process"
   if process_requested and not ProcessSupervisor.supported() then
@@ -61,6 +62,30 @@ function App:set_tab(index)
   self.active = index
   self.scroll = 0
   self.status = self.notebooks[index].name
+end
+
+function App:library_items()
+  return Format.list()
+end
+
+function App:open_path(name)
+  local existing
+  for index, notebook in ipairs(self.notebooks) do
+    if notebook.name == name then existing = index; break end
+  end
+  if existing then
+    self:set_tab(existing)
+    return
+  end
+  local notebook, err = Format.load(name)
+  if notebook == nil then
+    self.status = "open failed: " .. tostring(err)
+    return
+  end
+  self.notebooks[#self.notebooks + 1] = notebook
+  self.active = #self.notebooks
+  self.supervisor:open("nb" .. self.active)
+  self.status = "opened " .. name
 end
 
 function App:open_all_kernels()
@@ -181,6 +206,10 @@ end
 
 function App:update()
   self.supervisor:poll()
+  if self.qa_complete and self.ui.width and not self.qa_completion_opened then
+    self.qa_completion_opened = true
+    self.ui:open_completion()
+  end
   if self.smoke_watch then
     local elapsed = lovr.timer.getTime() - self.smoke_watch_started
     if elapsed > 1 and not self.smoke_watch_touched then
@@ -256,8 +285,14 @@ function lovr.load()
   end
 
   -- Visual QA/demo: select and run one cell, then leave the window open.
+  if os.getenv("LUANB_QA_COMPLETE") then
+    app.qa_complete = true
+  end
   if os.getenv("LUANB_QA_EXT") then
     app.ui.show_extensions = true
+  end
+  if os.getenv("LUANB_QA_TREE") then
+    app.ui.show_tree = true
   end
   local qa_cell = tonumber(os.getenv("LUANB_QA_CELL") or "")
   if qa_cell then

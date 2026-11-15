@@ -70,7 +70,10 @@ Controls:
 | `F9` | reload extensions from the save directory |
 | `F10` | open/close the extension browser; click a row to enable/disable |
 | `F11` | open/close the heading outline |
+| `Ctrl+Space` | open Lua completion for the selected code cell |
 | `F1` | open/close the command palette |
+| `F2` | open the hierarchical notebook filetree |
+| `F3` | toggle Vim mode (on by default) |
 | `F12` | open/close the shortcut help overlay |
 | click a markdown heading arrow | collapse/expand following cells |
 | drag / wheel in 3D | orbit / zoom the focused extension |
@@ -79,6 +82,22 @@ Controls:
 The welcome notebook has runnable cells for hello, a loop, a 3D cube scene, a
 luaplotlib scene, a grid extension, and widgets. The second notebook has an independent kernel
 and global state.
+
+## File tree and Vim mode
+
+**F2** opens a hierarchical list of saved notebooks under `notebooks/`.
+Clicking a notebook opens it in a tab.
+
+Vim mode is **on by default** and is shown in the footer:
+
+- `Escape` enters normal mode;
+- `i`/`a` enter insert mode;
+- `j`/`k` move between cells;
+- `o` adds a code cell and enters insert mode;
+- `x` deletes the final character of the selected code cell;
+- **F3** toggles Vim mode.
+
+This is a small subset of Vim, not a full Vim implementation.
 
 ## Math and collapsible headings
 

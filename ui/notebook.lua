@@ -9,6 +9,8 @@ local Widgets = require("ui.widgets")
 local Scroll = require("ui.scroll")
 local Math = require("notebook.math")
 local NotebookModel = require("notebook.model")
+local Highlight = require("ui.highlight")
+local LSP = require("notebook.lsp")
 local Extensions = require("extensions")
 
 local UI = {}
@@ -43,6 +45,25 @@ end
 local function box(pass, x, y, w, h, color)
   pass:setColor(color[1], color[2], color[3], color[4] or 1)
   pass:plane(x + w / 2, y + h / 2, 0, w, h)
+end
+
+local TOKEN_COLORS = {
+  keyword = { 0.78, 0.62, 1, 1 },
+  string = { 0.55, 0.85, 0.62, 1 },
+  number = { 0.95, 0.72, 0.45, 1 },
+  comment = { 0.48, 0.54, 0.62, 1 },
+  identifier = { 0.86, 0.88, 0.94, 1 },
+  operator = { 0.62, 0.72, 0.86, 1 },
+  space = { 0.86, 0.88, 0.94, 1 },
+}
+
+local function draw_code_line(pass, font, line, x, y, scale)
+  local cursor = x
+  for _, token in ipairs(Highlight.line(line)) do
+    local color = TOKEN_COLORS[token.kind] or TOKEN_COLORS.identifier
+    text(pass, font, token.text, cursor, y, color, scale)
+    cursor = cursor + font:getWidth(token.text) * scale
+  end
 end
 
 local function math_width(font, node, scale)
@@ -99,6 +120,11 @@ function UI.new(app)
     palette_rects = {},
     palette_query = "",
     palette_selected = 1,
+    completion = nil,
+    completion_rects = {},
+    show_tree = false,
+    tree_rects = {},
+    tree_items = {},
   }, UI)
 end
 
@@ -184,8 +210,10 @@ function UI:draw(pass)
     elseif cell.scene then
       scene_height = 170
     end
+    local diagnostic = cell.kind == "code" and LSP.diagnostics(cell.source)
+    local diagnostic_height = diagnostic and 18 or 0
     local cell_height = 30 + source_height + widget_height +
-      output_height + scene_height + 14
+      output_height + scene_height + diagnostic_height + 14
     self.rects[index] = { x = 20, y = y, w = width - 40, h = cell_height }
     content_height = content_height + cell_height + 10
 
@@ -241,7 +269,7 @@ function UI:draw(pass)
           end
           line_y = line_y + 21
         else
-          text(pass, app.font, display, 36, line_y, source_color, 0.86)
+          draw_code_line(pass, app.font, display, 36, line_y, 0.86)
           line_y = line_y + 21
         end
       end
@@ -253,7 +281,11 @@ function UI:draw(pass)
           { 0.4, 0.75, 1, 1 })
       end
 
-      local widget_y = source_y + source_height + 2
+      if diagnostic then
+        text(pass, app.font, "syntax: " .. diagnostic.message, 36,
+          source_y + source_height + 2, { 0.95, 0.55, 0.55, 1 }, 0.64)
+      end
+      local widget_y = source_y + source_height + 2 + diagnostic_height
       if #(cell.widgets or {}) > 0 then
         local height, controls = Widgets.draw(pass, app.font, cell.widgets,
           34, widget_y, width - 68)
@@ -308,10 +340,16 @@ function UI:draw(pass)
 
   -- Status/footer.
   box(pass, 0, height - 28, width, 28, { 0.075, 0.085, 0.11, 1 })
+  local vim_label = app.vim_mode and (self.vim_normal and "VIM NORMAL" or
+    "VIM INSERT") or "VIM OFF"
+  text(pass, app.font, vim_label, width - 160, height - 22,
+    { 0.55, 0.7, 0.85, 1 }, 0.66)
   text(pass, app.font, app.status, 16, height - 22,
     { 0.6, 0.68, 0.82, 1 }, 0.72)
   text(pass, app.font, "F5 run   F6 save   F7 load   Tab indent   Up/Down cell",
     width - 470, height - 22, { 0.45, 0.5, 0.62, 1 }, 0.65)
+  self:draw_completion(pass, width, height)
+  self:draw_tree(pass, width, height)
   self:draw_outline(pass, width, height)
   self:draw_extension_browser(pass, width, height)
   self:draw_help(pass, width, height)
@@ -407,6 +445,35 @@ function UI:draw_help(pass, width, height)
   end
 end
 
+function UI:draw_tree(pass, width, height)
+  self.tree_rects = {}
+  if not self.show_tree then return end
+  local items = self.app:library_items()
+  local panel_w = 340
+  local panel_h = 80 + math.max(1, #items) * 26
+  local x, y = 20, 66
+  box(pass, x, y, panel_w, panel_h, { 0.035, 0.045, 0.07, 1 })
+  text(pass, self.app.font, "Files  (F2 to close)", x + 14, y + 12,
+    { 0.9, 0.94, 1, 1 }, 0.74)
+  text(pass, self.app.font, "notebooks/", x + 16, y + 42,
+    { 0.65, 0.72, 0.85, 1 }, 0.66)
+  if #items == 0 then
+    text(pass, self.app.font, "(no saved notebooks)", x + 36, y + 70,
+      { 0.55, 0.6, 0.7, 1 }, 0.66)
+  end
+  for index, name in ipairs(items) do
+    local row_y = y + 64 + (index - 1) * 26
+    local active = self.app:notebook().name == name
+    box(pass, x + 10, row_y, panel_w - 20, 23,
+      active and { 0.14, 0.22, 0.34, 1 } or { 0.065, 0.075, 0.1, 1 })
+    text(pass, self.app.font, "• " .. name, x + 30, row_y + 4,
+      { 0.82, 0.88, 1, 1 }, 0.66)
+    self.tree_rects[#self.tree_rects + 1] = {
+      x = x + 10, y = row_y, w = panel_w - 20, h = 23, name = name,
+    }
+  end
+end
+
 function UI:draw_outline(pass, width, height)
   self.outline_rects = {}
   if not self.show_outline then return end
@@ -495,6 +562,8 @@ end
 
 function UI:textinput(value)
   if value == "\r" or value == "\n" then return end
+  if self.app.vim_mode and self.vim_normal then return end
+  if self.completion then self.completion = nil end
   if self.show_palette then
     self.palette_query = self.palette_query .. value
     self.palette_selected = 1
@@ -514,8 +583,107 @@ function UI:textinput(value)
   self.app:notebook():insert(value)
 end
 
+function UI:open_completion()
+  local notebook = self.app:notebook()
+  local cell = notebook.cells[notebook.active]
+  if cell == nil or cell.kind ~= "code" then return end
+  local prefix = LSP.current_word(cell.source)
+  local items = LSP.complete(cell.source)
+  if prefix ~= "" then
+    local filtered = {}
+    for _, item in ipairs(items) do
+      if item:sub(1, #prefix) == prefix then filtered[#filtered + 1] = item end
+    end
+    items = filtered
+  end
+  if #items == 0 then return end
+  self.completion = { cell = notebook.active, prefix = prefix, items = items,
+    selected = 1 }
+end
+
+function UI:apply_completion()
+  local completion = self.completion
+  if completion == nil then return end
+  local cell = self.app:notebook().cells[completion.cell]
+  local item = completion.items[completion.selected]
+  if cell and item then
+    cell.source = cell.source:sub(1, #cell.source - #completion.prefix) .. item
+    cell.dirty = true
+    self.app.status = "completed " .. item
+  end
+  self.completion = nil
+end
+
+function UI:draw_completion(pass, width, height)
+  self.completion_rects = {}
+  if self.completion == nil then return end
+  local items = self.completion.items
+  local visible = math.min(#items, 8)
+  local panel_w, row_h = 250, 24
+  local panel_h = 12 + visible * row_h
+  local x, y = 260, 100
+  box(pass, x, y, panel_w, panel_h, { 0.035, 0.045, 0.07, 0.99 })
+  for offset = 0, visible - 1 do
+    local index = offset + 1
+    local row_y = y + 6 + offset * row_h
+    if index == self.completion.selected then
+      box(pass, x + 5, row_y, panel_w - 10, row_h - 2,
+        { 0.16, 0.25, 0.4, 1 })
+    end
+    text(pass, app.font, items[index], x + 14, row_y + 4,
+      { 0.85, 0.9, 1, 1 }, 0.68)
+    self.completion_rects[#self.completion_rects + 1] = {
+      x = x + 5, y = row_y, w = panel_w - 10, h = row_h - 2, index = index,
+    }
+  end
+end
+
 function UI:keypressed(key)
   local notebook = self.app:notebook()
+  if self.app.vim_mode and self.vim_normal then
+    if key == "i" or key == "a" then
+      self.vim_normal = false
+      return
+    elseif key == "j" then
+      notebook:move(1); self.scroll_to_selected = true; return
+    elseif key == "k" then
+      notebook:move(-1); self.scroll_to_selected = true; return
+    elseif key == "o" then
+      notebook:add_cell("code"); self.vim_normal = false; return
+    elseif key == "x" then
+      local cell = notebook.cells[notebook.active]
+      if cell and cell.kind == "code" then
+        cell.source = cell.source:sub(1, -2)
+      end
+      return
+    elseif key == "escape" then
+      return
+    end
+  elseif self.app.vim_mode and key == "escape" then
+    self.vim_normal = true
+    return
+  end
+  if self.completion then
+    if key == "escape" then
+      self.completion = nil
+      return
+    elseif key == "up" then
+      self.completion.selected = math.max(1, self.completion.selected - 1)
+      return
+    elseif key == "down" then
+      self.completion.selected = math.min(#self.completion.items,
+        self.completion.selected + 1)
+      return
+    elseif key == "return" or key == "tab" then
+      self:apply_completion()
+      return
+    end
+  end
+  if key == "space" and lovr.system and lovr.system.isKeyDown and
+     (lovr.system.isKeyDown("lctrl") or lovr.system.isKeyDown("rctrl")) then
+    self:open_completion()
+    return
+  end
   if self.show_palette then
     local commands = self:palette_commands()
     if key == "escape" or key == "f1" then
@@ -637,6 +805,25 @@ function UI:mousepressed(x, y, button)
       self.app.status = collapsed and "collapsed heading" or "expanded heading"
       return
     end
+  end
+  if self.show_tree then
+    for _, rect in ipairs(self.tree_rects) do
+      if inside(x, y, rect) then
+        self.app:open_path(rect.name)
+        self.show_tree = false
+        return
+      end
+    end
+  end
+  if self.completion then
+    for _, rect in ipairs(self.completion_rects) do
+      if inside(x, y, rect) then
+        self.completion.selected = rect.index
+        self:apply_completion()
+        return
+      end
+    end
+    self.completion = nil
   end
   if self.show_palette then
     for _, rect in ipairs(self.palette_rects) do
