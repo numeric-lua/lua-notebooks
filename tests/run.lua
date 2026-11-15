@@ -139,6 +139,20 @@ test("registers and resolves extension renderers", function()
   eq(Extensions.get("dummy") ~= nil, true, "dummy extension")
 end)
 
+current = "scroll"
+test("max scroll depends only on content, not current offset", function()
+  local Scroll = require("ui.scroll")
+  eq(Scroll.max_scroll(1000, 800), 306)
+  eq(Scroll.max_scroll(1000, 800), 306)
+end)
+test("target scroll is stable for a tall final cell", function()
+  local Scroll = require("ui.scroll")
+  local first = Scroll.target_scroll(0, 700, 500, 800, 1200)
+  local second = Scroll.target_scroll(first, 700 - first, 500, 800, 1200)
+  eq(first, second)
+  eq(first <= Scroll.max_scroll(1200, 800), true)
+end)
+
 io.write(string.format("\n\n%d tests, %d passed, %d failed\n", passed + failed,
   passed, failed))
 if failed > 0 then

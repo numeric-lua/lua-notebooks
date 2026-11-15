@@ -221,7 +221,11 @@ function lovr.load()
   -- Non-interactive smoke path: run the first welcome cell, print its result,
   -- and quit.  This exercises thread startup, channels, the kernel worker, and
   -- result routing without requiring a human at the window.
-  if os.getenv("LUANB_SMOKE_PROCESS_CRASH") then
+  if os.getenv("LUANB_SMOKE_RELOAD") then
+    local renderer, err = Extensions.reload("cube")
+    print("SMOKE_RELOAD=" .. (renderer and "ok" or tostring(err)))
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_PROCESS_CRASH") then
     app.smoke = true
     app.smoke_start = lovr.timer.getTime()
     local notebook = app:notebook()
@@ -254,7 +258,11 @@ function lovr.update(dt)
   if app.smoke then
     local notebook = app:notebook()
     local cell = notebook.cells[notebook.active]
-    if os.getenv("LUANB_SMOKE_PROCESS_CRASH") then
+    if os.getenv("LUANB_SMOKE_RELOAD") then
+    local renderer, err = Extensions.reload("cube")
+    print("SMOKE_RELOAD=" .. (renderer and "ok" or tostring(err)))
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_PROCESS_CRASH") then
       if not cell.running and lovr.timer.getTime() - app.smoke_start > 6 then
         print("SMOKE_CRASH_RECOVERED=" .. tostring(cell.error))
         app.smoke = false

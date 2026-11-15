@@ -6,6 +6,7 @@
 local Plot = require("ui.plot")
 local Surface = require("ui.surface")
 local Widgets = require("ui.widgets")
+local Scroll = require("ui.scroll")
 local Extensions = require("extensions")
 
 local UI = {}
@@ -199,7 +200,7 @@ function UI:draw(pass)
   -- Content height is independent of the current scroll offset.  Deriving it
   -- from the shifted bottom made max_scroll shrink as the view scrolled, which
   -- produced visible oscillation on tall final cells.
-  local total = math.max(0, 66 + content_height - height + 40)
+  local total = Scroll.max_scroll(content_height, height)
   self.max_scroll = total
 
   -- Auto-scroll exactly once when the selected cell changes.  Doing this
@@ -210,13 +211,8 @@ function UI:draw(pass)
     if selected_rect then
       local top = 60
       local bottom = height - 38
-      local target = self.scroll
-      if selected_rect.h > bottom - top or selected_rect.y < top then
-        target = self.scroll + selected_rect.y - top
-      elseif selected_rect.y + selected_rect.h > bottom then
-        target = self.scroll + selected_rect.y + selected_rect.h - bottom
-      end
-      self.scroll = math.max(0, math.min(total, target))
+      self.scroll = Scroll.target_scroll(self.scroll, selected_rect.y,
+        selected_rect.h, height, content_height)
     end
     self.scroll_to_selected = false
   end
