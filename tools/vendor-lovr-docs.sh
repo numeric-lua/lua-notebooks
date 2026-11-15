@@ -10,6 +10,7 @@ cp "$TMP"/guides/*.md "$ROOT/docs/lovr/guides/"
 cp "$TMP"/README.md "$ROOT/docs/lovr/README.md"
 rm -rf "$ROOT/docs/lovr/api/lovr"
 cp -r "$TMP"/api/lovr "$ROOT/docs/lovr/api/lovr"
+rm -rf "$ROOT/docs/lovr/examples"
 cp -r "$TMP"/examples "$ROOT/docs/lovr/examples"
 find "$ROOT/docs/lovr/examples" -type f \( -name '*.png' -o -name '*.jpg' -o -name '*.jpeg' -o -name '*.glb' -o -name '*.gltf' -o -name '*.bin' -o -name '*.ktx' -o -name '*.wav' -o -name '*.ogg' -o -name '*.obj' \) -delete
 (cd "$TMP" && lovr api cats)
