@@ -79,6 +79,7 @@ Controls:
 | `F3` | toggle Vim mode (on by default) |
 | `F4` | toggle Zen mode: hide top bar and footer, show only cells |
 | `Ctrl+Shift+S` | save a PNG screenshot of the offscreen notebook canvas |
+| `Ctrl+Shift+T` | toggle light/dark theme; persisted |
 | `F12` | open/close the shortcut help overlay |
 | click a markdown heading arrow | collapse/expand following cells |
 | drag / wheel in 3D | orbit / zoom the focused extension |
@@ -113,6 +114,12 @@ It handles initialization, cell open/change/close, diagnostics, completion,
 and hover, with a transport-independent client and persisted cell IDs. It is
 not yet wired to a LÖVR worker thread or a full semantic scope analyzer; see
 [`docs/lsp.md`](docs/lsp.md).
+
+## Themes
+
+**Ctrl+Shift+T** toggles a persisted light/dark UI theme. The light theme
+remaps the notebook's HSL lightness while preserving syntax hues; charts and 3D
+surfaces keep their own renderer colors.
 
 ## Zen mode
 

@@ -2,8 +2,10 @@
 -- Host-side renderer for kernel-declared widgets.
 --
 local Widgets = {}
+local Theme = require("ui.theme")
 
 local function text(pass, font, value, x, y, scale, color, halign, valign)
+  color = Theme.map(color)
   pass:setFont(font)
   pass:setColor(color[1], color[2], color[3], color[4] or 1)
   pass:text(value, x, y, 0, scale or 0.72, 0, 0, 1, 0, 0,
@@ -11,6 +13,7 @@ local function text(pass, font, value, x, y, scale, color, halign, valign)
 end
 
 local function box(pass, x, y, w, h, color)
+  color = Theme.map(color)
   pass:setColor(color[1], color[2], color[3], color[4] or 1)
   pass:plane(x + w / 2, y + h / 2, 0, w, h)
 end

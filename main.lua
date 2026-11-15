@@ -11,6 +11,7 @@ local ProcessSupervisor = require("notebook.process_supervisor")
 local Format = require("notebook.format")
 local Extensions = require("extensions")
 local UI = require("ui.notebook")
+local Theme = require("ui.theme")
 local LspClient = require("notebook.lsp_client")
 local LspEdits = require("notebook.lsp_edits")
 
@@ -431,6 +432,8 @@ function lovr.load()
   app.math_italic:setPixelDensity(1)
   app.title_font:setPixelDensity(1)
   app.ui = UI.new(app)
+  Theme.load()
+  if os.getenv("LUANB_QA_THEME") then Theme.set(os.getenv("LUANB_QA_THEME")) end
   app:open_all_kernels()
   local loaded, errors = Extensions.discover()
   local user_loaded, user_errors = Extensions.discover_user()
@@ -503,6 +506,7 @@ function lovr.load()
     print("SMOKE_VIMCMD=" .. tostring(app.status))
     lovr.event.quit()
   elseif os.getenv("LUANB_SMOKE_TYPE") then
+    app.ui.vim_normal = false
     app.ui:textinput("X")
     local typed = app:notebook():selected().source:match("X$") ~= nil
     app.ui:keypressed("backspace")
@@ -661,6 +665,7 @@ function lovr.load()
     print("SMOKE_VIMCMD=" .. tostring(app.status))
     lovr.event.quit()
   elseif os.getenv("LUANB_SMOKE_TYPE") then
+    app.ui.vim_normal = false
     app.ui:textinput("X")
     local typed = app:notebook():selected().source:match("X$") ~= nil
     app.ui:keypressed("backspace")
@@ -777,6 +782,7 @@ function lovr.update(dt)
     print("SMOKE_VIMCMD=" .. tostring(app.status))
     lovr.event.quit()
   elseif os.getenv("LUANB_SMOKE_TYPE") then
+    app.ui.vim_normal = false
     app.ui:textinput("X")
     local typed = app:notebook():selected().source:match("X$") ~= nil
     app.ui:keypressed("backspace")

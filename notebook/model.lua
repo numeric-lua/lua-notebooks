@@ -225,6 +225,29 @@ function Notebook:delete()
   self.dirty = true
 end
 
+function Notebook:move_line(delta)
+  local cell = self:selected()
+  if cell == nil then return false end
+  local source = cell.source
+  local cursor = cell.cursor or (#source + 1)
+  local before = source:sub(1, cursor - 1)
+  local line = select(2, before:gsub("\n", ""))
+  local last_newline = before:match(".*()\n") or 0
+  local column = cursor - last_newline - 1
+  local target = line + delta
+  local total_lines = select(2, source:gsub("\n", "")) + 1
+  if target < 0 or target >= total_lines then return false end
+  local line_start = 1
+  for _ = 1, target do
+    local newline = source:find("\n", line_start, true)
+    if newline == nil then return false end
+    line_start = newline + 1
+  end
+  local line_end = source:find("\n", line_start, true) or (#source + 1)
+  cell.cursor = math.min(line_start + column, line_end)
+  return true
+end
+
 function Notebook:move_cursor(delta)
   local current = self:selected()
   if current.kind ~= "code" then return end

@@ -9,6 +9,7 @@ local Widgets = require("ui.widgets")
 local Scroll = require("ui.scroll")
 local Math = require("notebook.math")
 local NotebookModel = require("notebook.model")
+local Theme = require("ui.theme")
 local Highlight = require("ui.highlight")
 local LSP = require("notebook.editor_text")
 local MathEngine = require("notebook.math.engine")
@@ -38,6 +39,7 @@ local function inside(x, y, rect)
 end
 
 local function text(pass, font, value, x, y, color, scale, align)
+  color = Theme.map(color)
   pass:setFont(font)
   pass:setColor(color[1], color[2], color[3], color[4] or 1)
   pass:text(value, x, y, 0, scale or 1, 0, 0, 1, 0, 0,
@@ -53,6 +55,7 @@ local function stroke(pass, x1, y1, x2, y2, thickness, color)
 end
 
 local function box(pass, x, y, w, h, color)
+  color = Theme.map(color)
   pass:setColor(color[1], color[2], color[3], color[4] or 1)
   pass:plane(x + w / 2, y + h / 2, 0, w, h)
 end
@@ -164,6 +167,7 @@ function UI.new(app)
     confirm_delete = nil,
     symbol_prompt = nil,
     zen_mode = false,
+    vim_normal = app.vim_mode,
   }, UI)
 end
 
@@ -552,6 +556,7 @@ function UI:palette_commands()
     { id = "vim", label = "Toggle Vim mode  (F3)" },
     { id = "zen", label = "Toggle Zen mode  (F4)" },
     { id = "screenshot", label = "Save screenshot  (Ctrl+Shift+S)" },
+    { id = "theme", label = "Toggle light/dark theme  (Ctrl+Shift+T)" },
     { id = "undo", label = "Undo" },
     { id = "redo", label = "Redo" },
     { id = "extensions", label = "Extension browser  (F10)" },
@@ -576,6 +581,10 @@ function UI:run_palette_command(id)
   elseif id == "load" then self.app:load()
   elseif id == "new" then self.app:new_notebook()
   elseif id == "tree" then self.show_tree = true
+  elseif id == "theme" then
+    local mode = Theme.toggle()
+    Theme.save()
+    self.app.status = mode .. " theme"
   elseif id == "screenshot" then
     self.app.screenshot_requested = true
   elseif id == "zen" then
@@ -584,7 +593,7 @@ function UI:run_palette_command(id)
     self.scroll_to_selected = true
   elseif id == "vim" then
     self.app.vim_mode = not self.app.vim_mode
-    self.vim_normal = false
+    self.vim_normal = self.app.vim_mode
   elseif id == "undo" then self.app:notebook():undo()
   elseif id == "redo" then self.app:notebook():redo()
   elseif id == "extensions" then self.show_extensions = true
@@ -637,6 +646,8 @@ function UI:draw_help(pass, width, height)
     "F10  extension browser",
     "F11  heading outline",
     "F12  close this help",
+    "Alt+J/K move cells · j/k move text lines in normal mode",
+    "Ctrl+Shift+T theme · Ctrl+Shift+S screenshot",
     "Tab  indent · Backspace/Delete · arrows move",
     "Drag a 3D surface to orbit; wheel to zoom",
   }
@@ -948,15 +959,22 @@ function UI:update(dt)
   local down = lovr.system and lovr.system.isKeyDown and
     lovr.system.isKeyDown(key)
   if not down then self.nav_repeat = nil; return end
-  if self.nav_repeat.kind == "alt" then
+  if self.nav_repeat.kind == "cell" then
     local alt = lovr.system.isKeyDown("lalt") or
       lovr.system.isKeyDown("ralt")
     if not alt then self.nav_repeat = nil; return end
   end
   local now = lovr.timer.getTime()
   if now < self.nav_repeat.next then return end
-  self.app:notebook():move(key == "j" and 1 or -1)
-  self.scroll_to_selected = true
+  if self.nav_repeat.kind == "line" then
+    self.app:notebook():move_line(key == "j" and 1 or -1)
+  else
+    self.app:notebook():move(key == "j" and 1 or -1)
+    self.scroll_to_selected = true
+    if self.app.vim_mode and self.nav_repeat.kind == "cell" then
+      self.vim_normal = true
+    end
+  end
   self.nav_repeat.next = now + 0.08
 end
 
@@ -1123,7 +1141,9 @@ function UI:keypressed(key)
     if self.nav_repeat == nil or self.nav_repeat.key ~= key then
       notebook:move(key == "j" and 1 or -1)
       self.scroll_to_selected = true
-      self.nav_repeat = { key = key, kind = "alt",
+      if self.app.vim_mode then self.vim_normal = true end
+      self.vim_char_visual = false
+      self.nav_repeat = { key = key, kind = "cell",
         next = lovr.timer.getTime() + 0.35 }
     end
     return
@@ -1219,6 +1239,14 @@ function UI:keypressed(key)
     if word == "" then self.app.status = "no symbol at cursor" else
       self.symbol_prompt = { old = word, value = "" }
     end
+    return
+  end
+  if key == "t" and lovr.system and lovr.system.isKeyDown and
+     (lovr.system.isKeyDown("lctrl") or lovr.system.isKeyDown("rctrl")) and
+     (lovr.system.isKeyDown("lshift") or lovr.system.isKeyDown("rshift")) then
+    local mode = Theme.toggle()
+    Theme.save()
+    self.app.status = mode .. " theme"
     return
   end
   if key == "s" and lovr.system and lovr.system.isKeyDown and
@@ -1462,14 +1490,14 @@ function UI:keypressed(key)
       return
     elseif key == "j" then
       if self.nav_repeat and self.nav_repeat.key == "j" then return end
-      notebook:move(1); self.scroll_to_selected = true
-      self.nav_repeat = { key = "j", kind = "vim",
+      notebook:move_line(1)
+      self.nav_repeat = { key = "j", kind = "line",
         next = lovr.timer.getTime() + 0.35 }
       return
     elseif key == "k" then
       if self.nav_repeat and self.nav_repeat.key == "k" then return end
-      notebook:move(-1); self.scroll_to_selected = true
-      self.nav_repeat = { key = "k", kind = "vim",
+      notebook:move_line(-1)
+      self.nav_repeat = { key = "k", kind = "line",
         next = lovr.timer.getTime() + 0.35 }
       return
     elseif key == "o" then
@@ -1772,6 +1800,7 @@ function UI:mousepressed(x, y, button)
   for index, rect in pairs(self.rects) do
     if inside(x, y, rect) then
       self.app:notebook():select(index)
+      if self.app.vim_mode then self.vim_normal = true end
       self.focused_output_cell = nil
       self.focused_surface = nil
       self.focused_widget = nil
