@@ -476,7 +476,16 @@ function lovr.load()
   end
   lovr.filesystem.watch()
   _G.app = app
-  if os.getenv("LUANB_SMOKE_UNDOTREE") then
+  if os.getenv("LUANB_SMOKE_TYPECOMP") then
+    local cell = app:notebook():selected()
+    cell.source = 'local config = { name = "x", count = 1 }\nconfig.'
+    cell.cursor = #cell.source + 1
+    app.ui:open_completion()
+    local items = app.ui.completion and app.ui.completion.items or {}
+    table.sort(items)
+    print("SMOKE_TYPECOMP=" .. table.concat(items, ","))
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_UNDOTREE") then
     app:notebook().cells[1].source = ""
     app:notebook().cells[1].cursor = 1
     app:notebook():reset_history()

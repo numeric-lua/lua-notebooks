@@ -226,11 +226,30 @@ function Analyzer:parse_table(index)
     if token.text == "}" then return t, index + 1 end
     if token.text == "," or token.text == ";" then
       index = index + 1
-    elseif token.kind == "word" and self.tokens[skip_space(self, index + 1)].text == "=" then
+    elseif token.text == "[" then
+      local key_token = self.tokens[skip_space(self, index + 1)]
+      local close = skip_space(self, index + 2)
+      local equal = skip_space(self, close + 1)
+      if key_token and key_token.kind == "string" and
+         self.tokens[close] and self.tokens[close].text == "]" and
+         self.tokens[equal] and self.tokens[equal].text == "=" then
+        local value, next_index = self:parse_expression(equal + 1)
+        fields[key_token.text:sub(2, -2)] = { type = value,
+          token = key_token, kind = "field" }
+        index = next_index
+      else
+        local value, next_index = self:parse_expression(index)
+        fields[#fields + 1] = { type = value }
+        index = next_index
+      end
+    elseif (token.kind == "word" or token.kind == "string") and
+           self.tokens[skip_space(self, index + 1)].text == "=" then
       local field_token = token
+      local field_name = token.kind == "string" and
+        token.text:sub(2, -2) or token.text
       index = skip_space(self, index + 1) + 1
       local value, next_index = self:parse_expression(index)
-      fields[field_token.text] = { type = value, token = field_token,
+      fields[field_name] = { type = value, token = field_token,
         kind = value.kind == "function" and "method" or "field" }
       index = next_index
     else
@@ -264,7 +283,10 @@ function Analyzer:parse_primary(index)
   local token = self.tokens[index]
   if token == nil then return unknown(), index end
   if token.kind == "number" then return NUMBER, index + 1 end
-  if token.kind == "string" then return STRING, index + 1 end
+  if token.kind == "string" then
+    local raw = token.text
+    return { kind = "string", value = raw:sub(2, -2) }, index + 1
+  end
   if token.text == "nil" then return NIL, index + 1 end
   if token.text == "true" or token.text == "false" then
     return BOOLEAN, index + 1
@@ -413,8 +435,27 @@ function Types.analyze(source)
           pop(); push()
         end
       elseif token.text == "function" then
-        push()
         local position = skip_space(an, index + 1)
+        if an.tokens[position] and an.tokens[position].kind == "word" then
+          local receiver_token = an.tokens[position]
+          local separator = skip_space(an, position + 1)
+          local method = an.tokens[skip_space(an, separator + 1)]
+          if an.tokens[separator] and
+             (an.tokens[separator].text == "." or
+              an.tokens[separator].text == ":") and method and
+             method.kind == "word" then
+            local symbol = an:lookup(receiver_token.text, index)
+            local target = symbol and an:type_of_symbol(symbol, index)
+            if target and target.fields then
+              target.fields[method.text] = { type = function_type(),
+                token = method, kind = "method" }
+            end
+            position = separator + 2
+          else
+            position = position + 1
+          end
+        end
+        push()
         if an.tokens[position] and an.tokens[position].text ~= "(" and
            an.tokens[position].kind == "word" then
           an:declare(an.tokens[position].text, index,

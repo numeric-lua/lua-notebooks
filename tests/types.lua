@@ -50,6 +50,23 @@ local first_dot = shadow:find("value%.\nend") or 1
 local shadow_fields = Types.complete(shadow, first_dot + 6)
 assert(labels(shadow_fields) == "answer", labels(shadow_fields))
 
+local string_keys = [[
+local config = { ["long-name"] = 1, ["with space"] = 2 }
+config.
+]]
+local key_fields = Types.complete(string_keys, #string_keys)
+assert(labels(key_fields) == "long-name,with space", labels(key_fields))
+
+local methods = [[
+local Module = {}
+function Module:run() end
+Module.
+]]
+local method_fields = Types.complete(methods, #methods)
+assert(labels(method_fields) == "run", labels(method_fields))
+local method_resolved = Types.resolve(methods, methods:find("Module.run") + 7)
+assert(method_resolved and method_resolved.type.kind == "function")
+
 local symbols = Types.symbols("local alpha = 1\nlocal beta = {}\n", 20)
 assert(labels(symbols):find("alpha", 1, true))
 assert(labels(symbols):find("beta", 1, true))
