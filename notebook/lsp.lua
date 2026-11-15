@@ -41,6 +41,12 @@ local HOVERS = {
   lovr = "host API; only graphics/timer are available in user extensions",
 }
 
+function LSP.find(source, pattern)
+  local ok, start_at = pcall(string.find, source, pattern)
+  if ok then return start_at end
+  return source:find(pattern, 1, true)
+end
+
 function LSP.substitute(source, old_text, new_text, global)
   if old_text == nil or old_text == "" then return source, 0 end
   if global then

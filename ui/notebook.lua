@@ -921,7 +921,7 @@ function UI:search_vim(query)
   for offset = 1, #notebook.cells do
     local index = ((notebook.active + offset - 2) % #notebook.cells) + 1
     local cell = notebook.cells[index]
-    if cell.source:find(query, 1, true) then
+    if LSP.find(cell.source, query) then
       notebook:select(index)
       self.scroll_to_selected = true
       self.app.status = "found " .. query .. " in " .. string.format("In [%d]", index)
