@@ -60,6 +60,24 @@ function LSP.find_definition(notebook, word)
   return nil
 end
 
+function LSP.complete_notebook(notebook, source)
+  local items = LSP.complete(source)
+  local seen = {}
+  for _, item in ipairs(items) do seen[item] = true end
+  for _, cell in ipairs(notebook.cells or {}) do
+    if cell.kind == "code" then
+      for word in (cell.source or ""):gmatch("[%a_][%w_]*") do
+        if not seen[word] then
+          seen[word] = true
+          items[#items + 1] = word
+        end
+      end
+    end
+  end
+  table.sort(items)
+  return items
+end
+
 function LSP.complete(source)
   local seen, items = {}, {}
   local function add(word)

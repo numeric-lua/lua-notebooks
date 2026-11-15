@@ -696,7 +696,7 @@ function UI:open_completion()
   local cell = notebook.cells[notebook.active]
   if cell == nil or cell.kind ~= "code" then return end
   local prefix = LSP.current_word(cell.source)
-  local items = LSP.complete(cell.source)
+  local items = LSP.complete_notebook(notebook, cell.source)
   if prefix ~= "" then
     local filtered = {}
     for _, item in ipairs(items) do

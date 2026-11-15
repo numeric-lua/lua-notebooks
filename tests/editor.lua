@@ -21,6 +21,15 @@ eq(LSP.diagnostics("if then") ~= nil, true)
 eq(LSP.diagnostics("return 1"), nil)
 eq(LSP.current_word("print(foo"), "foo")
 assert(#LSP.complete("local alpha = 1") > 10)
+local workspace = { cells = {
+  { kind = "code", source = "local workspace_symbol = 1" },
+} }
+local completions = LSP.complete_notebook(workspace, "print")
+local found = false
+for _, item in ipairs(completions) do
+  if item == "workspace_symbol" then found = true end
+end
+eq(found, true)
 eq(LSP.hover("print") ~= nil, true)
 eq(LSP.hover("nope"), nil)
 local notebook = { cells = { { kind = "code", source = "local target = 1" },
