@@ -130,6 +130,9 @@ function UI.new(app)
     vim_registers = {},
     vim_register = '"',
     vim_pending_register = false,
+    vim_char_visual = false,
+    vim_char_anchor = nil,
+    vim_char_yank = nil,
     tree_rects = {},
     tree_items = {},
     rename_prompt = nil,
@@ -261,6 +264,12 @@ function UI:draw(pass)
       local source_y = y + 30
       local source_color = cell.kind == "markdown" and
         { 0.75, 0.78, 0.9, 1 } or { 0.86, 0.88, 0.94, 1 }
+      local char_a, char_b
+      if self.vim_char_visual and self.vim_char_anchor and
+         index == notebook.active and cell.kind == "code" then
+        char_a = math.min(self.vim_char_anchor, cell.cursor or 1)
+        char_b = math.max(self.vim_char_anchor, cell.cursor or 1)
+      end
       local line_y = source_y
       for line_index = 1, math.min(#source_lines, 14) do
         local display = source_lines[line_index]
@@ -332,14 +341,42 @@ function UI:draw(pass)
           end
           line_y = line_y + 21
         else
+          if char_a then
+            local line_start = 0
+            for previous = 1, line_index - 1 do
+              line_start = line_start + #source_lines[previous] + 1
+            end
+            local line_end = line_start + #display
+            local from = math.max(char_a, line_start + 1)
+            local to = math.min(char_b, line_end + 1)
+            if from < to then
+              local prefix = display:sub(1, from - line_start - 1)
+              local selected = display:sub(from - line_start,
+                to - line_start - 1)
+              local select_x = 36 + app.font:getWidth(prefix) * 0.86
+              box(pass, select_x, line_y, app.font:getWidth(selected) * 0.86,
+                18, { 0.18, 0.32, 0.52, 1 })
+            end
+          end
           draw_code_line(pass, app.font, display, 36, line_y, 0.86)
           line_y = line_y + 21
         end
       end
       if cell.kind == "code" and selected then
-        local cursor_line = math.min(#source_lines, 14)
-        local cursor_text = source_lines[cursor_line]
-        local cursor_x = 36 + app.font:getWidth(cursor_text) * 0.86
+        local cursor_pos = cell.cursor or (#cell.source + 1)
+        local line_start = 0
+        local cursor_line = 1
+        for candidate = 1, math.min(#source_lines, 14) do
+          local line_length = #source_lines[candidate]
+          if cursor_pos <= line_start + line_length + 1 then
+            cursor_line = candidate
+            break
+          end
+          line_start = line_start + line_length + 1
+        end
+        local cursor_text = source_lines[cursor_line] or ""
+        local offset = math.max(0, math.min(#cursor_text, cursor_pos - line_start - 1))
+        local cursor_x = 36 + app.font:getWidth(cursor_text:sub(1, offset)) * 0.86
         box(pass, cursor_x + 2, source_y + (cursor_line - 1) * 21 + 2, 2, 18,
           { 0.4, 0.75, 1, 1 })
       end
@@ -943,7 +980,19 @@ function UI:keypressed(key)
     return
   end
   if self.app.vim_mode and self.vim_normal then
-    if self.vim_pending_register then
+    if key == "v" then
+      local cell = notebook.cells[notebook.active]
+      if cell.kind == "code" then
+        self.vim_char_visual = true
+        self.vim_char_anchor = cell.cursor or (#cell.source + 1)
+        self.vim_visual = false
+      end
+      return
+    elseif key == "h" then
+      notebook:move_cursor(-1); return
+    elseif key == "l" then
+      notebook:move_cursor(1); return
+    elseif self.vim_pending_register then
       if key:match("^[a-z]$") then
         self.vim_register = key
         self.app.status = "register " .. key
@@ -956,10 +1005,31 @@ function UI:keypressed(key)
     elseif key == "escape" then
       self.vim_visual = false
       self.vim_anchor = nil
+      self.vim_char_visual = false
+      self.vim_char_anchor = nil
       return
-    elseif key == "v" then
+    elseif key == "V" then
       self.vim_visual = not self.vim_visual
       self.vim_anchor = self.vim_visual and notebook.active or nil
+      self.vim_char_visual = false
+      return
+    elseif key == "y" and self.vim_char_visual then
+      self.vim_char_yank = notebook:selection_text(self.vim_char_anchor,
+        notebook.cells[notebook.active].cursor)
+      self.vim_char_visual = false
+      self.vim_char_anchor = nil
+      self.app.status = "yanked " .. #self.vim_char_yank .. " character(s)"
+      return
+    elseif key == "d" and self.vim_char_visual then
+      notebook:push_undo()
+      notebook:delete_range(self.vim_char_anchor,
+        notebook.cells[notebook.active].cursor)
+      self.vim_char_visual = false
+      self.vim_char_anchor = nil
+      return
+    elseif key == "p" and self.vim_char_yank and #self.vim_char_yank > 0 then
+      notebook:push_undo()
+      notebook:insert(self.vim_char_yank)
       return
     elseif key == "y" and self.vim_visual then
       local first = math.min(self.vim_anchor, notebook.active)

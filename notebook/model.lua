@@ -140,6 +140,21 @@ function Notebook:move(delta)
   return false
 end
 
+function Notebook:selection_text(anchor, cursor)
+  local first = math.min(anchor or 1, cursor or 1)
+  local last = math.max(anchor or 1, cursor or 1)
+  return self:selected().source:sub(first, last - 1)
+end
+
+function Notebook:delete_range(anchor, cursor)
+  local first = math.min(anchor or 1, cursor or 1)
+  local last = math.max(anchor or 1, cursor or 1)
+  local cell = self:selected()
+  cell.source = cell.source:sub(1, first - 1) .. cell.source:sub(last)
+  cell.cursor = first
+  self.dirty = true
+end
+
 function Notebook:insert(text)
   self:push_undo()
   local current = self:selected()
