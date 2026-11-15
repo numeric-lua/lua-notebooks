@@ -24,6 +24,27 @@ function Extensions.get(name)
   return Extensions.registry[name]
 end
 
+function Extensions.new_state(name)
+  local renderer = Extensions.get(name)
+  if renderer and type(renderer.new) == "function" then
+    return renderer.new()
+  end
+  return {}
+end
+
+function Extensions.reload(name)
+  if type(name) ~= "string" then
+    error("extension name must be a string", 2)
+  end
+  package.loaded["extensions." .. name] = nil
+  local ok, renderer = pcall(require, "extensions." .. name)
+  if not ok then
+    return nil, renderer
+  end
+  Extensions.register(name, renderer)
+  return renderer
+end
+
 Extensions.register("cube", require("extensions.cube"))
 
 return Extensions

@@ -14,6 +14,7 @@ function Surface.new()
     height = 0,
     texture = nil,
     pass = nil,
+    state = {},
   }, Surface)
 end
 
@@ -38,7 +39,17 @@ function Surface:render(renderer, time)
   local pass = self.pass
   pass:reset()
   pass:setClear(0.02, 0.025, 0.04, 1)
-  renderer.render(pass, time or 0, self.width, self.height)
+  renderer.render(pass, time or 0, self.width, self.height, self.state)
+end
+
+function Surface:pointer(dx, dy, zoom)
+  self.state.yaw = (self.state.yaw or 0.6) + dx * 0.01
+  self.state.pitch = math.max(-1.2, math.min(1.2,
+    (self.state.pitch or 0.3) + dy * 0.01))
+  if zoom then
+    self.state.distance = math.max(1.5, math.min(12,
+      (self.state.distance or 4.2) + zoom * 0.5))
+  end
 end
 
 function Surface:composite(pass, x, y, width, height)

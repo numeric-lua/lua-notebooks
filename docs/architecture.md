@@ -65,8 +65,9 @@ The extension registry and render-target path are now implemented:
 4. `extensions/init.lua` exposes `register`/`get`; `extensions/cube.lua` is the
    first renderer.
 
-Still missing: pointer events for surfaces, hot reload of renderers, and a
-user-installed extension loader with permissions.
+Pointer orbit/zoom events and F8 hot reload of the built-in renderer are now
+wired. Still missing: a general widget event protocol, external extension
+loading/permissions, and process-separated kernels.
 
 `lovr-ent` uses entity-app surfaces; `lite-lovr` uses a host/thread draw-command
 protocol. Both point to the same separation.

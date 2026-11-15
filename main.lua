@@ -215,6 +215,14 @@ function lovr.mousepressed(x, y, button)
   if app then app.ui:mousepressed(x, y, button) end
 end
 
+function lovr.mousemoved(x, y, dx, dy)
+  if app then app.ui:mousemoved(x, y, dx, dy) end
+end
+
+function lovr.mousereleased(x, y, button)
+  if app then app.ui:mousereleased(x, y, button) end
+end
+
 function lovr.wheelmoved(dx, dy)
   if app then app.ui:wheelmoved(dy) end
 end

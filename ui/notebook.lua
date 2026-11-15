@@ -51,6 +51,8 @@ function UI.new(app)
     buttons = {},
     extension_passes = {},
     surfaces = {},
+    scene_rects = {},
+    drag = nil,
   }, UI)
 end
 
@@ -219,6 +221,8 @@ function UI:draw_scene(pass, x, y, w, h, cell)
   surface:ensure(w, h)
   surface:render(renderer, lovr.timer.getTime())
   surface:composite(pass, x, y, w, h)
+  self.scene_rects[index] = { x = x, y = y, w = w, h = h,
+    surface = surface, cell = cell }
   table.insert(self.extension_passes, surface.pass)
 
   box(pass, x, y, w, h, { 0.02, 0.025, 0.04, 0 })
@@ -268,6 +272,13 @@ end
 
 function UI:mousepressed(x, y, button)
   if button ~= 1 then return end
+  for _, rect in pairs(self.scene_rects) do
+    if inside(x, y, rect) then
+      self.drag = rect
+      self.app:notebook():select(rect.cell._index)
+      return
+    end
+  end
   if self.buttons.run and inside(x, y, self.buttons.run) then
     self.app:run()
     return
@@ -290,7 +301,21 @@ function UI:mousepressed(x, y, button)
   end
 end
 
+function UI:mousemoved(x, y, dx, dy)
+  if self.drag and self.drag.surface then
+    self.drag.surface:pointer(dx or 0, dy or 0, 0)
+  end
+end
+
+function UI:mousereleased(x, y, button)
+  if button == 1 then self.drag = nil end
+end
+
 function UI:wheelmoved(dy)
+  if self.drag and self.drag.surface then
+    self.drag.surface:pointer(0, 0, dy)
+    return
+  end
   self.scroll = math.max(0, math.min(self.max_scroll, self.scroll + dy * 28))
 end
 

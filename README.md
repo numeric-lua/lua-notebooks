@@ -62,7 +62,9 @@ Controls:
 | `Backspace` / `Delete` | delete before / after the caret |
 | `Enter` | newline |
 | `Up` / `Down` | previous / next cell |
-| mouse wheel | scroll |
+| mouse wheel | scroll (or zoom a 3D surface under the pointer) |
+| drag in 3D surface | orbit the extension camera |
+| `F8` | hot-reload the cube extension module |
 | tabs / **+ Cell** | switch notebook / add cell |
 
 The welcome notebook has four runnable cells: hello, a loop, a
