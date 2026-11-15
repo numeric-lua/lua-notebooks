@@ -47,6 +47,17 @@ function LSP.find(source, pattern)
   return source:find(pattern, 1, true)
 end
 
+function LSP.substitute_pattern(source, pattern, replacement, global)
+  local ok, result, count = pcall(string.gsub, source, pattern, replacement)
+  if not ok then return source, 0 end
+  if global or count == 0 then return result, count end
+  local start_at = LSP.find(source, pattern)
+  if start_at == nil then return source, 0 end
+  local _, finish = string.find(source, pattern)
+  return source:sub(1, start_at - 1) .. replacement ..
+    source:sub(finish + 1), 1
+end
+
 function LSP.substitute(source, old_text, new_text, global)
   if old_text == nil or old_text == "" then return source, 0 end
   if global then

@@ -946,6 +946,18 @@ function UI:run_vim_command(command)
     self.app:notebook():undo()
   elseif command == "redo" then
     self.app:notebook():redo()
+  elseif command:match("^sr/(.-)/(.-)/g?$") then
+    local pattern, replacement = command:match("^sr/(.-)/(.-)/g?$")
+    local global = command:sub(-1) == "g"
+    local cell = self.app:notebook():selected()
+    if cell and cell.kind == "code" then
+      self.app:notebook():push_undo()
+      local source, count = LSP.substitute_pattern(cell.source, pattern,
+        replacement, global)
+      cell.source = source
+      cell.cursor = #source + 1
+      self.app.status = "pattern substituted " .. count .. " occurrence(s)"
+    end
   elseif command:match("^s/(.-)/(.-)/g?$") then
     local old_text, new_text = command:match("^s/(.-)/(.-)/g?$")
     local global = command:sub(-1) == "g"

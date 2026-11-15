@@ -25,6 +25,8 @@ eq(LSP.find("abc123", "%d+"), 4)
 eq(LSP.find("a.b", "%."), 2)
 eq(LSP.find("a[b", "["), 2)
 eq(LSP.substitute("one one", "one", "two", false), "two one")
+eq(LSP.substitute_pattern("a1 a2", "a%d", "x", true), "x x")
+eq(LSP.substitute_pattern("a1 a2", "a%d", "x", false), "x a2")
 eq(LSP.substitute("one one", "one", "two", true), "two two")
 eq(LSP.substitute("one", "missing", "x", true), "one")
 local rename_notebook = { cells = {
