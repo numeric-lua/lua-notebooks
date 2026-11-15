@@ -131,7 +131,8 @@ function Extensions.discover_user()
   for _, filename in ipairs(items) do
     local name = filename:match("^([a-z][a-z0-9_-]*)%.json$")
     if name then
-      if Extensions.registry[name] then
+      local existing = Extensions.registry[name]
+      if existing and existing.tier ~= "declarative" then
         errors[#errors + 1] = name .. ": built-in ids are reserved"
       else
         local text = lovr.filesystem.read(directory .. "/" .. filename)
@@ -145,7 +146,11 @@ function Extensions.discover_user()
             if descriptor.id ~= name then
               errors[#errors + 1] = name .. ": id must match filename"
             else
-              register(descriptor)
+              if Extensions.registry[name] then
+                Extensions.registry[name] = descriptor
+              else
+                register(descriptor)
+              end
               loaded[#loaded + 1] = descriptor
             end
           else

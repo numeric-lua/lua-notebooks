@@ -445,7 +445,7 @@ function lovr.load()
     lovr.event.quit()
   elseif os.getenv("LUANB_SMOKE_USER_EXT") then
     local loaded, errors = Extensions.discover_user()
-    print("SMOKE_USER_EXT=" .. #loaded .. " errors=" .. #errors)
+    print("SMOKE_USER_EXT=" .. #loaded .. " errors=" .. #errors .. " " .. table.concat(errors, " | "))
     lovr.event.quit()
   elseif os.getenv("LUANB_SMOKE_WATCH") then
     app.smoke_watch = true
@@ -454,9 +454,6 @@ function lovr.load()
   end
 
   -- Visual QA/demo: select and run one cell, then leave the window open.
-  if os.getenv("LUANB_QA_SCREENSHOT") then
-    app.qa_screenshot = true
-  end
   if os.getenv("LUANB_QA_SCREENSHOT") then
     app.qa_screenshot = true
   end
@@ -559,7 +556,7 @@ function lovr.load()
     lovr.event.quit()
   elseif os.getenv("LUANB_SMOKE_USER_EXT") then
     local loaded, errors = Extensions.discover_user()
-    print("SMOKE_USER_EXT=" .. #loaded .. " errors=" .. #errors)
+    print("SMOKE_USER_EXT=" .. #loaded .. " errors=" .. #errors .. " " .. table.concat(errors, " | "))
     lovr.event.quit()
   elseif os.getenv("LUANB_SMOKE_WATCH") then
     -- handled in update, after the watcher is installed
@@ -666,7 +663,7 @@ function lovr.update(dt)
     lovr.event.quit()
   elseif os.getenv("LUANB_SMOKE_USER_EXT") then
     local loaded, errors = Extensions.discover_user()
-    print("SMOKE_USER_EXT=" .. #loaded .. " errors=" .. #errors)
+    print("SMOKE_USER_EXT=" .. #loaded .. " errors=" .. #errors .. " " .. table.concat(errors, " | "))
     lovr.event.quit()
   elseif os.getenv("LUANB_SMOKE_WATCH") then
     -- handled in update, after the watcher is installed
