@@ -207,6 +207,9 @@ return { scene = {
       style = { color = "#ff7f0e", radius = 5, label = "samples" } },
   },
 } }]]),
+      cell("code", [[
+-- Extensions are discovered from the extensions/ directory.
+return { scene = "grid" }]]),
       cell("markdown", "# A 3D notebook\nCells, kernels, and a real-time viewport."),
     },
   })

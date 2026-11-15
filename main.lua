@@ -8,6 +8,7 @@
 local Notebook = require("notebook.model")
 local Supervisor = require("notebook.supervisor")
 local Format = require("notebook.format")
+local Extensions = require("extensions")
 local UI = require("ui.notebook")
 
 local App = {}
@@ -98,6 +99,15 @@ function App:on_result(kernel_id, request, message)
   end
 end
 
+function App:reload_extension(id)
+  local renderer, err = Extensions.reload(id)
+  if renderer == nil then
+    self.status = "reload failed: " .. tostring(err)
+  else
+    self.status = "reloaded " .. id .. " extension"
+  end
+end
+
 function App:add_cell()
   self:notebook():add_cell("code")
   self.status = "new cell"
@@ -139,7 +149,13 @@ function lovr.load()
   app.title_font:setPixelDensity(1)
   app.ui = UI.new(app)
   app:open_all_kernels()
-  app.status = "two kernels ready"
+  local loaded, errors = Extensions.discover()
+  app.status = string.format("%d kernels, %d extensions",
+    #app.notebooks, 1 + #loaded)
+  if #errors > 0 then
+    app.status = app.status .. "; " .. #errors .. " extension error(s)"
+  end
+  lovr.filesystem.watch()
   _G.app = app
 
   if os.getenv("LUANB_SMOKE_SAVE") then
@@ -154,13 +170,15 @@ function lovr.load()
   -- and quit.  This exercises thread startup, channels, the kernel worker, and
   -- result routing without requiring a human at the window.
   if os.getenv("LUANB_SMOKE") or os.getenv("LUANB_SMOKE_SCENE") or
-     os.getenv("LUANB_SMOKE_PLOT") then
+     os.getenv("LUANB_SMOKE_PLOT") or os.getenv("LUANB_SMOKE_GRID") then
     app.smoke = true
     app.smoke_start = lovr.timer.getTime()
     if os.getenv("LUANB_SMOKE_SCENE") then
       app:notebook():select(3)
     elseif os.getenv("LUANB_SMOKE_PLOT") then
       app:notebook():select(4)
+    elseif os.getenv("LUANB_SMOKE_GRID") then
+      app:notebook():select(5)
     end
     app:run()
   end
@@ -229,4 +247,11 @@ end
 
 function lovr.threaderror(thread, message)
   if app then app.supervisor:threaderror(thread, message) end
+end
+
+function lovr.filechanged(path, action)
+  local id = path:match("^extensions/([a-z][a-z0-9_-]*)%.lua$")
+  if app and id and id ~= "init" and id ~= "loader" and id ~= "manifest" then
+    app:reload_extension(id)
+  end
 end

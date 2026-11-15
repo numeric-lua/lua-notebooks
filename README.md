@@ -17,8 +17,9 @@ Working in this milestone:
 - a **3D cube output** rendered by the host, never by the kernel
 - a **luaplotlib scene renderer**: line/scatter/bar/hist scenes, axes, grid,
   title, labels, and category ticks
-- a **render-target extension surface**: one `Pass` + `Texture` per scene cell,
-  composited into the notebook; the first extension is `extensions/cube.lua`
+- a **render-target extension platform**: manifest validation, filesystem
+  discovery, local pointer/key routing, F8 reload, a filesystem watcher, and
+  two built-in extensions (`cube`, `grid`)
 - F5 run, cell selection, add-cell, mouse tabs, scroll
 - offline LÖVR 0.19 API docs, examples, and LuaLS annotations under `docs/lovr/`
 - noninteractive smoke tests that exercise the kernel and renderer
@@ -64,7 +65,8 @@ Controls:
 | `Up` / `Down` | previous / next cell |
 | mouse wheel | scroll (or zoom a 3D surface under the pointer) |
 | drag in 3D surface | orbit the extension camera |
-| `F8` | hot-reload the cube extension module |
+| `F8` | hot-reload the focused extension renderer |
+| drag / wheel in 3D | orbit / zoom the focused extension |
 | tabs / **+ Cell** | switch notebook / add cell |
 
 The welcome notebook has four runnable cells: hello, a loop, a
@@ -78,6 +80,7 @@ make test                 # pure-Lua JSON/model tests
 LUANB_SMOKE=1 lovr .      # run first cell through a real kernel, then quit
 LUANB_SMOKE_SCENE=1 lovr . # run the 3D cell, draw the viewport, then quit
 LUANB_SMOKE_PLOT=1 lovr .  # run the luaplotlib scene cell, draw it, then quit
+LUANB_SMOKE_GRID=1 lovr .   # run the grid extension cell, then quit
 LUANB_SMOKE_SAVE=1 lovr .   # save/load the active notebook, then quit
 ```
 

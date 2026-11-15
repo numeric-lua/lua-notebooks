@@ -2,7 +2,11 @@
 -- Built-in interactive cube extension.  The host gives it a Pass that targets
 -- an offscreen Texture and a small state table for orbit input.
 --
-local Cube = {}
+local Cube = {
+  id = "cube",
+  version = 1,
+  title = "Orbiting cube",
+}
 
 function Cube.render(pass, time, width, height, state)
   state = state or {}
@@ -25,6 +29,32 @@ function Cube.render(pass, time, width, height, state)
   pass:setColor(0.25, 0.55, 0.9, 1)
   pass:cube(0, -1.15, 0, 0.8, -(time or 0), 0, 1, 0)
   pass:setDepthTest()
+end
+
+function Cube.pointer(state, event)
+  if event.type == "down" then
+    state.dragging = true
+  elseif event.type == "up" then
+    state.dragging = false
+  elseif event.type == "move" and state.dragging then
+    state.yaw = (state.yaw or 0.6) + (event.dx or 0) * 0.01
+    state.pitch = math.max(-1.2, math.min(1.2,
+      (state.pitch or 0.3) + (event.dy or 0) * 0.01))
+  elseif event.type == "wheel" then
+    state.distance = math.max(1.5, math.min(12,
+      (state.distance or 4.2) + (event.dy or 0) * 0.5))
+  end
+end
+
+function Cube.key(state, event)
+  if event.key == "space" and event.pressed then
+    state.paused = not state.paused
+  end
+end
+
+function Cube.resize(state, width, height)
+  state.width = width
+  state.height = height
 end
 
 return Cube

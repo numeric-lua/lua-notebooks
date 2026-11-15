@@ -65,7 +65,7 @@ current = "model"
 test("demo has two notebooks", function()
   local notebooks = Notebook.demo()
   eq(#notebooks, 2)
-  eq(#notebooks[1].cells, 5)
+  eq(#notebooks[1].cells, 6)
 end)
 test("inserts and deletes text at a cursor", function()
   local notebook = Notebook.new({ cells = { { kind = "code", source = "" } } })
@@ -98,6 +98,37 @@ test("records errors", function()
   local notebook = Notebook.new({ cells = { { kind = "code", source = "" } } })
   notebook:set_result(1, { ok = false, output = "", value = "boom" })
   eq(notebook.cells[1].error, "boom")
+end)
+
+current = "extensions"
+test("validates extension manifests", function()
+  local Manifest = require("extensions.manifest")
+  local valid = Manifest.validate({ id = "foo", render = function() end })
+  eq(valid ~= nil, true, "valid manifest")
+  eq(Manifest.validate({ id = "Bad ID", render = function() end }) == nil,
+    true, "invalid id")
+  eq(Manifest.validate({ id = "foo" }) == nil, true, "missing render")
+  eq(Manifest.validate({ id = "foo", render = function() end,
+    pointer = 3 }) == nil, true, "bad callback")
+end)
+test("loads and validates extension modules", function()
+  local Loader = require("extensions.loader")
+  local modules = {
+    ["extensions.alpha"] = { id = "alpha", render = function() end },
+    ["extensions.bad"] = { id = "bad" },
+  }
+  local loaded, errors = Loader.discover({
+    list = function() return { "alpha.lua", "bad.lua", "init.lua" } end,
+    require = function(name)
+      local value = modules[name]
+      if value == nil then error("missing " .. name) end
+      return value
+    end,
+    register = function(descriptor) return descriptor end,
+  })
+  eq(#loaded, 1)
+  eq(#errors, 1)
+  eq(loaded[1].id, "alpha")
 end)
 
 current = "extensions"

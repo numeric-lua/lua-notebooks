@@ -53,6 +53,7 @@ function UI.new(app)
     surfaces = {},
     scene_rects = {},
     drag = nil,
+    focused_surface = nil,
   }, UI)
 end
 
@@ -218,11 +219,11 @@ function UI:draw_scene(pass, x, y, w, h, cell)
       x + 10, y + 10, { 1, 0.55, 0.55, 1 }, 0.75)
     return
   end
-  surface:ensure(w, h)
+  surface:ensure(renderer, w, h)
   surface:render(renderer, lovr.timer.getTime())
   surface:composite(pass, x, y, w, h)
   self.scene_rects[index] = { x = x, y = y, w = w, h = h,
-    surface = surface, cell = cell }
+    surface = surface, cell = cell, renderer = renderer }
   table.insert(self.extension_passes, surface.pass)
 
   box(pass, x, y, w, h, { 0.02, 0.025, 0.04, 0 })
@@ -234,6 +235,10 @@ end
 
 function UI:textinput(value)
   if value == "\r" or value == "\n" then return end
+  if self.focused_surface then
+    self.focused_surface:text(value)
+    return
+  end
   local cell = self.app:notebook():selected()
   if cell.kind ~= "code" then return end
   self.app:notebook():insert(value)
@@ -275,10 +280,19 @@ function UI:mousepressed(x, y, button)
   for _, rect in pairs(self.scene_rects) do
     if inside(x, y, rect) then
       self.drag = rect
+      self.focused_surface = rect.surface
       self.app:notebook():select(rect.cell._index)
+      rect.surface:pointer({
+        type = "down",
+        x = x - rect.x,
+        y = y - rect.y,
+        dx = 0,
+        dy = 0,
+      })
       return
     end
   end
+  self.focused_surface = nil
   if self.buttons.run and inside(x, y, self.buttons.run) then
     self.app:run()
     return
@@ -303,18 +317,40 @@ end
 
 function UI:mousemoved(x, y, dx, dy)
   if self.drag and self.drag.surface then
-    self.drag.surface:pointer(dx or 0, dy or 0, 0)
+    local rect = self.drag
+    rect.surface:pointer({
+      type = "move",
+      x = x - rect.x,
+      y = y - rect.y,
+      dx = dx or 0,
+      dy = dy or 0,
+    })
   end
 end
 
 function UI:mousereleased(x, y, button)
-  if button == 1 then self.drag = nil end
+  if button == 1 then
+    if self.drag and self.drag.surface then
+      local rect = self.drag
+      rect.surface:pointer({
+        type = "up",
+        x = x - rect.x,
+        y = y - rect.y,
+        dx = 0,
+        dy = 0,
+      })
+    end
+    self.drag = nil
+  end
 end
 
 function UI:wheelmoved(dy)
-  if self.drag and self.drag.surface then
-    self.drag.surface:pointer(0, 0, dy)
-    return
+  local mx, my = lovr.system.getMousePosition()
+  for _, rect in pairs(self.scene_rects) do
+    if inside(mx, my, rect) then
+      rect.surface:pointer({ type = "wheel", dy = dy })
+      return
+    end
   end
   self.scroll = math.max(0, math.min(self.max_scroll, self.scroll + dy * 28))
 end

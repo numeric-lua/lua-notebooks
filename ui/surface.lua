@@ -18,10 +18,11 @@ function Surface.new()
   }, Surface)
 end
 
-function Surface:ensure(width, height)
+function Surface:ensure(renderer, width, height)
   width = math.max(1, math.floor(width))
   height = math.max(1, math.floor(height))
   if width == self.width and height == self.height and self.texture then
+    self.renderer = renderer
     return
   end
   self.width = width
@@ -33,6 +34,10 @@ function Surface:ensure(width, height)
   })
   self.pass = lovr.graphics.newPass(self.texture)
   self.pass:setClear(0.02, 0.025, 0.04, 1)
+  self.renderer = renderer
+  if renderer and renderer.resize then
+    renderer.resize(self.state, width, height)
+  end
 end
 
 function Surface:render(renderer, time)
@@ -42,13 +47,24 @@ function Surface:render(renderer, time)
   renderer.render(pass, time or 0, self.width, self.height, self.state)
 end
 
-function Surface:pointer(dx, dy, zoom)
-  self.state.yaw = (self.state.yaw or 0.6) + dx * 0.01
-  self.state.pitch = math.max(-1.2, math.min(1.2,
-    (self.state.pitch or 0.3) + dy * 0.01))
-  if zoom then
-    self.state.distance = math.max(1.5, math.min(12,
-      (self.state.distance or 4.2) + zoom * 0.5))
+function Surface:pointer(event)
+  local renderer = self.renderer
+  if renderer and renderer.pointer then
+    renderer.pointer(self.state, event)
+  end
+end
+
+function Surface:key(event)
+  local renderer = self.renderer
+  if renderer and renderer.key then
+    renderer.key(self.state, event)
+  end
+end
+
+function Surface:text(value)
+  local renderer = self.renderer
+  if renderer and renderer.text then
+    renderer.text(self.state, value)
   end
 end
 
