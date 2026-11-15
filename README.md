@@ -158,6 +158,12 @@ The repeatable check is:
 It launches a seat session, sends six Down keys, captures two frames one second
 apart, and fails if the stable-frame difference exceeds 5000 pixels.
 
+## Tests
+
+`make test` runs the pure model, widget, process-kernel, sandbox, and editor
+suite. CI runs it on Ubuntu with LuaJIT; graphics, input, and visual smokes are
+manual because they need a display and seat.
+
 ## Visual smoke
 
 ```sh
