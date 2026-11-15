@@ -78,6 +78,14 @@ local definition_inner = server:handle({ jsonrpc = "2.0", id = 15,
 assert(definition_inner.result and #definition_inner.result == 1)
 assert(definition_inner.result[1].range.start.line == 2,
   definition_inner.result[1].range.start.line)
+
+local hover_inner = server:handle({ jsonrpc = "2.0", id = 16,
+  method = "textDocument/hover", params = {
+    textDocument = { uri = uri3 }, position = { line = 3, character = 8 },
+  } })
+assert(hover_inner.result and
+  hover_inner.result.contents.value:find("local `x`", 1, true),
+  hover_inner.result and hover_inner.result.contents.value)
 local shutdown = server:handle({ jsonrpc = "2.0", id = 3, method = "shutdown", params = json.null })
 eq(shutdown.result, json.null)
 print("lsp protocol tests ok")

@@ -168,9 +168,21 @@ function Server:handle(message)
     end
     return response(id, { isIncomplete = false, items = items })
   elseif message.method == "textDocument/hover" then
-    local document = self.documents[params.textDocument and params.textDocument.uri]
+    local uri = params.textDocument and params.textDocument.uri
+    local document = self.documents[uri]
     local word = document and Editor.current_word(document.text) or ""
-    local info = Editor.hover(word)
+    local info
+    if document and word ~= "" then
+      local absolute = Editor.offset_at(document.text, params.position.line,
+        params.position.character)
+      local _, _, binding = Scope.resolved_ranges(document.text, absolute, word)
+      if binding then
+        local line = select(2, document.text:sub(1,
+          binding.token.start - 1):gsub("\n", "")) + 1
+        info = "local `" .. word .. "` (line " .. line .. ")"
+      end
+    end
+    info = info or Editor.hover(word)
     if not info then return response(id, json.null) end
     return response(id, { contents = { kind = "plaintext", value = info } })
   elseif message.method == "textDocument/definition" then
