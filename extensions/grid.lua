@@ -24,7 +24,7 @@ function Grid.render(pass, time, width, height, state)
   pass:setProjection(1, mat4():perspective(math.rad(55),
     math.max(0.01, width / height), 0.1, 100))
   pass:setViewPose(1, mat4():lookAt(eye, vec3(0, 0, 0)), true)
-  pass:setDepthTest("lequal")
+  pass:setDepthTest("gequal")
   for x = -extent, extent, step do
     pass:setColor(0.2, 0.35, 0.55, 1)
     pass:line(x, -1.5, -extent, x, -1.5, extent)

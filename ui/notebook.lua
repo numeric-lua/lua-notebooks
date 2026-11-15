@@ -103,9 +103,13 @@ function UI:draw(pass)
   self.buttons.add = { x = add_x, y = 10, w = 96, h = 30 }
 
   local notebook = app:notebook()
+  if self.last_active ~= notebook.active then
+    self.last_active = notebook.active
+    self.scroll_to_selected = true
+  end
   local y = 66 - self.scroll
   self.rects = {}
-  local content_bottom = 0
+  local content_height = 0
 
   for index, cell in ipairs(notebook.cells) do
     cell._index = index
@@ -126,7 +130,7 @@ function UI:draw(pass)
     local cell_height = 30 + source_height + widget_height +
       output_height + scene_height + 14
     self.rects[index] = { x = 20, y = y, w = width - 40, h = cell_height }
-    content_bottom = y + cell_height
+    content_height = content_height + cell_height + 10
 
     if y + cell_height > 55 and y < height - 10 then
       local selected = index == notebook.active
@@ -192,21 +196,29 @@ function UI:draw(pass)
     y = y + cell_height + 10
   end
 
-  local total = math.max(0, content_bottom - height + 40)
+  -- Content height is independent of the current scroll offset.  Deriving it
+  -- from the shifted bottom made max_scroll shrink as the view scrolled, which
+  -- produced visible oscillation on tall final cells.
+  local total = math.max(0, 66 + content_height - height + 40)
   self.max_scroll = total
 
-  -- Keep the selected cell in view.  Changing the scroll takes effect on the
-  -- next frame; that is fine for mouse selection and cell execution.
-  local selected_rect = self.rects[notebook.active]
-  if selected_rect then
-    local top = 60
-    local bottom = height - 38
-    if selected_rect.y < top then
-      self.scroll = math.max(0, self.scroll - (top - selected_rect.y))
-    elseif selected_rect.y + selected_rect.h > bottom then
-      self.scroll = math.min(total,
-        self.scroll + (selected_rect.y + selected_rect.h - bottom))
+  -- Auto-scroll exactly once when the selected cell changes.  Doing this
+  -- every frame caused an oscillation when the selected cell was taller than
+  -- the viewport.
+  if self.scroll_to_selected then
+    local selected_rect = self.rects[notebook.active]
+    if selected_rect then
+      local top = 60
+      local bottom = height - 38
+      local target = self.scroll
+      if selected_rect.h > bottom - top or selected_rect.y < top then
+        target = self.scroll + selected_rect.y - top
+      elseif selected_rect.y + selected_rect.h > bottom then
+        target = self.scroll + selected_rect.y + selected_rect.h - bottom
+      end
+      self.scroll = math.max(0, math.min(total, target))
     end
+    self.scroll_to_selected = false
   end
   if self.scroll > total then self.scroll = total end
 

@@ -12,7 +12,7 @@ function Cube.render(pass, time, width, height, state)
   state = state or {}
   state.yaw = state.yaw or 0.6
   state.pitch = state.pitch or 0.3
-  state.distance = state.distance or 4.2
+  state.distance = state.distance or 3.2
 
   local cos_pitch = math.cos(state.pitch)
   local eye = vec3(
@@ -23,7 +23,7 @@ function Cube.render(pass, time, width, height, state)
   pass:setProjection(1, mat4():perspective(math.rad(55),
     math.max(0.01, width / height), 0.1, 100))
   pass:setViewPose(1, mat4():lookAt(eye, vec3(0, 0, 0)), true)
-  pass:setDepthTest("lequal")
+  pass:setDepthTest("gequal")
   pass:setColor(0.95, 0.55, 0.3, 1)
   pass:cube(0, 0, 0, 1, time or 0, 0, 1, 0)
   pass:setColor(0.25, 0.55, 0.9, 1)

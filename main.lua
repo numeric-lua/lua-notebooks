@@ -203,6 +203,13 @@ function lovr.load()
   lovr.filesystem.watch()
   _G.app = app
 
+  -- Visual QA/demo: select and run one cell, then leave the window open.
+  local qa_cell = tonumber(os.getenv("LUANB_QA_CELL") or "")
+  if qa_cell then
+    app:notebook():select(qa_cell)
+    app:run()
+  end
+
   if os.getenv("LUANB_SMOKE_SAVE") then
     app:save()
     print("SMOKE_SAVED=" .. tostring(app.status))
