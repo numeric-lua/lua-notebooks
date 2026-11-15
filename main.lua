@@ -454,6 +454,8 @@ function lovr.load()
   Theme.load()
   if os.getenv("LUANB_QA_THEME") then Theme.set(os.getenv("LUANB_QA_THEME")) end
   if os.getenv("LUANB_QA_HELP") then app.ui.show_help = true end
+  if os.getenv("LUANB_QA_PALETTE") then app.ui.show_palette = true end
+  if os.getenv("LUANB_QA_OUTLINE") then app.ui.show_outline = true end
   if os.getenv("LUANB_QA_HISTORY") then
     local notebook = app:notebook()
     notebook.cells[notebook.active].source = ""

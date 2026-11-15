@@ -87,8 +87,7 @@ function Format.list_tree(expanded, prefix, depth)
   table.sort(items)
   for _, item in ipairs(items) do
     local path = prefix .. "/" .. item
-    local info = lovr.filesystem.getInfo(path)
-    if info and info.type == "directory" then
+    if lovr.filesystem.isDirectory(path) then
       entries[#entries + 1] = { path = path, name = item, depth = depth,
         kind = "directory" }
       if expanded[path] then

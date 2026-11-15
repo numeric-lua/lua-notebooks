@@ -663,21 +663,21 @@ function UI:draw_palette(pass, width, height)
   local x, y = (width - panel_w) / 2, 100
   box(pass, x, y, panel_w, panel_h, { 0.035, 0.045, 0.07, 0.99 })
   text(pass, self.app.font, "Command palette  ·  type to filter", x + 18, y + 12,
-    0.7, { 0.8, 0.86, 0.98, 1 })
+    { 0.8, 0.86, 0.98, 1 }, 0.7)
   box(pass, x + 12, y + 34, panel_w - 24, 26, { 0.08, 0.1, 0.15, 1 })
-  text(pass, self.app.font, self.palette_query .. "|", x + 20, y + 39, 0.72,
-    { 0.9, 0.95, 1, 1 })
+  text(pass, self.app.font, self.palette_query .. "|", x + 20, y + 39,
+    { 0.9, 0.95, 1, 1 }, 0.72)
   if #commands == 0 then
-    text(pass, self.app.font, "No matching command", x + 20, y + 78, 0.7,
-      { 0.6, 0.65, 0.75, 1 })
+    text(pass, self.app.font, "No matching command", x + 20, y + 78,
+      { 0.6, 0.65, 0.75, 1 }, 0.7)
   end
   for index, command in ipairs(commands) do
     local row_y = y + 72 + (index - 1) * 32
     local selected = index == self.palette_selected
     box(pass, x + 10, row_y, panel_w - 20, 27,
       selected and { 0.16, 0.25, 0.4, 1 } or { 0.09, 0.12, 0.18, 1 })
-    text(pass, self.app.font, command.label, x + 20, row_y + 6, 0.7,
-      { 0.8, 0.88, 1, 1 })
+    text(pass, self.app.font, command.label, x + 20, row_y + 6,
+      { 0.8, 0.88, 1, 1 }, 0.7)
     self.palette_rects[#self.palette_rects + 1] = {
       x = x + 10, y = row_y, w = panel_w - 20, h = 27, id = command.id,
     }
@@ -868,11 +868,11 @@ function UI:draw_outline(pass, width, height)
   local panel_h = 90 + math.max(1, #headings) * 30
   local x, y = 20, 70
   box(pass, x, y, panel_w, panel_h, { 0.045, 0.055, 0.08, 0.98 })
-  text(pass, self.app.font, "Outline  (F11 to close)", x + 14, y + 14, 0.78,
-    { 0.9, 0.94, 1, 1 })
+  text(pass, self.app.font, "Outline  (F11 to close)", x + 14, y + 14,
+    { 0.9, 0.94, 1, 1 }, 0.78)
   if #headings == 0 then
-    text(pass, self.app.font, "No markdown headings", x + 14, y + 52, 0.7,
-      { 0.55, 0.6, 0.7, 1 })
+    text(pass, self.app.font, "No markdown headings", x + 14, y + 52,
+      { 0.55, 0.6, 0.7, 1 }, 0.7)
   end
   for index, heading in ipairs(headings) do
     local row_y = y + 46 + (index - 1) * 30
@@ -881,7 +881,7 @@ function UI:draw_outline(pass, width, height)
       selected and { 0.14, 0.22, 0.34, 1 } or { 0.07, 0.08, 0.11, 1 })
     text(pass, self.app.font, (heading.collapsed and "▸ " or "▾ ") ..
       string.rep("  ", heading.level - 1) .. heading.text,
-      x + 18, row_y + 6, 0.68, { 0.8, 0.86, 0.98, 1 })
+      x + 18, row_y + 6, { 0.8, 0.86, 0.98, 1 }, 0.68)
     self.outline_rects[#self.outline_rects + 1] = {
       x = x + 8, y = row_y, w = panel_w - 16, h = 26, index = heading.index,
     }
@@ -895,7 +895,7 @@ function UI:draw_extension_browser(pass, width, height)
   local x, y = (width - panel_w) / 2, 90
   box(pass, x, y, panel_w, panel_h, { 0.06, 0.07, 0.1, 0.98 })
   text(pass, self.app.font, "Extensions  (F10 to close)", x + 16, y + 14,
-    0.8, { 0.9, 0.94, 1, 1 })
+    { 0.9, 0.94, 1, 1 }, 0.8)
   for index, extension in ipairs(Extensions.list()) do
     local row_y = y + 50 + (index - 1) * 36
     local selected = extension.enabled
@@ -904,8 +904,8 @@ function UI:draw_extension_browser(pass, width, height)
     box(pass, x + 22, row_y + 7, 16, 16,
       selected and { 0.35, 0.8, 0.55, 1 } or { 0.25, 0.28, 0.35, 1 })
     text(pass, self.app.font, extension.id .. "  ·  " .. extension.title,
-      x + 50, row_y + 7, 0.72,
-      selected and { 0.85, 0.95, 0.9, 1 } or { 0.55, 0.6, 0.7, 1 })
+      x + 50, row_y + 7,
+      selected and { 0.85, 0.95, 0.9, 1 } or { 0.55, 0.6, 0.7, 1 }, 0.72)
     self.extension_rects[#self.extension_rects + 1] = {
       x = x + 12, y = row_y, w = panel_w - 24, h = 30, id = extension.id,
     }
