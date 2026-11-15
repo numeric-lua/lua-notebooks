@@ -70,8 +70,8 @@ routes changes to `App:widget_event`.
 - Widget state is serialized in `.luanb` files (callbacks are not; they are
   recreated by running the cell).
 - Widget IDs are kernel-scoped and change when the kernel restarts.
-- Text widgets are display-only in this milestone; text input is not yet routed
-  into a kernel text callback.
+- Text widgets are editable on the host. Text is committed to the kernel on
+  Enter and cancelled with Escape; `on_change` runs on commit.
 - Slider dragging updates the host immediately and sends the final value on
   mouse release.
 

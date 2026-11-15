@@ -87,9 +87,15 @@ function Widgets.draw(pass, font, widgets, x, y, width)
       rect.minus = { x = control_x, y = row_y + 7, w = 24, h = 22 }
       rect.plus = { x = control_x + 116, y = row_y + 7, w = 24, h = 22 }
     elseif spec.kind == "text" then
-      box(pass, control_x, row_y + 5, control_w, 24, { 0.09, 0.11, 0.15, 1 })
+      local focused = spec._focused
+      box(pass, control_x, row_y + 5, control_w, 24,
+        focused and { 0.12, 0.18, 0.28, 1 } or { 0.09, 0.11, 0.15, 1 })
       text(pass, font, spec.value or "", control_x + 8, row_y + 11, 0.68,
         { 0.85, 0.9, 1, 1 })
+      if focused then
+        local caret_x = control_x + 8 + font:getWidth(spec.value or "") * 0.68
+        box(pass, caret_x + 1, row_y + 9, 2, 17, { 0.45, 0.8, 1, 1 })
+      end
     elseif spec.kind == "progress" then
       box(pass, control_x, row_y + 12, control_w, 10, { 0.15, 0.18, 0.24, 1 })
       local fraction = (spec.value - spec.min) / (spec.max - spec.min)

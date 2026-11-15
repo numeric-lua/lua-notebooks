@@ -233,7 +233,9 @@ widgets.slider({ label = "gain", min = 0, max = 10, value = 3,
 widgets.button({ label = "Ping",
   on_click = function() print("pong") end })
 widgets.checkbox({ label = "enabled", value = true })
-widgets.select({ label = "mode", options = { "fast", "slow" }, value = "fast" })]]),
+widgets.select({ label = "mode", options = { "fast", "slow" }, value = "fast" })
+widgets.text({ label = "name", value = "notebook",
+  on_change = function(value) print("name", value) end })]]),
       cell("markdown", "# A 3D notebook\nCells, kernels, and a real-time viewport."),
     },
   })

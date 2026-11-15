@@ -27,7 +27,7 @@ Working in this milestone:
 Not yet implemented:
 
 - native file dialogs / notebook browser (F6/F7 use the LÖVR save directory)
-- editable kernel text widgets and general widget layout controls
+- general widget layout controls and text editing beyond single-line fields
 - full text editor features, syntax highlighting, undo, IME
 - process-level kernel isolation (threads currently)
 - extension pointer/event protocol and hot reload

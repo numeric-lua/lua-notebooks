@@ -249,6 +249,11 @@ end
 
 function UI:textinput(value)
   if value == "\r" or value == "\n" then return end
+  if self.focused_widget then
+    local spec = self.focused_widget.spec
+    spec.value = (spec.value or "") .. value
+    return
+  end
   if self.focused_surface then
     self.focused_surface:text(value)
     return
@@ -260,6 +265,32 @@ end
 
 function UI:keypressed(key)
   local notebook = self.app:notebook()
+  if self.focused_widget then
+    local widget = self.focused_widget
+    local spec = widget.spec
+    if key == "backspace" then
+      local text = spec.value or ""
+      local cut = #text
+      while cut > 1 do
+        local byte = text:byte(cut)
+        if byte < 0x80 or byte >= 0xC0 then break end
+        cut = cut - 1
+      end
+      spec.value = text:sub(1, cut - 1)
+      return
+    elseif key == "return" then
+      spec._focused = false
+      self.focused_widget = nil
+      self.app:widget_event(widget.cell, spec,
+        { type = "change", value = spec.value or "" })
+      return
+    elseif key == "escape" then
+      spec.value = widget.original
+      spec._focused = false
+      self.focused_widget = nil
+      return
+    end
+  end
   if key == "f5" then
     self.app:run()
   elseif key == "tab" then
@@ -340,6 +371,10 @@ function UI:mousepressed(x, y, button)
         return
       end
     end
+  end
+  if self.focused_widget then
+    self.focused_widget.spec._focused = false
+    self.focused_widget = nil
   end
   for _, rect in pairs(self.scene_rects) do
     if inside(x, y, rect) then
