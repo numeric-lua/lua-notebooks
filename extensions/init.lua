@@ -158,11 +158,26 @@ function Extensions.discover_user()
           end
         end
       end
-    elseif filename:match("%.lua$") then
-      errors[#errors + 1] = filename ..
-        ": legacy executable user extension disabled; use JSON"
+    elseif filename:match("^([a-z][a-z0-9_-]*)%.lua$") then
+      local sandbox_name = filename:match("^([a-z][a-z0-9_-]*)%.lua$")
+      if Extensions.registry[sandbox_name] then
+        errors[#errors + 1] = sandbox_name .. ": built-in ids are reserved"
+      else
+        local Sandbox = require("extensions.sandbox")
+        local absolute = lovr.filesystem.getSaveDirectory() .. "/" ..
+          directory .. "/" .. filename
+        local descriptor, err = Sandbox.run(absolute,
+          sandbox_name, lovr.filesystem.getSource())
+        if descriptor then
+          register(descriptor)
+          loaded[#loaded + 1] = descriptor
+        else
+          errors[#errors + 1] = sandbox_name .. ": " .. tostring(err)
+        end
+      end
     end
   end
+  Extensions.user_loaded = loaded
   Extensions.user_errors = errors
   return loaded, errors
 end

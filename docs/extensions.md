@@ -52,8 +52,10 @@ usable.
 ## Not yet
 
 - External installation/permissions.
-- User extensions are declarative JSON display lists (`user-extensions/*.json`),
-  validated and replayed by the host. Executable user Lua is refused.
+- User extensions are either declarative JSON display lists
+  (`user-extensions/*.json`) or static Lua evaluated once in a bubblewrap child
+  (`user-extensions/*.lua`). Both return a validated display list; neither gets
+  host graphics or per-frame code execution.
 - Widgets are implemented separately in [`docs/widgets.md`](widgets.md); they
   are kernel-owned specs and events, not extension renderers.
 - Hot reload of kernel code; only renderers reload.

@@ -444,7 +444,8 @@ function lovr.load()
     Extensions.save_preferences()
     lovr.event.quit()
   elseif os.getenv("LUANB_SMOKE_USER_EXT") then
-    local loaded, errors = Extensions.discover_user()
+    local loaded = Extensions.user_loaded or {}
+    local errors = Extensions.user_errors or {}
     print("SMOKE_USER_EXT=" .. #loaded .. " errors=" .. #errors .. " " .. table.concat(errors, " | "))
     lovr.event.quit()
   elseif os.getenv("LUANB_SMOKE_WATCH") then
@@ -555,7 +556,8 @@ function lovr.load()
     Extensions.save_preferences()
     lovr.event.quit()
   elseif os.getenv("LUANB_SMOKE_USER_EXT") then
-    local loaded, errors = Extensions.discover_user()
+    local loaded = Extensions.user_loaded or {}
+    local errors = Extensions.user_errors or {}
     print("SMOKE_USER_EXT=" .. #loaded .. " errors=" .. #errors .. " " .. table.concat(errors, " | "))
     lovr.event.quit()
   elseif os.getenv("LUANB_SMOKE_WATCH") then
@@ -662,7 +664,8 @@ function lovr.update(dt)
     Extensions.save_preferences()
     lovr.event.quit()
   elseif os.getenv("LUANB_SMOKE_USER_EXT") then
-    local loaded, errors = Extensions.discover_user()
+    local loaded = Extensions.user_loaded or {}
+    local errors = Extensions.user_errors or {}
     print("SMOKE_USER_EXT=" .. #loaded .. " errors=" .. #errors .. " " .. table.concat(errors, " | "))
     lovr.event.quit()
   elseif os.getenv("LUANB_SMOKE_WATCH") then

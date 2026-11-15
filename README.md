@@ -137,6 +137,13 @@ Markdown supports a small inline LaTeX-to-Unicode subset (`$E = mc^2$`,
 collapse following cells when clicked. See [`docs/math.md`](docs/math.md) and
 [`docs/collapsible-headings.md`](docs/collapsible-headings.md).
 
+## User extension sandbox
+
+`.json` extensions are declarative display lists. `.lua` extensions run once
+inside `bwrap --unshare-all` with read-only `/usr`, no `/home`, no network, and
+a 3s/256MB limit; only their static display-list result reaches the host.
+`tests/extension_sandbox.sh` probes `/etc/passwd`, `/home`, and the result.
+
 ## User extensions
 
 Drop a `.lua` extension module into:

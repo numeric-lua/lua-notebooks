@@ -13,6 +13,7 @@ test:
 	$(LUA) tests/editor.lua
 	$(LUA) tests/lsp_protocol.lua
 	sh tests/lsp_stdio.sh
+	sh tests/extension_sandbox.sh
 	$(LUA) tests/lsp_client.lua
 
 run:
