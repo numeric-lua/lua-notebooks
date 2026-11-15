@@ -8,6 +8,7 @@ test:
 	$(LUA) tests/widgets.lua
 	$(LUA) tests/process.lua
 	$(LUA) tests/sandbox.lua
+	$(LUA) tests/platform.lua
 	$(LUA) tests/editor.lua
 
 run:

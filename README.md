@@ -222,7 +222,8 @@ LUANB_KERNEL_MODE=process lovr .
 ```
 
 Each notebook then gets a plain-LuaJIT child with a file-backed job/result
-channel. See [`docs/process-kernels.md`](docs/process-kernels.md) for the
+channel. POSIX and Windows spawn/stop commands are selected by platform; only
+the POSIX path is runtime-verified here. See [`docs/process-kernels.md`](docs/process-kernels.md) for the
 protocol, timeout behavior, and limitations.
 
 ## Status

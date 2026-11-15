@@ -4,18 +4,14 @@
 -- Linux/macOS spike; the thread supervisor remains the default.
 --
 local json = require("notebook.json")
+local Platform = require("notebook.process_platform")
 
 local ProcessSupervisor = {}
 
 function ProcessSupervisor.supported()
-  -- The file-backed backend currently relies on a POSIX shell.
-  return package.config:sub(1, 1) ~= "\\"
+  return true
 end
 ProcessSupervisor.__index = ProcessSupervisor
-
-local function shell_quote(value)
-  return "'" .. tostring(value):gsub("'", "'\\''") .. "'"
-end
 
 function ProcessSupervisor.new(options)
   options = options or {}
@@ -28,30 +24,18 @@ function ProcessSupervisor.new(options)
     root = options.root or ".",
     memory_kb = options.memory_kb or 524288,
     cpu_seconds = options.cpu_seconds or 12,
+    platform = options.platform or Platform.detect(),
   }, ProcessSupervisor)
 end
 
 function ProcessSupervisor:open(id)
   if self.kernels[id] then return self.kernels[id] end
-  local dir = string.format("/tmp/lua-notebooks-process-%d-%s",
-    os.time(), tostring(id):gsub("[^%w_-]", "_"))
-  os.execute("rm -rf " .. shell_quote(dir) .. " && mkdir -p " ..
-    shell_quote(dir))
-  local command = string.format(
-    "LUANB_PROCESS_ROOT=%s luajit %s %s %s > %s 2>&1 &",
-    shell_quote(self.root .. "/kernel/process_worker.lua"),
-    shell_quote(self.root .. "/kernel/process_worker.lua"),
-    shell_quote(dir), shell_quote(self.root),
-    shell_quote(dir .. "/worker.log"))
-  -- The environment assignment above is intentionally unused by the child;
-  -- keep the command simple and portable.
-  command = string.format(
-    "(ulimit -v %d 2>/dev/null || true; ulimit -t %d 2>/dev/null || true; " ..
-    "exec luajit %s %s %s) > %s 2>&1 & echo $! > %s",
-    self.memory_kb, self.cpu_seconds,
-    shell_quote(self.root .. "/kernel/process_worker.lua"),
-    shell_quote(dir), shell_quote(self.root),
-    shell_quote(dir .. "/worker.log"), shell_quote(dir .. "/pid"))
+  local dir = Platform.temp_dir(id, os.time())
+  os.execute(Platform.remove(self.platform, dir))
+  os.execute(Platform.mkdir(self.platform, dir))
+  local command = Platform.spawn(self.platform,
+    self.root .. "/kernel/process_worker.lua", dir, self.root,
+    dir .. "/worker.log", dir .. "/pid", self.memory_kb, self.cpu_seconds)
   os.execute(command)
   local kernel = {
     id = id,
@@ -118,10 +102,10 @@ function ProcessSupervisor:stop(id)
     local pid = pid_file:read("*a"):gsub("%s+", "")
     pid_file:close()
     if pid ~= "" then
-      os.execute("kill " .. shell_quote(pid) .. " 2>/dev/null || true")
+      os.execute(Platform.kill(self.platform, pid))
     end
   end
-  os.execute("rm -rf " .. shell_quote(kernel.dir))
+  os.execute(Platform.remove(self.platform, kernel.dir))
   self.kernels[id] = nil
 end
 

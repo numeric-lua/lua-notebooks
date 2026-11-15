@@ -43,8 +43,9 @@ capture logic as the thread worker. It has no graphics access.
 
 ## Limitations
 
-- Linux/macOS only in this spike. On unsupported platforms the host falls
-  back to the thread backend and prints a warning.
+- POSIX uses `ulimit` and `kill`; Windows uses PowerShell `Start-Process` and
+  `taskkill`. The Windows branch is command-tested but has not been run on a
+  Windows host in this workspace.
 - File polling adds a small latency per job; cell execution dominates.
 - One in-flight job per kernel; rapid widget events are serialized by the host.
 - No automatic restart for a child that dies between requests (only timeout
