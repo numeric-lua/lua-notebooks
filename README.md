@@ -104,6 +104,12 @@ Vim mode is **on by default** and is shown in the footer:
 
 This is a small subset of Vim, not a full Vim implementation.
 
+## Cell focus
+
+Code and output are one cell. Clicking a plot, surface, widget, or text output
+selects the parent cell and draws a unified focus border around the whole cell.
+Clicking the source returns focus to editing and clears output focus.
+
 ## Math and collapsible headings
 
 Markdown supports a small inline LaTeX-to-Unicode subset (`$E = mc^2$`,

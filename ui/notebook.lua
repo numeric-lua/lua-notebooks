@@ -104,6 +104,8 @@ function UI.new(app)
     surfaces = {},
     scene_rects = {},
     widget_rects = {},
+    output_rects = {},
+    focused_output_cell = nil,
     widget_drag = nil,
     drag = nil,
     focused_surface = nil,
@@ -248,6 +250,13 @@ function UI:draw(pass)
       if selected then
         local accent = { 0.35, 0.62, 0.95, 1 }
         box(pass, 20, y, 4, cell_height, accent)
+      end
+      local output_focused = self.focused_output_cell == index
+      if output_focused then
+        local border = { 0.35, 0.78, 0.95, 1 }
+        box(pass, 20, y, width - 40, 2, border)
+        box(pass, 20, y + cell_height - 2, width - 40, 2, border)
+        box(pass, width - 22, y, 2, cell_height, border)
       end
       local kind_color = cell.kind == "markdown" and
         { 0.7, 0.65, 0.95, 1 } or { 0.45, 0.75, 0.95, 1 }
@@ -399,6 +408,8 @@ function UI:draw(pass)
       end
       local output_y = source_y + source_height + widget_height + 6
       if #output_lines > 0 then
+        self.output_rects[index] = { x = 34, y = output_y - 3,
+          w = width - 68, h = output_height }
         box(pass, 34, output_y - 3, width - 68, output_height,
           { 0.04, 0.05, 0.07, 1 })
         local output_color = cell.error and { 1, 0.45, 0.45, 1 } or
@@ -1337,6 +1348,7 @@ function UI:handle_widget(rect, cell_index, x, y)
   local spec = rect.spec
   self.app:notebook():select(cell_index)
   self.focused_surface = nil
+  self.focused_output_cell = cell_index
   if spec.kind == "button" then
     self.app:widget_event(cell_index, spec, { type = "click" })
   elseif spec.kind == "checkbox" then
@@ -1457,6 +1469,7 @@ function UI:mousepressed(x, y, button)
     if inside(x, y, rect) then
       self.drag = rect
       self.focused_surface = rect.surface
+      self.focused_output_cell = rect.cell._index
       self.app:notebook():select(rect.cell._index)
       rect.surface:pointer({
         type = "down",
@@ -1477,6 +1490,15 @@ function UI:mousepressed(x, y, button)
     self.app:add_cell()
     return
   end
+  for index, rect in pairs(self.output_rects) do
+    if inside(x, y, rect) then
+      self.app:notebook():select(index)
+      self.focused_output_cell = index
+      self.focused_surface = nil
+      self.focused_widget = nil
+      return
+    end
+  end
   for _, tab in ipairs(self.tabs) do
     if inside(x, y, tab) then
       self.app:set_tab(tab.index)
@@ -1486,6 +1508,9 @@ function UI:mousepressed(x, y, button)
   for index, rect in pairs(self.rects) do
     if inside(x, y, rect) then
       self.app:notebook():select(index)
+      self.focused_output_cell = nil
+      self.focused_surface = nil
+      self.focused_widget = nil
       return
     end
   end
