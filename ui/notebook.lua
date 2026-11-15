@@ -268,7 +268,7 @@ function UI:draw(pass)
             (Math.display_root(source_line) and 44 or 21)))
       end
     end
-    source_height = math.max(63, source_height)
+    source_height = math.max(21, source_height)
     local widget_height = Widgets.height(cell.widgets)
     local output_lines = cell.output ~= "" and split_lines(cell.output) or {}
     local output_height = 0
