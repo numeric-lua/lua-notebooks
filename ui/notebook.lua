@@ -451,8 +451,17 @@ function UI:draw(pass)
         local cursor_text = source_lines[cursor_line] or ""
         local offset = math.max(0, math.min(#cursor_text, cursor_pos - line_start - 1))
         local cursor_x = 36 + app.font:getWidth(cursor_text:sub(1, offset)) * 0.86
-        box(pass, cursor_x + 2, source_y + (cursor_line - 1) * 21 + 2, 2, 18,
-          { 0.4, 0.75, 1, 1 })
+        local cursor_y = source_y + (cursor_line - 1) * 21 + 2
+        local normal_mode = app.vim_mode and self.vim_normal
+        if normal_mode then
+          local next_char = cursor_text:sub(offset + 1, offset + 1)
+          local char_width = next_char ~= "" and
+            app.font:getWidth(next_char) * 0.86 or 9
+          box(pass, cursor_x + 1, cursor_y, math.max(8, char_width), 18,
+            { 0.35, 0.62, 0.95, 0.55 })
+        else
+          box(pass, cursor_x + 2, cursor_y, 2, 18, { 0.4, 0.75, 1, 1 })
+        end
       end
 
       if diagnostic then
