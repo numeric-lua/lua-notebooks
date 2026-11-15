@@ -2,7 +2,7 @@
 -- Built-in interactive cube extension.  The host gives it a Pass that targets
 -- an offscreen Texture and a small state table for orbit input.
 --
-local Shading = require("extensions.shading")
+local Shading = require("ui.shading")
 
 local Cube = {
   id = "cube",
