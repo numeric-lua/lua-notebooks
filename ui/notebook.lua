@@ -283,14 +283,30 @@ function UI:draw(pass)
           for _, row in ipairs(display_matrix) do
             columns = math.max(columns, #row)
           end
-          local cell_w = 110
-          local total_w = columns * cell_w
-          for row_index, row in ipairs(display_matrix) do
+          local column_widths = {}
+          for column = 1, columns do column_widths[column] = 60 end
+          for _, row in ipairs(display_matrix) do
             for column = 1, columns do
-              text(pass, app.title_font, row[column] or "",
-                width / 2 - total_w / 2 + (column - 1) * cell_w + cell_w / 2,
-                line_y + 8 + (row_index - 1) * 26,
+              column_widths[column] = math.max(column_widths[column],
+                app.title_font:getWidth(row[column] or "") * 0.8 + 24)
+            end
+          end
+          local total_w = 0
+          for column = 1, columns do total_w = total_w + column_widths[column] end
+          local left = width / 2 - total_w / 2
+          local matrix_h = #display_matrix * 28
+          box(pass, left - 14, line_y + 4, 2, matrix_h,
+            { 0.65, 0.72, 0.9, 1 })
+          box(pass, left + total_w + 12, line_y + 4, 2, matrix_h,
+            { 0.65, 0.72, 0.9, 1 })
+          for row_index, row in ipairs(display_matrix) do
+            local column_x = left
+            for column = 1, columns do
+              local cell_center = column_x + column_widths[column] / 2
+              text(pass, app.title_font, row[column] or "", cell_center,
+                line_y + 8 + (row_index - 1) * 28,
                 { 0.88, 0.9, 1, 1 }, 0.8, "center")
+              column_x = column_x + column_widths[column]
             end
           end
           line_y = line_y + 90
