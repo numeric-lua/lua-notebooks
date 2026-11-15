@@ -14,6 +14,10 @@ local BUILTINS = {
   "type", "xpcall", "widgets", "lovr",
 }
 
+local function pattern_escape(text)
+  return (text:gsub("([^%w])", "%%%1"))
+end
+
 function LSP.diagnostics(source)
   local chunk, err = loadstring(source or "", "@cell")
   if chunk then return nil end
@@ -37,6 +41,18 @@ local HOVERS = {
   lovr = "host API; only graphics/timer are available in user extensions",
 }
 
+function LSP.substitute(source, old_text, new_text, global)
+  if old_text == nil or old_text == "" then return source, 0 end
+  if global then
+    local escaped = pattern_escape(old_text)
+    return source:gsub(escaped, new_text)
+  end
+  local start_at = source:find(old_text, 1, true)
+  if start_at == nil then return source, 0 end
+  return source:sub(1, start_at - 1) .. new_text ..
+    source:sub(start_at + #old_text), 1
+end
+
 function LSP.hover(word)
   if word == nil or word == "" then return nil end
   return HOVERS[word]
@@ -58,10 +74,6 @@ function LSP.find_definition(notebook, word)
     end
   end
   return nil
-end
-
-local function pattern_escape(text)
-  return (text:gsub("([^%w])", "%%%1"))
 end
 
 function LSP.rename(notebook, old_word, new_word)

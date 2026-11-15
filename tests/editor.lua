@@ -21,6 +21,9 @@ eq(LSP.diagnostics("if then") ~= nil, true)
 eq(LSP.diagnostics("return 1"), nil)
 eq(LSP.current_word("print(foo"), "foo")
 assert(#LSP.complete("local alpha = 1") > 10)
+eq(LSP.substitute("one one", "one", "two", false), "two one")
+eq(LSP.substitute("one one", "one", "two", true), "two two")
+eq(LSP.substitute("one", "missing", "x", true), "one")
 local rename_notebook = { cells = {
   { kind = "code", source = "local old = 1" },
   { kind = "code", source = "print(old + old)" },

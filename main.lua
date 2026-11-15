@@ -316,7 +316,15 @@ function lovr.load()
   end
   lovr.filesystem.watch()
   _G.app = app
-  if os.getenv("LUANB_SMOKE_VIMSEARCH") then
+  if os.getenv("LUANB_SMOKE_SUBST") then
+    local cell = app:notebook():selected()
+    cell.source = "hello hello"
+    cell.cursor = #cell.source + 1
+    app.ui.vim_normal = true
+    app.ui:run_vim_command("s/hello/hi/g")
+    print("SMOKE_SUBST=" .. cell.source)
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_VIMSEARCH") then
     app.ui.vim_normal = true
     app.ui:keypressed("/")
     app.ui:textinput("grid")
@@ -406,7 +414,15 @@ function lovr.load()
   -- Non-interactive smoke path: run the first welcome cell, print its result,
   -- and quit.  This exercises thread startup, channels, the kernel worker, and
   -- result routing without requiring a human at the window.
-  if os.getenv("LUANB_SMOKE_VIMSEARCH") then
+  if os.getenv("LUANB_SMOKE_SUBST") then
+    local cell = app:notebook():selected()
+    cell.source = "hello hello"
+    cell.cursor = #cell.source + 1
+    app.ui.vim_normal = true
+    app.ui:run_vim_command("s/hello/hi/g")
+    print("SMOKE_SUBST=" .. cell.source)
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_VIMSEARCH") then
     app.ui.vim_normal = true
     app.ui:keypressed("/")
     app.ui:textinput("grid")
@@ -505,7 +521,15 @@ function lovr.update(dt)
   if app.smoke then
     local notebook = app:notebook()
     local cell = notebook.cells[notebook.active]
-    if os.getenv("LUANB_SMOKE_VIMSEARCH") then
+    if os.getenv("LUANB_SMOKE_SUBST") then
+    local cell = app:notebook():selected()
+    cell.source = "hello hello"
+    cell.cursor = #cell.source + 1
+    app.ui.vim_normal = true
+    app.ui:run_vim_command("s/hello/hi/g")
+    print("SMOKE_SUBST=" .. cell.source)
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_VIMSEARCH") then
     app.ui.vim_normal = true
     app.ui:keypressed("/")
     app.ui:textinput("grid")
