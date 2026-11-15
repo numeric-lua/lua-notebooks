@@ -8,6 +8,7 @@ local Surface = require("ui.surface")
 local Widgets = require("ui.widgets")
 local Scroll = require("ui.scroll")
 local Math = require("notebook.math")
+local NotebookModel = require("notebook.model")
 local Extensions = require("extensions")
 
 local UI = {}
@@ -116,7 +117,7 @@ function UI:draw(pass)
   local visible = {}
   local hide_until = nil
   for index, cell in ipairs(notebook.cells) do
-    local level = Notebook.heading_level(cell)
+    local level = NotebookModel.heading_level(cell)
     if hide_until and level and level <= hide_until then hide_until = nil end
     if not hide_until then visible[#visible + 1] = index end
     if cell.collapsed and level then hide_until = level end
@@ -154,7 +155,7 @@ function UI:draw(pass)
       end
       local kind_color = cell.kind == "markdown" and
         { 0.7, 0.65, 0.95, 1 } or { 0.45, 0.75, 0.95, 1 }
-      local heading = Notebook.heading_level(cell)
+      local heading = NotebookModel.heading_level(cell)
       if heading then
         text(pass, app.font, cell.collapsed and "▸" or "▾", 25, y + 8,
           { 0.7, 0.8, 1, 1 }, 0.8)
