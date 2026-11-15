@@ -247,7 +247,35 @@ function UI:draw(pass)
   self:draw_outline(pass, width, height)
   self:draw_extension_browser(pass, width, height)
   self:draw_help(pass, width, height)
+  self:draw_palette(pass, width, height)
   return self.extension_passes
+end
+
+function UI:draw_palette(pass, width, height)
+  self.palette_rects = {}
+  if not self.show_palette then return end
+  local commands = {
+    { id = "run", label = "Run selected cell  (F5)" },
+    { id = "save", label = "Save notebook  (F6)" },
+    { id = "load", label = "Load notebook  (F7)" },
+    { id = "extensions", label = "Extension browser  (F10)" },
+    { id = "outline", label = "Heading outline  (F11)" },
+    { id = "help", label = "Shortcut help  (F12)" },
+  }
+  local panel_w, panel_h = 460, 70 + #commands * 32
+  local x, y = (width - panel_w) / 2, 100
+  box(pass, x, y, panel_w, panel_h, { 0.035, 0.045, 0.07, 0.99 })
+  text(pass, self.app.font, "Command palette", x + 18, y + 14, 0.82,
+    { 0.9, 0.94, 1, 1 })
+  for index, command in ipairs(commands) do
+    local row_y = y + 46 + (index - 1) * 32
+    box(pass, x + 10, row_y, panel_w - 20, 27, { 0.09, 0.12, 0.18, 1 })
+    text(pass, self.app.font, command.label, x + 20, row_y + 6, 0.7,
+      { 0.8, 0.88, 1, 1 })
+    self.palette_rects[#self.palette_rects + 1] = {
+      x = x + 10, y = row_y, w = panel_w - 20, h = 27, id = command.id,
+    }
+  end
 end
 
 function UI:draw_help(pass, width, height)
@@ -484,6 +512,22 @@ function UI:mousepressed(x, y, button)
       self.app.status = collapsed and "collapsed heading" or "expanded heading"
       return
     end
+  end
+  if self.show_palette then
+    for _, rect in ipairs(self.palette_rects) do
+      if inside(x, y, rect) then
+        self.show_palette = false
+        if rect.id == "run" then self.app:run()
+        elseif rect.id == "save" then self.app:save()
+        elseif rect.id == "load" then self.app:load()
+        elseif rect.id == "extensions" then self.show_extensions = true
+        elseif rect.id == "outline" then self.show_outline = true
+        elseif rect.id == "help" then self.show_help = true
+        end
+        return
+      end
+    end
+    return
   end
   if self.show_help then
     self.show_help = false
