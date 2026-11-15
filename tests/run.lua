@@ -266,6 +266,16 @@ test("undoes and redoes text and cell edits", function()
   eq(#notebook.cells, 1)
 end)
 
+current = "vim line operations"
+test("matches brackets", function()
+  local Notebook = require("notebook.model")
+  local notebook = Notebook.new({ cells = {
+    { kind = "code", source = "local a = (1 + 2)" },
+  } })
+  eq(notebook:matching_bracket(11), 17)
+  eq(notebook:matching_bracket(17), 11)
+end)
+
 current = "undo tree"
 test("preserves branches after undo and edit", function()
   local Notebook = require("notebook.model")

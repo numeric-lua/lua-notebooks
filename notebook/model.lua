@@ -282,6 +282,40 @@ function Notebook:selection_text(anchor, cursor)
   return self:selected().source:sub(first, last - 1)
 end
 
+function Notebook:matching_bracket(position)
+  local source = self:selected().source
+  position = position or self:selected().cursor or 1
+  local pairs = { ["("] = ")", ["["] = "]", ["{"] = "}", [")"] = "(",
+    ["]"] = "[", ["}"] = "{" }
+  local char = source:sub(position, position)
+  if char == "" or pairs[char] == nil then
+    local line_start = (source:sub(1, position - 1):match(".*()\n") or 0) + 1
+    local line_end = source:find("\n", position, true) or (#source + 1)
+    local found = source:find("[%(%[%{%)%]%}]", position, false)
+    if found == nil or found >= line_end then
+      found = source:find("[%(%[%{%)%]%}]", line_start)
+    end
+    if found == nil or found >= line_end then return nil end
+    position = found
+    char = source:sub(position, position)
+  end
+  local target = pairs[char]
+  local opening = char == "(" or char == "[" or char == "{"
+  local depth = 0
+  local step = opening and 1 or -1
+  local index = position
+  while index >= 1 and index <= #source do
+    local current = source:sub(index, index)
+    if current == char then depth = depth + 1
+    elseif current == target then
+      depth = depth - 1
+      if depth == 0 then return index end
+    end
+    index = index + step
+  end
+  return nil
+end
+
 function Notebook:word_range(around)
   local cell = self:selected()
   if cell == nil then return nil end

@@ -1500,6 +1500,26 @@ function UI:keypressed(key)
       self.vim_pending = nil
       if pending == "g" and key == "g" then
         notebook:select(1); self.scroll_to_selected = true; return
+      elseif pending == "Z" and key == "Z" then
+        self.app:save(); return
+      elseif (pending == ">" or pending == "<") and key == pending then
+        local cell = notebook:selected()
+        local source = cell.source
+        local cursor = cell.cursor or 1
+        local line_start = (source:sub(1, cursor - 1):match(".*()\n") or 0) + 1
+        notebook:push_undo("indent")
+        if pending == ">" then
+          cell.source = source:sub(1, line_start - 1) .. "  " ..
+            source:sub(line_start)
+          cell.cursor = cursor + 2
+        else
+          local remove = source:sub(line_start, line_start + 1):match("^  ") and 2 or
+            (source:sub(line_start, line_start):match("^ ") and 1 or 0)
+          cell.source = source:sub(1, line_start - 1) ..
+            source:sub(line_start + remove)
+          cell.cursor = math.max(line_start, cursor - remove)
+        end
+        return
       elseif pending == "g" and key == "-" then
         self.app.status = notebook:undo() and "undo" or "nothing to undo"
         return
@@ -1678,6 +1698,44 @@ function UI:keypressed(key)
         end
       end
       return
+    elseif key == "A" or key == "I" then
+      local cell = notebook:selected()
+      local cursor = cell.cursor or (#cell.source + 1)
+      if key == "A" then
+        cell.cursor = cell.source:find("\n", cursor, true) or (#cell.source + 1)
+      else
+        cell.cursor = (cell.source:sub(1, cursor - 1):match(".*()\n") or 0) + 1
+      end
+      self.vim_normal = false
+      return
+    elseif key == "D" or key == "C" then
+      local cell = notebook:selected()
+      local cursor = cell.cursor or (#cell.source + 1)
+      local line_end = cell.source:find("\n", cursor, true) or (#cell.source + 1)
+      notebook:push_undo("delete to end of line")
+      cell.source = cell.source:sub(1, cursor - 1) .. cell.source:sub(line_end)
+      if key == "C" then self.vim_normal = false end
+      return
+    elseif key == "P" and self.vim_char_yank and #self.vim_char_yank > 0 then
+      notebook:push_undo("paste before")
+      notebook:insert(self.vim_char_yank)
+      return
+    elseif key == "%" then
+      local target = notebook:matching_bracket()
+      if target then notebook:selected().cursor = target end
+      return
+    elseif key == "*" then
+      local cell = notebook:selected()
+      local word = LSP.current_word(cell.source, cell.cursor)
+      if word ~= "" then
+        self.vim_last_search = word
+        self:search_vim(word)
+      end
+      return
+    elseif key == "Z" then
+      self.vim_pending = "Z"; return
+    elseif key == ">" or key == "<" then
+      self.vim_pending = key; return
     elseif key == "i" or key == "a" then
       self.vim_normal = false
       return
