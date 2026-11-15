@@ -66,6 +66,14 @@ function Math.render(expression)
   return text
 end
 
+function Math.display_fraction(text)
+  local numerator, denominator = text:match(
+    "^%$%$\\frac%s*{([^{}]*)}%s*{([^{}]*)}%$%$$")
+  if numerator == nil then return nil end
+  return { numerator = Math.render(numerator),
+    denominator = Math.render(denominator) }
+end
+
 function Math.display(text)
   local expression = text:match("^%$%$(.-)%$%$$")
   if expression == nil then return nil end

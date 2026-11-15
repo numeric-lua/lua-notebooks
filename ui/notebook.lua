@@ -187,8 +187,17 @@ function UI:draw(pass)
       for line_index = 1, math.min(#source_lines, 14) do
         local display = source_lines[line_index]
         local line_y = source_y + (line_index - 1) * 21
-        local display_math = cell.kind == "markdown" and Math.display(display)
-        if display_math then
+        local display_fraction = cell.kind == "markdown" and
+          Math.display_fraction(display)
+        local display_math = cell.kind == "markdown" and
+          Math.display(display)
+        if display_fraction then
+          text(pass, app.font, display_fraction.numerator, width / 2,
+            line_y - 5, { 0.88, 0.9, 1, 1 }, 0.6, "center")
+          box(pass, width / 2 - 30, line_y + 8, 60, 2, { 0.75, 0.8, 0.95, 1 })
+          text(pass, app.font, display_fraction.denominator, width / 2,
+            line_y + 11, { 0.88, 0.9, 1, 1 }, 0.6, "center")
+        elseif display_math then
           text(pass, app.title_font, display_math, width / 2, line_y,
             { 0.88, 0.9, 1, 1 }, 0.8, "center")
         elseif cell.kind == "markdown" then
