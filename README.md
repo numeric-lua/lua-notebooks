@@ -140,6 +140,12 @@ to the widget rectangle. The included `star_nest` preset is the MIT-licensed
 Star Nest shader by Pablo Román Andrioli, adapted from the shooter project.
 Custom fragment source can also be supplied through `shader`.
 
+## Cell labels
+
+Cells no longer have a `CODE In [x]` header row. A compact number is drawn at
+the end of the first source line, colored by cell kind and running state. This
+removes one full line per cell while keeping the number visible.
+
 ## Cell focus
 
 Code and output are one cell. Clicking a plot, surface, widget, or text output

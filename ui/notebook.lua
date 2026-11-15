@@ -281,8 +281,8 @@ function UI:draw(pass)
     local diagnostic = cell.kind == "code" and
       (self.app:server_diagnostic(cell) or LSP.diagnostics(cell.source))
     local diagnostic_height = diagnostic and 18 or 0
-    local cell_height = 30 + source_height + widget_height +
-      output_height + scene_height + diagnostic_height + 14
+    local cell_height = 12 + source_height + widget_height +
+      output_height + scene_height + diagnostic_height + 10
     self.rects[index] = { x = 20, y = y, w = width - 40, h = cell_height }
     content_height = content_height + cell_height + 10
 
@@ -310,18 +310,12 @@ function UI:draw(pass)
         { 0.7, 0.65, 0.95, 1 } or { 0.45, 0.75, 0.95, 1 }
       local heading = NotebookModel.heading_level(cell)
       if heading then
-        text(pass, app.font, cell.collapsed and "▸" or "▾", 25, y + 8,
+        text(pass, app.font, cell.collapsed and "▸" or "▾", 25, y + 5,
           { 0.7, 0.8, 1, 1 }, 0.8)
-        self.heading_rects[index] = { x = 20, y = y, w = width - 40, h = 30 }
-      end
-      text(pass, app.font, string.upper(cell.kind) .. "  " .. cell_label(index),
-        34, y + 8, kind_color, 0.72)
-      if cell.running then
-        text(pass, app.font, "running...", width - 130, y + 8,
-          { 0.95, 0.75, 0.35, 1 }, 0.72)
+        self.heading_rects[index] = { x = 20, y = y, w = width - 40, h = 24 }
       end
 
-      local source_y = y + 30
+      local source_y = y + 6
       local source_color = cell.kind == "markdown" and
         { 0.75, 0.78, 0.9, 1 } or { 0.86, 0.88, 0.94, 1 }
       local char_a, char_b
@@ -436,6 +430,12 @@ function UI:draw(pass)
           line_y = line_y + 21
         end
       end
+      local first_line = source_lines[1] or ""
+      local label_x = 36 + app.font:getWidth(first_line) * 0.86 + 8
+      label_x = math.min(width - 52, label_x)
+      text(pass, app.font, tostring(index), label_x, source_y,
+        cell.running and { 0.95, 0.75, 0.35, 1 } or kind_color, 0.6)
+
       if cell.kind == "code" and selected then
         local cursor_pos = cell.cursor or (#cell.source + 1)
         local line_start = 0
