@@ -34,16 +34,29 @@ function Supervisor:open(id)
   return kernel
 end
 
-function Supervisor:run(id, code)
+function Supervisor:_request(id, job)
   local kernel = self:open(id)
   if kernel.status ~= "running" then
     return nil, "kernel is not running"
   end
   local request = self.next_id
   self.next_id = request + 1
-  self.pending[request] = { kernel = id, code = code }
-  kernel.in_channel:push({ id = request, code = code })
+  self.pending[request] = { kernel = id, job = job }
+  job.id = request
+  kernel.in_channel:push(job)
   return request
+end
+
+function Supervisor:run(id, code, cell)
+  return self:_request(id, { cell = cell, code = code })
+end
+
+function Supervisor:widget(id, cell, widget, event)
+  return self:_request(id, {
+    cell = cell,
+    widget = widget,
+    event = event,
+  })
 end
 
 function Supervisor:poll()

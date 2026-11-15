@@ -27,6 +27,7 @@ Working in this milestone:
 Not yet implemented:
 
 - native file dialogs / notebook browser (F6/F7 use the LÖVR save directory)
+- editable kernel text widgets and general widget layout controls
 - full text editor features, syntax highlighting, undo, IME
 - process-level kernel isolation (threads currently)
 - extension pointer/event protocol and hot reload
@@ -81,6 +82,8 @@ LUANB_SMOKE=1 lovr .      # run first cell through a real kernel, then quit
 LUANB_SMOKE_SCENE=1 lovr . # run the 3D cell, draw the viewport, then quit
 LUANB_SMOKE_PLOT=1 lovr .  # run the luaplotlib scene cell, draw it, then quit
 LUANB_SMOKE_GRID=1 lovr .   # run the grid extension cell, then quit
+LUANB_SMOKE_WIDGET=1 lovr . # run the widget cell, then quit
+LUANB_SMOKE_WIDGET_EVENT=1 lovr . # run the widget cell and change a slider
 LUANB_SMOKE_SAVE=1 lovr .   # save/load the active notebook, then quit
 ```
 

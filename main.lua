@@ -75,13 +75,16 @@ function App:run()
   cell.output = ""
   cell.error = nil
   cell.scene = nil
-  local request, err = self.supervisor:run("nb" .. self.active, cell.source)
+  local cell_token = self.active .. ":" .. index
+  local request, err = self.supervisor:run("nb" .. self.active, cell.source,
+    cell_token)
   if request == nil then
     cell.running = false
     self.status = "kernel error: " .. tostring(err)
     return
   end
-  self.pending[request] = { notebook = self.active, cell = index }
+  self.pending[request] = { notebook = self.active, cell = index,
+    kind = "run" }
   self.status = "running " .. cell_label(index)
 end
 
@@ -91,12 +94,32 @@ function App:on_result(kernel_id, request, message)
   if target == nil then return end
   local notebook = self.notebooks[target.notebook]
   if notebook == nil then return end
-  notebook:set_result(target.cell, message)
+  if target.kind == "widget" then
+    notebook:apply_widget_result(target.cell, message)
+  else
+    notebook:set_result(target.cell, message)
+  end
   if message.ok == false then
     self.status = "error in " .. cell_label(target.cell)
   else
     self.status = "finished " .. cell_label(target.cell)
   end
+end
+
+function App:widget_event(cell_index, spec, event)
+  local cell = self:notebook().cells[cell_index]
+  if cell then cell.running = true end
+  local cell_token = self.active .. ":" .. cell_index
+  local request, err = self.supervisor:widget("nb" .. self.active, cell_token,
+    spec.id, event)
+  if request == nil then
+    if cell then cell.running = false end
+    self.status = "widget error: " .. tostring(err)
+    return
+  end
+  self.pending[request] = { notebook = self.active, cell = cell_index,
+    kind = "widget" }
+  self.status = "widget " .. tostring(spec.id)
 end
 
 function App:reload_extension(id)
@@ -170,7 +193,9 @@ function lovr.load()
   -- and quit.  This exercises thread startup, channels, the kernel worker, and
   -- result routing without requiring a human at the window.
   if os.getenv("LUANB_SMOKE") or os.getenv("LUANB_SMOKE_SCENE") or
-     os.getenv("LUANB_SMOKE_PLOT") or os.getenv("LUANB_SMOKE_GRID") then
+     os.getenv("LUANB_SMOKE_PLOT") or os.getenv("LUANB_SMOKE_GRID") or
+     os.getenv("LUANB_SMOKE_WIDGET") or
+     os.getenv("LUANB_SMOKE_WIDGET_EVENT") then
     app.smoke = true
     app.smoke_start = lovr.timer.getTime()
     if os.getenv("LUANB_SMOKE_SCENE") then
@@ -179,6 +204,9 @@ function lovr.load()
       app:notebook():select(4)
     elseif os.getenv("LUANB_SMOKE_GRID") then
       app:notebook():select(5)
+    elseif os.getenv("LUANB_SMOKE_WIDGET") or
+           os.getenv("LUANB_SMOKE_WIDGET_EVENT") then
+      app:notebook():select(6)
     end
     app:run()
   end
@@ -190,14 +218,30 @@ function lovr.update(dt)
   if app.smoke then
     local notebook = app:notebook()
     local cell = notebook.cells[notebook.active]
-    local done = not cell.running and
-      (cell.output ~= "" or cell.scene ~= nil)
-    if done and lovr.timer.getTime() - app.smoke_start > 2 then
-      print("SMOKE_OUTPUT=" .. cell.output)
-      print("SMOKE_SCENE=" .. tostring(cell.scene))
-      print("SMOKE_STATUS=" .. app.status)
-      app.smoke = false
-      lovr.event.quit()
+    if os.getenv("LUANB_SMOKE_WIDGET_EVENT") then
+      if not app.smoke_widget_sent and #cell.widgets > 0 then
+        app.smoke_widget_sent = true
+        app:widget_event(6, cell.widgets[1],
+          { type = "change", value = 7 })
+      elseif app.smoke_widget_sent and not cell.running and
+             lovr.timer.getTime() - app.smoke_start > 2 then
+        print("SMOKE_OUTPUT=" .. cell.output)
+        print("SMOKE_WIDGETS=" .. tostring(#cell.widgets))
+        print("SMOKE_STATUS=" .. app.status)
+        app.smoke = false
+        lovr.event.quit()
+      end
+    else
+      local done = not cell.running and
+        (cell.output ~= "" or cell.scene ~= nil or #cell.widgets > 0)
+      if done and lovr.timer.getTime() - app.smoke_start > 2 then
+        print("SMOKE_OUTPUT=" .. cell.output)
+        print("SMOKE_SCENE=" .. tostring(cell.scene))
+        print("SMOKE_WIDGETS=" .. tostring(#cell.widgets))
+        print("SMOKE_STATUS=" .. app.status)
+        app.smoke = false
+        lovr.event.quit()
+      end
     end
   end
 end

@@ -5,6 +5,7 @@ LUA ?= luajit
 
 test:
 	$(LUA) tests/run.lua
+	$(LUA) tests/widgets.lua
 
 run:
 	lovr .

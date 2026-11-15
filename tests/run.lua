@@ -65,7 +65,7 @@ current = "model"
 test("demo has two notebooks", function()
   local notebooks = Notebook.demo()
   eq(#notebooks, 2)
-  eq(#notebooks[1].cells, 6)
+  eq(#notebooks[1].cells, 7)
 end)
 test("inserts and deletes text at a cursor", function()
   local notebook = Notebook.new({ cells = { { kind = "code", source = "" } } })

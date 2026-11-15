@@ -97,7 +97,16 @@ same IR; a kernel can return it without touching graphics.
 Do not make luaplotlib depend on LÖVR. The adapter belongs in a separate module
 or repository.
 
-## 5. Kernel isolation roadmap
+## 5. Widgets
+
+Widgets are kernel-declared specs plus callbacks. `kernel/widgets.lua` owns the
+values and callbacks; `ui/widgets.lua` draws them; `App:widget_event` sends an
+event back to the same kernel. This is the same boundary as scenes: the kernel
+returns data, the host owns interaction and rendering.
+
+See [`docs/widgets.md`](docs/widgets.md).
+
+## 6. Kernel isolation roadmap
 
 Today: LÖVR threads (separate Lua states, shared process). Good for state
 isolation, low overhead, and crash containment at the Lua level.
@@ -106,7 +115,7 @@ Next: OS-process kernels with a pipe/socket protocol. That gives memory limits,
 crash containment at the process level, and the ability to run kernels without a
 graphics context. The channel message schema is the compatibility boundary.
 
-## 6. Startup and resource goals
+## 7. Startup and resource goals
 
 - Host startup target: under one second to first notebook frame.
 - Kernel target: a few MB and no GPU context per kernel.

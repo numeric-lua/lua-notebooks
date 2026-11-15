@@ -5,6 +5,7 @@
 --
 local Plot = require("ui.plot")
 local Surface = require("ui.surface")
+local Widgets = require("ui.widgets")
 local Extensions = require("extensions")
 
 local UI = {}
@@ -52,6 +53,8 @@ function UI.new(app)
     extension_passes = {},
     surfaces = {},
     scene_rects = {},
+    widget_rects = {},
+    widget_drag = nil,
     drag = nil,
     focused_surface = nil,
   }, UI)
@@ -108,6 +111,7 @@ function UI:draw(pass)
     cell._index = index
     local source_lines = split_lines(cell.source)
     local source_height = math.max(3, #source_lines) * 21
+    local widget_height = #(cell.widgets or {}) * 36 + 4
     local output_lines = cell.output ~= "" and split_lines(cell.output) or {}
     local output_height = 0
     if #output_lines > 0 then
@@ -119,7 +123,8 @@ function UI:draw(pass)
     elseif cell.scene then
       scene_height = 170
     end
-    local cell_height = 30 + source_height + output_height + scene_height + 14
+    local cell_height = 30 + source_height + widget_height +
+      output_height + scene_height + 14
     self.rects[index] = { x = 20, y = y, w = width - 40, h = cell_height }
     content_bottom = y + cell_height
 
@@ -155,7 +160,16 @@ function UI:draw(pass)
           { 0.4, 0.75, 1, 1 })
       end
 
-      local output_y = source_y + source_height + 6
+      local widget_y = source_y + source_height + 2
+      if #(cell.widgets or {}) > 0 then
+        local height, controls = Widgets.draw(pass, app.font, cell.widgets,
+          34, widget_y, width - 68)
+        for _, control in ipairs(controls) do
+          control.cell = index
+        end
+        self.widget_rects[index] = controls
+      end
+      local output_y = source_y + source_height + widget_height + 6
       if #output_lines > 0 then
         box(pass, 34, output_y - 3, width - 68, output_height,
           { 0.04, 0.05, 0.07, 1 })
@@ -275,8 +289,58 @@ function UI:keypressed(key)
   end
 end
 
+function UI:set_widget_value(rect, x)
+  local spec = rect.spec
+  local fraction = (x - rect.track_x) / math.max(1, rect.track_w)
+  fraction = math.max(0, math.min(1, fraction))
+  local value = spec.min + (spec.max - spec.min) * fraction
+  local step = spec.step or 0
+  if step > 0 then
+    value = math.floor((value - spec.min) / step + 0.5) * step + spec.min
+    value = math.max(spec.min, math.min(spec.max, value))
+  end
+  spec.value = value
+end
+
+function UI:handle_widget(rect, cell_index, x, y)
+  local spec = rect.spec
+  self.app:notebook():select(cell_index)
+  self.focused_surface = nil
+  if spec.kind == "button" then
+    self.app:widget_event(cell_index, spec, { type = "click" })
+  elseif spec.kind == "checkbox" then
+    self.app:widget_event(cell_index, spec, { type = "toggle" })
+  elseif spec.kind == "select" then
+    self.app:widget_event(cell_index, spec, { type = "next" })
+  elseif spec.kind == "slider" then
+    if rect.track_x and x >= rect.track_x - 8 then
+      self.widget_drag = { cell = cell_index, rect = rect }
+      self:set_widget_value(rect, x)
+    end
+  elseif spec.kind == "number" then
+    local delta = 0
+    if rect.minus and inside(x, y, rect.minus) then delta = -1 end
+    if rect.plus and inside(x, y, rect.plus) then delta = 1 end
+    if delta ~= 0 then
+      spec.value = (spec.value or 0) + delta * (spec.step or 1)
+      if spec.min then spec.value = math.max(spec.min, spec.value) end
+      if spec.max then spec.value = math.min(spec.max, spec.value) end
+      self.app:widget_event(cell_index, spec,
+        { type = "change", value = spec.value })
+    end
+  end
+end
+
 function UI:mousepressed(x, y, button)
   if button ~= 1 then return end
+  for cell_index, controls in pairs(self.widget_rects) do
+    for _, rect in ipairs(controls) do
+      if inside(x, y, rect) then
+        self:handle_widget(rect, cell_index, x, y)
+        return
+      end
+    end
+  end
   for _, rect in pairs(self.scene_rects) do
     if inside(x, y, rect) then
       self.drag = rect
@@ -316,6 +380,10 @@ function UI:mousepressed(x, y, button)
 end
 
 function UI:mousemoved(x, y, dx, dy)
+  if self.widget_drag then
+    self:set_widget_value(self.widget_drag.rect, x)
+    return
+  end
   if self.drag and self.drag.surface then
     local rect = self.drag
     rect.surface:pointer({
@@ -330,6 +398,13 @@ end
 
 function UI:mousereleased(x, y, button)
   if button == 1 then
+    if self.widget_drag then
+      local drag = self.widget_drag
+      self.widget_drag = nil
+      self.app:widget_event(drag.cell, drag.rect.spec,
+        { type = "change", value = drag.rect.spec.value })
+      return
+    end
     if self.drag and self.drag.surface then
       local rect = self.drag
       rect.surface:pointer({

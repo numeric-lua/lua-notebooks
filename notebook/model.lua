@@ -13,6 +13,7 @@ local function cell(kind, source)
     running = false,
     error = nil,
     cursor = #(source or "") + 1,
+    widgets = {},
   }
 end
 
@@ -167,8 +168,23 @@ function Notebook:set_result(cell_index, result)
   current.output = result.output or ""
   current.error = result.ok == false and result.value or nil
   current.scene = result.scene
+  current.widgets = result.widgets or {}
   if result.ok and result.value and result.value ~= "" and current.output == "" then
     current.output = tostring(result.value)
+  end
+end
+
+function Notebook:apply_widget_result(index, result)
+  local current = self.cells[index]
+  if current == nil then return end
+  current.running = false
+  current.widgets = result.widgets or current.widgets or {}
+  if result.output and result.output ~= "" then
+    current.output = current.output == "" and result.output or
+      current.output .. "\n" .. result.output
+  end
+  if result.ok == false then
+    current.error = result.value or "widget callback failed"
   end
 end
 
@@ -210,6 +226,14 @@ return { scene = {
       cell("code", [[
 -- Extensions are discovered from the extensions/ directory.
 return { scene = "grid" }]]),
+      cell("code", [[
+-- Widgets are declared in the kernel and rendered by the host.
+widgets.slider({ label = "gain", min = 0, max = 10, value = 3,
+  on_change = function(value) print("gain", value) end })
+widgets.button({ label = "Ping",
+  on_click = function() print("pong") end })
+widgets.checkbox({ label = "enabled", value = true })
+widgets.select({ label = "mode", options = { "fast", "slow" }, value = "fast" })]]),
       cell("markdown", "# A 3D notebook\nCells, kernels, and a real-time viewport."),
     },
   })

@@ -1,0 +1,65 @@
+local root = (arg and arg[0] or "tests/widgets.lua"):match("^(.*)/tests/") or "."
+package.path = root .. "/?.lua;" .. root .. "/?/init.lua;" .. package.path
+local Widgets = require("kernel.widgets")
+
+local passed, failed = 0, 0
+local function test(name, fn)
+  local ok, err = pcall(fn)
+  if ok then passed = passed + 1; io.write(".")
+  else failed = failed + 1; io.write("F\n  " .. name .. ": " .. tostring(err) .. "\n") end
+end
+local function eq(a, b) if a ~= b then error(tostring(a) .. " ~= " .. tostring(b), 2) end end
+
+test("slider clamps and exports", function()
+  local w = Widgets.new()
+  w:begin_cell("1:2")
+  local s = w:slider({ label = "gain", min = 0, max = 10, value = 99 })
+  eq(s.value, 10)
+  local out = w:export("1:2")
+  eq(#out, 1)
+  eq(out[1].kind, "slider")
+  eq(out[1].id, s.id)
+end)
+test("change callback runs and updates value", function()
+  local w = Widgets.new()
+  w:begin_cell("c")
+  local seen
+  local s = w:slider({ min = 0, max = 10, value = 2,
+    on_change = function(value) seen = value end })
+  w:handle(s.id, { type = "change", value = 7 })
+  eq(s.value, 7)
+  eq(seen, 7)
+end)
+test("button click callback", function()
+  local w = Widgets.new(); w:begin_cell("c")
+  local clicks = 0
+  local b = w:button({ label = "go", on_click = function() clicks = clicks + 1 end })
+  w:handle(b.id, { type = "click" })
+  eq(clicks, 1)
+end)
+test("select cycles", function()
+  local w = Widgets.new(); w:begin_cell("c")
+  local s = w:select({ options = { "a", "b" }, value = "a" })
+  eq(s.value, "a")
+  w:handle(s.id, { type = "next" })
+  eq(s.value, "b")
+  w:handle(s.id, { type = "next" })
+  eq(s.value, "a")
+end)
+test("checkbox toggles", function()
+  local w = Widgets.new(); w:begin_cell("c")
+  local c = w:checkbox({ label = "on", value = false })
+  w:handle(c.id, { type = "toggle" })
+  eq(c.value, true)
+end)
+test("exports only current cell", function()
+  local w = Widgets.new()
+  w:begin_cell("a"); w:slider({ min = 0, max = 1 })
+  w:begin_cell("b"); w:slider({ min = 0, max = 1 })
+  eq(#w:export("a"), 1)
+  eq(#w:export("b"), 1)
+  eq(#w:export(nil), 2)
+end)
+
+io.write(string.format("\n%d widget tests, %d passed, %d failed\n", passed + failed, passed, failed))
+if failed > 0 then os.exit(1) end

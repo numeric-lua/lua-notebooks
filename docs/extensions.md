@@ -52,5 +52,6 @@ usable.
 ## Not yet
 
 - External installation/permissions.
-- A generic widget protocol (sliders/buttons) is the next layer.
+- Widgets are implemented separately in [`docs/widgets.md`](widgets.md); they
+  are kernel-owned specs and events, not extension renderers.
 - Hot reload of kernel code; only renderers reload.
