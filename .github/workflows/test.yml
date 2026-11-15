@@ -16,3 +16,18 @@ jobs:
           sudo apt-get install -y luajit
       - name: Run pure tests
         run: make test
+
+  windows-pure-tests:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install LuaJIT
+        run: choco install luajit -y
+      - name: Run platform and editor tests
+        shell: cmd
+        run: |
+          luajit tests/run.lua
+          luajit tests/platform.lua
+          luajit tests/editor.lua
+          luajit tests/scope.lua
+          luajit tests/lsp_protocol.lua

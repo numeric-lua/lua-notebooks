@@ -533,6 +533,12 @@ function lovr.load()
     app:notebook():select(qa_cell)
     app:run()
   end
+  local qa_scroll = tonumber(os.getenv("LUANB_QA_SCROLL") or "")
+  if qa_scroll then
+    app.ui.scroll = qa_scroll
+    app.ui.scroll_to_selected = false
+    app.ui.last_active = app:notebook().active
+  end
 
   if os.getenv("LUANB_SMOKE_SAVE") then
     app:save()
