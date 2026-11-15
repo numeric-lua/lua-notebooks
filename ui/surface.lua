@@ -47,6 +47,14 @@ function Surface:render(renderer, time)
   renderer.render(pass, time or 0, self.width, self.height, self.state)
 end
 
+function Surface:render_display(descriptor, time)
+  local pass = self.pass
+  pass:reset()
+  pass:setClear(0.02, 0.025, 0.04, 1)
+  require("extensions.display_list").replay(pass, descriptor,
+    self.width, self.height)
+end
+
 function Surface:pointer(event)
   local renderer = self.renderer
   if renderer and renderer.pointer then

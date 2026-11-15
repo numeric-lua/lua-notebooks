@@ -9,6 +9,7 @@ test:
 	$(LUA) tests/process.lua
 	$(LUA) tests/sandbox.lua
 	$(LUA) tests/platform.lua
+	$(LUA) tests/display_list.lua
 	$(LUA) tests/editor.lua
 	$(LUA) tests/lsp_protocol.lua
 	sh tests/lsp_stdio.sh

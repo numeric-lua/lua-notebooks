@@ -122,31 +122,40 @@ function Extensions.save_preferences()
 end
 
 function Extensions.discover_user()
-  local Loader = require("extensions.loader")
-  local Sandbox = require("ui.extension_sandbox")
-  local env = Sandbox.create({
-    graphics = lovr.graphics,
-    timer = lovr.timer,
-    vec3 = vec3,
-    mat4 = mat4,
-    quat = quat,
-  })
+  local DisplayList = require("extensions.display_list")
   local directory = "user-extensions"
   pcall(lovr.filesystem.createDirectory, directory)
   local loaded, errors = {}, {}
   local ok, items = pcall(lovr.filesystem.getDirectoryItems, directory)
   if not ok then return loaded, { tostring(items) } end
   for _, filename in ipairs(items) do
-    local name = filename:match("^([a-z][a-z0-9_-]*)%.lua$")
+    local name = filename:match("^([a-z][a-z0-9_-]*)%.json$")
     if name then
-      local descriptor, err = Loader.load_file(directory .. "/" .. filename,
-        name, { env = env })
-      if descriptor then
-        register_or_replace(descriptor, true)
-        loaded[#loaded + 1] = descriptor
+      if Extensions.registry[name] then
+        errors[#errors + 1] = name .. ": built-in ids are reserved"
       else
-        errors[#errors + 1] = name .. ": " .. tostring(err)
+        local text = lovr.filesystem.read(directory .. "/" .. filename)
+        local decoded, data = pcall(json.decode, text or "")
+        if not decoded or type(data) ~= "table" then
+          errors[#errors + 1] = name .. ": invalid JSON"
+        else
+          local descriptor, err = DisplayList.validate(data, filename)
+          if descriptor then
+            descriptor.id = descriptor.id or name
+            if descriptor.id ~= name then
+              errors[#errors + 1] = name .. ": id must match filename"
+            else
+              register(descriptor)
+              loaded[#loaded + 1] = descriptor
+            end
+          else
+            errors[#errors + 1] = name .. ": " .. tostring(err)
+          end
+        end
       end
+    elseif filename:match("%.lua$") then
+      errors[#errors + 1] = filename ..
+        ": legacy executable user extension disabled; use JSON"
     end
   end
   Extensions.user_errors = errors

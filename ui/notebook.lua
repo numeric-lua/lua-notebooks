@@ -818,7 +818,11 @@ function UI:draw_scene(pass, x, y, w, h, cell)
     return
   end
   surface:ensure(renderer, w, h)
-  surface:render(renderer, lovr.timer.getTime())
+  if renderer.display then
+    surface:render_display(renderer, lovr.timer.getTime())
+  else
+    surface:render(renderer, lovr.timer.getTime())
+  end
   surface:composite(pass, x, y, w, h)
   self.scene_rects[index] = { x = x, y = y, w = w, h = h,
     surface = surface, cell = cell, renderer = renderer }
