@@ -332,6 +332,25 @@ function App:update()
       lovr.filesystem.createDirectory("screenshots")
       local path = "screenshots/notebook-" .. tostring(os.time()) .. ".png"
       lovr.filesystem.write(path, blob:getString())
+      self.last_screenshot = path
+      self.status = "screenshot " .. path
+      print("SCREENSHOT=" .. path)
+      if self.qa_screenshot then lovr.event.quit() end
+    end
+  end
+  if self.qa_screenshot and not self.screenshot_requested and
+     not self.screenshot_readback and lovr.timer.getTime() > 3 then
+    local cell = self:notebook().cells[self:notebook().active]
+    if cell == nil or not cell.running then self.screenshot_requested = true end
+  end
+  if self.screenshot_readback and self.screenshot_readback:isComplete() then
+    local image = self.screenshot_readback:getImage()
+    self.screenshot_readback = nil
+    if image and image:getFormat() == "rgba8" then
+      local blob = image:encode()
+      lovr.filesystem.createDirectory("screenshots")
+      local path = "screenshots/notebook-" .. tostring(os.time()) .. ".png"
+      lovr.filesystem.write(path, blob:getString())
       self.status = "screenshot " .. path
       print("SCREENSHOT=" .. path)
       if self.qa_screenshot then lovr.event.quit() end
@@ -536,7 +555,7 @@ function lovr.load()
   end
 
   -- Visual QA/demo: select and run one cell, then leave the window open.
-  if os.getenv("LUANB_QA_SCREENSHOT") then
+  if os.getenv("LUANB_QA_SCREENSHOT") or os.getenv("LUANB_SMOKE_SCREENSHOT") then
     app.qa_screenshot = true
   end
   if os.getenv("LUANB_QA_ZEN") then
@@ -856,6 +875,10 @@ function lovr.draw(window)
   local width, height = window:getDimensions()
   local canvas, canvas_pass = app:ensure_canvas(width, height)
   canvas_pass:reset()
+  if app.screenshot_requested then
+    app.screenshot_requested = false
+    app.screenshot_readback = canvas:newReadback()
+  end
   if app.screenshot_requested then
     app.screenshot_requested = false
     app.screenshot_readback = canvas:newReadback()

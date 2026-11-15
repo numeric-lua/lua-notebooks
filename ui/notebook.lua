@@ -550,6 +550,7 @@ function UI:palette_commands()
     { id = "tree", label = "Notebook filetree  (F2)" },
     { id = "vim", label = "Toggle Vim mode  (F3)" },
     { id = "zen", label = "Toggle Zen mode  (F4)" },
+    { id = "screenshot", label = "Save screenshot  (Ctrl+Shift+S)" },
     { id = "undo", label = "Undo" },
     { id = "redo", label = "Redo" },
     { id = "extensions", label = "Extension browser  (F10)" },
@@ -574,6 +575,8 @@ function UI:run_palette_command(id)
   elseif id == "load" then self.app:load()
   elseif id == "new" then self.app:new_notebook()
   elseif id == "tree" then self.show_tree = true
+  elseif id == "screenshot" then
+    self.app.screenshot_requested = true
   elseif id == "zen" then
     self.zen_mode = not self.zen_mode
     self.scroll = 0
@@ -1183,6 +1186,13 @@ function UI:keypressed(key)
     if word == "" then self.app.status = "no symbol at cursor" else
       self.symbol_prompt = { old = word, value = "" }
     end
+    return
+  end
+  if key == "s" and lovr.system and lovr.system.isKeyDown and
+     (lovr.system.isKeyDown("lctrl") or lovr.system.isKeyDown("rctrl")) and
+     (lovr.system.isKeyDown("lshift") or lovr.system.isKeyDown("rshift")) then
+    self.app.screenshot_requested = true
+    self.app.status = "taking screenshot"
     return
   end
   if (key == "d" or key == "u") and lovr.system and lovr.system.isKeyDown and

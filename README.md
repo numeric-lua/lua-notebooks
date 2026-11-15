@@ -78,6 +78,7 @@ Controls:
 | `F2` | open the hierarchical notebook filetree |
 | `F3` | toggle Vim mode (on by default) |
 | `F4` | toggle Zen mode: hide top bar and footer, show only cells |
+| `Ctrl+Shift+S` | save a PNG screenshot of the offscreen notebook canvas |
 | `F12` | open/close the shortcut help overlay |
 | click a markdown heading arrow | collapse/expand following cells |
 | drag / wheel in 3D | orbit / zoom the focused extension |
