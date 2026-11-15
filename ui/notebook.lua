@@ -1013,6 +1013,34 @@ function UI:run_vim_command(command)
     self.app:notebook():undo()
   elseif command == "redo" then
     self.app:notebook():redo()
+  elseif command:match("^%%sr/(.-)/(.-)/g?$") then
+    local pattern, replacement = command:match("^%%sr/(.-)/(.-)/g?$")
+    local global = command:sub(-1) == "g"
+    self.app:notebook():push_undo()
+    local total = 0
+    for _, cell in ipairs(self.app:notebook().cells) do
+      if cell.kind == "code" then
+        local source, count = LSP.substitute_pattern(cell.source, pattern,
+          replacement, global)
+        cell.source = source
+        total = total + count
+      end
+    end
+    self.app.status = "notebook pattern substituted " .. total
+  elseif command:match("^%%s/(.-)/(.-)/g?$") then
+    local old_text, new_text = command:match("^%%s/(.-)/(.-)/g?$")
+    local global = command:sub(-1) == "g"
+    self.app:notebook():push_undo()
+    local total = 0
+    for _, cell in ipairs(self.app:notebook().cells) do
+      if cell.kind == "code" then
+        local source, count = LSP.substitute(cell.source, old_text, new_text,
+          global)
+        cell.source = source
+        total = total + count
+      end
+    end
+    self.app.status = "notebook substituted " .. total
   elseif command:match("^sr/(.-)/(.-)/g?$") then
     local pattern, replacement = command:match("^sr/(.-)/(.-)/g?$")
     local global = command:sub(-1) == "g"
@@ -1146,6 +1174,12 @@ function UI:keypressed(key)
     if word == "" then self.app.status = "no symbol at cursor" else
       self.symbol_prompt = { old = word, value = "" }
     end
+    return
+  end
+  if (key == "d" or key == "u") and lovr.system and lovr.system.isKeyDown and
+     (lovr.system.isKeyDown("lctrl") or lovr.system.isKeyDown("rctrl")) then
+    local amount = (key == "d" and 1 or -1) * 300
+    self.scroll = math.max(0, math.min(self.max_scroll, self.scroll + amount))
     return
   end
   if (key == "r" or key == "z") and lovr.system and lovr.system.isKeyDown and
