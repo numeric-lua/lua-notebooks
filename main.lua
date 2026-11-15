@@ -7,6 +7,7 @@
 --
 local Notebook = require("notebook.model")
 local Supervisor = require("notebook.supervisor")
+local Format = require("notebook.format")
 local UI = require("ui.notebook")
 
 local App = {}
@@ -102,6 +103,30 @@ function App:add_cell()
   self.status = "new cell"
 end
 
+function App:save()
+  local ok, path, absolute = pcall(Format.save, self:notebook())
+  if not ok then
+    self.status = "save failed: " .. tostring(path)
+    return
+  end
+  self.status = "saved " .. tostring(absolute)
+end
+
+function App:load()
+  local ok, loaded, err = pcall(Format.load, self:notebook().name)
+  if not ok then
+    self.status = "load failed: " .. tostring(loaded)
+    return
+  end
+  if loaded == nil then
+    self.status = "load failed: " .. tostring(err)
+    return
+  end
+  self.notebooks[self.active] = loaded
+  self.scroll = 0
+  self.status = "loaded " .. loaded.name
+end
+
 function App:update()
   self.supervisor:poll()
 end
@@ -116,6 +141,14 @@ function lovr.load()
   app:open_all_kernels()
   app.status = "two kernels ready"
   _G.app = app
+
+  if os.getenv("LUANB_SMOKE_SAVE") then
+    app:save()
+    print("SMOKE_SAVED=" .. tostring(app.status))
+    local loaded, err = Format.load(app:notebook().name)
+    print("SMOKE_LOADED=" .. (loaded and loaded.name or tostring(err)))
+    lovr.event.quit()
+  end
 
   -- Non-interactive smoke path: run the first welcome cell, print its result,
   -- and quit.  This exercises thread startup, channels, the kernel worker, and

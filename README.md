@@ -25,7 +25,7 @@ Working in this milestone:
 
 Not yet implemented:
 
-- notebook open/save UI (a JSON document model exists)
+- native file dialogs / notebook browser (F6/F7 use the LÖVR save directory)
 - full text editor features, syntax highlighting, undo, IME
 - process-level kernel isolation (threads currently)
 - extension pointer/event protocol and hot reload
@@ -54,6 +54,8 @@ Controls:
 | click cell | select |
 | type | append to selected code cell |
 | `F5` or **Run** | execute selected cell |
+| `F6` | save active notebook to the LÖVR save directory |
+| `F7` | load it back |
 | `Tab` | insert two spaces |
 | `Backspace` | delete last code point |
 | `Enter` | newline |
@@ -72,6 +74,7 @@ make test                 # pure-Lua JSON/model tests
 LUANB_SMOKE=1 lovr .      # run first cell through a real kernel, then quit
 LUANB_SMOKE_SCENE=1 lovr . # run the 3D cell, draw the viewport, then quit
 LUANB_SMOKE_PLOT=1 lovr .  # run the luaplotlib scene cell, draw it, then quit
+LUANB_SMOKE_SAVE=1 lovr .   # save/load the active notebook, then quit
 ```
 
 `docs/lovr/` is a vendored, offline LÖVR 0.19 reference: API metadata, generated

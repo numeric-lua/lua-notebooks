@@ -197,13 +197,13 @@ function UI:draw(pass)
   box(pass, 0, height - 28, width, 28, { 0.075, 0.085, 0.11, 1 })
   text(pass, app.font, app.status, 16, height - 22,
     { 0.6, 0.68, 0.82, 1 }, 0.72)
-  text(pass, app.font, "F5 run   Tab indent   Backspace   Up/Down cell",
-    width - 390, height - 22, { 0.45, 0.5, 0.62, 1 }, 0.65)
+  text(pass, app.font, "F5 run   F6 save   F7 load   Tab indent   Up/Down cell",
+    width - 470, height - 22, { 0.45, 0.5, 0.62, 1 }, 0.65)
   return self.extension_passes
 end
 
 function UI:draw_scene(pass, x, y, w, h, cell)
-  local index = cell._index
+  local index = self.app.active .. ":" .. tostring(cell._index)
   local surface = self.surfaces[index]
   if surface == nil then
     surface = Surface.new()

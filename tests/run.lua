@@ -5,6 +5,7 @@ package.path = root .. "/?.lua;" .. root .. "/?/init.lua;" .. package.path
 
 local json = require("notebook.json")
 local Notebook = require("notebook.model")
+local Format = require("notebook.format")
 
 local passed, failed = 0, 0
 local failures = {}
@@ -41,6 +42,23 @@ end)
 test("preserves null sentinel", function()
   local decoded = json.decode('{"x":null}')
   eq(decoded.x, json.null)
+end)
+
+current = "format"
+test("round-trips a notebook", function()
+  local notebook = Notebook.new({ name = "roundtrip.luanb",
+    cells = { { kind = "code", source = "print(1)" },
+              { kind = "markdown", source = "# hi" } } })
+  notebook.cells[1].scene = { type = "luaplotlib", xlim = { 0, 1 } }
+  local decoded = Format.decode(Format.encode(notebook))
+  eq(decoded.name, "roundtrip.luanb")
+  eq(#decoded.cells, 2)
+  eq(decoded.cells[1].scene.type, "luaplotlib")
+  eq(decoded.cells[2].source, "# hi")
+end)
+test("rejects an unsupported version", function()
+  local ok = pcall(Format.decode, '{"version":2,"name":"x","cells":[{"kind":"code"}]}')
+  eq(ok, false)
 end)
 
 current = "model"

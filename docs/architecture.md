@@ -39,9 +39,10 @@ A notebook is plain JSON:
 }
 ```
 
-The in-memory model is `notebook/model.lua`. Load/save through
-`lovr.filesystem` is the next step; LÖVR only permits writes in its save
-directory, so the UI must make that location visible.
+The in-memory model is `notebook/model.lua`; `notebook/format.lua` implements
+JSON encode/decode and save/load through `lovr.filesystem`. F6/F7 save and load
+the active notebook in the LÖVR save directory, which the status line reports.
+Native file dialogs are still future work.
 
 ## 3. Extension surfaces
 

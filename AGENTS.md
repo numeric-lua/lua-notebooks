@@ -37,6 +37,8 @@ when a 0.13 example looks different.
 make test
 LUANB_SMOKE=1 lovr .
 LUANB_SMOKE_SCENE=1 lovr .
+LUANB_SMOKE_PLOT=1 lovr .
+LUANB_SMOKE_SAVE=1 lovr .
 ```
 
 Every behavior change needs a pure-Lua test when possible; graphics/thread
