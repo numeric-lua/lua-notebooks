@@ -150,6 +150,7 @@ function UI.new(app)
     vim_marks = {},
     vim_pending_mark = nil,
     vim_last_change = nil,
+    nav_repeat = nil,
     vim_char_visual = false,
     vim_char_anchor = nil,
     vim_char_yank = nil,
@@ -874,6 +875,9 @@ end
 
 function UI:textinput(value)
   if value == "\r" or value == "\n" then return end
+  if (value == "j" or value == "k") and lovr.system and
+     lovr.system.isKeyDown and (lovr.system.isKeyDown("lalt") or
+     lovr.system.isKeyDown("ralt")) then return end
   if self.vim_search ~= nil then
     self.vim_search = self.vim_search .. value
     return
@@ -936,6 +940,24 @@ function UI:textinput(value)
   local cell = self.app:notebook():selected()
   if cell.kind ~= "code" then return end
   self.app:notebook():insert(value)
+end
+
+function UI:update(dt)
+  if self.nav_repeat == nil then return end
+  local key = self.nav_repeat.key
+  local down = lovr.system and lovr.system.isKeyDown and
+    lovr.system.isKeyDown(key)
+  if not down then self.nav_repeat = nil; return end
+  if self.nav_repeat.kind == "alt" then
+    local alt = lovr.system.isKeyDown("lalt") or
+      lovr.system.isKeyDown("ralt")
+    if not alt then self.nav_repeat = nil; return end
+  end
+  local now = lovr.timer.getTime()
+  if now < self.nav_repeat.next then return end
+  self.app:notebook():move(key == "j" and 1 or -1)
+  self.scroll_to_selected = true
+  self.nav_repeat.next = now + 0.08
 end
 
 function UI:open_completion()
@@ -1095,6 +1117,17 @@ end
 
 function UI:keypressed(key)
   local notebook = self.app:notebook()
+  local alt_down = lovr.system and lovr.system.isKeyDown and
+    (lovr.system.isKeyDown("lalt") or lovr.system.isKeyDown("ralt"))
+  if alt_down and (key == "j" or key == "k") then
+    if self.nav_repeat == nil or self.nav_repeat.key ~= key then
+      notebook:move(key == "j" and 1 or -1)
+      self.scroll_to_selected = true
+      self.nav_repeat = { key = key, kind = "alt",
+        next = lovr.timer.getTime() + 0.35 }
+    end
+    return
+  end
   if self.vim_recording and not self.vim_replaying and key ~= "q" then
     self.vim_recording[#self.vim_recording + 1] = key
   end
@@ -1428,9 +1461,17 @@ function UI:keypressed(key)
       self.vim_normal = false
       return
     elseif key == "j" then
-      notebook:move(1); self.scroll_to_selected = true; return
+      if self.nav_repeat and self.nav_repeat.key == "j" then return end
+      notebook:move(1); self.scroll_to_selected = true
+      self.nav_repeat = { key = "j", kind = "vim",
+        next = lovr.timer.getTime() + 0.35 }
+      return
     elseif key == "k" then
-      notebook:move(-1); self.scroll_to_selected = true; return
+      if self.nav_repeat and self.nav_repeat.key == "k" then return end
+      notebook:move(-1); self.scroll_to_selected = true
+      self.nav_repeat = { key = "k", kind = "vim",
+        next = lovr.timer.getTime() + 0.35 }
+      return
     elseif key == "o" then
       notebook:add_cell("code"); self.vim_normal = false; return
     elseif key == "u" then

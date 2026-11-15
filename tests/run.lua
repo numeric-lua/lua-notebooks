@@ -266,6 +266,22 @@ test("undoes and redoes text and cell edits", function()
   eq(#notebook.cells, 1)
 end)
 
+current = "insertion"
+test("adds a cell after the focused cell", function()
+  local Notebook = require("notebook.model")
+  local notebook = Notebook.new({ cells = {
+    { kind = "code", source = "a" },
+    { kind = "code", source = "b" },
+    { kind = "code", source = "c" },
+  } })
+  notebook:select(2)
+  notebook:add_cell("code")
+  eq(#notebook.cells, 4)
+  eq(notebook.cells[3].source, "")
+  eq(notebook.cells[4].source, "c")
+  eq(notebook.active, 3)
+end)
+
 io.write(string.format("\n\n%d tests, %d passed, %d failed\n", passed + failed,
   passed, failed))
 if failed > 0 then

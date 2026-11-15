@@ -323,6 +323,7 @@ function App:load()
 end
 
 function App:update()
+  if self.ui then self.ui:update() end
   self.supervisor:poll()
   if self.screenshot_readback and self.screenshot_readback:isComplete() then
     local image = self.screenshot_readback:getImage()
@@ -442,7 +443,13 @@ function lovr.load()
   end
   lovr.filesystem.watch()
   _G.app = app
-  if os.getenv("LUANB_SMOKE_VIMEDGE") then
+  if os.getenv("LUANB_SMOKE_ADDN") then
+    app:notebook():select(2)
+    app:add_cell()
+    print("SMOKE_ADDN=" .. #app:notebook().cells .. ":" ..
+      app:notebook().active)
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_VIMEDGE") then
     app.ui.vim_normal = true
     app.ui:keypressed("m")
     app.ui:keypressed("a")

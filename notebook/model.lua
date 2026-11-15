@@ -134,12 +134,14 @@ function Notebook:copy_cell(index)
   }
 end
 
-function Notebook:add_cell(kind)
+function Notebook:add_cell(kind, after_index)
   self:push_undo()
-  self.cells[#self.cells + 1] = cell(kind or "code", "")
-  self.active = #self.cells
+  local index = (after_index or self.active or #self.cells) + 1
+  index = math.max(1, math.min(#self.cells + 1, index))
+  table.insert(self.cells, index, cell(kind or "code", ""))
+  self.active = index
   self.dirty = true
-  return self.cells[#self.cells]
+  return self.cells[index]
 end
 
 function Notebook:move(delta)
