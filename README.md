@@ -126,6 +126,15 @@ YDOTOOL_SOCKET=/tmp/ydotool.sock ydotool key 108:1 108:0  # Down
 This was used to move selection to the final cell; two captures one second
 apart showed the scroll position stable and the last cell fully visible.
 
+The repeatable check is:
+
+```sh
+./scripts/input-smoke.sh
+```
+
+It launches a seat session, sends six Down keys, captures two frames one second
+apart, and fails if the stable-frame difference exceeds 5000 pixels.
+
 ## Local install
 
 ```sh
