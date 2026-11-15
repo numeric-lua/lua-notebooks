@@ -42,6 +42,11 @@ local function parse_row(text, position, stop)
           local body, next_position = parse_argument(text, position)
           items[#items + 1] = { kind = "sqrt", body = body }
           position = next_position
+        elseif name == "mathbf" or name == "mathit" or name == "mathrm" then
+          local body, next_position = parse_argument(text, position)
+          items[#items + 1] = { kind = "styled", style = name,
+            body = body }
+          position = next_position
         elseif name == "text" then
           local body, next_position = parse_argument(text, position)
           items[#items + 1] = { kind = "text_group", body = body }
@@ -181,6 +186,15 @@ local function layout(node, style)
     end
     box.w = cursor
     return box
+  elseif node.kind == "styled" then
+    local fonts = style.fonts or {}
+    local font = style.font
+    if node.style == "mathbf" then font = fonts.bold or font
+    elseif node.style == "mathit" then font = fonts.italic or font end
+    local child_style = { font = font, scale = style.scale,
+      display = style.display, measure = style.measure,
+      fonts = style.fonts }
+    return layout(node.body, child_style)
   elseif node.kind == "delimited" then
     local body = layout(node.body, style)
     local em = 18 * style.scale
@@ -293,7 +307,8 @@ function Engine.typeset(source, options)
   local ok, tree = pcall(parse_row, rewritten, 1)
   if not ok then return nil, tostring(tree) end
   local style = { font = options.font, scale = options.scale or 0.86,
-    display = options.display, measure = options.measure }
+    display = options.display, measure = options.measure,
+    fonts = options.fonts }
   local box = layout(tree, style)
   return { tree = tree, box = box, w = box.w, h = box.h + box.d }
 end

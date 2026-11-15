@@ -2,7 +2,8 @@
 
 Notebook markdown supports a small **inline LaTeX subset**. Math segments use a
 vendored DejaVu Sans font with real Greek/math glyphs; body text keeps the
-notebook font. Display math uses the same font through the box-layout engine.
+notebook font. Display math uses the same font through the box-layout engine. `\mathbf`,
+`\mathit`, and `\mathrm` select vendored bold/italic/regular variants.
 
 ```markdown
 Energy: $E = mc^2$

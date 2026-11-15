@@ -24,6 +24,9 @@ assert(text_group.box.w > 0)
 local tight = assert(Engine.typeset("a+b", { measure = measure }))
 local relation = assert(Engine.typeset("a=b", { measure = measure }))
 assert(relation.box.w > tight.box.w - 1)
+local styled = assert(Engine.typeset("\\mathbf{F}=m\\mathit{a}",
+  { measure = measure }))
+assert(styled.box.w > 0)
 local stretched = assert(Engine.typeset(
   "\\left(\\frac{a}{b}\\right)", { measure = measure }))
 assert(stretched.box.items[1].box ~= nil)

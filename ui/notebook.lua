@@ -241,6 +241,7 @@ function UI:draw(pass)
       if expression and not source_line:find("\\begin{matrix}", 1, true) then
         local result = MathEngine.typeset(expression, {
           font = app.math_font, scale = 1.1, display = true,
+          fonts = { bold = app.math_bold, italic = app.math_italic },
         })
         if result then
           math_layouts[line_index] = result
