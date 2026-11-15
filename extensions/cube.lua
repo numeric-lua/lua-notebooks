@@ -2,6 +2,8 @@
 -- Built-in interactive cube extension.  The host gives it a Pass that targets
 -- an offscreen Texture and a small state table for orbit input.
 --
+local Shading = require("extensions.shading")
+
 local Cube = {
   id = "cube",
   version = 1,
@@ -24,11 +26,13 @@ function Cube.render(pass, time, width, height, state)
     math.max(0.01, width / height), 0.1, 100))
   pass:setViewPose(1, mat4():lookAt(eye, vec3(0, 0, 0)), true)
   pass:setDepthTest("gequal")
+  pass:setShader(Shading.lit())
   pass:setColor(0.95, 0.55, 0.3, 1)
   pass:cube(0, 0, 0, 1, time or 0, 0, 1, 0)
   pass:setColor(0.25, 0.55, 0.9, 1)
   pass:cube(0, -1.15, 0, 0.8, -(time or 0), 0, 1, 0)
   pass:setDepthTest()
+  pass:setShader()
 end
 
 function Cube.pointer(state, event)
