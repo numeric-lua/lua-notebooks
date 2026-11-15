@@ -74,6 +74,17 @@ The welcome notebook has runnable cells for hello, a loop, a 3D cube scene, a
 luaplotlib scene, a grid extension, and widgets. The second notebook has an independent kernel
 and global state.
 
+## Package
+
+```sh
+make package
+lovr dist/lua-notebooks.zip
+```
+
+The archive contains `conf.lua`, `main.lua`, `notebook/`, `kernel/`, `ui/`, and
+`extensions/`. It runs in thread mode. Process mode needs a real project
+directory because the child is launched from `lovr.filesystem.getSource()`.
+
 ## Process kernels
 
 Threads are the default. An experimental process backend is available:

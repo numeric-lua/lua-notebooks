@@ -1,7 +1,7 @@
 SHELL := /bin/sh
 LUA ?= luajit
 
-.PHONY: test run clean
+.PHONY: test run package clean
 
 test:
 	$(LUA) tests/run.lua
@@ -11,5 +11,8 @@ test:
 run:
 	lovr .
 
+package:
+	./scripts/package.sh
+
 clean:
-	rm -rf .lovrshadercache
+	rm -rf .lovrshadercache dist
