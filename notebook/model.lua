@@ -345,7 +345,7 @@ widgets.checkbox({ label = "enabled", value = true })
 widgets.select({ label = "mode", options = { "fast", "slow" }, value = "fast" })
 widgets.text({ label = "name", value = "notebook",
   on_change = function(value) print("name", value) end })]]),
-      cell("markdown", "# A 3D notebook\nMath: $E = mc^2$ and $\\alpha + \\beta = \\pi$.\n$$\\frac{a}{b}$$\n$$\\sqrt{x}$$\n## Collapsible section\nClick the heading arrow to fold the next cells."),
+      cell("markdown", "# A 3D notebook\nMath: $E = mc^2$ and $\\alpha + \\beta = \\pi$.\n$$\\frac{a}{b}$$\n$$\\sqrt{x}$$\n$$\\begin{matrix}a & b \\\\ c & d\\end{matrix}$$\n## Collapsible section\nClick the heading arrow to fold the next cells."),
     },
   })
   local second = Notebook.new({

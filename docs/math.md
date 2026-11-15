@@ -21,8 +21,9 @@ Supported:
 
 Display lines of the form `$$...$$` are centered on their own row. A display
 row containing exactly `\frac{a}{b}` is drawn as a small stacked fraction with a
-rule, and `\sqrt{x}` gets a radical/overline; everything else remains linear
-text. This is **not MathJax or
+rule, `\sqrt{x}` gets a radical/overline, and a simple
+`\begin{matrix}...\end{matrix}` gets a centered grid; everything else remains
+linear text. This is **not MathJax or
 TeX**: there is no stacked fraction layout, matrix, or real typesetting engine. The Unicode output also depends on glyphs
 available in the current LÖVR font. A future backend should render TeX to an
 image/texture or use a proper math layout engine.

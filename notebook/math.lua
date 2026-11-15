@@ -105,6 +105,21 @@ local function parse_expression(text, position)
   return node, #text + 1
 end
 
+function Math.display_matrix(text)
+  local body = text:match("^%$%$\\begin{matrix}(.-)\\end{matrix}%$%$$")
+  if body == nil then return nil end
+  local rows = {}
+  for row in (body .. "\\\\"):gmatch("(.-)\\\\") do
+    local cells = {}
+    for cell in (row .. "&"):gmatch("(.-)&") do
+      cells[#cells + 1] = Math.render(cell:gsub("^%s+", ""):gsub("%s+$", ""))
+    end
+    if #cells > 0 then rows[#rows + 1] = cells end
+  end
+  if #rows == 0 then return nil end
+  return rows
+end
+
 function Math.display_root(text)
   local body = text:match("^%$%$\\sqrt%s*{([^{}]*)}%$%$$")
   if body == nil then return nil end
