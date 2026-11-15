@@ -25,8 +25,10 @@ function LSP.diagnostics(source)
   return { line = line, message = tostring(err) }
 end
 
-function LSP.current_word(source)
-  local tail = (source or ""):match("[%a_][%w_]*$")
+function LSP.current_word(source, cursor)
+  source = source or ""
+  local before = source:sub(1, math.max(1, (cursor or (#source + 1)) - 1))
+  local tail = before:match("[%a_][%w_]*$")
   return tail or ""
 end
 
