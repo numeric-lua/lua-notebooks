@@ -170,7 +170,8 @@ function Server:handle(message)
   elseif message.method == "textDocument/hover" then
     local uri = params.textDocument and params.textDocument.uri
     local document = self.documents[uri]
-    local word = document and Editor.current_word(document.text) or ""
+    local word_info = document and self:word_at(uri, params.position or {})
+    local word = word_info and word_info.word or ""
     local info
     if document and word ~= "" then
       local absolute = Editor.offset_at(document.text, params.position.line,
