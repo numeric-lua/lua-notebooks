@@ -116,6 +116,8 @@ function parse_argument(text, position)
   return first, next_position
 end
 
+local ink_cache = {}
+
 local function measure_text(text, style)
   if style.measure then
     local h, d = style.measure.ink(text, style.scale)
@@ -123,9 +125,24 @@ local function measure_text(text, style)
   end
   local font = style.font
   local width = font:getWidth(text) * style.scale
-  local ascent = font:getAscent() * style.scale
-  local descent = math.abs(font:getDescent() * style.scale)
-  return width, ascent, descent
+  local key = tostring(font) .. "\0" .. text
+  local cached = ink_cache[key]
+  if cached == nil then
+    local ok, vertices = pcall(font.getVertices, font, text)
+    if ok and type(vertices) == "table" and #vertices > 0 then
+      local low, high = 0, 0
+      for _, vertex in ipairs(vertices) do
+        local y = vertex[2] or 0
+        if y < low then low = y end
+        if y > high then high = y end
+      end
+      cached = { high, math.max(0, -low) }
+    else
+      cached = { font:getAscent(), math.abs(font:getDescent()) }
+    end
+    ink_cache[key] = cached
+  end
+  return width, cached[1] * style.scale, cached[2] * style.scale
 end
 
 local function empty_box()
