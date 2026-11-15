@@ -1,0 +1,17 @@
+#!/bin/sh
+set -eu
+SELF=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+ROOT=${LUA_NOTEBOOKS_ROOT:-}
+if [ -z "$ROOT" ]; then
+  for candidate in \
+    "$SELF/../share/lua-notebooks" \
+    "$SELF"/../lib/luarocks/rocks-*/lua-notebooks/*/share/lua-notebooks \
+    "$SELF/.."; do
+    if [ -f "$candidate/main.lua" ]; then ROOT=$candidate; break; fi
+  done
+fi
+if [ -z "$ROOT" ] || [ ! -f "$ROOT/main.lua" ]; then
+  echo "lua-notebooks: cannot locate the app source" >&2
+  exit 1
+fi
+exec lovr "$ROOT" "$@"

@@ -167,6 +167,16 @@ Captures the 3D, plot, widget, and math cells, crops the notebook window, and
 fails on a flat/blank capture or an unexpected crop size. It is not part of
 `make test` because it needs a display.
 
+## LuaRocks
+
+```sh
+luarocks make lua-notebooks-0.1.0-1.rockspec
+lua-notebooks
+```
+
+The rockspec installs the app source under the LuaRocks share tree and a
+`lua-notebooks` launcher under its bin directory.
+
 ## Local install
 
 ```sh
