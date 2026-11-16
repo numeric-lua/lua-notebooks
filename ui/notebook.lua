@@ -299,6 +299,8 @@ function UI:draw(pass, logical_width, logical_height)
 
     if y + cell_height > 55 and y < height - 10 then
       local selected = index == notebook.active
+      local cell_scoped = selected and (not app.vim_mode or
+        self.vim_scope == "cell")
       local in_visual = self.vim_visual and self.vim_anchor and
         index >= math.min(self.vim_anchor, notebook.active) and
         index <= math.max(self.vim_anchor, notebook.active)
@@ -307,8 +309,16 @@ function UI:draw(pass, logical_width, logical_height)
         { 0.075, 0.085, 0.11, 1 })
       box(pass, 20, y, width - 40, cell_height, fill)
       if selected then
-        local accent = { 0.35, 0.62, 0.95, 1 }
+        local accent = cell_scoped and { 0.30, 0.82, 1, 1 } or
+          { 0.28, 0.42, 0.64, 1 }
         box(pass, 20, y, 4, cell_height, accent)
+        local border = cell_scoped and { 0.30, 0.82, 1, 0.95 } or
+          { 0.25, 0.37, 0.55, 0.8 }
+        local thickness = cell_scoped and 2 or 1
+        box(pass, 20, y, width - 40, thickness, border)
+        box(pass, 20, y + cell_height - thickness, width - 40, thickness,
+          border)
+        box(pass, width - 20 - thickness, y, thickness, cell_height, border)
       end
       local output_focused = self.focused_output_cell == index
       if output_focused then
@@ -454,9 +464,11 @@ function UI:draw(pass, logical_width, logical_height)
       local label_x = 36 + app.font:getWidth(first_line) * 0.86 + 8
       label_x = math.min(width - 52, label_x)
       text(pass, app.font, tostring(index), label_x, source_y,
-        cell.running and { 0.95, 0.75, 0.35, 1 } or kind_color, 0.6)
+        cell.running and { 0.95, 0.75, 0.35, 1 } or
+        (cell_scoped and { 0.30, 0.82, 1, 1 } or kind_color), 0.6)
 
-      if selected and (cell.kind == "code" or cell.kind == "markdown") then
+      if selected and (cell.kind == "code" or cell.kind == "markdown") and
+         (not app.vim_mode or self.vim_scope ~= "notebook") then
         local cursor_pos = cell.cursor or (#cell.source + 1)
         local line_start = 0
         local cursor_line = 1

@@ -484,6 +484,10 @@ function lovr.load()
   Theme.load()
   if os.getenv("LUANB_QA_THEME") then Theme.set(os.getenv("LUANB_QA_THEME")) end
   if os.getenv("LUANB_QA_HELP") then app.ui.show_help = true end
+  if os.getenv("LUANB_QA_CELL_SCOPE") then
+    app.ui.vim_scope = "cell"
+    app.ui.vim_normal = true
+  end
   if os.getenv("LUANB_QA_UI_SCALE") then
     app:set_ui_scale(tonumber(os.getenv("LUANB_QA_UI_SCALE")), false)
   end
