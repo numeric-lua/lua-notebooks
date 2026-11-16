@@ -9,7 +9,7 @@ mkdir -p tests/visual/baseline
 UPDATE=${1:-}
 for cell in 4 6 7; do
   rm -rf "$SAVE/screenshots"
-  LUANB_QA_THEME=dark LUANB_QA_CELL=$cell LUANB_QA_SCROLL=0 LUANB_QA_SCREENSHOT=1 lovr . >/tmp/luanb-visual-$cell.log 2>&1 &
+  LUANB_QA_THEME=dark LUANB_QA_UI_SCALE=1 LUANB_QA_CELL=$cell LUANB_QA_SCROLL=0 LUANB_QA_SCREENSHOT=1 lovr . >/tmp/luanb-visual-$cell.log 2>&1 &
   APP=$!
   SHOT=
   for _ in 1 2 3 4 5 6 7 8 9 10; do

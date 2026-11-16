@@ -48,6 +48,11 @@ function App:new(notebooks)
   })
   self.lsp_diagnostics = {}
   self.lsp:initialize("luanb:///")
+  self.ui_scale = 1
+  local scale_ok, scale_value = pcall(lovr.filesystem.read, "ui_scale.txt")
+  if scale_ok and tonumber(scale_value) then
+    self.ui_scale = math.max(0.7, math.min(2, tonumber(scale_value)))
+  end
   local process_requested = os.getenv("LUANB_KERNEL_MODE") == "process"
   if process_requested and not ProcessSupervisor.supported() then
     print("process kernels are unavailable on this platform; using threads")
@@ -306,6 +311,19 @@ function App:reload_extension(id)
   end
 end
 
+function App:set_ui_scale(scale, persist)
+  scale = tonumber(scale) or 1
+  self.ui_scale = math.max(0.7, math.min(2, scale))
+  if persist ~= false then
+    pcall(lovr.filesystem.write, "ui_scale.txt", tostring(self.ui_scale))
+  end
+  self.status = string.format("UI scale %.0f%%", self.ui_scale * 100)
+end
+
+function App:zoom_ui(delta)
+  self:set_ui_scale(self.ui_scale + delta)
+end
+
 function App:add_cell(kind)
   self:notebook():add_cell(kind or "code")
   self.status = "new " .. (kind or "code") .. " cell below"
@@ -466,6 +484,9 @@ function lovr.load()
   Theme.load()
   if os.getenv("LUANB_QA_THEME") then Theme.set(os.getenv("LUANB_QA_THEME")) end
   if os.getenv("LUANB_QA_HELP") then app.ui.show_help = true end
+  if os.getenv("LUANB_QA_UI_SCALE") then
+    app:set_ui_scale(tonumber(os.getenv("LUANB_QA_UI_SCALE")), false)
+  end
   if os.getenv("LUANB_QA_PALETTE") then app.ui.show_palette = true end
   if os.getenv("LUANB_QA_OUTLINE") then app.ui.show_outline = true end
   if os.getenv("LUANB_QA_HISTORY") then
@@ -491,7 +512,16 @@ function lovr.load()
   end
   lovr.filesystem.watch()
   _G.app = app
-  if os.getenv("LUANB_SMOKE_SCOPE") then
+  if os.getenv("LUANB_SMOKE_ZOOM") then
+    app:set_ui_scale(1.2, false)
+    local increased = app.ui_scale
+    app:set_ui_scale(0.8, false)
+    local decreased = app.ui_scale
+    app:set_ui_scale(1, false)
+    print("SMOKE_ZOOM=" .. increased .. ":" .. decreased .. ":" ..
+      app.ui_scale)
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_SCOPE") then
     local notebook = app:notebook()
     app.ui.vim_scope = "notebook"
     app.ui.vim_normal = true
@@ -1054,12 +1084,11 @@ function lovr.draw(window)
   if app == nil then return end
   local draw_start = os.getenv("LUANB_PROFILE") and lovr.timer.getTime()
   local width, height = window:getDimensions()
-  local canvas, canvas_pass = app:ensure_canvas(width, height)
+  local scale = app.ui_scale or 1
+  local logical_width = math.max(320, math.floor(width / scale))
+  local logical_height = math.max(240, math.floor(height / scale))
+  local canvas, canvas_pass = app:ensure_canvas(logical_width, logical_height)
   canvas_pass:reset()
-  if app.screenshot_requested then
-    app.screenshot_requested = false
-    app.screenshot_readback = canvas:newReadback()
-  end
   if app.screenshot_requested then
     app.screenshot_requested = false
     app.screenshot_readback = canvas:newReadback()
@@ -1088,11 +1117,17 @@ function lovr.keypressed(key)
 end
 
 function lovr.mousepressed(x, y, button)
-  if app then app.ui:mousepressed(x, y, button) end
+  if app then
+    local scale = app.ui_scale or 1
+    app.ui:mousepressed(x / scale, y / scale, button)
+  end
 end
 
 function lovr.mousemoved(x, y, dx, dy)
-  if app then app.ui:mousemoved(x, y, dx, dy) end
+  if app then
+    local scale = app.ui_scale or 1
+    app.ui:mousemoved(x / scale, y / scale, dx / scale, dy / scale)
+  end
 end
 
 function lovr.mousereleased(x, y, button)

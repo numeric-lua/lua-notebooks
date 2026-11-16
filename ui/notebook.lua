@@ -709,6 +709,7 @@ function UI:draw_help(pass, width, height)
     "p run · Alt+P run and next · F5 run · F6 save · F7 load",
     "F8 reload extension · F9 user extensions · F10 browser",
     "Ctrl+Shift+S screenshot · Ctrl+Shift+T theme",
+    "+ / - UI zoom (notebook scope or Ctrl) · 0 reset",
     "F12 or ? open/close this cheatsheet",
     "Drag a 3D surface to orbit; wheel to zoom",
   }
@@ -1274,6 +1275,15 @@ end
 
 function UI:keypressed(key)
   local notebook = self.app:notebook()
+  local ctrl_down = lovr.system and lovr.system.isKeyDown and
+    (lovr.system.isKeyDown("lctrl") or lovr.system.isKeyDown("rctrl"))
+  if ctrl_down and (key == "=" or key == "+" or key == "-" or
+     key == "0") then
+    if key == "0" then self.app:set_ui_scale(1)
+    elseif key == "-" then self.app:zoom_ui(-0.1)
+    else self.app:zoom_ui(0.1) end
+    return
+  end
   local alt_down = lovr.system and lovr.system.isKeyDown and
     (lovr.system.isKeyDown("lalt") or lovr.system.isKeyDown("ralt"))
   if alt_down and key == "b" then
@@ -1592,7 +1602,13 @@ function UI:keypressed(key)
         self.vim_text_object = { op = pending, inner = false }; return
       end
     end
-    if self.vim_scope == "notebook" and (key == "j" or key == "k") then
+    if self.vim_scope == "notebook" and
+       (key == "+" or key == "=" or key == "-" or key == "0") then
+      if key == "0" then self.app:set_ui_scale(1)
+      elseif key == "-" then self.app:zoom_ui(-0.1)
+      else self.app:zoom_ui(0.1) end
+      return
+    elseif self.vim_scope == "notebook" and (key == "j" or key == "k") then
       if self.nav_repeat and self.nav_repeat.key == key and
          self.nav_repeat.kind == "cell" then return end
       notebook:move(key == "j" and 1 or -1)
