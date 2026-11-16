@@ -12,6 +12,7 @@ function Supervisor.new(options)
     kernels = {},
     pending = {},
     next_id = 1,
+    root = options.root or ".",
     on_result = options.on_result,
     on_error = options.on_error,
   }, Supervisor)
@@ -22,7 +23,7 @@ function Supervisor:open(id)
   local in_name = "lua-notebooks:" .. id .. ":in"
   local out_name = "lua-notebooks:" .. id .. ":out"
   local thread = lovr.thread.newThread("kernel/worker.lua")
-  thread:start(in_name, out_name)
+  thread:start(in_name, out_name, self.root)
   local kernel = {
     id = id,
     in_channel = lovr.thread.getChannel(in_name),

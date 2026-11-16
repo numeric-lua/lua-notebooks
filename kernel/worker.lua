@@ -3,9 +3,10 @@
 -- The host owns graphics; this file executes cells, manages widgets, and
 -- reports serializable results over a channel.
 --
-local in_name, out_name = ...
+local in_name, out_name, source = ...
 assert(in_name and out_name, "kernel worker needs input/output channel names")
-
+source = source or "."
+package.path = source .. "/?.lua;" .. source .. "/?/init.lua;" .. package.path
 local thread = require("lovr.thread")
 local Widgets = require("kernel.widgets")
 local input = thread.getChannel(in_name)
