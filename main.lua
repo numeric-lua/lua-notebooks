@@ -557,6 +557,18 @@ function lovr.load()
     app:run_next()
     print("SMOKE_PRUNNEXT=" .. tostring(app:notebook().active))
     lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_CELLKEYS") then
+    app.ui.vim_scope = "notebook"
+    app.ui.vim_normal = true
+    app:notebook():select(2)
+    app.ui:keypressed("b")
+    local below = app:notebook().active
+    app.ui:keypressed("a")
+    local above = app:notebook().active
+    app.ui:keypressed("M")
+    local markdown = app:notebook():selected().kind
+    print("SMOKE_CELLKEYS=" .. below .. ":" .. above .. ":" .. markdown)
+    lovr.event.quit()
   elseif os.getenv("LUANB_SMOKE_HELP") then
     app.ui.vim_normal = true
     app.ui:keypressed("?")

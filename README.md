@@ -57,7 +57,10 @@ Controls:
 | type | append to selected code cell |
 | `p` | run selected cell in Vim normal mode |
 | `Alt+P` | run selected cell, then select the next cell |
-| `F5` or **Run** | execute selected cell |
+| `F5` or run icon | execute selected cell |
+| `b` / `a` | insert a code cell below / above |
+| `M` | insert a markdown cell below |
+| `+` icon | insert a code cell below the focused cell |
 | `F6` | save active notebook to the LÖVR save directory |
 | `F7` | load it back |
 | `Tab` | insert two spaces |

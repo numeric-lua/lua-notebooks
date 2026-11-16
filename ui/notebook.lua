@@ -218,15 +218,17 @@ function UI:draw(pass, logical_width, logical_height)
     tab_x = tab_x + tab_w + 6
   end
 
-  -- Toolbar buttons.
-  local run_x = width - 98
-  box(pass, run_x, 7, 86, 26, { 0.18, 0.42, 0.30, 1 })
-  text(pass, app.font, "Run  F5", run_x + 10, 12, { 0.92, 1, 0.94, 1 }, 0.72)
-  self.buttons.run = { x = run_x, y = 7, w = 86, h = 26 }
-  local add_x = run_x - 96
-  box(pass, add_x, 7, 88, 26, { 0.15, 0.18, 0.25, 1 })
-  text(pass, app.font, "+ Cell", add_x + 14, 12, { 0.8, 0.86, 1, 1 }, 0.72)
-  self.buttons.add = { x = add_x, y = 7, w = 88, h = 26 }
+  -- Compact icon buttons.
+  local run_x = width - 42
+  box(pass, run_x, 7, 30, 26, { 0.18, 0.42, 0.30, 1 })
+  stroke(pass, run_x + 10, 9, run_x + 10, 25, 2, { 0.92, 1, 0.94, 1 })
+  stroke(pass, run_x + 10, 9, run_x + 21, 17, 2, { 0.92, 1, 0.94, 1 })
+  stroke(pass, run_x + 21, 17, run_x + 10, 25, 2, { 0.92, 1, 0.94, 1 })
+  self.buttons.run = { x = run_x, y = 7, w = 30, h = 26 }
+  local add_x = run_x - 36
+  box(pass, add_x, 7, 30, 26, { 0.15, 0.18, 0.25, 1 })
+  text(pass, app.font, "+", add_x + 9, 10, { 0.82, 0.88, 1, 1 }, 0.9)
+  self.buttons.add = { x = add_x, y = 7, w = 30, h = 26 }
   end
 
   local notebook = app:notebook()
@@ -721,9 +723,9 @@ function UI:draw_help(pass, width, height)
         { "p / Alt+P", "run / run and next" },
       } },
       { title = "CELLS", rows = {
-        { "+ Cell", "insert code below" },
-        { "Alt+A / Alt+B", "code above / below" },
-        { "Alt+M", "markdown cell below" },
+        { "b / a", "insert code below / above" },
+        { "M", "insert markdown below" },
+        { "Alt+A / B / M", "same actions, anywhere" },
         { "Alt+X / dd", "delete focused cell" },
         { "Ctrl+1 / 2", "code / markdown" },
         { "o / O", "insert below / above and edit" },
@@ -1695,6 +1697,13 @@ function UI:keypressed(key)
              key == "a" then
         self.vim_text_object = { op = pending, inner = false }; return
       end
+    end
+    if self.vim_scope == "notebook" and key == "b" then
+      self.app:add_cell("code"); return
+    elseif self.vim_scope == "notebook" and key == "a" then
+      self.app:add_cell_above("code"); return
+    elseif self.vim_scope == "notebook" and key == "M" then
+      self.app:add_cell("markdown"); return
     end
     if self.vim_scope == "notebook" and
        (key == "+" or key == "=" or key == "-" or key == "0") then
