@@ -494,9 +494,12 @@ function lovr.load()
   if os.getenv("LUANB_SMOKE_PRUN") then
     app:notebook():select(2)
     app.ui.vim_normal = true
+    app.ui.focused_output_cell = 2
     app.ui:keypressed("p")
     print("SMOKE_PRUN=" .. tostring(app:notebook().cells[2].running) .. ":" ..
-      tostring(app:notebook().active))
+      tostring(app:notebook().active) .. ":" ..
+      tostring(app.ui.vim_normal) .. ":" ..
+      tostring(app.ui.focused_output_cell == 2))
     lovr.event.quit()
   elseif os.getenv("LUANB_SMOKE_PRUNNEXT") then
     app:notebook():select(2)

@@ -1020,6 +1020,19 @@ function UI:textinput(value)
   self.app:notebook():insert(value)
 end
 
+function UI:run_without_focus()
+  local vim_normal = self.vim_normal
+  local output = self.focused_output_cell
+  local widget = self.focused_widget
+  local surface = self.focused_surface
+  self.app:run()
+  self.vim_normal = vim_normal
+  self.focused_output_cell = output
+  self.focused_widget = widget
+  self.focused_surface = surface
+  self.nav_repeat = nil
+end
+
 function UI:open_history()
   self.app:notebook():flush_history()
   self.history_items = self.app:notebook():history_nodes_flat()
@@ -1699,7 +1712,7 @@ function UI:keypressed(key)
       self.vim_char_anchor = nil
       return
     elseif key == "p" and not self.vim_char_visual and not self.vim_visual then
-      self.app:run()
+      self:run_without_focus()
       return
     elseif key == "p" and self.vim_char_yank and #self.vim_char_yank > 0 then
       notebook:push_undo()
