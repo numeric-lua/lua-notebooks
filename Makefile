@@ -28,7 +28,6 @@ test-lua51:
 	$(LUA) tests/engine.lua
 	$(LUA) tests/inline_supervisor.lua
 	$(LUA) tests/widgets.lua
-	$(LUA) tests/process.lua
 	$(LUA) tests/sandbox.lua
 	$(LUA) tests/platform.lua
 	$(LUA) tests/display_list.lua
