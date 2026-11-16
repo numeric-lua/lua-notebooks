@@ -1,0 +1,55 @@
+# Web export
+
+LÖVR supports an Emscripten/WASM build. The browser cannot run LuaJIT, so LÖVR
+uses the bundled **PUC Lua 5.1** interpreter for the web build. Threads are also
+disabled under Emscripten.
+
+lua-notebooks targets that runtime in two ways:
+
+1. the kernel engine is Lua 5.1-compatible and has no `ffi` dependency
+   (`kernel/engine.lua`);
+2. `notebook/runtime.lua` detects `lovr.system.getOS() == "Web"` and selects
+   `notebook/inline_supervisor.lua`, which runs cells on the host thread.
+
+## Build LÖVR for the web
+
+Follow the [LÖVR web build guide](https://lovr.org/docs/v0.19.0/Compiling).
+In short, with `emsdk` active:
+
+```sh
+git clone https://github.com/bjornbytes/lovr.git
+cd lovr
+git submodule update --init --recursive
+git clone https://github.com/bjornbytes/tincture deps/tincture
+emcmake cmake -B build -DLOVR_PROJECT=/absolute/path/to/lua-notebooks
+cmake --build build
+```
+
+Serve `build/` over HTTP and open `lovr.html` in a browser. The build emits
+`lovr.wasm`, `lovr.js`, `lovr.html`, and `project.lovr`.
+
+## Runtime behavior
+
+| capability | desktop | web |
+| --- | --- | --- |
+| Lua runtime | LuaJIT (5.1) | PUC Lua 5.1 |
+| kernels | one thread per notebook | inline, one job per frame |
+| `ffi` / process kernels | available | unavailable |
+| external LSP worker | available | disabled |
+| bubblewrap extension sandbox | available | unavailable |
+| notebook/scene/widgets | available | available |
+
+`notebook/inline_supervisor.lua` queues jobs and executes one per `poll()`, so
+long cells can still stall a frame; cooperative yielding is future work.
+
+## Verification
+
+The pure tests are Lua 5.1-compatible:
+
+```sh
+make test-lua51 LUA=lua5.1
+```
+
+CI runs the same target with the distribution's `lua5.1` package. A real browser
+smoke test still needs a machine with `emsdk` and a headless browser; it is not
+part of the current CI.

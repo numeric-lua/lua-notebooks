@@ -5,13 +5,16 @@ Local instructions for coding agents. The organization-wide rules in
 
 ## Scope
 
-`lua-notebooks` is a native LÖVR notebook environment. It is not a web app and
-not a JavaScript Jupyter clone.
+`lua-notebooks` is a desktop-first LÖVR notebook environment with an
+experimental web export. It is not a JavaScript Jupyter clone.
 
 - **Host owns graphics.** Only `main.lua`, `ui/`, and future extension hosts may
   touch `lovr.graphics`. Kernel code must not receive graphics handles.
-- **Kernels are separate Lua states.** One notebook gets one persistent LÖVR
-  thread today; process isolation is a later, explicit migration.
+- **Kernels are separate Lua states on desktop.** One notebook gets one
+  persistent LÖVR thread; web builds use the inline supervisor because LÖVR
+  disables threads under Emscripten. Process isolation remains experimental.
+- **Lua 5.1 is the compatibility floor.** Desktop uses LuaJIT, web uses PUC
+  Lua 5.1. Do not introduce 5.2+ syntax or libraries into the shared kernel.
 - **No unsafe `love`/0.13 LÖVR calls.** Target LÖVR 0.19: `Pass`, `Pass:text`,
   `Pass:plane`, `lovr.thread`, channels.
 - Do not add Python, Node, or browser dependencies.

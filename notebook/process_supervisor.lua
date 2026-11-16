@@ -5,11 +5,12 @@
 --
 local json = require("notebook.json")
 local Platform = require("notebook.process_platform")
+local Runtime = require("notebook.runtime")
 
 local ProcessSupervisor = {}
 
 function ProcessSupervisor.supported()
-  return true
+  return Runtime.has_processes()
 end
 ProcessSupervisor.__index = ProcessSupervisor
 

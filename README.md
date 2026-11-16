@@ -12,7 +12,8 @@ Working in this milestone:
 
 - native LÖVR window with notebook tabs and cells
 - a tiny editable cell UI (keyboard input, backspace, newline, tab)
-- **one persistent Lua kernel per notebook**, each in a separate LÖVR thread
+- **one persistent Lua kernel per notebook**, each in a separate LÖVR thread on
+  desktop and inline on the web
 - cell execution with captured `print`/`io.write`, errors, and return values
 - a **3D cube output** rendered by the host, never by the kernel
 - a **luaplotlib scene renderer**: line/scatter/bar/hist scenes, axes, grid,
@@ -29,7 +30,7 @@ Not yet implemented:
 - native file dialogs / notebook browser (F6/F7 use the LÖVR save directory)
 - general widget layout controls and text editing beyond single-line fields
 - full text editor features, syntax highlighting, undo, IME
-- process-level kernel isolation (threads currently)
+- process-level kernel isolation is experimental (threads are the default)
 - extension pointer/event protocol and hot reload
 - external extension loading with permissions
 - a luaplotlib scene **backend** (the scene IR and LÖVR renderer are working;
@@ -39,8 +40,38 @@ Not yet implemented:
 ## Requirements
 
 - LÖVR **0.19.x** (`lovr` on PATH; this machine uses `lovr-bin` 0.19.0)
-- LuaJIT (bundled with LÖVR; `luajit` is used for the pure-Lua tests)
+- LuaJIT on desktop (bundled with LÖVR; `luajit` is used for the pure-Lua
+  tests)
+- PUC Lua 5.1 on the web (LÖVR’s WASM runtime; no JIT)
 - a GPU with a working Vulkan/OpenGL driver for LÖVR
+
+## Web (experimental)
+
+LÖVR’s web exporter builds against **PUC Lua 5.1** and disables threads and
+processes. lua-notebooks detects this with `notebook/runtime.lua` and switches
+to an inline kernel supervisor, so the same notebook/engine code runs without
+LuaJIT.
+
+What works on the web:
+
+- notebook UI, cells, markdown, scenes, built-in extensions, and the inline
+  Lua 5.1 kernel;
+- captured output, errors, return values, widget state, and 3D scene outputs.
+
+Limitations:
+
+- no process kernels, `ffi`, or LÖVR threads;
+- the external LSP worker is disabled;
+- bubblewrap-sandboxed user extensions are unavailable;
+- heavy numerical cells are slower because there is no JIT.
+
+The pure-Lua test suite is expected to pass on Lua 5.1:
+
+```sh
+make test-lua51 LUA=lua5.1
+```
+
+See [docs/web.md](docs/web.md) for build steps and constraints.
 
 ## Run
 
@@ -255,9 +286,10 @@ remaining gaps.
 
 ## Tests
 
-`make test` runs the pure model, widget, process-kernel, sandbox, and editor
-suite. CI runs it on Ubuntu with LuaJIT; graphics, input, and visual smokes are
-manual because they need a display and seat.
+`make test` runs the pure model, widget, engine, process-kernel, sandbox, and
+editor suite on LuaJIT. `make test-lua51 LUA=lua5.1` runs the Lua 5.1-compatible
+subset. CI runs both; graphics, input, and visual smokes are manual because they
+need a display and seat.
 
 ## Visual smoke
 
@@ -354,11 +386,11 @@ LuaLS annotations, guides, examples (media pruned), and notes on `lovr-ent`,
 LÖVR host
   ├── notebook UI / 2D editor / 3D viewport
   ├── supervisor
-  │     ├── thread + channels  → notebook 1 kernel (Lua state)
-  │     └── thread + channels  → notebook 2 kernel (Lua state)
+  │     ├── desktop: thread + channels → notebook kernel (Lua state)
+  │     └── web: inline queue          → notebook kernel (5.1 env)
   └── scene renderer (host-only graphics)
 
-kernel thread
+kernel
   └── executes cells, captures output, returns text/scene descriptions
 ```
 

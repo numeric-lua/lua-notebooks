@@ -3,8 +3,9 @@
 ## 1. Host and kernels
 
 The LÖVR main thread is the **host**. It owns the window, graphics, input, and
-notebook UI. Each notebook owns a persistent **kernel thread** with its own Lua
-state and a pair of named channels.
+notebook UI. On desktop each notebook owns a persistent **kernel thread** with
+its own Lua state and a pair of named channels. On web, where LÖVR disables
+threads, the same kernel engine runs inline through a queued supervisor.
 
 ```text
 main thread                         kernel thread
@@ -16,13 +17,16 @@ UI.draw(pass)                       execute cell
   └── Channel:pop() ◀─────────────────┘
 ```
 
-Kernel threads cannot call `lovr.graphics`. They return:
+Kernels cannot call `lovr.graphics`. They return:
 - captured text output,
 - an error string,
 - an optional scene description.
 
-This is a deliberate boundary. It lets the host remain responsive and gives a
-future process-isolated kernel the same protocol.
+This is a deliberate boundary. It lets the host remain responsive, keeps the
+web path working without threads, and gives process-isolated kernels the same
+protocol. The shared execution logic lives in `kernel/engine.lua`; desktop
+threads and the web inline supervisor both call it. The engine uses `setfenv`
+and `loadstring`, so it targets Lua 5.1 (LuaJIT and LÖVR’s web runtime).
 
 ## 2. Notebook document
 

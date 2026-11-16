@@ -1,13 +1,17 @@
 --
 -- lua-notebooks: a LÖVR-hosted notebook shell.
 --
--- The host owns graphics and input.  Each notebook gets a persistent LÖVR
--- thread with its own Lua state; cells are evaluated there and results return
--- over named channels.  See notebook/supervisor.lua and kernel/worker.lua.
+-- The host owns graphics and input.  On desktop each notebook gets a
+-- persistent LÖVR thread with its own Lua state; on web/WASM, where LÖVR
+-- disables threads, cells run inline through the same Lua 5.1-safe engine.
+-- See notebook/supervisor.lua, notebook/inline_supervisor.lua, and
+-- kernel/engine.lua.
 --
 local Notebook = require("notebook.model")
 local Supervisor = require("notebook.supervisor")
+local InlineSupervisor = require("notebook.inline_supervisor")
 local ProcessSupervisor = require("notebook.process_supervisor")
+local Runtime = require("notebook.runtime")
 local Format = require("notebook.format")
 local Extensions = require("extensions")
 local UI = require("ui.notebook")
@@ -36,29 +40,43 @@ function App:new(notebooks)
     vim_mode = true,
     lsp = nil,
     lsp_thread = nil,
-    lsp_in = lovr.thread.getChannel("lua-notebooks:lsp:in"),
-    lsp_out = lovr.thread.getChannel("lua-notebooks:lsp:out"),
+    lsp_in = nil,
+    lsp_out = nil,
   }, App)
-  self.lsp_thread = lovr.thread.newThread("notebook/lsp_worker.lua")
-  self.lsp_thread:start("lua-notebooks:lsp:in", "lua-notebooks:lsp:out")
-  self.lsp = LspClient.new({
-    send = function(bytes) self.lsp_in:push(bytes) end,
-    on_initialized = function() self.lsp_ready = true end,
-    on_diagnostics = function(uri, items) self.lsp_diagnostics[uri] = items end,
-  })
   self.lsp_diagnostics = {}
-  self.lsp:initialize("luanb:///")
+  if Runtime.has_threads() then
+    self.lsp_in = lovr.thread.getChannel("lua-notebooks:lsp:in")
+    self.lsp_out = lovr.thread.getChannel("lua-notebooks:lsp:out")
+    self.lsp_thread = lovr.thread.newThread("notebook/lsp_worker.lua")
+    self.lsp_thread:start("lua-notebooks:lsp:in", "lua-notebooks:lsp:out")
+    self.lsp = LspClient.new({
+      send = function(bytes) self.lsp_in:push(bytes) end,
+      on_initialized = function() self.lsp_ready = true end,
+      on_diagnostics = function(uri, items) self.lsp_diagnostics[uri] = items end,
+    })
+    self.lsp:initialize("luanb:///")
+  end
   self.ui_scale = 1
   local scale_ok, scale_value = pcall(lovr.filesystem.read, "ui_scale.txt")
   if scale_ok and tonumber(scale_value) then
     self.ui_scale = math.max(0.7, math.min(2, tonumber(scale_value)))
   end
-  local process_requested = os.getenv("LUANB_KERNEL_MODE") == "process"
+  local kernel_mode = os.getenv("LUANB_KERNEL_MODE")
+  local process_requested = kernel_mode == "process"
   if process_requested and not ProcessSupervisor.supported() then
-    print("process kernels are unavailable on this platform; using threads")
+    print("process kernels are unavailable on this platform; using inline")
     process_requested = false
   end
-  local SupervisorClass = process_requested and ProcessSupervisor or Supervisor
+  local inline_requested = kernel_mode == "inline" or
+    not Runtime.has_threads()
+  local SupervisorClass
+  if process_requested then
+    SupervisorClass = ProcessSupervisor
+  elseif inline_requested then
+    SupervisorClass = InlineSupervisor
+  else
+    SupervisorClass = Supervisor
+  end
   self.supervisor = SupervisorClass.new({
     root = lovr.filesystem.getSource(),
     memory_kb = tonumber(os.getenv("LUANB_KERNEL_MEMORY_KB") or "") or 524288,
@@ -419,7 +437,7 @@ function App:update()
     print("SMOKE_LSP=ready")
     lovr.event.quit()
   end
-  if self.lsp then
+  if self.lsp and self.lsp_out then
     while true do
       local bytes = self.lsp_out:pop(false)
       if bytes == nil then break end
@@ -514,7 +532,7 @@ function lovr.load()
     app.status = app.status .. "; " ..
       (#errors + #user_errors) .. " extension error(s)"
   end
-  lovr.filesystem.watch()
+  if Runtime.has_native_filesystem() then lovr.filesystem.watch() end
   _G.app = app
   if os.getenv("LUANB_SMOKE_ZOOM") then
     app:set_ui_scale(1.2, false)
@@ -764,7 +782,8 @@ function lovr.load()
     local errors = Extensions.user_errors or {}
     print("SMOKE_USER_EXT=" .. #loaded .. " errors=" .. #errors .. " " .. table.concat(errors, " | "))
     lovr.event.quit()
-  elseif os.getenv("LUANB_SMOKE_WATCH") then
+  elseif os.getenv("LUANB_SMOKE_WATCH") and
+      Runtime.has_native_filesystem() then
     app.smoke_watch = true
     app.smoke_watch_started = lovr.timer.getTime()
     app.smoke_watch_touched = false
