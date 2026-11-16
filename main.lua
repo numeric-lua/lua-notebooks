@@ -63,26 +63,36 @@ function App:new(notebooks)
     self.ui_scale = math.max(0.7, math.min(2, tonumber(scale_value)))
   end
   local kernel_mode = os.getenv("LUANB_KERNEL_MODE")
+  local remote_url = os.getenv("LUANB_REMOTE_URL")
+  if remote_url == nil and Runtime.is_web() then
+    local ok, value = pcall(lovr.filesystem.read, "remote.txt")
+    if ok and value then remote_url = value:gsub("%s+$", "") end
+  end
   local process_requested = kernel_mode == "process"
   if process_requested and not ProcessSupervisor.supported() then
     print("process kernels are unavailable on this platform; using inline")
     process_requested = false
   end
-  local remote_requested = kernel_mode == "remote"
+  local remote_requested = kernel_mode == "remote" or
+    (Runtime.is_web() and remote_url ~= nil)
   local remote_transport = nil
   if remote_requested then
-    local url = os.getenv("LUANB_REMOTE_URL")
-    if Runtime.has_ffi() and url then
+    if remote_url == nil then
+      print("remote kernels require LUANB_REMOTE_URL or remote.txt")
+    elseif Runtime.is_web() then
       local ok, transport = pcall(function()
-        return require("notebook.websocket_transport").new(url)
+        return require("notebook.browser_transport").new(remote_url)
       end)
-      if ok then
-        remote_transport = transport
-      else
-        print("remote kernel connection failed: " .. tostring(transport))
-      end
+      if ok then remote_transport = transport
+      else print("browser WebSocket bridge unavailable: " .. tostring(transport)) end
+    elseif Runtime.has_ffi() then
+      local ok, transport = pcall(function()
+        return require("notebook.websocket_transport").new(remote_url)
+      end)
+      if ok then remote_transport = transport
+      else print("remote kernel connection failed: " .. tostring(transport)) end
     else
-      print("remote kernels require LUANB_REMOTE_URL and LuaJIT ffi")
+      print("remote kernels require LuaJIT ffi")
     end
   end
   local inline_requested = kernel_mode == "inline" or

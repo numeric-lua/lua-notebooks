@@ -10,19 +10,16 @@ Implemented:
 - `notebook/remote_supervisor.lua`, a transport-agnostic supervisor with the
   same `open`/`run`/`widget`/`poll` surface as the local supervisors;
 - a dependency-free WebSocket gateway (`scripts/kernel-gateway.lua`);
+- a native WebSocket client for desktop LÖVR;
+- optional desktop remote mode;
+- a browser Emscripten bridge in `web/lovr_websocket.c`, installed with
+  `web/install-bridge.sh`;
 - an end-to-end gateway smoke test (`make test-remote`).
 
-Not implemented yet:
+The browser bridge still needs an `emsdk` build to validate end to end. The
+gateway and supervisor are independent of that build.
 
-- a WebSocket transport inside the LÖVR web build. LÖVR’s web build does not
-  ship the `http` plugin and does not expose a browser `WebSocket` API to Lua,
-  so a small Emscripten bridge is required before the browser can connect.
-
-Until that bridge exists, the gateway is usable by a desktop/native client or
-any external WebSocket front-end. The inline web kernel remains the offline
-fallback.
-
-On desktop, the LÖVR host itself can now use the gateway:
+On desktop, the LÖVR host itself can use the gateway:
 
 ```sh
 LUANB_KERNEL_MODE=remote LUANB_REMOTE_URL=ws://127.0.0.1:8765 lovr .

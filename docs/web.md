@@ -42,6 +42,31 @@ Serve `build/` over HTTP and open `lovr.html` in a browser. The build emits
 `notebook/inline_supervisor.lua` queues jobs and executes one per `poll()`, so
 long cells can still stall a frame; cooperative yielding is future work.
 
+## Remote kernel bridge
+
+For the Jupyter-style deployment, the browser can act as a front-end for a
+remote LuaJIT kernel instead of running the inline engine. The Emscripten
+bridge lives in `web/` and is installed into a LÖVR checkout:
+
+```sh
+./web/install-bridge.sh /path/to/lovr
+```
+
+It exposes a nonblocking `lovr_websocket` module to Lua 5.1, and
+`notebook/browser_transport.lua` adapts it to `RemoteSupervisor`. Put the
+gateway URL in `remote.txt`:
+
+```text
+ws://127.0.0.1:8765
+```
+
+Use `wss://` and authentication for anything beyond localhost. See
+[web/README.md](../web/README.md) and [remote.md](remote.md) for the build and
+server details.
+
+The C bridge requires an `emsdk` build for final validation; desktop remote
+mode and the gateway are covered by `make test-remote`.
+
 ## Verification
 
 The pure tests are Lua 5.1-compatible:

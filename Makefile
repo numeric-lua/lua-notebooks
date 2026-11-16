@@ -9,6 +9,7 @@ test:
 	$(LUA) tests/engine.lua
 	$(LUA) tests/inline_supervisor.lua
 	$(LUA) tests/remote_supervisor.lua
+	$(LUA) tests/browser_transport.lua
 	$(LUA) tests/widgets.lua
 	$(LUA) tests/process.lua
 	$(LUA) tests/sandbox.lua
@@ -32,6 +33,7 @@ test-lua51:
 	$(LUA) tests/engine.lua
 	$(LUA) tests/inline_supervisor.lua
 	$(LUA) tests/remote_supervisor.lua
+	$(LUA) tests/browser_transport.lua
 	$(LUA) tests/widgets.lua
 	$(LUA) tests/sandbox.lua
 	$(LUA) tests/platform.lua

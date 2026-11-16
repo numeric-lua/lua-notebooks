@@ -1,0 +1,3 @@
+# Copy this file to remote.txt and set the kernel gateway URL.
+# The browser and gateway must be able to reach each other.
+wss://kernel.example.invalid/lua

@@ -73,10 +73,10 @@ make test-lua51 LUA=lua5.1
 
 See [docs/web.md](docs/web.md) for build steps and constraints.
 
-A remote-kernel prototype is also available: a local WebSocket gateway plus a
-transport-agnostic `RemoteSupervisor`. It can expose the full LuaJIT/FFI stack
-to a front-end; the browser WebSocket bridge is the remaining integration
-step. See [docs/remote.md](docs/remote.md).
+A remote-kernel path is also available: a local WebSocket gateway, a
+transport-agnostic `RemoteSupervisor`, a desktop remote mode, and an
+Emscripten browser bridge in `web/`. It exposes the full LuaJIT/FFI stack to a
+front-end. See [docs/remote.md](docs/remote.md) and [web/README.md](web/README.md).
 
 ## Run
 
