@@ -73,6 +73,11 @@ make test-lua51 LUA=lua5.1
 
 See [docs/web.md](docs/web.md) for build steps and constraints.
 
+A remote-kernel prototype is also available: a local WebSocket gateway plus a
+transport-agnostic `RemoteSupervisor`. It can expose the full LuaJIT/FFI stack
+to a front-end; the browser WebSocket bridge is the remaining integration
+step. See [docs/remote.md](docs/remote.md).
+
 ## Run
 
 ```sh
@@ -286,10 +291,12 @@ remaining gaps.
 
 ## Tests
 
-`make test` runs the pure model, widget, engine, process-kernel, sandbox, and
-editor suite on LuaJIT. `make test-lua51 LUA=lua5.1` runs the Lua 5.1-compatible
-subset. CI runs both; graphics, input, and visual smokes are manual because they
-need a display and seat.
+`make test` runs the pure model, widget, engine, remote-supervisor,
+process-kernel, sandbox, and editor suite on LuaJIT. `make test-lua51
+LUA=lua5.1` runs the Lua 5.1-compatible subset. `make test-remote` starts the
+WebSocket gateway and executes a cell with a real client. CI runs all three;
+graphics, input, and visual smokes are manual because they need a display and
+seat.
 
 ## Visual smoke
 

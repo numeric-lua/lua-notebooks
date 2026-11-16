@@ -1,13 +1,14 @@
 SHELL := /bin/sh
 LUA ?= luajit
 
-.PHONY: test test-lua51 run package install install-desktop rock clean
+.PHONY: test test-remote test-lua51 run package install install-desktop rock clean
 
 test:
 	$(LUA) tests/run.lua
 	$(LUA) tests/runtime.lua
 	$(LUA) tests/engine.lua
 	$(LUA) tests/inline_supervisor.lua
+	$(LUA) tests/remote_supervisor.lua
 	$(LUA) tests/widgets.lua
 	$(LUA) tests/process.lua
 	$(LUA) tests/sandbox.lua
@@ -22,11 +23,15 @@ test:
 	$(LUA) tests/lsp_edits.lua
 	$(LUA) tests/scope.lua
 
+test-remote:
+	sh tests/remote_gateway.sh
+
 test-lua51:
 	$(LUA) tests/run.lua
 	$(LUA) tests/runtime.lua
 	$(LUA) tests/engine.lua
 	$(LUA) tests/inline_supervisor.lua
+	$(LUA) tests/remote_supervisor.lua
 	$(LUA) tests/widgets.lua
 	$(LUA) tests/sandbox.lua
 	$(LUA) tests/platform.lua

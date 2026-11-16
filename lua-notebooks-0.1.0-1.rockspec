@@ -24,9 +24,11 @@ build = {
   type = "command",
   build_command = "true",
   install_command = [[
-    mkdir -p "$(PREFIX)/share/lua-notebooks" "$(PREFIX)/bin"
+    mkdir -p "$(PREFIX)/share/lua-notebooks/scripts" "$(PREFIX)/bin"
     cp -R conf.lua main.lua README.md LICENSE notebook kernel ui extensions assets \
       "$(PREFIX)/share/lua-notebooks/"
+    cp scripts/kernel-gateway.lua scripts/websocket.lua \
+      "$(PREFIX)/share/lua-notebooks/scripts/"
     cp scripts/lua-notebooks "$(PREFIX)/bin/lua-notebooks"
     chmod +x "$(PREFIX)/bin/lua-notebooks"
   ]],
