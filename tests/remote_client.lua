@@ -17,6 +17,7 @@ assert(request, "request failed")
 for _ = 1, 100 do
   remote:poll()
   if seen then break end
+  os.execute("sleep 0.01")
 end
 assert(seen, "no remote result")
 assert(seen.ok, seen.value)
