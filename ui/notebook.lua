@@ -570,8 +570,11 @@ function UI:draw(pass, logical_width, logical_height)
   -- Status/footer.
   box(pass, 0, height - 28, width, 28, { 0.075, 0.085, 0.11, 1 })
   if not self.zen_mode then
-    local vim_label = app.vim_mode and (self.vim_normal and "VIM NORMAL" or
-      "VIM INSERT") or "VIM OFF"
+    local vim_label
+    if not app.vim_mode then vim_label = "EDITING"
+    elseif not self.vim_normal then vim_label = "VIM INSERT"
+    elseif self.vim_scope == "notebook" then vim_label = "VIM NOTEBOOK"
+    else vim_label = "VIM CELL" end
     text(pass, app.font, vim_label, width - 160, height - 22,
       { 0.55, 0.7, 0.85, 1 }, 0.66)
     text(pass, app.font, app.status, 16, height - 22,
@@ -1111,8 +1114,12 @@ function UI:update(dt)
   else
     self.app:notebook():move(key == "j" and 1 or -1)
     self.scroll_to_selected = true
-    if self.app.vim_mode and self.nav_repeat.kind == "cell" then
+    if self.app.vim_mode then
       self.vim_normal = true
+      if self.nav_repeat.kind == "cell" or
+         self.nav_repeat.kind == "notebook" then
+        self.vim_scope = "notebook"
+      end
     end
   end
   self.nav_repeat.next = now + 0.08
@@ -1627,10 +1634,11 @@ function UI:keypressed(key)
       return
     elseif self.vim_scope == "notebook" and (key == "j" or key == "k") then
       if self.nav_repeat and self.nav_repeat.key == key and
-         self.nav_repeat.kind == "cell" then return end
+         (self.nav_repeat.kind == "cell" or
+          self.nav_repeat.kind == "notebook") then return end
       notebook:move(key == "j" and 1 or -1)
       self.scroll_to_selected = true
-      self.nav_repeat = { key = key, kind = "cell",
+      self.nav_repeat = { key = key, kind = "notebook",
         next = lovr.timer.getTime() + 0.35 }
       return
     elseif self.vim_scope == "notebook" and
