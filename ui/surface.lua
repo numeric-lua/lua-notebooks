@@ -76,12 +76,13 @@ function Surface:text(value)
   end
 end
 
-function Surface:composite(pass, x, y, width, height)
+function Surface:composite(pass, x, y, width, height, scale)
   -- The fill shader samples the texture directly and is not affected by
   -- scene lighting.  pass:draw(texture) uses the lit default material and can
-  -- come out black without lights.
+  -- come out black without lights.  Viewports are physical pixels.
+  scale = scale or 1
   pass:setColor(1, 1, 1, 1)
-  pass:setViewport(x, y, width, height)
+  pass:setViewport(x * scale, y * scale, width * scale, height * scale)
   pass:fill(self.texture)
   pass:setViewport()
 end

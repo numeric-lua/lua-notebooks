@@ -61,7 +61,7 @@ function Widgets.height(widgets)
   return height
 end
 
-function Widgets.draw(pass, font, widgets, x, y, width, time)
+function Widgets.draw(pass, font, widgets, x, y, width, time, ui_scale)
   local controls = {}
   local row_y = y
   for _, spec in ipairs(widgets or {}) do
@@ -127,7 +127,7 @@ function Widgets.draw(pass, font, widgets, x, y, width, time)
       box(pass, x + 6, shader_y, width - 12, shader_h,
         { 0.02, 0.025, 0.04, 1 })
       Shader.draw(pass, spec, time or 0, x + 6, shader_y,
-        width - 12, shader_h)
+        width - 12, shader_h, ui_scale)
     elseif spec.kind == "text" then
       local focused = spec._focused
       local field_h = spec.multiline and (height - 14) or 24

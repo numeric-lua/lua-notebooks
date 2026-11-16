@@ -1087,13 +1087,13 @@ function lovr.draw(window)
   local scale = app.ui_scale or 1
   local logical_width = math.max(320, math.floor(width / scale))
   local logical_height = math.max(240, math.floor(height / scale))
-  local canvas, canvas_pass = app:ensure_canvas(logical_width, logical_height)
+  local canvas, canvas_pass = app:ensure_canvas(width, height)
   canvas_pass:reset()
   if app.screenshot_requested then
     app.screenshot_requested = false
     app.screenshot_readback = canvas:newReadback()
   end
-  local passes = app.ui:draw(canvas_pass)
+  local passes = app.ui:draw(canvas_pass, logical_width, logical_height)
   window:fill(canvas)
   passes[#passes + 1] = canvas_pass
   passes[#passes + 1] = window

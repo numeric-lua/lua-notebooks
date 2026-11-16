@@ -67,7 +67,7 @@ function Shader.get(source)
   return shader
 end
 
-function Shader.draw(pass, spec, time, x, y, width, height)
+function Shader.draw(pass, spec, time, x, y, width, height, scale)
   local shader, err = Shader.get(spec.shader)
   if shader == nil then
     pass:setColor(1, 0.4, 0.4, 1)
@@ -79,7 +79,8 @@ function Shader.draw(pass, spec, time, x, y, width, height)
   pass:setShader(shader)
   pass:send("time", time or 0)
   pass:setColor(1, 1, 1, 1)
-  pass:setScissor(x, y, width, height)
+  scale = scale or 1
+  pass:setScissor(x * scale, y * scale, width * scale, height * scale)
   pass:plane(x + width / 2, y + height / 2, 0, width, height)
   pass:setScissor()
   pass:setShader()

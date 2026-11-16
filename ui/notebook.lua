@@ -178,15 +178,18 @@ function UI.new(app)
   }, UI)
 end
 
-function UI:draw(pass)
+function UI:draw(pass, logical_width, logical_height)
   local app = self.app
   local width, height = pass:getDimensions()
+  width = logical_width or width
+  height = logical_height or height
   self.width, self.height = width, height
 
-  -- 2D pixel-space projection.  LÖVR's orthographic mode maps the window to
-  -- pixels when the font's pixel density is 1, as in the official 2D example.
+  -- Full-resolution canvas, logical UI coordinates.  LÖVR fonts are SDFs, so
+  -- scaling the projection keeps glyphs sharp instead of upscaling a bitmap.
+  local projection = mat4():orthographic(0, width, 0, height, -1, 1)
   pass:setViewPose(1, mat4():identity())
-  pass:setProjection("orthographic")
+  pass:setProjection(projection)
   pass:setDepthTest()
 
   box(pass, 0, 0, width, height, { 0.055, 0.06, 0.08, 1 })
@@ -498,7 +501,8 @@ function UI:draw(pass)
       local widget_y = source_y + source_height + 2 + diagnostic_height
       if #(cell.widgets or {}) > 0 then
         local height, controls = Widgets.draw(pass, app.font, cell.widgets,
-          34, widget_y, width - 68, lovr.timer.getTime())
+          34, widget_y, width - 68, lovr.timer.getTime(),
+          self.app.ui_scale)
         for _, control in ipairs(controls) do
           control.cell = index
         end
@@ -941,7 +945,7 @@ function UI:draw_scene(pass, x, y, w, h, cell)
   else
     surface:render(renderer, lovr.timer.getTime())
   end
-  surface:composite(pass, x, y, w, h)
+  surface:composite(pass, x, y, w, h, self.app.ui_scale)
   self.scene_rects[index] = { x = x, y = y, w = w, h = h,
     surface = surface, cell = cell, renderer = renderer }
   table.insert(self.extension_passes, surface.pass)
