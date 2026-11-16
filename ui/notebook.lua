@@ -708,47 +708,117 @@ end
 
 function UI:draw_help(pass, width, height)
   if not self.show_help then return end
-  local lines = {
-    "# Modes and cells",
-    "F3 Vim · notebook j/k · i cell · i again insert · Escape out",
-    "Alt+J/K select cells (hold repeats) · j/k text lines",
-    "h/l characters · w/b words · gg/G cells",
-    "+Cell / Alt+B below · Alt+A above · Alt+M markdown",
-    "Alt+X / dd delete · Ctrl+1 code · Ctrl+2 markdown",
-    "o/O insert below/above and edit",
-    "# Editing",
-    "Tab indent · >>/<< indent line · D/C to line end",
-    "diw/daw/ciw words · di\"/ci( delimiter objects",
-    "A/I line end/start · % bracket · * search word",
-    "u undo · Ctrl+R redo · g-/g+ history · :history",
-    "# LSP",
-    "Ctrl+Space completion · Ctrl+H hover · Ctrl+G definition",
-    "Ctrl+Shift+R rename · Ctrl+Shift+U undo tree",
-    "# View and files",
-    "F1 palette · F2 filetree · F4 Zen · F11 outline",
-    "p run · Alt+P run and next · F5 run · F6 save · F7 load",
-    "F8 reload extension · F9 user extensions · F10 browser",
-    "Ctrl+Shift+S screenshot · Ctrl+Shift+T theme",
-    "+ / - UI zoom (notebook scope or Ctrl) · 0 reset",
-    "F12 or ? open/close this cheatsheet",
-    "Drag a 3D surface to orbit; wheel to zoom",
+  local columns = {
+    {
+      { title = "MODES & NAVIGATION", rows = {
+        { "F3", "Vim mode on / off" },
+        { "i", "notebook -> cell" },
+        { "i", "cell -> insert" },
+        { "Esc", "step back one scope" },
+        { "j / k", "move cells (hold to repeat)" },
+        { "h / j / k / l", "move inside a cell" },
+        { "Alt+J/K", "direct cell jump (optional)" },
+        { "p / Alt+P", "run / run and next" },
+      } },
+      { title = "CELLS", rows = {
+        { "+ Cell", "insert code below" },
+        { "Alt+A / Alt+B", "code above / below" },
+        { "Alt+M", "markdown cell below" },
+        { "Alt+X / dd", "delete focused cell" },
+        { "Ctrl+1 / 2", "code / markdown" },
+        { "o / O", "insert below / above and edit" },
+        { "F2", "notebook filetree" },
+        { "F1", "command palette" },
+      } },
+      { title = "EDITING", rows = {
+        { "Tab", "insert two spaces" },
+        { "A / I", "insert at line end / start" },
+        { "D / C", "delete / change to line end" },
+        { "diw / daw", "delete inner / outer word" },
+        { 'di" / ci(', "delimiter text objects" },
+        { "% / *", "match bracket / search word" },
+        { "u / Ctrl+R", "undo / redo" },
+        { "g- / g+", "walk older / newer history" },
+      } },
+    },
+    {
+      { title = "LSP", rows = {
+        { "Ctrl+Space", "completion at cursor" },
+        { "Ctrl+H", "hover type / binding" },
+        { "Ctrl+G", "jump to definition" },
+        { "Ctrl+Shift+R", "rename symbol" },
+        { "Ctrl+Shift+U", "undo tree" },
+      } },
+      { title = "VIEW", rows = {
+        { "+ / - / 0", "UI zoom / reset" },
+        { "F4", "Zen mode" },
+        { "F10 / F11", "extensions / outline" },
+        { "Ctrl+Shift+S", "screenshot" },
+        { "Ctrl+Shift+T", "light / dark theme" },
+        { "Ctrl+Shift+U", "history" },
+      } },
+      { title = "FILES & VIM", rows = {
+        { "F5 / p", "run selected cell" },
+        { "F6 / F7", "save / load notebook" },
+        { "F8 / F9", "reload extension / user ext" },
+        { "v / V", "char / cell visual" },
+        { "q / @", "record / replay macro" },
+        { "m / '", "set / jump mark" },
+        { ".", "repeat last change" },
+        { "ZZ", "save notebook" },
+      } },
+    },
   }
-  local panel_w = math.min(760, width - 80)
-  local panel_h = 84 + #lines * 22
-  local x, y = (width - panel_w) / 2, math.max(60, (height - panel_h) / 2)
-  box(pass, x, y, panel_w, panel_h, { 0.035, 0.045, 0.07, 0.99 })
-  box(pass, x, y, panel_w, 2, { 0.35, 0.62, 0.95, 1 })
-  text(pass, self.app.font, "Lua Notebooks keybindings", x + 20, y + 14,
-    { 0.9, 0.94, 1, 1 }, 0.82)
-  for index, line in ipairs(lines) do
-    local heading = line:sub(1, 1) == "#"
-    if heading then line = line:sub(2) end
-    text(pass, self.app.font, line, x + 26, y + 52 + (index - 1) * 22,
-      heading and { 0.45, 0.72, 1, 1 } or { 0.75, 0.82, 0.94, 1 },
-      heading and 0.72 or 0.66)
+  local function column_height(sections)
+    local total = 0
+    for _, section in ipairs(sections) do
+      total = total + 28 + #section.rows * 22
+    end
+    return total
   end
-  text(pass, self.app.font, "F12 / ? close", x + panel_w - 130,
-    y + panel_h - 24, { 0.55, 0.65, 0.8, 1 }, 0.64)
+  local left_h = column_height(columns[1])
+  local right_h = column_height(columns[2])
+  local panel_w = math.min(850, width - 60)
+  local panel_h = 76 + math.max(left_h, right_h)
+  local x = (width - panel_w) / 2
+  local y = math.max(46, (height - panel_h) / 2)
+  box(pass, x + 5, y + 5, panel_w, panel_h, { 0, 0, 0, 0.35 })
+  box(pass, x, y, panel_w, panel_h, { 0.045, 0.052, 0.075, 0.985 })
+  box(pass, x, y, panel_w, 2, { 0.35, 0.68, 1, 1 })
+  box(pass, x, y + 51, panel_w, 1, { 0.13, 0.17, 0.25, 1 })
+  text(pass, self.app.font, "Keyboard shortcuts", x + 24, y + 14,
+    { 0.92, 0.96, 1, 1 }, 0.92)
+  text(pass, self.app.font, "notebook  ·  cell  ·  insert", x + 24, y + 34,
+    { 0.48, 0.58, 0.74, 1 }, 0.62)
+  text(pass, self.app.font, "F12 / ? / Esc  close", x + panel_w - 168,
+    y + 18, { 0.5, 0.6, 0.76, 1 }, 0.64)
+  local column_x = { x + 24, x + panel_w / 2 + 14 }
+  local column_w = panel_w / 2 - 38
+  for column_index, sections in ipairs(columns) do
+    local cursor_y = y + 62
+    local cx = column_x[column_index]
+    for _, section in ipairs(sections) do
+      text(pass, self.app.font, section.title, cx, cursor_y,
+        { 0.42, 0.7, 1, 1 }, 0.62)
+      box(pass, cx, cursor_y + 18, column_w, 1, { 0.12, 0.18, 0.28, 1 })
+      cursor_y = cursor_y + 26
+      for _, row in ipairs(section.rows) do
+        local key = row[1]
+        local description = row[2]
+        local key_w = math.max(28, math.min(106,
+          self.app.font:getWidth(key) * 0.6 + 14))
+        box(pass, cx, cursor_y, key_w, 18, { 0.09, 0.12, 0.18, 1 })
+        box(pass, cx, cursor_y, key_w, 1, { 0.23, 0.31, 0.46, 1 })
+        box(pass, cx, cursor_y + 17, key_w, 1, { 0.06, 0.08, 0.12, 1 })
+        text(pass, self.app.font, key, cx + 7, cursor_y + 3,
+          { 0.86, 0.93, 1, 1 }, 0.58)
+        text(pass, self.app.font, description, cx + key_w + 10,
+          cursor_y + 2, { 0.66, 0.73, 0.86, 1 }, 0.64)
+        cursor_y = cursor_y + 22
+      end
+      cursor_y = cursor_y + 8
+    end
+  end
 end
 
 function UI:draw_hover(pass, width, height)
