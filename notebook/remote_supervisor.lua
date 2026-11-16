@@ -128,12 +128,17 @@ end
 
 function RemoteSupervisor:poll()
   while true do
-    local ok, text = pcall(self.transport.receive)
+    local ok, text, transport_error = pcall(self.transport.receive)
     if not ok then
       if self.on_error then self.on_error(nil, text) end
       break
     end
-    if text == nil then break end
+    if text == nil then
+      if transport_error ~= nil and self.on_error then
+        self.on_error(nil, transport_error)
+      end
+      break
+    end
     local decoded, message = pcall(json.decode, text)
     if not decoded then
       if self.on_error then
