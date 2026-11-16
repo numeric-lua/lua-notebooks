@@ -491,7 +491,24 @@ function lovr.load()
   end
   lovr.filesystem.watch()
   _G.app = app
-  if os.getenv("LUANB_SMOKE_PRUN") then
+  if os.getenv("LUANB_SMOKE_SCOPE") then
+    local notebook = app:notebook()
+    app.ui.vim_scope = "notebook"
+    app.ui.vim_normal = true
+    app.ui:keypressed("j")
+    local cell_after_j = notebook.active
+    app.ui:keypressed("i")
+    local after_i = app.ui.vim_scope
+    app.ui:keypressed("i")
+    local after_ii = app.ui.vim_scope .. ":" .. tostring(app.ui.vim_normal)
+    app.ui:keypressed("escape")
+    local after_escape = app.ui.vim_scope
+    app.ui:keypressed("escape")
+    local after_escape2 = app.ui.vim_scope
+    print("SMOKE_SCOPE=" .. cell_after_j .. ":" .. after_i .. ":" ..
+      after_ii .. ":" .. after_escape .. ":" .. after_escape2)
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_PRUN") then
     app:notebook():select(2)
     app.ui.vim_normal = true
     app.ui.focused_output_cell = 2

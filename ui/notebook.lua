@@ -174,6 +174,7 @@ function UI.new(app)
     history_items = {},
     history_selected = 1,
     vim_normal = app.vim_mode,
+    vim_scope = app.vim_mode and "notebook" or "insert",
   }, UI)
 end
 
@@ -644,6 +645,7 @@ function UI:run_palette_command(id)
   elseif id == "vim" then
     self.app.vim_mode = not self.app.vim_mode
     self.vim_normal = self.app.vim_mode
+    self.vim_scope = self.app.vim_mode and "notebook" or "insert"
   elseif id == "undo" then self.app:notebook():undo()
   elseif id == "redo" then self.app:notebook():redo()
   elseif id == "extensions" then self.show_extensions = true
@@ -688,7 +690,7 @@ function UI:draw_help(pass, width, height)
   if not self.show_help then return end
   local lines = {
     "# Modes and cells",
-    "F3 Vim on/off · Escape normal · i/a insert",
+    "F3 Vim · notebook j/k · i cell · i again insert · Escape out",
     "Alt+J/K select cells (hold repeats) · j/k text lines",
     "h/l characters · w/b words · gg/G cells",
     "+Cell / Alt+B below · Alt+A above · Alt+M markdown",
@@ -1291,7 +1293,10 @@ function UI:keypressed(key)
     if self.nav_repeat == nil or self.nav_repeat.key ~= key then
       notebook:move(key == "j" and 1 or -1)
       self.scroll_to_selected = true
-      if self.app.vim_mode then self.vim_normal = true end
+      if self.app.vim_mode then
+        self.vim_normal = true
+        self.vim_scope = "notebook"
+      end
       self.vim_char_visual = false
       self.nav_repeat = { key = key, kind = "cell",
         next = lovr.timer.getTime() + 0.35 }
@@ -1587,6 +1592,20 @@ function UI:keypressed(key)
         self.vim_text_object = { op = pending, inner = false }; return
       end
     end
+    if self.vim_scope == "notebook" and (key == "j" or key == "k") then
+      if self.nav_repeat and self.nav_repeat.key == key and
+         self.nav_repeat.kind == "cell" then return end
+      notebook:move(key == "j" and 1 or -1)
+      self.scroll_to_selected = true
+      self.nav_repeat = { key = key, kind = "cell",
+        next = lovr.timer.getTime() + 0.35 }
+      return
+    elseif self.vim_scope == "notebook" and
+           (key == "i" or key == "return") then
+      self.vim_scope = "cell"
+      self.vim_normal = true
+      return
+    end
     if key == "q" then
       if self.vim_recording then
         self.vim_macros.a = self.vim_recording
@@ -1691,6 +1710,7 @@ function UI:keypressed(key)
       self.vim_anchor = nil
       self.vim_char_visual = false
       self.vim_char_anchor = nil
+      if self.vim_scope == "cell" then self.vim_scope = "notebook" end
       return
     elseif key == "V" then
       self.vim_visual = not self.vim_visual
@@ -1791,7 +1811,13 @@ function UI:keypressed(key)
     elseif key == ">" or key == "<" then
       self.vim_pending = key; return
     elseif key == "i" or key == "a" then
-      self.vim_normal = false
+      if self.vim_scope == "notebook" then
+        self.vim_scope = "cell"
+        self.vim_normal = true
+      else
+        self.vim_scope = "cell"
+        self.vim_normal = false
+      end
       return
     elseif key == "j" then
       if self.nav_repeat and self.nav_repeat.key == "j" then return end
@@ -1806,9 +1832,11 @@ function UI:keypressed(key)
         next = lovr.timer.getTime() + 0.35 }
       return
     elseif key == "o" then
-      notebook:add_cell("code"); self.vim_normal = false; return
+      notebook:add_cell("code"); self.vim_normal = false
+      self.vim_scope = "cell"; return
     elseif key == "O" then
-      notebook:add_cell_above("code"); self.vim_normal = false; return
+      notebook:add_cell_above("code"); self.vim_normal = false
+      self.vim_scope = "cell"; return
     elseif key == "u" then
       self.app.status = notebook:undo() and "undo" or "nothing to undo"
       return
@@ -1822,6 +1850,7 @@ function UI:keypressed(key)
     end
   elseif self.app.vim_mode and key == "escape" then
     self.vim_normal = true
+    self.vim_scope = "cell"
     return
   end
   if key == "escape" then
@@ -1910,6 +1939,7 @@ function UI:keypressed(key)
   elseif key == "f3" then
     self.app.vim_mode = not self.app.vim_mode
     self.vim_normal = self.app.vim_mode
+    self.vim_scope = self.app.vim_mode and "notebook" or "insert"
     self.app.status = self.app.vim_mode and "Vim on" or "Vim off"
   elseif key == "f4" then
     self.zen_mode = not self.zen_mode
@@ -2142,7 +2172,10 @@ function UI:mousepressed(x, y, button)
   for index, rect in pairs(self.rects) do
     if inside(x, y, rect) then
       self.app:notebook():select(index)
-      if self.app.vim_mode then self.vim_normal = true end
+      if self.app.vim_mode then
+        self.vim_normal = true
+        self.vim_scope = "cell"
+      end
       self.focused_output_cell = nil
       self.focused_surface = nil
       self.focused_widget = nil
