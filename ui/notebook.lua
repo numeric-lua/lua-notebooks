@@ -513,7 +513,8 @@ function UI:draw(pass, logical_width, logical_height)
       local widget_y = source_y + source_height + 2 + diagnostic_height
       if #(cell.widgets or {}) > 0 then
         local height, controls = Widgets.draw(pass, app.font, cell.widgets,
-          34, widget_y, width - 68, lovr.timer.getTime(),
+          34, widget_y, width - 68,
+          self.app.qa_screenshot and 1 or lovr.timer.getTime(),
           self.app.ui_scale)
         for _, control in ipairs(controls) do
           control.cell = index
