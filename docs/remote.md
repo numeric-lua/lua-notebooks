@@ -22,6 +22,14 @@ Until that bridge exists, the gateway is usable by a desktop/native client or
 any external WebSocket front-end. The inline web kernel remains the offline
 fallback.
 
+On desktop, the LÖVR host itself can now use the gateway:
+
+```sh
+LUANB_KERNEL_MODE=remote LUANB_REMOTE_URL=ws://127.0.0.1:8765 lovr .
+```
+
+A failed connection falls back to the normal desktop thread/inline path.
+
 ## Architecture
 
 ```text

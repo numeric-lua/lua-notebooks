@@ -18,6 +18,9 @@ struct sockaddr_in {
 int socket(int domain, int type, int protocol);
 int setsockopt(int fd, int level, int option, const void *value, socklen_t len);
 int bind(int fd, const struct sockaddr_in *address, socklen_t len);
+int connect(int fd, const struct sockaddr_in *address, socklen_t len);
+struct pollfd { int fd; short events; short revents; };
+int poll(struct pollfd *fds, unsigned long nfds, int timeout);
 int listen(int fd, int backlog);
 int accept(int fd, struct sockaddr *address, socklen_t *len);
 long recv(int fd, void *buffer, size_t length, int flags);
@@ -273,6 +276,134 @@ function WebSocket.listen(host, port)
       ffi.C.close(self.fd)
     end,
   }
+end
+
+local function random_bytes(count)
+  math.randomseed(os.time() + math.floor(os.clock() * 1000000))
+  local bytes = {}
+  for index = 1, count do bytes[index] = math.random(0, 255) end
+  return string.char(unpack(bytes))
+end
+
+local function parse_frame(fd, expect_mask)
+  local first = receive_exact(fd, 2)
+  if first == nil then return nil, "closed" end
+  local b1, b2 = first:byte(1), first:byte(2)
+  local opcode = bit.band(b1, 0x0f)
+  local masked = bit.band(b2, 0x80) ~= 0
+  local length = bit.band(b2, 0x7f)
+  if expect_mask and not masked then return nil, "unmasked server frame" end
+  if length == 126 then
+    local extended = receive_exact(fd, 2)
+    if extended == nil then return nil, "closed" end
+    length = extended:byte(1) * 256 + extended:byte(2)
+  elseif length == 127 then
+    local extended = receive_exact(fd, 8)
+    if extended == nil then return nil, "closed" end
+    length = 0
+    for index = 1, 8 do length = length * 256 + extended:byte(index) end
+  end
+  local mask = nil
+  if masked then
+    mask = receive_exact(fd, 4)
+    if mask == nil then return nil, "closed" end
+  end
+  local payload = receive_exact(fd, length)
+  if payload == nil then return nil, "closed" end
+  if mask then
+    local bytes = {}
+    for index = 1, #payload do
+      bytes[index] = bit.bxor(payload:byte(index),
+        mask:byte((index - 1) % 4 + 1))
+    end
+    payload = string.char(unpack(bytes))
+  end
+  return { opcode = opcode, payload = payload }
+end
+
+local function masked_frame(payload, opcode)
+  local length = #payload
+  local header
+  local mask = random_bytes(4)
+  local mask_flag = 0x80
+  if length < 126 then
+    header = string.char(0x80 + opcode, mask_flag + length)
+  elseif length < 65536 then
+    header = string.char(0x80 + opcode, mask_flag + 126,
+      math.floor(length / 256), length % 256)
+  else
+    header = string.char(0x80 + opcode, mask_flag + 127, 0, 0, 0, 0,
+      math.floor(length / 16777216) % 256,
+      math.floor(length / 65536) % 256,
+      math.floor(length / 256) % 256, length % 256)
+  end
+  local bytes = {}
+  for index = 1, #payload do
+    bytes[index] = bit.bxor(payload:byte(index),
+      mask:byte((index - 1) % 4 + 1))
+  end
+  return header .. mask .. string.char(unpack(bytes))
+end
+
+function WebSocket.connect(host, port)
+  local fd = ffi.C.socket(AF_INET, SOCK_STREAM, 0)
+  if fd == INVALID then return nil, "socket() failed" end
+  local address = ffi.new("struct sockaddr_in")
+  address.sin_family = AF_INET
+  address.sin_port = htons(port)
+  if host == nil or host == "127.0.0.1" or host == "localhost" then
+    address.sin_addr = 0x0100007f
+  else
+    ffi.C.close(fd)
+    return nil, "unsupported client host (use 127.0.0.1)"
+  end
+  if ffi.C.connect(fd, address, ffi.sizeof(address)) ~= 0 then
+    ffi.C.close(fd)
+    return nil, "connect failed"
+  end
+  local key = base64(random_bytes(16))
+  local request = "GET / HTTP/1.1\r\nHost: " .. host .. ":" ..
+    tostring(port) .. "\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n" ..
+    "Sec-WebSocket-Key: " .. key .. "\r\nSec-WebSocket-Version: 13\r\n\r\n"
+  local ok, err = send_all(fd, request)
+  if not ok then ffi.C.close(fd); return nil, err end
+  local response = read_http(fd)
+  if response == nil or not response:match("^HTTP/1%.1 101") then
+    ffi.C.close(fd)
+    return nil, "websocket handshake failed"
+  end
+  local expected = base64(sha1(key ..
+    "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"))
+  local accept = response:match(
+    "[Ss]ec%-[Ww]eb[Ss]ocket%-[Aa]ccept:%s*([^\r\n]+)")
+  if accept == nil or accept:gsub("%s+$", "") ~= expected then
+    ffi.C.close(fd)
+    return nil, "invalid websocket accept"
+  end
+  local client = { fd = fd }
+  function client:send(payload, opcode)
+    return send_all(self.fd, masked_frame(payload, opcode or 1))
+  end
+  function client:receive()
+    local descriptor = ffi.new("struct pollfd[1]")
+    descriptor[0].fd = self.fd
+    descriptor[0].events = 1
+    local ready = ffi.C.poll(descriptor, 1, 0)
+    if ready <= 0 then return nil end
+    local frame, receive_error = parse_frame(self.fd, false)
+    if frame == nil then return nil, receive_error end
+    if frame.opcode == 9 then
+      self:send(frame.payload, 10)
+      return self:receive()
+    end
+    if frame.opcode == 8 then return nil, "closed" end
+    return frame
+  end
+  function client:close()
+    pcall(self.send, self, "", 8)
+    ffi.C.close(self.fd)
+  end
+  return client
 end
 
 return WebSocket

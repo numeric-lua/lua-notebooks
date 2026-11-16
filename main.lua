@@ -11,6 +11,7 @@ local Notebook = require("notebook.model")
 local Supervisor = require("notebook.supervisor")
 local InlineSupervisor = require("notebook.inline_supervisor")
 local ProcessSupervisor = require("notebook.process_supervisor")
+local RemoteSupervisor = require("notebook.remote_supervisor")
 local Runtime = require("notebook.runtime")
 local Format = require("notebook.format")
 local Extensions = require("extensions")
@@ -67,28 +68,56 @@ function App:new(notebooks)
     print("process kernels are unavailable on this platform; using inline")
     process_requested = false
   end
-  local inline_requested = kernel_mode == "inline" or
-    not Runtime.has_threads()
-  local SupervisorClass
-  if process_requested then
-    SupervisorClass = ProcessSupervisor
-  elseif inline_requested then
-    SupervisorClass = InlineSupervisor
-  else
-    SupervisorClass = Supervisor
+  local remote_requested = kernel_mode == "remote"
+  local remote_transport = nil
+  if remote_requested then
+    local url = os.getenv("LUANB_REMOTE_URL")
+    if Runtime.has_ffi() and url then
+      local ok, transport = pcall(function()
+        return require("notebook.websocket_transport").new(url)
+      end)
+      if ok then
+        remote_transport = transport
+      else
+        print("remote kernel connection failed: " .. tostring(transport))
+      end
+    else
+      print("remote kernels require LUANB_REMOTE_URL and LuaJIT ffi")
+    end
   end
-  self.supervisor = SupervisorClass.new({
-    root = lovr.filesystem.getSource(),
-    memory_kb = tonumber(os.getenv("LUANB_KERNEL_MEMORY_KB") or "") or 524288,
-    cpu_seconds = tonumber(os.getenv("LUANB_KERNEL_CPU_SECONDS") or "") or 12,
-    on_result = function(kernel_id, request, message)
-      self:on_result(kernel_id, request, message)
-    end,
-    on_error = function(kernel_id, message)
-      self.status = "kernel " .. tostring(kernel_id) .. " error: " .. tostring(message)
-      print("KERNEL_ERROR=" .. tostring(message))
-    end,
-  })
+  local inline_requested = kernel_mode == "inline" or
+    (not remote_transport and not Runtime.has_threads())
+  local on_result = function(kernel_id, request, message)
+    self:on_result(kernel_id, request, message)
+  end
+  local on_error = function(kernel_id, message)
+    self.status = "kernel " .. tostring(kernel_id) .. " error: " ..
+      tostring(message)
+    print("KERNEL_ERROR=" .. tostring(message))
+  end
+  if remote_transport then
+    self.supervisor = RemoteSupervisor.new({
+      transport = remote_transport,
+      on_result = on_result,
+      on_error = on_error,
+    })
+  else
+    local SupervisorClass
+    if process_requested then
+      SupervisorClass = ProcessSupervisor
+    elseif inline_requested then
+      SupervisorClass = InlineSupervisor
+    else
+      SupervisorClass = Supervisor
+    end
+    self.supervisor = SupervisorClass.new({
+      root = lovr.filesystem.getSource(),
+      memory_kb = tonumber(os.getenv("LUANB_KERNEL_MEMORY_KB") or "") or 524288,
+      cpu_seconds = tonumber(os.getenv("LUANB_KERNEL_CPU_SECONDS") or "") or 12,
+      on_result = on_result,
+      on_error = on_error,
+    })
+  end
   return self
 end
 
