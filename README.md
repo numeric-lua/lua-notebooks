@@ -81,7 +81,7 @@ A browser-only front-end that does not use LÖVR or WebGPU lives in
 [`webapp/`](webapp/):
 
 ```sh
-python3 -m http.server 8010 --directory webapp
+luajit webapp/serve.lua --port 8010
 ```
 
 It connects to the same gateway over a native WebSocket and renders the

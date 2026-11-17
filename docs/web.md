@@ -15,10 +15,11 @@ lua-notebooks targets that runtime in two ways:
 
 The supported browser path is [`webapp/`](../webapp/): static HTML/ES modules
 that use the native WebSocket and Canvas APIs. It needs no Emscripten or
-COOP/COEP headers. Start the gateway and serve the directory:
+COOP/COEP headers. Start the gateway and serve the directory with the
+dependency-free Lua server:
 
 ```sh
-python3 -m http.server 8010 --directory webapp
+luajit webapp/serve.lua --port 8010
 ```
 
 Then open <http://127.0.0.1:8010/>. See [webapp/README.md](../webapp/README.md).

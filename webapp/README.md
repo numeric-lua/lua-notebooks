@@ -13,10 +13,10 @@ LUA_PATH="$PWD/?.lua;$PWD/?/init.lua;;" \
   luajit scripts/kernel-gateway.lua --port 8765
 ```
 
-Serve this directory:
+Serve this directory with the dependency-free Lua server:
 
 ```sh
-python3 -m http.server 8010 --directory webapp
+luajit webapp/serve.lua --port 8010
 ```
 
 Open:
