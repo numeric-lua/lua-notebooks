@@ -1,8 +1,8 @@
 # Lua Notebooks · Web
 
 A dependency-free browser front-end for the remote LuaJIT kernel. It uses
-only the native browser WebSocket and Canvas APIs — no Emscripten, LÖVR,
-threads, COOP/COEP, or build step.
+only the native browser WebSocket, Canvas, and WebGL APIs — no Emscripten,
+LÖVR, threads, COOP/COEP, or build step.
 
 ## Run
 
@@ -40,14 +40,16 @@ or with the settings button in the top bar.
 - stdout, returned values, errors;
 - kernel widgets: sliders, buttons, checkboxes, selects, text, numbers,
   progress, labels;
+- `star_nest` shader widgets in an animated local WebGL canvas;
 - `luaplotlib` line, scatter, and bar scenes;
 - `cube` and `grid` scene strings as local canvas drawings;
 - run all, kernel restart, auto-reconnect.
 
 ## Deliberate limits
 
-- shader widgets show a placeholder; the shader editor/renderer stays in the
-  LÖVR desktop host;
+- only the built-in `star_nest` shader preset renders in the browser. Inline
+  LÖVR shader source and other preset names show a fallback message instead of
+  throwing; the full shader editor/renderer stays in the LÖVR desktop host;
 - arbitrary LÖVR scene tables are not rendered, only `luaplotlib` and the
   built-in `cube`/`grid` strings;
 - markdown math is displayed as styled source rather than typeset TeX;
@@ -58,7 +60,7 @@ or with the settings button in the top bar.
 ## Architecture
 
 ```text
-webapp/  (HTML + ES modules + Canvas)
+webapp/  (HTML + ES modules + Canvas/WebGL)
     │  native WebSocket JSON
     ▼
 scripts/kernel-gateway.lua
@@ -76,5 +78,6 @@ Validated in Chromium against a local gateway:
 - notebook loaded and opened the kernel;
 - `print(...); return 6*7` produced the captured output and `42`;
 - widgets created and a button click returned `pong`;
+- a `star_nest` shader widget rendered and animated in WebGL;
 - two scene canvases rendered (chart and cube);
 - no page exceptions.

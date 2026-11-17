@@ -5,6 +5,7 @@ import {
 } from "./notebook.js";
 import { renderMarkdown } from "./markdown.js";
 import { redrawScenes, renderScene } from "./scene.js";
+import { renderShaderWidget, stopShaderWidgets } from "./shader.js";
 
 const dom = {
   sidebar: document.getElementById("sidebar"),
@@ -115,6 +116,7 @@ function renderAll() {
   dom.title.value = active.name;
   dom.heading.textContent = active.name.replace(/\.luanb$/, "");
   dom.cellCount.textContent = String(active.cells.length);
+  stopShaderWidgets(dom.cells);
   dom.cells.replaceChildren();
   active.cells.forEach((cell, index) => renderCell(cell, index));
   renderSidebar();
@@ -320,6 +322,7 @@ function refreshOutput(cell) {
   const section = cellElement(cell.id);
   if (!section) return;
   const output = section.querySelector(".output");
+  stopShaderWidgets(output);
   output.replaceChildren();
   if (cell.output) {
     const stdout = document.createElement("pre");
@@ -462,7 +465,7 @@ function widgetFor(cell, spec) {
   } else if (spec.kind === "shader") {
     const shader = document.createElement("div");
     shader.className = "widget-shader";
-    shader.textContent = `${spec.label || "shader"} · shader widgets render in the LÖVR desktop host`;
+    renderShaderWidget(shader, spec);
     wrap.appendChild(shader);
   } else {
     const unknown = document.createElement("div");

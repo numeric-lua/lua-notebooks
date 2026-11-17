@@ -77,7 +77,8 @@ routes changes to `App:widget_event`.
 - `widgets.shader({ shader = "star_nest", height = 180 })` renders a live
   host-side shader into the cell. Named presets include the MIT-licensed
   Star Nest shader from the shooter project. Shader widgets have no kernel
-  callback.
+  callback. The browser front-end renders only the `star_nest` preset; other
+  shader sources show a fallback message and remain desktop-only.
 - Slider dragging updates the host immediately and sends the final value on
   mouse release.
 
