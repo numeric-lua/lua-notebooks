@@ -72,7 +72,7 @@ WebSocket client (`notebook/websocket_transport.lua`).
 ## Validation
 
 The bridge was linked into LÖVR v0.19.1 with Emscripten 5.0.2 and exercised from
-headless Firefox using a no-graphics smoke project:
+headless Firefox and Chromium using a no-graphics smoke project:
 
 - `require("lovr_websocket")` loaded;
 - the WebSocket connected to `scripts/kernel-gateway.lua`;
@@ -82,5 +82,8 @@ headless Firefox using a no-graphics smoke project:
   `value = "99"`.
 
 The full notebook UI still needs a browser with working WebGPU; the smoke
-project disables graphics to isolate the bridge. This repository does not yet
-run a browser CI job for the bridge.
+project disables graphics to isolate the bridge. In this environment even a
+minimal LÖVR graphics project hits a WASM `memory access out of bounds` error,
+so the remaining graphics failure is in the LÖVR/WebGPU path rather than the
+notebook transport. This repository does not yet run a browser CI job for the
+bridge.

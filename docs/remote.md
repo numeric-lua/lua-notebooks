@@ -17,9 +17,13 @@ Implemented:
 - an end-to-end gateway smoke test (`make test-remote`).
 
 The bridge was linked into LÖVR v0.19.1 with Emscripten 5.0.2 and validated from
-headless Firefox with a no-graphics smoke project: the browser connected, ran a
-`40 + 2` cell, received the result, and sent a second `99` cell. Full notebook
-rendering still requires a WebGPU-capable browser.
+headless Firefox and Chromium with a no-graphics smoke project: the browser
+connected, ran a `40 + 2` cell, received the result, and sent a second `99`
+cell.
+
+Full notebook rendering still requires a working LÖVR/WebGPU path. In this
+environment even a minimal graphics project aborts with a WASM memory-access
+error, so that remaining failure is upstream of the remote transport.
 
 On desktop, the LÖVR host itself can use the gateway:
 
