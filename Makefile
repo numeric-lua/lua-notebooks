@@ -1,7 +1,7 @@
 SHELL := /bin/sh
 LUA ?= luajit
 
-.PHONY: test test-remote test-lua51 run package install install-desktop rock clean
+.PHONY: test test-remote test-webapp test-lua51 run package install install-desktop rock clean
 
 test:
 	$(LUA) tests/run.lua
@@ -26,6 +26,9 @@ test:
 
 test-remote:
 	sh tests/remote_gateway.sh
+
+test-webapp:
+	sh webapp/test.sh
 
 test-lua51:
 	$(LUA) tests/run.lua

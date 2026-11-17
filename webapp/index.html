@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lua Notebooks · Web</title>
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <button class="icon-button" id="sidebar-toggle" title="Toggle notebooks" aria-label="Toggle notebooks">☰</button>
+    <div class="brand">
+      <span class="brand-mark">λ</span>
+      <span class="brand-name">Lua Notebooks</span>
+      <span class="brand-tag">web</span>
+    </div>
+    <input class="title-input" id="notebook-title" aria-label="Notebook title" spellcheck="false">
+    <div class="topbar-spacer"></div>
+    <div class="connection" id="connection">
+      <span class="status-dot" id="status-dot"></span>
+      <span class="status-label" id="status-label">offline</span>
+    </div>
+    <button class="icon-button" id="settings-button" title="Kernel settings" aria-label="Kernel settings">⚙</button>
+    <button class="button button-primary" id="run-all" title="Run all code cells">Run all</button>
+  </header>
+
+  <div class="workspace">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-head">
+        <h2>Notebooks</h2>
+        <button class="icon-button" id="new-notebook" title="New notebook" aria-label="New notebook">＋</button>
+      </div>
+      <div class="notebook-list" id="notebook-list"></div>
+      <div class="sidebar-actions">
+        <button class="button" id="import-notebook">Import .luanb</button>
+        <button class="button" id="export-notebook">Export .luanb</button>
+        <input type="file" id="file-input" accept=".luanb,application/json" hidden>
+      </div>
+      <div class="sidebar-foot">
+        <div class="foot-row"><span>Kernel</span><strong id="kernel-runtime">—</strong></div>
+        <div class="foot-row"><span>Cells</span><strong id="cell-count">0</strong></div>
+      </div>
+    </aside>
+
+    <main class="main" id="main">
+      <div class="notebook-header">
+        <div>
+          <div class="eyebrow">Remote LuaJIT kernel</div>
+          <h1 id="notebook-heading">Untitled</h1>
+        </div>
+        <div class="notebook-actions">
+          <button class="button" id="restart-kernel">Restart kernel</button>
+          <button class="button button-danger-ghost" id="delete-notebook">Delete</button>
+        </div>
+      </div>
+      <div class="cells" id="cells"></div>
+      <div class="cell-add">
+        <button class="button button-primary-ghost" data-add="code">＋ Code cell</button>
+        <button class="button" data-add="markdown">＋ Markdown cell</button>
+      </div>
+      <footer class="page-foot">
+        <span>Shift+Enter run cell</span>
+        <span>Ctrl/Cmd+S save</span>
+        <span id="save-status">saved locally</span>
+      </footer>
+    </main>
+  </div>
+
+  <dialog class="dialog" id="settings-dialog">
+    <form method="dialog" class="dialog-form" id="settings-form">
+      <h2>Kernel connection</h2>
+      <p class="muted">The gateway runs the LuaJIT kernel on the machine that has your libraries.</p>
+      <label class="field">
+        <span>WebSocket URL</span>
+        <input id="ws-url" name="ws" spellcheck="false" placeholder="ws://127.0.0.1:8765">
+      </label>
+      <div class="dialog-actions">
+        <button class="button" type="button" id="cancel-settings">Cancel</button>
+        <button class="button button-primary" type="submit" id="connect-button">Connect</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

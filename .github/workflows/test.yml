@@ -19,6 +19,17 @@ jobs:
       - name: Remote gateway smoke
         run: make test-remote
 
+  webapp-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check and test browser front-end
+        run: make test-webapp
+
   lua51-pure-tests:
     runs-on: ubuntu-24.04
     steps:

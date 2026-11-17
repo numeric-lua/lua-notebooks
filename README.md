@@ -75,7 +75,21 @@ The pure-Lua test suite is expected to pass on Lua 5.1:
 make test-lua51 LUA=lua5.1
 ```
 
-See [docs/web.md](docs/web.md) for build steps and constraints.
+### Browser front-end
+
+A browser-only front-end that does not use LÖVR or WebGPU lives in
+[`webapp/`](webapp/):
+
+```sh
+python3 -m http.server 8010 --directory webapp
+```
+
+It connects to the same gateway over a native WebSocket and renders the
+notebook shell, widgets, and `luaplotlib`/scene outputs locally. See
+[webapp/README.md](webapp/README.md). This path is independent of the broken
+LÖVR 0.19 web runtime.
+
+See [docs/web.md](docs/web.md) for the LÖVR build steps and constraints.
 
 A remote-kernel path is also available: a local WebSocket gateway, a
 transport-agnostic `RemoteSupervisor`, a desktop remote mode, and an

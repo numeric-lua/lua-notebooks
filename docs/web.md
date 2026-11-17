@@ -11,6 +11,20 @@ lua-notebooks targets that runtime in two ways:
 2. `notebook/runtime.lua` detects `lovr.system.getOS() == "Web"` and selects
    `notebook/inline_supervisor.lua`, which runs cells on the host thread.
 
+## Browser front-end without LÖVR
+
+The supported browser path is [`webapp/`](../webapp/): static HTML/ES modules
+that use the native WebSocket and Canvas APIs. It needs no Emscripten or
+COOP/COEP headers. Start the gateway and serve the directory:
+
+```sh
+python3 -m http.server 8010 --directory webapp
+```
+
+Then open <http://127.0.0.1:8010/>. See [webapp/README.md](../webapp/README.md).
+The LÖVR web instructions below are retained for the eventual upstream
+graphics fix and for the validated transport bridge.
+
 ## Build LÖVR for the web
 
 Follow the [LÖVR web build guide](https://lovr.org/docs/v0.19.0/Compiling).
