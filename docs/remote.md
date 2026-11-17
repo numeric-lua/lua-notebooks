@@ -59,6 +59,9 @@ LUA_PATH="$PWD/?.lua;$PWD/?/init.lua;;" \
   luajit scripts/kernel-gateway.lua --host 127.0.0.1 --port 8765
 ```
 
+Set `LUANB_GATEWAY_DEBUG=1` to print incoming requests and results. The
+`--host` and `--port` flags default to `127.0.0.1:8765`.
+
 It prints:
 
 ```text
@@ -114,16 +117,27 @@ local remote = RemoteSupervisor.new({
 })
 ```
 
-## Browser bridge requirement
+## Browser bridge
 
 LÖVR’s web build uses Lua 5.1 and does not include `http` or a browser
-WebSocket binding. A production browser front-end needs one of:
+WebSocket binding. The implemented bridge is a small Emscripten C module in
+`web/lovr_websocket.c`, installed with:
 
-1. a small Emscripten C/Lua module exposing WebSocket frames to Lua;
-2. a JavaScript bridge that exchanges JSON through the Emscripten filesystem;
-3. a streaming/VNC-style front-end instead of a LÖVR web client.
+```sh
+./web/install-bridge.sh /path/to/lovr
+```
 
-The gateway and supervisor are deliberately independent of that choice.
+It registers `lovr_websocket` in `package.preload`, and
+`notebook/browser_transport.lua` adapts it to `RemoteSupervisor`. Put the
+gateway URL in `remote.txt` at the project root:
+
+```text
+ws://127.0.0.1:8765
+```
+
+Use `wss://` for a remote deployment. The browser bridge was validated in
+headless Firefox and Chromium; full notebook rendering remains blocked on the
+upstream LÖVR/WebGPU issue described above.
 
 ## Security
 

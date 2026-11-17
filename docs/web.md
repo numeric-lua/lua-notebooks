@@ -36,7 +36,8 @@ are present.
 | --- | --- | --- |
 | Lua runtime | LuaJIT (5.1) | PUC Lua 5.1 |
 | kernels | one thread per notebook | inline, one job per frame |
-| `ffi` / process kernels | available | unavailable |
+| remote kernel | WebSocket/native client | browser bridge in `web/` |
+| `ffi` / process kernels | available | unavailable locally; available on remote kernel |
 | external LSP worker | available | disabled |
 | bubblewrap extension sandbox | available | unavailable |
 | notebook/scene/widgets | available | available |
@@ -66,8 +67,11 @@ Use `wss://` and authentication for anything beyond localhost. See
 [web/README.md](../web/README.md) and [remote.md](remote.md) for the build and
 server details.
 
-The C bridge requires an `emsdk` build for final validation; desktop remote
-mode and the gateway are covered by `make test-remote`.
+The bridge was built into LÖVR v0.19.1 with Emscripten 5.0.2 and exercised from
+headless Firefox and Chromium against the gateway, including a returned cell
+result and a second cell. Emscripten 4.0.23 gets past the original graphics
+crash but Chromium rejects LÖVR's text pipeline; both are upstream LÖVR/WebGPU
+issues, not notebook-transport issues.
 
 ## Verification
 

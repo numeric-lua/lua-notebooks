@@ -78,6 +78,12 @@ transport-agnostic `RemoteSupervisor`, a desktop remote mode, and an
 Emscripten browser bridge in `web/`. It exposes the full LuaJIT/FFI stack to a
 front-end. See [docs/remote.md](docs/remote.md) and [web/README.md](web/README.md).
 
+The remote WebSocket bridge has been validated end to end in headless Firefox
+and Chromium. Full notebook rendering is currently blocked on an upstream
+LÖVR/WebGPU issue, documented in [web/README.md](web/README.md): Emscripten
+5.0.2 crashes on a minimal graphics project, while Emscripten 4.0.23 fails
+LÖVR's text render pipeline in Chromium.
+
 ## Run
 
 ```sh
@@ -394,7 +400,8 @@ LÖVR host
   ├── notebook UI / 2D editor / 3D viewport
   ├── supervisor
   │     ├── desktop: thread + channels → notebook kernel (Lua state)
-  │     └── web: inline queue          → notebook kernel (5.1 env)
+  │     ├── web: inline queue          → notebook kernel (5.1 env)
+  │     └── remote: WebSocket          → LuaJIT kernel gateway
   └── scene renderer (host-only graphics)
 
 kernel

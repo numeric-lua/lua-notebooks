@@ -122,7 +122,25 @@ after 8 seconds, and restarts the child. See `docs/process-kernels.md`.
 
 The message schema is shared between both backends.
 
-## 7. Startup and resource goals
+## 7. Remote kernels
+
+A fourth backend runs the kernel behind a WebSocket gateway:
+
+```text
+LÖVR host / browser front-end
+  └── RemoteSupervisor
+          │ JSON
+          ▼
+scripts/kernel-gateway.lua
+  └── kernel/engine.lua in a LuaJIT process
+```
+
+The gateway binds to loopback by default and has no authentication or sandbox;
+it is a development/prototype transport. The remote kernel is where the full
+FFI stack (luatorch, tensorflow-lua, numlua, lua-polars) lives. The browser
+bridge in `web/lovr_websocket.c` supplies the WebSocket transport on web.
+
+## 8. Startup and resource goals
 
 - Host startup target: under one second to first notebook frame.
 - Kernel target: a few MB and no GPU context per kernel.
