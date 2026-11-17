@@ -84,9 +84,15 @@ headless Firefox and Chromium using a no-graphics smoke project:
 - the browser received that result and sent a second cell, which returned
   `value = "99"`.
 
-The full notebook UI still needs a browser with working WebGPU; the smoke
-project disables graphics to isolate the bridge. In this environment even a
-minimal LÖVR graphics project hits a WASM `memory access out of bounds` error,
-so the remaining graphics failure is in the LÖVR/WebGPU path rather than the
-notebook transport. This repository does not yet run a browser CI job for the
-bridge.
+The full notebook UI still needs a working browser WebGPU path. Results in this
+environment:
+
+- Emscripten 5.0.2: even a minimal graphics project hits a WASM
+  `memory access out of bounds` error;
+- Emscripten 4.0.23: a minimal clear-only project no longer hits that error,
+  but drawing text fails in Chromium's WebGPU implementation because LÖVR
+  supplies an undefined shader module to `createRenderPipeline`.
+
+The no-graphics WebSocket smoke works on both toolchains, so the remaining
+failure is upstream of the notebook transport. This repository does not yet run
+a browser CI job for the bridge.

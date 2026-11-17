@@ -21,9 +21,11 @@ headless Firefox and Chromium with a no-graphics smoke project: the browser
 connected, ran a `40 + 2` cell, received the result, and sent a second `99`
 cell.
 
-Full notebook rendering still requires a working LÖVR/WebGPU path. In this
-environment even a minimal graphics project aborts with a WASM memory-access
-error, so that remaining failure is upstream of the remote transport.
+Full notebook rendering still requires a working LÖVR/WebGPU path. Emscripten
+5.0.2 aborts a minimal graphics project with a WASM memory-access error;
+Emscripten 4.0.23 gets past that but Chromium's WebGPU implementation rejects
+LÖVR's text pipeline because a shader module is undefined. Both failures
+reproduce without the remote transport and are upstream of it.
 
 On desktop, the LÖVR host itself can use the gateway:
 
