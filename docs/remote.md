@@ -16,8 +16,10 @@ Implemented:
   `web/install-bridge.sh`;
 - an end-to-end gateway smoke test (`make test-remote`).
 
-The browser bridge still needs an `emsdk` build to validate end to end. The
-gateway and supervisor are independent of that build.
+The bridge was linked into LÖVR v0.19.1 with Emscripten 5.0.2 and validated from
+headless Firefox with a no-graphics smoke project: it connected to the gateway,
+and the gateway executed a `40 + 2` cell. Full notebook rendering still requires
+a WebGPU-capable browser.
 
 On desktop, the LÖVR host itself can use the gateway:
 

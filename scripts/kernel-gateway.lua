@@ -13,6 +13,7 @@ local json = require("notebook.json")
 local Engine = require("kernel.engine")
 local WebSocket = require("scripts.websocket")
 
+local debug = os.getenv("LUANB_GATEWAY_DEBUG") == "1"
 local host, port = "127.0.0.1", 8765
 for index = 1, #arg do
   if arg[index] == "--host" then host = arg[index + 1]
@@ -45,6 +46,8 @@ while true do
   if client == nil then
     io.stderr:write("gateway accept: " .. tostring(accept_error) .. "\n")
   else
+    print("GATEWAY_CLIENT")
+    io.stdout:flush()
     local engines = {}
     send(client, { type = "hello", capabilities = {
       runtime = "luajit", ffi = true, threads = true, remote = true,
@@ -61,6 +64,7 @@ while true do
         server.send(server, client, frame.payload, 10)
       elseif frame.opcode == 1 then
         local decoded, message = pcall(json.decode, frame.payload)
+        if debug then print("GATEWAY_MESSAGE " .. tostring(frame.payload)) end
         if not decoded or type(message) ~= "table" then
           send(client, { type = "error", message = "invalid JSON" })
         elseif message.type == "open" then
@@ -78,6 +82,11 @@ while true do
             engines[message.notebook], message)
           if ok then
             result.type = "result"
+            if debug then
+              print("GATEWAY_RESULT ok=" .. tostring(result.ok) ..
+                " value=" .. tostring(result.value) ..
+                " output=" .. tostring(result.output))
+            end
             send(client, result)
           else
             send(client, { type = "error", id = message.id,

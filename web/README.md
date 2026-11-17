@@ -69,6 +69,16 @@ implementation supplied by Emscripten (`-lwebsocket.js`), so it inherits browser
 TLS, origin, and proxy behavior. A desktop LÖVR build keeps using the native
 WebSocket client (`notebook/websocket_transport.lua`).
 
-The bridge has not yet been through a browser CI job in this repository; the
-C module was syntax-checked against the Emscripten API but requires an `emsdk`
-build to validate end to end.
+## Validation
+
+The bridge was linked into LÖVR v0.19.1 with Emscripten 5.0.2 and exercised from
+headless Firefox using a no-graphics smoke project:
+
+- `require("lovr_websocket")` loaded;
+- the WebSocket connected to `scripts/kernel-gateway.lua`;
+- the gateway received `open` and `run` messages;
+- the gateway executed `return 40 + 2` and sent `value = "42"`.
+
+The full notebook UI still needs a browser with working WebGPU; the smoke
+project disables graphics to isolate the bridge. This repository does not yet
+run a browser CI job for the bridge.
