@@ -77,7 +77,9 @@ headless Firefox using a no-graphics smoke project:
 - `require("lovr_websocket")` loaded;
 - the WebSocket connected to `scripts/kernel-gateway.lua`;
 - the gateway received `open` and `run` messages;
-- the gateway executed `return 40 + 2` and sent `value = "42"`.
+- the gateway executed `return 40 + 2` and sent `value = "42"`;
+- the browser received that result and sent a second cell, which returned
+  `value = "99"`.
 
 The full notebook UI still needs a browser with working WebGPU; the smoke
 project disables graphics to isolate the bridge. This repository does not yet
