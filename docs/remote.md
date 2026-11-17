@@ -103,7 +103,7 @@ The `result` payload is the same shape returned by the local kernel engine.
 
 ```lua
 transport.send(text)       -- send one JSON text frame
-transport.receive()        -- return one JSON text frame or nil
+transport.receive()        -- nonblocking: return one JSON text frame or nil
 transport.close()          -- optional
 ```
 

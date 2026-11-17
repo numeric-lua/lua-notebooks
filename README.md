@@ -52,11 +52,15 @@ processes. lua-notebooks detects this with `notebook/runtime.lua` and switches
 to an inline kernel supervisor, so the same notebook/engine code runs without
 LuaJIT.
 
-What works on the web:
+What the client-side web path implements:
 
 - notebook UI, cells, markdown, scenes, built-in extensions, and the inline
   Lua 5.1 kernel;
 - captured output, errors, return values, widget state, and 3D scene outputs.
+
+The inline path is Lua 5.1-tested, but full browser rendering is currently
+blocked on the upstream LÖVR/WebGPU issue noted below; the remote bridge has
+been validated independently.
 
 Limitations:
 
