@@ -26,7 +26,9 @@ cmake --build build
 ```
 
 Serve `build/` over HTTP and open `lovr.html` in a browser. The build emits
-`lovr.wasm`, `lovr.js`, `lovr.html`, and `project.lovr`.
+`lovr.wasm`, `lovr.js`, `lovr.html`, and `nogame.lovr`. Use
+`web/serve.py` so the COOP/COEP headers required by the threaded/JSPI runtime
+are present.
 
 ## Runtime behavior
 

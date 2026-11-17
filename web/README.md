@@ -28,10 +28,13 @@ The installer:
 From the LÖVR checkout, with `emsdk` active:
 
 ```sh
-emcmake cmake -B build -DLOVR_PROJECT=/absolute/path/to/lua-notebooks
+emcmake cmake -B build
 cmake --build build
-python3 -m http.server -d build 8000
+python3 /path/to/lua-notebooks/web/serve.py build
 ```
+
+`serve.py` adds the COOP/COEP headers needed by LÖVR's threaded/JSPI web
+runtime.
 
 Open `http://localhost:8000` after setting the gateway URL. In the project
 directory, either create `remote.txt` containing the URL, or set
