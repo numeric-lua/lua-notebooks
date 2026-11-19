@@ -27,15 +27,15 @@ Working in this milestone:
 
 Not yet implemented:
 
-- native file dialogs / notebook browser (F6/F7 use the LÖVR save directory)
-- general widget layout controls and text editing beyond single-line fields
-- full text editor features, syntax highlighting, undo, IME
-- process-level kernel isolation is experimental (threads are the default)
-- extension pointer/event protocol and hot reload
-- external extension loading with permissions
-- a luaplotlib scene **backend** (the scene IR and LÖVR renderer are working;
-  the SVG and LÖVR backends now share the scene model)
-- package distribution / single-file build
+- native file dialogs and a notebook browser (F6/F7 use the LÖVR save directory)
+- explicit extension permissions and OS-level sandboxing
+- a standalone JSON-RPC LSP server for external editors
+- verified Windows process-kernel runtime
+- full LÖVR/WebGPU browser rendering (upstream blocker; the independent
+  `webapp/` path is usable)
+- broader pixel-level visual regression coverage and display-backed CI
+- TeX/MathJax-quality math layout and full Vim undo-tree/macro semantics
+- remote LuaRocks publishing and polished single-file distribution
 
 ## Requirements
 
