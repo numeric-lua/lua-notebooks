@@ -1001,6 +1001,10 @@ function UI:draw_extension_browser(pass, width, height)
     text(pass, self.app.font, extension.id .. "  ·  " .. extension.title,
       x + 50, row_y + 7,
       selected and { 0.85, 0.95, 0.9, 1 } or { 0.55, 0.6, 0.7, 1 }, 0.72)
+    if extension.permissions and #extension.permissions > 0 then
+      text(pass, self.app.font, table.concat(extension.permissions, ", "),
+        x + 50, row_y + 18, { 0.55, 0.65, 0.8, 1 }, 0.55)
+    end
     self.extension_rects[#self.extension_rects + 1] = {
       x = x + 12, y = row_y, w = panel_w - 24, h = 30, id = extension.id,
     }
