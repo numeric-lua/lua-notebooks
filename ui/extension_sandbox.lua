@@ -13,7 +13,11 @@ local function readonly(source)
   })
 end
 
-function Sandbox.create(api)
+function Sandbox.create(api, permissions)
+  local granted = {}
+  for _, permission in ipairs(permissions or { "graphics", "timer" }) do
+    granted[permission] = true
+  end
   local env = {
     math = math, string = string, table = table,
     ipairs = ipairs, pairs = pairs, next = next, select = select,
@@ -21,8 +25,11 @@ function Sandbox.create(api)
     assert = assert, error = error, pcall = pcall, xpcall = xpcall,
     print = print,
     lovr = readonly({
-      graphics = readonly(api.graphics),
-      timer = readonly(api.timer),
+      graphics = granted.graphics and readonly(api.graphics) or nil,
+      timer = granted.timer and readonly(api.timer) or nil,
+      input = granted.input and api.input or nil,
+      filesystem = granted.filesystem and api.filesystem or nil,
+      network = granted.network and api.network or nil,
     }),
   }
   if api.vec3 then env.vec3 = api.vec3 end
@@ -37,11 +44,11 @@ function Sandbox.create(api)
   })
 end
 
-function Sandbox.apply(chunk, api)
+function Sandbox.apply(chunk, api, permissions)
   if type(setfenv) ~= "function" then
     return nil, "this Lua runtime has no setfenv; refusing to load user extension"
   end
-  setfenv(chunk, Sandbox.create(api))
+  setfenv(chunk, Sandbox.create(api, permissions))
   return chunk
 end
 

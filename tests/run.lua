@@ -389,6 +389,24 @@ test("inserts above and converts cell kinds", function()
   eq(notebook.cells[2].kind, "code")
 end)
 
+current = "extension permissions"
+test("extension permissions are validated and gate the sandbox", function()
+  local Manifest = require("extensions.manifest")
+  local ok, err = Manifest.validate({
+    id = "x", render = function() end, permissions = { "graphics" },
+  })
+  assert(ok ~= nil)
+  ok, err = Manifest.validate({
+    id = "x", render = function() end, permissions = { "network", "root" },
+  })
+  assert(ok == nil and tostring(err):find("invalid permission"))
+  local Sandbox = require("ui.extension_sandbox")
+  local env = Sandbox.create({ graphics = {}, timer = {}, input = {} },
+    { "graphics" })
+  assert(env.lovr.graphics ~= nil)
+  assert(env.lovr.timer == nil)
+end)
+
 io.write(string.format("\n\n%d tests, %d passed, %d failed\n", passed + failed,
   passed, failed))
 if failed > 0 then

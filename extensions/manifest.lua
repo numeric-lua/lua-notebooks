@@ -4,6 +4,11 @@
 --
 local Manifest = {}
 
+local ALLOWED_PERMISSIONS = {
+  graphics = true, timer = true, input = true,
+  filesystem = true, network = true,
+}
+
 local function check_callback(descriptor, name)
   if descriptor[name] ~= nil and type(descriptor[name]) ~= "function" then
     return false, "extension." .. name .. " must be a function"
@@ -34,6 +39,21 @@ function Manifest.validate(descriptor, source)
   end
   descriptor.version = version
   descriptor.title = descriptor.title or descriptor.id
+  local permissions = descriptor.permissions or {}
+  if type(permissions) ~= "table" then
+    return nil, source .. ": permissions must be a table"
+  end
+  local seen = {}
+  for index, permission in ipairs(permissions) do
+    if type(permission) ~= "string" or not ALLOWED_PERMISSIONS[permission] then
+      return nil, source .. ": invalid permission at index " .. index
+    end
+    if seen[permission] then
+      return nil, source .. ": duplicate permission '" .. permission .. "'"
+    end
+    seen[permission] = true
+  end
+  descriptor.permissions = permissions
   return descriptor
 end
 
