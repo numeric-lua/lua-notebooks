@@ -1911,6 +1911,10 @@ function UI:keypressed(key)
       return
     elseif self.vim_scope == "notebook" and
            (key == "i" or key == "return") then
+      if self.app.nvim_default then
+        self.app:open_nvim()
+        return
+      end
       self.vim_scope = "cell"
       self.vim_normal = false
       return
