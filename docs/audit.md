@@ -16,7 +16,7 @@
 2. Neovim transport uses POSIX sockets and shell spawning; Windows is unsupported.
 3. Neovim grid rendering approximates font advances; long or wide glyphs may
    misalign. External popup menus are disabled until their event shape is verified.
-4. Neovim sessions are spawned per edit; first keystroke is delayed by startup.
+4. Neovim sessions are now reused across cell edits; startup is paid once.
 5. Cell layout still computes every cell each frame; visible drawing is culled but
    heights are not cached.
 6. Markdown/text layout is not incrementally cached beyond display math.

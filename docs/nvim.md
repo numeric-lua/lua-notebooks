@@ -28,6 +28,7 @@ Working:
 - markdown cell buffers;
 - light/dark background and colorscheme;
 - live grid resize;
+- warm Neovim process reused across cells;
 - notebook-wide code buffer with `-- %% cell N` markers;
 - `F5` runs the cell containing the cursor from that buffer;
 - pure tests for codec, grid, RPC, and session.

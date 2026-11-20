@@ -517,10 +517,24 @@ function App:open_title(title)
 end
 
 function App:open_nvim()
-  if self.nvim_session then return end
   local cell = self:notebook():selected()
   if cell.kind ~= "code" and cell.kind ~= "markdown" then
     self.status = "Neovim editor is for code and markdown cells"
+    return
+  end
+  if self.nvim_session then
+    self.nvim_session:input("<Esc>")
+    self.nvim_session:update()
+    local lines = {}
+    for source_line in ((cell.source or "") .. "\n"):gmatch("(.-)\n") do
+      lines[#lines + 1] = source_line
+    end
+    self.nvim_session:set_lines(lines, 1)
+    self.nvim_session:command("set filetype=" ..
+      (cell.kind == "markdown" and "markdown" or "lua"))
+    self.nvim_session:input("i")
+    self.show_nvim, self.nvim_notebook = true, false
+    self.status = "Neovim (warm): F10 save, F5 run"
     return
   end
   local path = os.tmpname() .. (cell.kind == "markdown" and ".md" or ".lua")
@@ -552,7 +566,7 @@ function App:open_nvim()
   self.status = "Neovim: F10 save, F9 discard"
 end
 
-function App:close_nvim(save)
+function App:close_nvim(save, keep)
   if self.nvim_session == nil then return end
   local session = self.nvim_session
   local cursor_row, cursor_col = 0, 0
@@ -565,9 +579,12 @@ function App:close_nvim(save)
     local ok, value = pcall(function() return session:get_lines() end)
     if ok then lines = value end
   end
-  pcall(function() session:close() end)
-  if self.nvim_path then os.remove(self.nvim_path); self.nvim_path = nil end
-  self.nvim_session, self.nvim_view, self.show_nvim = nil, nil, false
+  if not keep then
+    pcall(function() session:close() end)
+    if self.nvim_path then os.remove(self.nvim_path); self.nvim_path = nil end
+    self.nvim_session, self.nvim_view = nil, nil
+  end
+  self.show_nvim = false
   if save and lines then
     if self.nvim_notebook then
       local sources = NvimBuffer.decode(lines)
@@ -602,6 +619,10 @@ function App:close_nvim(save)
   self.nvim_cell_rows = {}
 end
 
+function App:hide_nvim(save)
+  return self:close_nvim(save, true)
+end
+
 function App:run_nvim_cell()
   if self.nvim_session == nil then return end
   local row = (self.nvim_session.grid.cursor.row or 0) + 1
@@ -609,7 +630,7 @@ function App:run_nvim_cell()
   for _, entry in ipairs(self.nvim_cell_rows or {}) do
     if entry.row <= row then index = entry.index end
   end
-  self:close_nvim(true)
+  self:hide_nvim(true)
   self:notebook():select(index)
   self.scroll_to_selected = true
   if self:notebook():selected().kind == "code" then
@@ -1171,7 +1192,19 @@ function lovr.load()
       lovr.event.quit()
     end
   end
-  if os.getenv("LUANB_QA_NVIM_EDIT") then
+  if os.getenv("LUANB_QA_NVIM_WARM") then
+    app:open_nvim()
+    app.ui:textinput("A")
+    for _ = 1, 20 do app:update(); os.execute("sleep 0.03") end
+    app:hide_nvim(true)
+    app:open_nvim()
+    app.ui:textinput("B")
+    for _ = 1, 20 do app:update(); os.execute("sleep 0.03") end
+    app:hide_nvim(true)
+    print("NVIM_WARM [" .. tostring(app:notebook().cells[1].source) .. "]")
+    io.stdout:flush()
+    lovr.event.quit()
+  elseif os.getenv("LUANB_QA_NVIM_EDIT") then
     app:open_nvim()
     if app.nvim_view then
       app.ui:textinput("XYZ")
