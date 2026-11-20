@@ -223,7 +223,7 @@ function WebSocket.listen(host, port, options)
       if not ok then ffi.C.close(client); return nil, err end
       return { fd = client }
     end,
-    receive = function(_, client)
+    receive = function(self, client)
       local first = receive_exact(client.fd, 2)
       if first == nil then return nil, "closed" end
       local b1, b2 = first:byte(1), first:byte(2)
