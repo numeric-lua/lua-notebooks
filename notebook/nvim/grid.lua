@@ -88,30 +88,31 @@ end
 function Grid:apply(event)
   local name = event[1]
   if name == "grid_resize" then
-    if event[2] == 1 then self:resize(event[3], event[4]) end
+    local args = type(event[2]) == "table" and event[2] or event
+    self:resize(args[2] or args[3], args[3] or args[4])
   elseif name == "grid_clear" then
-    if event[2] == 1 then
-      for row = 0, self.rows - 1 do
-        for col = 0, self.cols - 1 do self.cells[row][col] = blank(0) end
-      end
+    for row = 0, self.rows - 1 do
+      for col = 0, self.cols - 1 do self.cells[row][col] = blank(0) end
     end
   elseif name == "grid_line" then
-    if event[2] == 1 then
-      for index = 3, #event do
-        local line = event[index]
-        self:set_line(line[1], line[2], line[3] or {})
+    for index = 2, #event do
+      local line = event[index]
+      if type(line) == "table" then
+        self:set_line(line[2], line[3], line[4] or {})
       end
     end
   elseif name == "grid_scroll" then
-    if event[2] == 1 then self:scroll(event[3], event[4], event[5], event[6],
-      event[7]) end
+    local args = type(event[2]) == "table" and event[2] or event
+    self:scroll(args[2], args[3], args[4], args[5], args[6])
   elseif name == "grid_cursor_goto" then
-    if event[2] == 1 then self.cursor = { row = event[3], col = event[4] } end
+    local args = type(event[2]) == "table" and event[2] or event
+    self.cursor = { row = args[2], col = args[3] }
   elseif name == "hl_attr_define" then
     self.highlights[event[2]] = event[3] or {}
   elseif name == "default_colors_set" then
-    self.default_foreground = event[2]
-    self.default_background = event[3]
+    local args = type(event[2]) == "table" and event[2] or event
+    self.default_foreground = args[2]
+    self.default_background = args[3]
   elseif name == "mode_info_set" then
     self.mode_info = event[3]
   elseif name == "mode_change" then
