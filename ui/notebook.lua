@@ -994,6 +994,7 @@ function UI:draw_help(pass, width, height)
         { "o / O", "insert below / above and edit" },
         { "Ctrl+F", "find across notebook cells" },
         { "Ctrl+P", "command palette" },
+        { "Ctrl+S", "save notebook" },
         { "Ctrl+Tab", "next / previous notebook" },
         { "F2", "notebook filetree" },
         { "F1", "command palette" },
@@ -1769,6 +1770,11 @@ function UI:keypressed(key)
     if target < 1 then target = count end
     if target > count then target = 1 end
     self.app:set_tab(target)
+    return
+  end
+  if ctrl_down and key == "s" and lovr.system and
+     not (lovr.system.isKeyDown("lshift") or lovr.system.isKeyDown("rshift")) then
+    self.app:save()
     return
   end
   if ctrl_down and (key == "k") and lovr.system and
