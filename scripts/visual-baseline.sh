@@ -3,6 +3,13 @@
 # Usage: scripts/visual-baseline.sh [--update]
 set -eu
 ROOT=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
+if command -v magick >/dev/null 2>&1; then
+  IMAGE_TOOL=magick
+  COMPARE_TOOL="magick compare"
+else
+  IMAGE_TOOL=convert
+  COMPARE_TOOL=compare
+fi
 SAVE=${LOVR_SAVE_DIR:-$HOME/.local/share/LOVR/lua-notebooks}
 cd "$ROOT"
 mkdir -p tests/visual/baseline
@@ -23,7 +30,7 @@ for cell in 4 6 7; do
     exit 1
   fi
   # Normalize to a small, stable image; the source canvas is 906x1040 here.
-  magick "$SHOT" -resize 50% -strip /tmp/luanb-visual-$cell.png
+  "$IMAGE_TOOL" "$SHOT" -resize 50% -strip /tmp/luanb-visual-$cell.png
   kill "$APP" 2>/dev/null || true
   wait "$APP" 2>/dev/null || true
   BASE=tests/visual/baseline/cell$cell.png
@@ -32,7 +39,7 @@ for cell in 4 6 7; do
     echo "updated $BASE"
   else
     [ -f "$BASE" ] || { echo "missing baseline $BASE" >&2; exit 1; }
-    DIFF=$(magick compare -metric AE /tmp/luanb-visual-$cell.png "$BASE" null: 2>&1 | awk '{print $1}')
+    DIFF=$($COMPARE_TOOL -metric AE /tmp/luanb-visual-$cell.png "$BASE" null: 2>&1 | awk '{print $1}')
     echo "cell=$cell diff=$DIFF"
     if [ "${DIFF%.*}" -gt 800 ]; then
       echo "visual regression for cell $cell" >&2
