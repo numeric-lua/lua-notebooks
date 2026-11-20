@@ -457,6 +457,18 @@ test("exports escaped standalone HTML", function()
   assert(text:find("&lt;tag&gt;", 1, true))
 end)
 
+current = "duplicate cell"
+test("duplicates a cell with a fresh id", function()
+  local notebook = Notebook.new({ cells = {
+    { kind = "code", source = "print(1)" },
+  } })
+  local original = notebook:selected().id
+  local copy = notebook:duplicate(1)
+  assert(copy.id and copy.id ~= original)
+  eq(#notebook.cells, 2)
+  eq(notebook.active, 2)
+end)
+
 io.write(string.format("\n\n%d tests, %d passed, %d failed\n", passed + failed,
   passed, failed))
 if failed > 0 then
