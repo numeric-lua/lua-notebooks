@@ -1,4 +1,4 @@
-# lua-notebooks 0.8.0
+# lua-notebooks 0.9.0
 
-- incremental display-math layout cache keyed by expression, width, and font;
-- bounded cache size.
+- configurable kernel queue cap (default 256);
+- queue-full error instead of unbounded growth.

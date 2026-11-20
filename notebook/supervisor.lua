@@ -11,6 +11,7 @@ function Supervisor.new(options)
   return setmetatable({
     kernels = {},
     pending = {},
+    max_pending = options.max_pending or 256,
     next_id = 1,
     root = options.root or ".",
     on_result = options.on_result,
@@ -36,6 +37,11 @@ function Supervisor:open(id)
 end
 
 function Supervisor:_request(id, job)
+  local pending_count = 0
+  for _ in pairs(self.pending) do pending_count = pending_count + 1 end
+  if pending_count >= self.max_pending then
+    return nil, "kernel request queue is full"
+  end
   local kernel = self:open(id)
   if kernel.status ~= "running" then
     return nil, "kernel is not running"
