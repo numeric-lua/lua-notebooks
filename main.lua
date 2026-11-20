@@ -479,6 +479,7 @@ function App:export_markdown()
 end
 
 function App:clear_outputs()
+  self._run_all_position = nil
   for _, cell in ipairs(self:notebook().cells) do
     cell.output = ""
     cell.scene = nil
