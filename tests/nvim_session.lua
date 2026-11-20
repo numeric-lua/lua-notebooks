@@ -32,4 +32,16 @@ local dead_lines, dead_error = dead:get_lines()
 assert(dead_lines == nil and dead_error ~= nil, "get_lines after EOF")
 dead:close()
 print("nvim dead peer ok")
+local popup = Session.new({ cols = 40, rows = 10 })
+popup:command("set completeopt=menu,menuone,noselect")
+popup:set_lines({ "print(1)", "pairs({})" }, 1)
+popup:input("<Esc>Gopr")
+for _ = 1, 30 do popup:update(); os.execute("sleep 0.02") end
+popup:input("<C-n>")
+for _ = 1, 40 do popup:update(); os.execute("sleep 0.02") end
+assert(popup.grid.popupmenu, "popupmenu did not arrive")
+assert(popup.grid.popupmenu.items[1][1] == "print",
+  tostring(popup.grid.popupmenu.items[1][1]))
+popup:close()
+print("nvim popupmenu ok")
 print("nvim session ok")
