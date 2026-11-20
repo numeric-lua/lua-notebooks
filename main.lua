@@ -570,20 +570,20 @@ function App:open_nvim()
   self.status = "Neovim: F10 save, F9 discard"
 end
 
-function App:load_nvim_buffer(lines, filetype)
+function App:load_nvim_buffer(lines, filetype, insert, cursor_row)
   local session = self.nvim_session
   if session == nil then return false end
   pcall(function()
     session:input("<Esc>")
     session:update()
   end)
-  local ok, err = session:set_lines(lines, 1)
+  local ok, err = session:set_lines(lines, cursor_row or 1)
   if not ok then return nil, err end
   session:command("set filetype=" .. filetype)
   -- A reused buffer should not carry the previous cell's undo history.
   session:command("set undolevels=-1")
   session:command("set undolevels=1000")
-  session:input("i")
+  if insert ~= false then session:input("i") end
   return true
 end
 
@@ -624,8 +624,28 @@ function App:close_nvim(save, keep)
   local applied = false
   if save and lines then
     if self.nvim_notebook then
-      local sources = NvimBuffer.decode(lines)
+      local sources, order, decode_error = NvimBuffer.decode(lines)
       local notebook = self:notebook()
+      if decode_error then
+        self.status = "Neovim save failed: " .. decode_error
+        return
+      end
+      local seen = {}
+      for _, index in ipairs(order) do
+        if seen[index] or index < 1 or index > #notebook.cells then
+          self.status = "Neovim save failed: bad cell marker " .. index
+          return
+        end
+        seen[index] = true
+      end
+      for index, cell in ipairs(notebook.cells) do
+        if cell.kind == "code" or cell.kind == "markdown" then
+          if not seen[index] then
+            self.status = "Neovim save failed: missing marker for cell " .. index
+            return
+          end
+        end
+      end
       local changed = false
       for index, source in pairs(sources) do
         local cell = notebook.cells[index]
@@ -711,7 +731,12 @@ function App:open_nvim_notebook()
   if self.nvim_session then
     self.nvim_session:input("<Esc>")
     self.nvim_session:update()
-    local loaded, load_error = self:load_nvim_buffer(lines, "lua")
+    local target_row = 1
+    for _, entry in ipairs(rows) do
+      if entry.index == notebook.active then target_row = entry.row + 1 end
+    end
+    local loaded, load_error = self:load_nvim_buffer(lines, "lua", false,
+      target_row)
     if not loaded then
       self:close_nvim(false)
       self.status = "Neovim reload failed: " .. tostring(load_error)
@@ -740,7 +765,11 @@ function App:open_nvim_notebook()
     if session.grid:line(0):find("%S") then break end
     os.execute("sleep 0.02")
   end
-  session:input("i")
+  local target_row = 1
+  for _, entry in ipairs(rows) do
+    if entry.index == notebook.active then target_row = entry.row + 1 end
+  end
+  session:request("nvim_win_set_cursor", { 0, { target_row, 0 } })
   self.nvim_session, self.nvim_cells = session, cells
   self.nvim_cell_rows = rows
   self.nvim_view = require("ui.nvim").new(session, self.nvim_font or self.font)

@@ -12,4 +12,10 @@ local sources = Buffer.decode(lines)
 assert(sources[1] == "print('a')\nprint('b')", sources[1])
 assert(sources[2] == "# title\n\ntext", sources[2])
 assert(sources[3] == "", "empty cell")
+local duplicate, order, duplicate_error = Buffer.decode({
+  "-- %% cell 1 code", "a", "-- %% cell 1 code", "b",
+})
+assert(duplicate_error and duplicate[1] == "a", duplicate_error)
+local before, _, before_error = Buffer.decode({ "stray", "-- %% cell 1 code", "a" })
+assert(before_error, "text before marker")
 print("nvim buffer ok")

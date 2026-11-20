@@ -19,9 +19,17 @@ function Buffer.encode(cells)
 end
 
 function Buffer.decode(lines)
-  local sources, current, pieces = {}, nil, {}
+  local sources, order, seen, current, pieces = {}, {}, {}, nil, {}
+  local error_message
   local function flush()
-    if current ~= nil then sources[current] = table.concat(pieces, "\n") end
+    if current ~= nil then
+      if seen[current] then
+        error_message = "duplicate cell marker " .. tostring(current)
+      end
+      seen[current] = true
+      sources[current] = table.concat(pieces, "\n")
+      order[#order + 1] = current
+    end
   end
   for _, line in ipairs(lines or {}) do
     local index = line:match("^%-%- %%%% cell (%d+)")
@@ -31,10 +39,12 @@ function Buffer.decode(lines)
       pieces = {}
     elseif current ~= nil then
       pieces[#pieces + 1] = line
+    elseif line:match("%S") then
+      error_message = "text before the first cell marker"
     end
   end
   flush()
-  return sources
+  return sources, order, error_message
 end
 
 return Buffer
