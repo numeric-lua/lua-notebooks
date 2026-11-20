@@ -1074,6 +1074,14 @@ function lovr.load()
     app:open_nvim()
   elseif os.getenv("LUANB_QA_NVIM_NOTEBOOK") then
     app:open_nvim_notebook()
+    if os.getenv("LUANB_QA_NVIM_SAVE") and app.nvim_session then
+      app.nvim_session:input("<Esc>:1s/hello/HELLO/<CR>")
+      for _ = 1, 5 do app.nvim_session:update(); os.execute("sleep 0.02") end
+      app.ui:keypressed("f10")
+      print("NVIM_SAVE [" .. tostring(app:notebook().cells[1].source) .. "]")
+      io.stdout:flush()
+      lovr.event.quit()
+    end
     if os.getenv("LUANB_QA_NVIM_RUN") and app.nvim_session then
       app.nvim_session:request("nvim_win_set_cursor", { 0, { 5, 0 } })
       for _ = 1, 5 do app.nvim_session:update(); os.execute("sleep 0.01") end
