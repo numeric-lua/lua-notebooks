@@ -841,6 +841,7 @@ function UI:draw_help(pass, width, height)
     {
       { title = "NEOVIM", rows = {
         { "Alt+E", "open Neovim cell editor" },
+        { "Alt+Shift+E", "open Neovim notebook buffer" },
         { "F10", "save from Neovim" },
         { "F5", "save from Neovim and run" },
         { "F9", "discard Neovim changes" },
