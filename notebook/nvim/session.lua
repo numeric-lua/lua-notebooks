@@ -41,7 +41,7 @@ function Session.new(options)
     local command = { shell_quote(self.exe), "--headless" }
     if options.clean ~= false then command[#command + 1] = "--clean" end
     for _, cmd in ipairs({
-      "syntax on", "set termguicolors", "set noswapfile",
+      "syntax on", "set termguicolors", "set noswapfile", "set mouse=a",
       "set background=" .. (options.background or "dark"),
       "colorscheme " .. (options.background == "light" and "morning" or
         "habamax"),
