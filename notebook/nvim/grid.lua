@@ -108,7 +108,12 @@ function Grid:apply(event)
     local args = type(event[2]) == "table" and event[2] or event
     self.cursor = { row = args[2], col = args[3] }
   elseif name == "hl_attr_define" then
-    self.highlights[event[2]] = event[3] or {}
+    for index = 2, #event do
+      local entry = event[index]
+      if type(entry) == "table" then
+        self.highlights[entry[1]] = entry[2] or {}
+      end
+    end
   elseif name == "default_colors_set" then
     if type(event[2]) == "table" then
       self.default_foreground = event[2][1]

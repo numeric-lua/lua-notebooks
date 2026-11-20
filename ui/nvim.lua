@@ -35,8 +35,10 @@ function NvimView.new(session, font, options)
     session = session,
     font = font,
     size = options.size or 18,
-    cell_width = font:getWidth("M") * (options.size or 18),
-    cell_height = (options.size or 18) * (options.line_height or 1.2),
+    cell_width = font:getWidth("M") * (options.size or 18) *
+      (options.text_scale or 0.86),
+    cell_height = (options.size or 18) * (options.text_scale or 0.86) *
+      (options.line_height or 1.2),
     text_scale = (options.size or 18) * (options.text_scale or 0.86),
     scale = options.scale or 1,
   }, NvimView)
@@ -56,7 +58,6 @@ end
 
 function NvimView:draw(pass, x, y, width, height, scale)
   scale = scale or self.scale
-  self:resize(width / scale, height / scale)
   local grid = self.session.grid
   local cw = self.cell_width * scale
   local ch = self.cell_height * scale
@@ -64,7 +65,7 @@ function NvimView:draw(pass, x, y, width, height, scale)
   local foreground = rgb(grid.default_foreground, { 0.85, 0.88, 0.95 })
   pass:setColor(background[1], background[2], background[3], 1)
   pass:plane(x + width / 2, y + height / 2, 0, width, height)
-  local scissor_x = math.max(0, x * scale)
+  local scissor_x = math.max(0, x * scale - 2)
   local scissor_y = math.max(0, y * scale)
   local scissor_w = math.max(1, width * scale - (scissor_x - x * scale))
   local scissor_h = math.max(1, height * scale - (scissor_y - y * scale))

@@ -425,7 +425,13 @@ function App:open_nvim()
     self.status = "nvim failed: " .. tostring(session)
     return
   end
-  for _ = 1, 20 do session:update(); os.execute("sleep 0.02") end
+  for _ = 1, 150 do
+    session:update()
+    if session.grid:line(0):find("%S") then break end
+    os.execute("sleep 0.02")
+  end
+  session:input("i")
+  for _ = 1, 5 do session:update(); os.execute("sleep 0.01") end
   self.nvim_session = session
   self.nvim_view = require("ui.nvim").new(session, self.nvim_font or self.font)
   self.nvim_path = path
@@ -943,6 +949,16 @@ function lovr.load()
   end
   if os.getenv("LUANB_QA_NVIM") then
     app:open_nvim()
+  end
+  if os.getenv("LUANB_QA_NVIM_EDIT") then
+    app:open_nvim()
+    if app.nvim_view then
+      app.ui:textinput("XYZ")
+      for _ = 1, 20 do app:update(); os.execute("sleep 0.02") end
+      app:close_nvim(true)
+      print("NVIM_EDIT [" .. app:notebook():selected().source .. "]")
+      io.stdout:flush()
+    end
   end
   local qa_scroll = tonumber(os.getenv("LUANB_QA_SCROLL") or "")
   if qa_scroll then

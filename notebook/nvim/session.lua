@@ -16,6 +16,8 @@ local function free_port()
   return 20000 + math.random(0, 20000)
 end
 
+math.randomseed(os.time() + math.floor(os.clock() * 100000))
+
 function Session.new(options)
   options = options or {}
   local self = setmetatable({
@@ -24,23 +26,31 @@ function Session.new(options)
     grid = Grid.new(options.cols or 80, options.rows or 24),
     rpc = nil, pid = nil, port = nil, closed = false,
   }, Session)
-  local port = options.port or free_port()
-  local command = { shell_quote(self.exe), "--headless", "--clean",
-    "--listen", "127.0.0.1:" .. port }
-  if options.file then command[#command + 1] = shell_quote(options.file) end
-  local handle = assert(io.popen(table.concat(command, " ") ..
-    " >/tmp/lua-notebooks-nvim.log 2>&1 & echo $!"))
-  self.pid = tonumber(handle:read("*l") or "")
-  handle:close()
-  self.port = port
-  for _ = 1, 100 do
-    self.rpc = Rpc.connect("127.0.0.1", port)
-    if self.rpc then break end
-    os.execute("sleep 0.05")
+  local port, rpc, pid
+  for attempt = 1, 12 do
+    port = options.port or free_port()
+    local command = { shell_quote(self.exe), "--headless", "--clean",
+      "--cmd", shell_quote("syntax on"),
+      "--cmd", shell_quote("set termguicolors"),
+      "--listen", "127.0.0.1:" .. port }
+    if options.file then command[#command + 1] = shell_quote(options.file) end
+    local handle = assert(io.popen(table.concat(command, " ") ..
+      " >/tmp/lua-notebooks-nvim.log 2>&1 & echo $!"))
+    pid = tonumber(handle:read("*l") or "")
+    handle:close()
+    for _ = 1, 40 do
+      rpc = Rpc.connect("127.0.0.1", port)
+      if rpc then break end
+      os.execute("sleep 0.05")
+    end
+    if rpc then break end
+    if pid then os.execute("kill " .. tostring(pid) .. " 2>/dev/null || true") end
+    os.execute("sleep 0.1")
   end
-  if self.rpc == nil then
-    error("could not connect to nvim on port " .. port)
+  if rpc == nil then
+    error("could not connect to nvim on port " .. tostring(port))
   end
+  self.pid, self.port, self.rpc = pid, port, rpc
   self:request("nvim_ui_attach", { self.cols, self.rows,
     Msgpack.map({ ext_linegrid = true, rgb = true }) })
   return self
