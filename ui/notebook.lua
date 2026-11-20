@@ -1531,7 +1531,11 @@ function UI:keypressed(key)
         self.app:run_nvim_cell()
       else
         self.app:close_nvim(true)
-        self.app:run()
+        if self.app:notebook():selected().kind == "code" then
+          self.app:run()
+        else
+          self.app.status = "markdown cell selected; not executed"
+        end
       end
       return
     end
