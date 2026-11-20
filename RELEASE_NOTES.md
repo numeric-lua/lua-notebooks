@@ -1,6 +1,5 @@
-# lua-notebooks 1.25.0
+# lua-notebooks 1.25.1
 
-- external popupmenu completion rendered in the LÖVR overlay;
-- held special keys repeat;
-- mouse routing and single-path input tests;
-- private Unix-socket transport and fail-closed saves retained.
+- restore `main.lua`, which 1.25.0 accidentally replaced with the UI module;
+- keep external popupmenu completion and special-key repeat;
+- retain the private Unix-socket Neovim transport and fail-closed saves.
