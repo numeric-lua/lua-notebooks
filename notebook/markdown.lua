@@ -12,6 +12,7 @@ function Markdown.preview(line)
   line = line:gsub("%*(.-)%*", "%1")
   line = line:gsub("`([^`]*)`", "%1")
   line = line:gsub("%[([^%]]+)%]%b()", "%1")
+  line = line:gsub("%[%[([^%]]+)%]%]", "%1")
   return line
 end
 
