@@ -20,14 +20,20 @@ Working:
 - UI attach, grid lines, highlights, cursor, default colors;
 - cell source loaded into a temp buffer;
 - insert-mode typing and `F10` write-back;
+- `F5` writes and runs the cell;
 - `F9` discard;
+- `Alt+E` opens, `Alt+J/K` saves and moves to the next/previous cell;
+- mouse clicks and wheel scrolling;
+- popup-menu completion events;
+- markdown cell buffers;
+- light/dark background and colorscheme;
+- cursor line restoration and live resize;
 - pure tests for codec, grid, RPC, and session.
 
 Known gaps:
 
-- mouse input;
 - font advance and cursor alignment are approximate;
-- no light colorscheme selection yet;
-- resize is disabled in the overlay to avoid clearing the grid;
+- no external `ext_cmdline`/`ext_messages` overlay;
+- popup completion depends on Neovim emitting popup events;
 - Windows transport is not implemented;
-- no inline extmarks, popup menu, command-line completion overlay.
+- the headless process uses `--clean`, so user Neovim plugins are not loaded.
