@@ -59,6 +59,13 @@ test("resets kernel state", function()
   eq(engine:run({ id = 2, code = "return x" }).value, nil)
 end)
 
+local bounded = Engine.new({ max_output = 32 })
+local result = bounded:run({ id = 3, code = "print(string.rep('x', 200))" })
+assert(result.ok)
+assert(#result.output < 200 and result.output:find("output truncated", 1, true))
+print("bounded output ok")
+
 io.write(string.format("\n%d engine tests, %d passed, %d failed\n",
   passed + failed, passed, failed))
 if failed > 0 then os.exit(1) end
+

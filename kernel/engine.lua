@@ -37,13 +37,30 @@ local function stringify(value)
   return tostring(value)
 end
 
-function Engine.new()
+function Engine.new(options)
+  options = options or {}
   local self = setmetatable({
     model = Widgets.new(),
     lines = {},
+    max_output = options.max_output or 1024 * 1024,
+    output_bytes = 0,
+    truncated_output = false,
   }, Engine)
   self:_create_environment()
   return self
+end
+
+function Engine:_append(text)
+  text = tostring(text)
+  if self.output_bytes + #text > self.max_output then
+    if not self.truncated_output then
+      self.lines[#self.lines + 1] = "\n[output truncated]"
+      self.truncated_output = true
+    end
+    return
+  end
+  self.lines[#self.lines + 1] = text
+  self.output_bytes = self.output_bytes + #text
 end
 
 function Engine:_create_environment()
@@ -66,13 +83,13 @@ function Engine:_create_environment()
     for index = 1, select("#", ...) do
       parts[index] = stringify((select(index, ...)))
     end
-    self.lines[#self.lines + 1] = table.concat(parts, "\t")
+    self:_append(table.concat(parts, "\t"))
   end
 
   local io_proxy = setmetatable({}, { __index = io })
   io_proxy.write = function(...)
     for index = 1, select("#", ...) do
-      self.lines[#self.lines + 1] = tostring((select(index, ...)))
+      self:_append((select(index, ...)))
     end
   end
   env.io = io_proxy
@@ -83,6 +100,8 @@ end
 
 function Engine:_capture(fn)
   self.lines = {}
+  self.output_bytes = 0
+  self.truncated_output = false
   local ok, result = xpcall(fn, debug.traceback)
   return ok, result, table.concat(self.lines, "\n")
 end

@@ -1,4 +1,4 @@
-# lua-notebooks 0.6.0
+# lua-notebooks 0.7.0
 
-- LSP signature help for core and common Lua functions;
-- protocol test coverage.
+- 1 MiB default kernel output cap;
+- truncation marker and bounded output test.
