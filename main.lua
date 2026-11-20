@@ -59,6 +59,7 @@ function App:new(notebooks)
     self.lsp:initialize("luanb:///")
   end
   self.ui_scale = 1
+  self.nvim_inline = false
   local scale_ok, scale_value = pcall(lovr.filesystem.read, "ui_scale.txt")
   if scale_ok and tonumber(scale_value) then
     self.ui_scale = math.max(0.7, math.min(2, tonumber(scale_value)))
@@ -536,8 +537,8 @@ function App:open_nvim()
       self.status = "Neovim reload failed: " .. tostring(load_error)
       return self:open_nvim()
     end
-    self.show_nvim, self.nvim_notebook = true, false
-    self.status = "Neovim (warm): F10 save, F5 run"
+    self.show_nvim, self.nvim_notebook, self.nvim_inline = true, false, true
+    self.status = "Neovim inline: F10 save, F5 run"
     return
   end
   local path = os.tmpname() .. (cell.kind == "markdown" and ".md" or ".lua")
@@ -583,7 +584,8 @@ function App:open_nvim()
   self.nvim_view = view
   self.nvim_path = path
   self.show_nvim = true
-  self.status = "Neovim: F10 save, F9 discard"
+  self.nvim_inline = true
+  self.status = "Neovim inline: F10 save, F9 discard"
 end
 
 function App:load_nvim_buffer(lines, filetype, insert, cursor_row)
@@ -756,6 +758,7 @@ function App:close_nvim(save, keep)
   self.show_nvim = false
   if save and not applied then self.status = "Neovim discarded" end
   self.nvim_notebook = false
+  self.nvim_inline = false
   self.nvim_cells = {}
   self.nvim_cell_rows = {}
   return true
@@ -817,7 +820,7 @@ function App:open_nvim_notebook()
       return self:open_nvim_notebook()
     end
     self.nvim_cells, self.nvim_cell_rows = cells, rows
-    self.show_nvim, self.nvim_notebook = true, true
+    self.show_nvim, self.nvim_notebook, self.nvim_inline = true, true, false
     self.status = "Neovim notebook (warm): F10 save, F5 run"
     return
   end
@@ -865,6 +868,7 @@ function App:open_nvim_notebook()
   self.nvim_cell_rows = rows
   self.nvim_view = view
   self.nvim_path, self.nvim_notebook, self.show_nvim = path, true, true
+  self.nvim_inline = false
   self.status = "Neovim notebook (normal mode): i to edit, F10 save, F5 run"
 end
 

@@ -137,6 +137,8 @@ function UI.new(app)
     scroll = 0,
     max_scroll = 0,
     rects = {},
+    source_rects = {},
+    nvim_rect = nil,
     tabs = {},
     buttons = {},
     extension_passes = {},
@@ -226,7 +228,7 @@ function UI:draw(pass, logical_width, logical_height)
   pass:setProjection(projection)
   pass:setDepthTest()
 
-  if app.show_nvim and app.nvim_view then
+  if app.show_nvim and app.nvim_view and not app.nvim_inline then
     app.nvim_view:draw(pass, 44, 18, width - 56, height - 36,
       app.ui_scale or 1)
     text(pass, app.font, "F10 save   F5 save+run   F9 discard",
@@ -287,6 +289,8 @@ function UI:draw(pass, logical_width, logical_height)
   local content_top = self.zen_mode and 12 or 52
   local y = content_top - self.scroll
   self.rects = {}
+  self.source_rects = {}
+  self.nvim_rect = nil
   self.link_rects = {}
   local content_height = 0
 
@@ -438,6 +442,8 @@ function UI:draw(pass, logical_width, logical_height)
 
       local source_y = y + 6
       cell._source_y = source_y
+      self.source_rects[index] = { x = 24, y = source_y, w = width - 48,
+        h = source_height + 2 }
       local source_color = cell.kind == "markdown" and
         { 0.75, 0.78, 0.9, 1 } or { 0.86, 0.88, 0.94, 1 }
       local char_a, char_b
@@ -724,6 +730,7 @@ function UI:draw(pass, logical_width, logical_height)
   self:draw_find(pass, width, height)
   self:draw_help(pass, width, height)
   self:draw_palette(pass, width, height)
+  self:draw_nvim_inline(pass, width, height)
   if self.vim_command ~= nil or self.vim_search ~= nil then
     box(pass, 0, height - 32, width, 32, { 0.03, 0.04, 0.06, 1 })
     local prefix = self.vim_search ~= nil and "/" or ":"
@@ -900,6 +907,22 @@ function UI:draw_palette(pass, width, height)
       x = x + 10, y = row_y, w = panel_w - 20, h = 27, id = command.id,
     }
   end
+end
+
+function UI:draw_nvim_inline(pass, width, height)
+  if not self.app.show_nvim or not self.app.nvim_inline or
+     not self.app.nvim_view then return end
+  local rect = self.source_rects[self.app:notebook().active]
+  if rect == nil then return end
+  local x = rect.x - 4
+  local y = rect.y - 4
+  local w = rect.w + 8
+  local h = math.max(46, rect.h + 26)
+  self.nvim_rect = { x = x, y = y, w = w, h = h }
+  box(pass, x - 2, y - 2, w + 4, h + 4, { 0.02, 0.03, 0.05, 0.98 })
+  self.app.nvim_view:draw(pass, x, y, w, h, self.app.ui_scale or 1)
+  text(pass, self.app.font, "nvim  F10 apply  F5 run  F9 discard",
+    x + w - 6, y + h + 3, { 0.5, 0.58, 0.72, 1 }, 0.58, "right")
 end
 
 function UI:open_find()
@@ -2588,6 +2611,11 @@ end
 
 function UI:mousepressed(x, y, button)
   if self.app.show_nvim then
+    if self.app.nvim_inline and self.nvim_rect and
+       not inside(x, y, self.nvim_rect) then
+      self.app:hide_nvim(true)
+      return
+    end
     if self.app.nvim_view then
       self.app.nvim_view:mousepressed(x, y, button)
     end
