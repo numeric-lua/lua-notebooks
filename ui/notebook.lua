@@ -220,6 +220,8 @@ function UI:draw(pass, logical_width, logical_height)
   if app.show_nvim and app.nvim_view then
     app.nvim_view:draw(pass, 44, 18, width - 56, height - 36,
       app.ui_scale or 1)
+    text(pass, app.font, "F10 save   F5 save+run   F9 discard",
+      width - 12, 2, { 0.35, 0.38, 0.46, 1 }, 0.6, "right")
     return {}
   end
 
