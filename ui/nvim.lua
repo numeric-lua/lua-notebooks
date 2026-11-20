@@ -61,6 +61,8 @@ function NvimView:draw(pass, x, y, width, height, scale)
   local grid = self.session.grid
   local cw = self.cell_width * scale
   local ch = self.cell_height * scale
+  self.origin_x, self.origin_y = x, y
+  self.draw_cw, self.draw_ch = cw, ch
   local background = rgb(grid.default_background, { 0.06, 0.07, 0.1 })
   local foreground = rgb(grid.default_foreground, { 0.85, 0.88, 0.95 })
   pass:setColor(background[1], background[2], background[3], 1)
@@ -115,6 +117,17 @@ function NvimView:draw(pass, x, y, width, height, scale)
     end
   end
   pass:setScissor()
+end
+
+function NvimView:mousepressed(px, py, button)
+  if button ~= 1 or self.origin_x == nil then return false end
+  local col = math.floor((px - self.origin_x) / self.draw_cw)
+  local row = math.floor((py - self.origin_y) / self.draw_ch)
+  if col < 0 or row < 0 or col >= self.session.grid.cols or
+     row >= self.session.grid.rows then return false end
+  self.session:request("nvim_input_mouse", { "left", "press", "", 0, row, col })
+  self.session:request("nvim_input_mouse", { "left", "release", "", 0, row, col })
+  return true
 end
 
 function NvimView:textinput(text)
