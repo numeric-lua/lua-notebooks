@@ -34,6 +34,8 @@ function Session.new(options)
       "--cmd", shell_quote("set termguicolors"),
       "--cmd", shell_quote("set background=" ..
         (options.background or "dark")),
+      "--cmd", shell_quote("colorscheme " ..
+        (options.background == "light" and "morning" or "habamax")),
       "--listen", "127.0.0.1:" .. port }
     if options.file then command[#command + 1] = shell_quote(options.file) end
     local handle = assert(io.popen(table.concat(command, " ") ..

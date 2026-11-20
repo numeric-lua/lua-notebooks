@@ -110,9 +110,13 @@ function NvimView:draw(pass, x, y, width, height, scale)
       end
       if text:find("%S") then
         pass:setColor(fg[1], fg[2], fg[3], 1)
-        pass:text("\t" .. text, x + first * cw - 2,
+        local run_x = x + first * cw
+        pass:setScissor(math.max(0, run_x * scale), scissor_y,
+          math.max(1, (x + width - run_x) * scale), scissor_h)
+        pass:text("|" .. text, run_x - cw,
           row_y + (ch - self.text_scale * scale) / 2,
           0, self.text_scale * scale, 0, 0, 1, 0, 0, "left", "top")
+        pass:setScissor(scissor_x, scissor_y, scissor_w, scissor_h)
       end
     end
   end
