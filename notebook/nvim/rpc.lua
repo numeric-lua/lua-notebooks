@@ -8,6 +8,7 @@ ffi.cdef[[
 typedef struct { uint16_t sin_family; uint16_t sin_port; uint32_t sin_addr; char pad[8]; } sockaddr_in;
 typedef struct { long tv_sec; long tv_usec; } timeval;
 typedef struct { int fd; short events; short revents; } pollfd;
+typedef struct { uint16_t sun_family; char sun_path[108]; } sockaddr_un;
 int socket(int domain, int type, int protocol);
 int connect(int fd, const void *addr, unsigned int len);
 long send(int fd, const void *buf, unsigned long len, int flags);
@@ -20,7 +21,7 @@ uint16_t htons(uint16_t value);
 uint32_t htonl(uint32_t value);
 ]]
 
-local AF_INET, SOCK_STREAM = 2, 1
+local AF_INET, AF_UNIX, SOCK_STREAM = 2, 1, 1
 local O_NONBLOCK = ffi.os == "OSX" and 4 or 2048
 local Rpc = {}
 Rpc.__index = Rpc
@@ -47,6 +48,22 @@ local function send_all(fd, data)
     end
   end
   return true
+end
+
+function Rpc.connect_unix(path)
+  local fd = ffi.C.socket(AF_UNIX, SOCK_STREAM, 0)
+  if fd < 0 then return nil, "socket failed" end
+  local address = ffi.new("sockaddr_un")
+  address.sun_family = AF_UNIX
+  ffi.copy(address.sun_path, path, math.min(#path, 107))
+  if ffi.C.connect(fd, address, ffi.sizeof(address)) ~= 0 then
+    ffi.C.close(fd)
+    return nil, "connect failed"
+  end
+  local flags = ffi.C.fcntl(fd, 3, 0)
+  ffi.C.fcntl(fd, 4, bit.bor(flags, O_NONBLOCK))
+  return setmetatable({ fd = fd, buffer = "", seq = 0,
+    callbacks = {}, notifications = {} }, Rpc)
 end
 
 function Rpc.connect(host, port)

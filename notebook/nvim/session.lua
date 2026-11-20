@@ -29,15 +29,35 @@ function Session.new(options)
   if options.exe == nil and not Session.available("nvim") then
     error("nvim is not installed or not on PATH")
   end
+  local ffi_ok, ffi = pcall(require, "ffi")
+  local use_unix = ffi_ok and ffi.os ~= "Windows"
+  local unix_dir, unix_path
+  if use_unix then
+    local base = os.tmpname()
+    os.remove(base)
+    unix_dir = base .. ".d"
+    use_unix = os.execute("mkdir -m 700 " .. shell_quote(unix_dir)) == 0 or
+      os.execute("test -d " .. shell_quote(unix_dir)) == 0
+    if use_unix then unix_path = unix_dir .. "/nvim.sock" end
+  end
   local self = setmetatable({
     cols = options.cols or 80, rows = options.rows or 24,
     exe = options.exe or "nvim", cwd = options.cwd,
     grid = Grid.new(options.cols or 80, options.rows or 24),
     rpc = nil, pid = nil, port = nil, closed = false,
+    unix_dir = unix_dir, unix_path = unix_path,
   }, Session)
-  local port, rpc, pid
+  local rpc, pid
   for attempt = 1, 12 do
-    port = options.port or free_port()
+    local port
+    local address
+    if use_unix then
+      os.remove(unix_path)
+      address = unix_path
+    else
+      port = options.port or free_port()
+      address = "127.0.0.1:" .. port
+    end
     local command = { shell_quote(self.exe), "--headless" }
     if options.clean ~= false then command[#command + 1] = "--clean" end
     for _, cmd in ipairs({
@@ -52,29 +72,38 @@ function Session.new(options)
     command[#command + 1] = "--cmd"
     command[#command + 1] = shell_quote("set nomodeline")
     command[#command + 1] = "--listen"
-    command[#command + 1] = "127.0.0.1:" .. port
+    command[#command + 1] = shell_quote(address)
     if options.file then command[#command + 1] = shell_quote(options.file) end
     local handle = assert(io.popen(table.concat(command, " ") ..
       " >/dev/null 2>&1 & echo $!"))
     pid = tonumber(handle:read("*l") or "")
     handle:close()
     for _ = 1, 40 do
-      rpc = Rpc.connect("127.0.0.1", port)
+      if use_unix then
+        rpc = Rpc.connect_unix(unix_path)
+      else
+        rpc = Rpc.connect("127.0.0.1", port)
+      end
       if rpc then break end
-      os.execute("sleep 0.05")
+      os.execute("sleep 0.02")
     end
-    if rpc then break end
+    if rpc then
+      self.port = port or unix_path
+      break
+    end
     if pid then os.execute("kill " .. tostring(pid) .. " 2>/dev/null || true") end
-    os.execute("sleep 0.1")
+    os.execute("sleep 0.05")
   end
   if rpc == nil then
-    error("could not connect to nvim on port " .. tostring(port))
+    if unix_dir then os.execute("rmdir " .. shell_quote(unix_dir) .. " 2>/dev/null || true") end
+    error("could not connect to nvim")
   end
-  self.pid, self.port, self.rpc = pid, port, rpc
+  self.pid, self.rpc = pid, rpc
   local server = self:request("nvim_get_vvar", { "servername" })
-  if type(server) ~= "string" or not server:find(tostring(port), 1, true) then
+  local expected = use_unix and unix_path or ("127.0.0.1:" .. tostring(self.port))
+  if type(server) ~= "string" or not server:find(expected, 1, true) then
     pcall(function() self:close() end)
-    error("nvim handshake failed on port " .. tostring(port))
+    error("nvim handshake failed")
   end
   self:request("nvim_ui_attach", { self.cols, self.rows,
     Msgpack.map({ ext_linegrid = true, rgb = true }) })
@@ -160,6 +189,11 @@ function Session:close()
   if self.pid then
     os.execute("kill " .. tostring(self.pid) .. " 2>/dev/null || true")
     self.pid = nil
+  end
+  if self.unix_path then os.remove(self.unix_path); self.unix_path = nil end
+  if self.unix_dir then
+    os.execute("rmdir " .. shell_quote(self.unix_dir) .. " 2>/dev/null || true")
+    self.unix_dir = nil
   end
 end
 
