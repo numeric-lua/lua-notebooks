@@ -1834,7 +1834,7 @@ function UI:keypressed(key)
     elseif self.vim_scope == "notebook" and
            (key == "i" or key == "return") then
       self.vim_scope = "cell"
-      self.vim_normal = true
+      self.vim_normal = false
       return
     end
     if key == "q" then
