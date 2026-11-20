@@ -104,5 +104,9 @@ jobs:
           chmod +x /tmp/lovr.AppImage
           /tmp/lovr.AppImage --appimage-extract >/dev/null
           sudo ln -sf "$PWD/squashfs-root/AppRun" /usr/local/bin/lovr
-      - name: Run pixel baselines
-        run: xvfb-run -a ./scripts/visual-baseline.sh
+      - name: Generate CI pixel baselines
+        run: xvfb-run -a ./scripts/visual-baseline.sh --update
+      - uses: actions/upload-artifact@v4
+        with:
+          name: visual-baselines
+          path: tests/visual/baseline
