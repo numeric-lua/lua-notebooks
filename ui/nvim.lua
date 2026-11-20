@@ -105,7 +105,7 @@ function NvimView:draw(pass, x, y, width, height, scale)
   local rows = math.min(grid.rows, math.ceil(height / ch))
   local cursor = grid.cursor
   if cursor and cursor.row < rows then
-    local cx = x + cursor.col * cw + 12
+    local cx = x + cursor.col * cw
     local cy = y + cursor.row * ch
     pass:setColor(0.75, 0.85, 1, 0.9)
     pass:plane(cx + cw / 2, cy + ch - 1, 0, math.max(2, cw), 2)
