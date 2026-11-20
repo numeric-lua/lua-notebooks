@@ -708,8 +708,7 @@ function UI:draw(pass, logical_width, logical_height)
       { 0.55, 0.7, 0.85, 1 }, 0.66)
     text(pass, app.font, app.status, 16, height - 22,
       { 0.6, 0.68, 0.82, 1 }, 0.72)
-    text(pass, app.font,
-      "F5 run  Ctrl+F find  Alt+E Neovim  Alt+T opacity",
+    text(pass, app.font, "F5 run   F6 save   F7 load   Tab indent   Up/Down cell",
       width - 470, height - 22, { 0.45, 0.5, 0.62, 1 }, 0.65)
   end
   self:draw_completion(pass, width, height)
