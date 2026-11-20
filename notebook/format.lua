@@ -60,6 +60,15 @@ function Format.decode(text)
   return Notebook.new({ name = data.name, cells = cells })
 end
 
+function Format.save_path(notebook, path)
+  local handle, err = io.open(path, "wb")
+  if handle == nil then return nil, "cannot write " .. path .. ": " .. tostring(err) end
+  handle:write(Format.encode(notebook))
+  handle:close()
+  notebook._path = path
+  return path
+end
+
 function Format.save(notebook)
   local directory = "notebooks"
   lovr.filesystem.createDirectory(directory)

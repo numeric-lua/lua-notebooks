@@ -609,6 +609,8 @@ function UI:palette_commands()
   local commands = {
     { id = "run", label = "Run selected cell  (F5)" },
     { id = "save", label = "Save notebook  (F6)" },
+    { id = "save-as", label = "Save notebook as…" },
+    { id = "open-dialog", label = "Open notebook…" },
     { id = "load", label = "Load notebook  (F7)" },
     { id = "new", label = "New notebook" },
     { id = "tree", label = "Notebook filetree  (F2)" },
@@ -644,6 +646,8 @@ function UI:run_palette_command(id)
   self.show_palette = false
   if id == "run" then self.app:run()
   elseif id == "save" then self.app:save()
+  elseif id == "save-as" then self.app:save_as()
+  elseif id == "open-dialog" then self.app:open_dialog()
   elseif id == "load" then self.app:load()
   elseif id == "new" then self.app:new_notebook()
   elseif id == "tree" then self.show_tree = true

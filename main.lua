@@ -414,6 +414,28 @@ function App:save()
   self.status = "saved " .. tostring(absolute)
 end
 
+function App:save_as()
+  local dialog = require("notebook.native_dialog")
+  local target, err = dialog.save(self:notebook().name .. ".luanb")
+  if target == nil then
+    self.status = "save as: " .. tostring(err)
+    return
+  end
+  local ok, saved = pcall(Format.save_path, self:notebook(), target)
+  self.status = ok and ("saved " .. tostring(saved)) or
+    ("save as failed: " .. tostring(saved))
+end
+
+function App:open_dialog()
+  local dialog = require("notebook.native_dialog")
+  local target, err = dialog.open()
+  if target == nil then
+    self.status = "open: " .. tostring(err)
+    return
+  end
+  self:open_path(target)
+end
+
 function App:load()
   local ok, loaded, err = pcall(Format.load, self:notebook().name)
   if not ok then
