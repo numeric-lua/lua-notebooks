@@ -1,5 +1,6 @@
-# lua-notebooks 1.8.1
+# lua-notebooks 1.9.0
 
-- fix Neovim F10 write-back when opening a cell;
-- open Neovim at the buffer start for reliable edits;
-- docs cleanup.
+- pressing i/Enter on a cell opens the default Neovim editor;
+- F5 from Neovim respects markdown cells;
+- reliable F10 write-back;
+- notebook-wide buffer and codec tests.
