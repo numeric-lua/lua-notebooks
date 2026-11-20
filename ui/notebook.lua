@@ -739,6 +739,22 @@ function UI:palette_commands()
     { id = "outline", label = "Heading outline  (F11)" },
     { id = "help", label = "Shortcut help  (F12)" },
   }
+  local current = self.app:notebook()
+  local current_title = current:title()
+  for index, notebook in ipairs(self.app.notebooks) do
+    if index ~= self.app.active then
+      local backlink = false
+      for _, cell in ipairs(notebook.cells) do
+        if (cell.source or ""):find("[[" .. current_title .. "]]", 1, true) then
+          backlink = true
+        end
+      end
+      commands[#commands + 1] = {
+        id = "notebook:" .. index,
+        label = (backlink and "Backlink: " or "Switch to ") .. notebook:title(),
+      }
+    end
+  end
   local query = self.palette_query:lower()
   if query == "" then return commands end
   local filtered = {}
@@ -764,6 +780,8 @@ function UI:run_palette_command(id)
   elseif id == "save" then self.app:save()
   elseif id == "save-as" then self.app:save_as()
   elseif id == "open-dialog" then self.app:open_dialog()
+  elseif id:match("^notebook:%d+$") then
+    self.app:set_tab(tonumber(id:match("%d+")))
   elseif id == "load" then self.app:load()
   elseif id == "new" then self.app:new_notebook()
   elseif id == "tree" then self.show_tree = true
