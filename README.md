@@ -491,3 +491,7 @@ as Markdown**. `Ctrl+Shift+K` restarts the current kernel.
 Wiki links such as `[[Notebook Title]]` are previewed without brackets. The command palette lists other tabs as **Switch to** entries and marks tabs that link to the current notebook as **Backlink**. Press **F1** to open it.
 
 The Neovim process is kept warm after F10/F9/F5, so reopening a cell or switching with Alt+J/K does not pay startup cost again. The process is destroyed when the app quits.
+
+## Tags
+
+Markdown `#tags` are indexed across open notebooks in the command palette; selecting one opens notebook-wide search for that tag.
