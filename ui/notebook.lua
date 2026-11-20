@@ -888,6 +888,17 @@ function UI:update_find()
       end
       offset = offset + #line + 1
     end
+    if cell.output and cell.output ~= "" then
+      for line in (cell.output .. "\n"):gmatch("(.-)\n") do
+        if line:lower():find(query, 1, true) then
+          self.find_results[#self.find_results + 1] = {
+            cell = cell_index, line = "out: " .. line,
+            cursor = #(cell.source or "") + 1,
+          }
+          if #self.find_results >= 40 then return end
+        end
+      end
+    end
   end
 end
 
