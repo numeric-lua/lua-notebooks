@@ -36,3 +36,19 @@ assert(flat.cursor.row == 1 and flat.cursor.col == 2)
 flat:apply_redraw({ { "grid_scroll", 1, 0, 3, 0, 10, 1 } })
 assert(flat:line(0):match("^%s+$"))
 print("nvim flat grid ok")
+
+local popup = Grid.new(20, 5)
+popup:apply_redraw({
+  { "popupmenu_show", { { "print", "f" }, { "pairs", "f" } }, 0, 1, 2 },
+})
+assert(popup.popupmenu and #popup.popupmenu.items == 2)
+assert(popup.popupmenu.selected == 1)
+popup:apply_redraw({ { "popupmenu_select", 1 } })
+assert(popup.popupmenu.selected == 2)
+popup:apply_redraw({ { "popupmenu_hide" } })
+assert(popup.popupmenu == nil)
+local nested_popup = Grid.new(20, 5)
+nested_popup:apply_redraw({ { "popupmenu_show",
+  { { { "local", "k" } }, 0, 0, 0 } } })
+assert(nested_popup.popupmenu and #nested_popup.popupmenu.items == 1)
+print("nvim popupmenu ok")
