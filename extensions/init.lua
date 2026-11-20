@@ -210,8 +210,21 @@ function Extensions.discover_user()
         local Sandbox = require("extensions.support.sandbox")
         local absolute = lovr.filesystem.getSaveDirectory() .. "/" ..
           directory .. "/" .. filename
-        local descriptor, err = Sandbox.run(absolute,
-          sandbox_name, lovr.filesystem.getSource())
+        local descriptor, err
+        if Sandbox.available() then
+          descriptor, err = Sandbox.run(absolute, sandbox_name,
+            lovr.filesystem.getSource())
+        else
+          local Loader = require("extensions.loader")
+          local LuaSandbox = require("ui.extension_sandbox")
+          local env = LuaSandbox.create({
+            graphics = lovr.graphics, timer = lovr.timer, input = lovr.system,
+          }, { "graphics", "timer", "input" })
+          descriptor, err = Loader.load_file(absolute, sandbox_name, {
+            load = lovr.filesystem.load, env = env,
+          })
+          if descriptor then descriptor.tier = "lua-sandbox" end
+        end
         if descriptor then
           register(descriptor)
           loaded[#loaded + 1] = descriptor

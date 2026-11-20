@@ -1,5 +1,5 @@
-# lua-notebooks 0.3.0
+# lua-notebooks 0.4.0
 
-- gateway token, Origin, expiry, and frame-size limits;
-- gateway policy tests;
-- remote security documentation.
+- restricted Lua-environment fallback for user extensions on macOS/Windows;
+- Linux bubblewrap sandbox retained;
+- permission and gateway hardening from 0.3.0.

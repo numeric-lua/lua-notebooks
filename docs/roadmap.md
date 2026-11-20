@@ -26,8 +26,8 @@
 
 - True TeX/MathJax-quality math layout and fonts.
 - Semantic type/scope analysis beyond the current local LSP helpers.
-- OS sandboxing is available on Linux through bubblewrap; Windows/macOS
-  extension sandboxing remains platform-specific.
+- OS sandboxing is available on Linux through bubblewrap; macOS/Windows use
+  the restricted Lua-environment fallback.
 - Full Vim semantics: undo tree, regex parity, text objects, macros.
 - Broader visual coverage beyond QA cells 4/6/7.
 
