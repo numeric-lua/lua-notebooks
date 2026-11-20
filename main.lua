@@ -641,15 +641,23 @@ function App:close_nvim(save, keep)
   local applied = false
   if save and lines then
     if self.nvim_notebook then
-      local sources, order, decode_error = NvimBuffer.decode(lines)
+      local sources, order, decode_error, kinds = NvimBuffer.decode(lines)
       local notebook = self:notebook()
       if decode_error then
         self.status = "Neovim save failed: " .. decode_error
         return false
       end
+      local all_editable = true
+      for _, cell in ipairs(notebook.cells) do
+        if cell.kind ~= "code" and cell.kind ~= "markdown" then
+          all_editable = false
+        end
+      end
+      local old_count = #notebook.cells
+      local new_limit = all_editable and old_count + 100 or old_count
       local seen = {}
       for _, index in ipairs(order) do
-        if seen[index] or index < 1 or index > #notebook.cells then
+        if seen[index] or index < 1 or index > new_limit then
           self.status = "Neovim save failed: bad cell marker " .. index
           return false
         end
@@ -664,32 +672,61 @@ function App:close_nvim(save, keep)
         end
       end
       local changed = false
+      local added = 0
       for index, source in pairs(sources) do
-        local cell = notebook.cells[index]
-        if cell and cell.source ~= source then changed = true end
+        if index <= old_count then
+          local cell = notebook.cells[index]
+          if cell and cell.source ~= source then changed = true end
+        else
+          added = added + 1
+        end
       end
-      if changed then notebook:push_undo("Neovim notebook edit") end
+      local new_cells = {}
+      for _, index in ipairs(order) do
+        if index > old_count then
+          local kind = kinds[index] or "code"
+          if kind ~= "code" and kind ~= "markdown" then
+            self.status = "Neovim save failed: bad cell kind " .. kind
+            return false
+          end
+          new_cells[index] = notebook:new_cell(kind, sources[index] or "")
+        end
+      end
+      if changed or added > 0 then
+        notebook:push_undo("Neovim notebook edit")
+      end
       for index, source in pairs(sources) do
-        local cell = notebook.cells[index]
-        if cell then cell.source = source end
+        if index <= old_count then
+          local cell = notebook.cells[index]
+          if cell then cell.source = source end
+        end
       end
       local reordered_flag = false
-      if #order == #notebook.cells then
+      if #order >= old_count and (all_editable or #order == old_count) then
         reordered_flag = true
         local active_cell = notebook:selected()
         local reordered = {}
         for _, index in ipairs(order) do
-          reordered[#reordered + 1] = notebook.cells[index]
+          if index <= old_count then
+            reordered[#reordered + 1] = notebook.cells[index]
+          else
+            reordered[#reordered + 1] = new_cells[index]
+          end
         end
         notebook.cells = reordered
         for index, cell in ipairs(notebook.cells) do
           if cell == active_cell then notebook.active = index end
         end
       end
-      notebook.dirty = changed or reordered_flag or notebook.dirty
+      notebook.dirty = changed or added > 0 or reordered_flag or notebook.dirty
       applied = true
-      self.status = changed and "applied Neovim changes; F6 writes the file" or
-        "no Neovim changes; F6 writes the file"
+      if added > 0 then
+        self.status = "added " .. added .. " Neovim cell(s); F6 writes the file"
+      elseif changed then
+        self.status = "applied Neovim changes; F6 writes the file"
+      else
+        self.status = "no Neovim changes; F6 writes the file"
+      end
     else
       local source = table.concat(lines, "\n")
       local cell = self:notebook():selected()

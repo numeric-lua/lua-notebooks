@@ -40,5 +40,5 @@ Known gaps:
 - font advance and cursor alignment are approximate;
 - no external `ext_cmdline`/`ext_messages` overlay;
 - Windows uses TCP transport;
-- marker add/delete is rejected; reordering is supported;
+- new marker blocks create cells; deleting markers is rejected; reordering is supported;
 - the headless process uses `--clean`, so user Neovim plugins are not loaded.

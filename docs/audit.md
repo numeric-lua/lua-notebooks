@@ -32,6 +32,6 @@
 - Windows Neovim transport (named pipes or TCP FFI definitions).
 - Cell-height cache and true virtualization; source/output/diagnostic caches landed.
 - Graph view and tag index on top of search/wiki links.
-- Marker add/delete support; marker reordering now maps to the model.
+- New marker blocks create cells; marker deletion remains fail-closed; reordering maps to the model.
 - macOS/Windows OS sandbox backends.
 - Broader visual baselines with renderer pinning.
