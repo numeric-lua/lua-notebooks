@@ -5,6 +5,7 @@
 -- the Pass; the notebook composites the Texture into the cell.  Kernels never
 -- see either object.
 --
+local Theme = require("ui.theme")
 local Surface = {}
 Surface.__index = Surface
 
@@ -33,7 +34,9 @@ function Surface:ensure(renderer, width, height)
     label = "notebook-extension",
   })
   self.pass = lovr.graphics.newPass(self.texture)
-  self.pass:setClear(0.02, 0.025, 0.04, 1)
+  self.pass:setClear(Theme.mode == "light" and 0.97 or 0.02,
+      Theme.mode == "light" and 0.98 or 0.025,
+      Theme.mode == "light" and 1 or 0.04, 1)
   self.renderer = renderer
   if renderer and renderer.resize then
     renderer.resize(self.state, width, height)
@@ -43,14 +46,18 @@ end
 function Surface:render(renderer, time)
   local pass = self.pass
   pass:reset()
-  pass:setClear(0.02, 0.025, 0.04, 1)
+  pass:setClear(Theme.mode == "light" and 0.97 or 0.02,
+      Theme.mode == "light" and 0.98 or 0.025,
+      Theme.mode == "light" and 1 or 0.04, 1)
   renderer.render(pass, time or 0, self.width, self.height, self.state)
 end
 
 function Surface:render_display(descriptor, time)
   local pass = self.pass
   pass:reset()
-  pass:setClear(0.02, 0.025, 0.04, 1)
+  pass:setClear(Theme.mode == "light" and 0.97 or 0.02,
+      Theme.mode == "light" and 0.98 or 0.025,
+      Theme.mode == "light" and 1 or 0.04, 1)
   require("extensions.support.display_list").replay(pass, descriptor,
     self.width, self.height)
 end

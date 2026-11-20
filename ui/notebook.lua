@@ -573,9 +573,10 @@ function UI:draw(pass, logical_width, logical_height)
         self.output_rects[index] = { x = 34, y = output_y - 3,
           w = width - 68, h = output_height }
         box(pass, 34, output_y - 3, width - 68, output_height,
-          { 0.04, 0.05, 0.07, 1 })
-        local output_color = cell.error and { 1, 0.45, 0.45, 1 } or
-          { 0.55, 0.9, 0.65, 1 }
+          light and { 0.94, 0.95, 0.97, 1 } or { 0.04, 0.05, 0.07, 1 })
+        local output_color = cell.error and
+          (light and { 0.65, 0.10, 0.12, 1 } or { 1, 0.45, 0.45, 1 }) or
+          (light and { 0.10, 0.40, 0.22, 1 } or { 0.55, 0.9, 0.65, 1 })
         for line_index = 1, math.min(#output_lines, 6) do
           text(pass, app.font, output_lines[line_index], 42,
             output_y + (line_index - 1) * 19, output_color, 0.78)
@@ -584,10 +585,21 @@ function UI:draw(pass, logical_width, logical_height)
       end
 
       if type(cell.scene) == "table" and cell.scene.type == "luaplotlib" then
-        Plot.draw(pass, app.font, cell.scene, 34, output_y, width - 68,
-          scene_height)
+        local ok, err = pcall(Plot.draw, pass, app.font, cell.scene, 34,
+          output_y, width - 68, scene_height)
+        if not ok then
+          cell.error = "scene: " .. tostring(err)
+          text(pass, app.font, tostring(err), 42, output_y + 8,
+            light and { 0.65, 0.1, 0.12, 1 } or { 1, 0.45, 0.45, 1 }, 0.72)
+        end
       elseif cell.scene then
-        self:draw_scene(pass, 34, output_y, width - 68, scene_height, cell)
+        local ok, err = pcall(self.draw_scene, self, pass, 34, output_y,
+          width - 68, scene_height, cell)
+        if not ok then
+          cell.error = "scene: " .. tostring(err)
+          text(pass, app.font, tostring(err), 42, output_y + 8,
+            light and { 0.65, 0.1, 0.12, 1 } or { 1, 0.45, 0.45, 1 }, 0.72)
+        end
       end
     end
     y = y + cell_height + 10
@@ -1120,7 +1132,11 @@ function UI:draw_scene(pass, x, y, w, h, cell)
 
   box(pass, x, y, w, h, { 0.02, 0.025, 0.04, 0 })
   pass:setFont(self.app.font)
-  pass:setColor(0.8, 0.85, 0.95, 1)
+  if Theme.mode == "light" then
+    pass:setColor(0.35, 0.39, 0.46, 1)
+  else
+    pass:setColor(0.8, 0.85, 0.95, 1)
+  end
   pass:text("surface: Pass + Texture (host-rendered)", x + 10, y + 8, 0, 0.72,
     0, 0, 1, 0, 0, "left", "top")
 end

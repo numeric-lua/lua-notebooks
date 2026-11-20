@@ -656,8 +656,8 @@ return { scene = {
       cell("code", [[
 -- Histogram from precomputed edges and counts.
 local edges, counts = {}, {}
+for i = 1, 17 do edges[i] = (i - 1) * 0.25 end
 for i = 1, 16 do
-  edges[i] = (i - 1) * 0.25
   counts[i] = math.floor(10 * math.exp(-((edges[i] - 2) ^ 2)))
 end
 return { scene = {

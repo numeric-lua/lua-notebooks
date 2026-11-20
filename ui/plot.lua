@@ -5,6 +5,7 @@
 -- This renderer is intentionally dependency-free and draws in the notebook's
 -- 2D pixel space; it does not need a graphics context inside the kernel.
 --
+local Theme = require("ui.theme")
 local Plot = {}
 
 local function color(hex, alpha)
@@ -48,6 +49,7 @@ end
 
 function Plot.draw(pass, font, scene, x, y, w, h)
   scene = scene or {}
+  local light = Theme.mode == "light"
   local xmin, xmax = finite_range(scene.xlim and scene.xlim[1],
     scene.xlim and scene.xlim[2])
   local ymin, ymax = finite_range(scene.ylim and scene.ylim[1],
@@ -67,13 +69,25 @@ function Plot.draw(pass, font, scene, x, y, w, h)
   end
 
   -- Background and plot region.
-  pass:setColor(0.025, 0.03, 0.05, 1)
+  if light then
+    pass:setColor(0.97, 0.975, 0.99, 1)
+  else
+    pass:setColor(0.025, 0.03, 0.05, 1)
+  end
   pass:plane(x + w / 2, y + h / 2, 0, w, h)
-  pass:setColor(0.055, 0.065, 0.09, 1)
+  if light then
+    pass:setColor(1, 1, 1, 1)
+  else
+    pass:setColor(0.055, 0.065, 0.09, 1)
+  end
   pass:plane(left + plot_w / 2, top + plot_h / 2, 0, plot_w, plot_h)
 
   if scene.grid then
-    pass:setColor(0.15, 0.17, 0.23, 1)
+    if light then
+      pass:setColor(0.84, 0.86, 0.90, 1)
+    else
+      pass:setColor(0.15, 0.17, 0.23, 1)
+    end
     for index = 1, 4 do
       local fraction = index / 5
       local gx = left + plot_w * fraction
@@ -84,11 +98,18 @@ function Plot.draw(pass, font, scene, x, y, w, h)
   end
 
   -- Axes.
-  pass:setColor(0.45, 0.5, 0.62, 1)
+  if light then
+    pass:setColor(0.38, 0.42, 0.50, 1)
+  else
+    pass:setColor(0.45, 0.5, 0.62, 1)
+  end
   pass:line(left, top, 0, left, bottom, 0)
   pass:line(left, bottom, 0, right, bottom, 0)
 
   -- Simple numeric ticks (categories replace horizontal labels when present).
+  local tick_color = light and "#5b6472" or "#7f879a"
+  local title_color = light and "#202630" or "#e8ecff"
+  local label_color = light and "#4a5260" or "#aeb6c8"
   local category = scene.category_ticks
   for index = 0, 4 do
     local fraction = index / 4
@@ -98,15 +119,15 @@ function Plot.draw(pass, font, scene, x, y, w, h)
     local yvalue = ymax - (ymax - ymin) * fraction
     if not category then
       text(pass, font, string.format("%.4g", xvalue), tx, bottom + 6, 0.6,
-        "center", "top", { color = "#7f879a" })
+        "center", "top", { color = tick_color })
     end
     text(pass, font, string.format("%.4g", yvalue), left - 8, ty, 0.6,
-      "right", "middle", { color = "#7f879a" })
+      "right", "middle", { color = tick_color })
   end
   if category then
     for _, tick in ipairs(category) do
       text(pass, font, tostring(tick.label), sx(tick.position), bottom + 6, 0.58,
-        "center", "top", { color = "#7f879a" })
+        "center", "top", { color = tick_color })
     end
   end
 
@@ -144,6 +165,9 @@ function Plot.draw(pass, font, scene, x, y, w, h)
       end
     elseif series.kind == "hist" then
       for index = 1, #series.counts do
+        if series.edges[index] == nil or series.edges[index + 1] == nil then
+          break
+        end
         local x0 = sx(series.edges[index])
         local x1 = sx(series.edges[index + 1])
         local y0 = sy(math.max(0, ymin))
@@ -157,15 +181,15 @@ function Plot.draw(pass, font, scene, x, y, w, h)
   -- Labels.
   if scene.title then
     text(pass, font, scene.title, x + 10, y + 10, 0.82, "left", "top",
-      { color = "#e8ecff" })
+      { color = title_color })
   end
   if scene.xlabel then
     text(pass, font, scene.xlabel, left + plot_w / 2, y + h - 18, 0.65,
-      "center", "middle", { color = "#aeb6c8" })
+      "center", "middle", { color = label_color })
   end
   if scene.ylabel then
     text(pass, font, scene.ylabel, x + 12, top + plot_h / 2, 0.65,
-      "center", "middle", { color = "#aeb6c8" })
+      "center", "middle", { color = label_color })
   end
 end
 
