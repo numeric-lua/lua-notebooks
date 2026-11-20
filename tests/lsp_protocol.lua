@@ -123,6 +123,19 @@ local field_completion = server:handle({ jsonrpc = "2.0", id = 21,
     textDocument = { uri = uri4 }, position = { line = 3, character = 0 },
   } })
 assert(field_completion.result and #field_completion.result.items > 0)
+local symbol_uri = "file:///symbols.lua"
+server:handle({ jsonrpc = "2.0", method = "textDocument/didOpen", params = {
+  textDocument = { uri = symbol_uri, version = 1,
+    text = "local function helper()\nend\nfunction module.run()\nend\n" },
+} })
+local document_symbols = server:handle({ jsonrpc = "2.0", id = 21,
+  method = "textDocument/documentSymbol", params = {
+    textDocument = { uri = symbol_uri },
+  } })
+assert(#document_symbols.result == 2, #document_symbols.result)
+local workspace_symbols = server:handle({ jsonrpc = "2.0", id = 22,
+  method = "workspace/symbol", params = { query = "run" } })
+assert(#workspace_symbols.result == 1, #workspace_symbols.result)
 local shutdown = server:handle({ jsonrpc = "2.0", id = 3, method = "shutdown", params = json.null })
 eq(shutdown.result, json.null)
 print("lsp protocol tests ok")

@@ -1,5 +1,5 @@
-# lua-notebooks 0.4.0
+# lua-notebooks 0.5.0
 
-- restricted Lua-environment fallback for user extensions on macOS/Windows;
-- Linux bubblewrap sandbox retained;
-- permission and gateway hardening from 0.3.0.
+- document symbols in the LSP;
+- workspace symbol search;
+- capability advertisements for symbol providers.

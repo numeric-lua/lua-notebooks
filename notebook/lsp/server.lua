@@ -117,6 +117,8 @@ function Server:handle(message)
         hoverProvider = true,
         definitionProvider = true,
         referencesProvider = true,
+        documentSymbolProvider = true,
+        workspaceSymbolProvider = true,
         renameProvider = { prepareProvider = false },
       },
       serverInfo = { name = "lua-notebooks-lsp", version = "0.1.0" },
@@ -124,6 +126,48 @@ function Server:handle(message)
   elseif message.method == "initialized" then
     self.ready = true
     return nil
+  elseif message.method == "textDocument/documentSymbol" then
+    local uri = params.textDocument and params.textDocument.uri
+    local document = self.documents[uri]
+    if document == nil then return response(id, {}) end
+    local symbols, seen = {}, {}
+    local offset = 1
+    for line in (document.text .. "\n"):gmatch("(.-)\n") do
+      local name = line:match("^%s*local%s+function%s+([%a_][%w_]*)") or
+        line:match("^%s*function%s+([%a_][%w_%.]*)")
+      if name and not seen[name] then
+        seen[name] = true
+        local start = location(uri, document.text, offset)
+        symbols[#symbols + 1] = {
+          name = name, kind = 12,
+          range = { start = start.range.start,
+            ["end"] = { line = start.range.start.line,
+              character = #line } },
+          selectionRange = start.range,
+        }
+      end
+      offset = offset + #line + 1
+    end
+    return response(id, symbols)
+  elseif message.method == "workspace/symbol" then
+    local query = tostring(params.query or ""):lower()
+    local symbols, seen = {}, {}
+    for uri, document in pairs(self.documents) do
+      local offset = 1
+      for line in (document.text .. "\n"):gmatch("(.-)\n") do
+        local name = line:match("^%s*local%s+function%s+([%a_][%w_]*)") or
+          line:match("^%s*function%s+([%a_][%w_%.]*)")
+        if name and not seen[uri .. name] and
+           (query == "" or name:lower():find(query, 1, true)) then
+          seen[uri .. name] = true
+          local start = location(uri, document.text, offset)
+          symbols[#symbols + 1] = { name = name, kind = 12,
+            location = start }
+        end
+        offset = offset + #line + 1
+      end
+    end
+    return response(id, symbols)
   elseif message.method == "shutdown" then
     self.shutdown = true
     return response(id, json.null)
@@ -322,6 +366,48 @@ function Server:handle(message)
       end
     end
     return response(id, { changes = changes })
+  elseif message.method == "textDocument/documentSymbol" then
+    local uri = params.textDocument and params.textDocument.uri
+    local document = self.documents[uri]
+    if document == nil then return response(id, {}) end
+    local symbols, seen = {}, {}
+    local offset = 1
+    for line in (document.text .. "\n"):gmatch("(.-)\n") do
+      local name = line:match("^%s*local%s+function%s+([%a_][%w_]*)") or
+        line:match("^%s*function%s+([%a_][%w_%.]*)")
+      if name and not seen[name] then
+        seen[name] = true
+        local start = location(uri, document.text, offset)
+        symbols[#symbols + 1] = {
+          name = name, kind = 12,
+          range = { start = start.range.start,
+            ["end"] = { line = start.range.start.line,
+              character = #line } },
+          selectionRange = start.range,
+        }
+      end
+      offset = offset + #line + 1
+    end
+    return response(id, symbols)
+  elseif message.method == "workspace/symbol" then
+    local query = tostring(params.query or ""):lower()
+    local symbols, seen = {}, {}
+    for uri, document in pairs(self.documents) do
+      local offset = 1
+      for line in (document.text .. "\n"):gmatch("(.-)\n") do
+        local name = line:match("^%s*local%s+function%s+([%a_][%w_]*)") or
+          line:match("^%s*function%s+([%a_][%w_%.]*)")
+        if name and not seen[uri .. name] and
+           (query == "" or name:lower():find(query, 1, true)) then
+          seen[uri .. name] = true
+          local start = location(uri, document.text, offset)
+          symbols[#symbols + 1] = { name = name, kind = 12,
+            location = start }
+        end
+        offset = offset + #line + 1
+      end
+    end
+    return response(id, symbols)
   elseif message.method == "shutdown" then
     return response(id, json.null)
   elseif message.method == "$/cancelRequest" then
