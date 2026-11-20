@@ -646,6 +646,17 @@ function App:open_nvim_notebook()
   local cells = {}
   for _, entry in ipairs(rows) do cells[entry.index] = true end
   if #lines == 0 then self.status = "notebook has no code cells"; return end
+  if self.nvim_session then
+    self.nvim_session:input("<Esc>")
+    self.nvim_session:update()
+    self.nvim_session:set_lines(lines, 1)
+    self.nvim_session:command("set filetype=lua")
+    self.nvim_session:input("i")
+    self.nvim_cells, self.nvim_cell_rows = cells, rows
+    self.show_nvim, self.nvim_notebook = true, true
+    self.status = "Neovim notebook (warm): F10 save, F5 run"
+    return
+  end
   local path = os.tmpname() .. ".lua"
   local handle = assert(io.open(path, "wb"))
   handle:write(table.concat(lines, "\n"))
