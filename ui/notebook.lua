@@ -767,6 +767,24 @@ function UI:palette_commands()
     { id = "outline", label = "Heading outline  (F11)" },
     { id = "help", label = "Shortcut help  (F12)" },
   }
+  local tags, tag_order = {}, {}
+  for _, notebook in ipairs(self.app.notebooks) do
+    for _, cell in ipairs(notebook.cells) do
+      if cell.kind == "markdown" then
+        for tag in (cell.source or ""):gmatch("#([%a_][%w_-]*)") do
+          if tags[tag] == nil then tag_order[#tag_order + 1] = tag end
+          tags[tag] = (tags[tag] or 0) + 1
+        end
+      end
+    end
+  end
+  for index = 1, math.min(#tag_order, 20) do
+    local tag = tag_order[index]
+    commands[#commands + 1] = {
+      id = "tag:" .. tag,
+      label = "Tag #" .. tag .. " (" .. tags[tag] .. ")",
+    }
+  end
   local current = self.app:notebook()
   local current_title = current:title()
   for index, notebook in ipairs(self.app.notebooks) do
@@ -808,6 +826,10 @@ function UI:run_palette_command(id)
   elseif id == "save" then self.app:save()
   elseif id == "save-as" then self.app:save_as()
   elseif id == "open-dialog" then self.app:open_dialog()
+  elseif id:match("^tag:(.+)$") then
+    self:open_find()
+    self.find_query = "#" .. id:match("^tag:(.+)$")
+    self:update_find()
   elseif id:match("^notebook:%d+$") then
     self.app:set_tab(tonumber(id:match("%d+")))
   elseif id == "load" then self.app:load()
