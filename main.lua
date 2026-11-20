@@ -427,6 +427,17 @@ function App:run_all()
   self.status = "running all code cells"
 end
 
+function App:export_markdown()
+  local notebook = self:notebook()
+  local safe = notebook.name:gsub("[^%w_.-]", "_")
+  local path = "exports/" .. safe:gsub("%.luanb$", "") .. ".md"
+  pcall(lovr.filesystem.createDirectory, "exports")
+  local ok, err = pcall(lovr.filesystem.write, path,
+    require("notebook.format").to_markdown(notebook))
+  self.status = ok and ("exported " .. path) or ("export failed: " ..
+    tostring(err))
+end
+
 function App:clear_outputs()
   for _, cell in ipairs(self:notebook().cells) do
     cell.output = ""

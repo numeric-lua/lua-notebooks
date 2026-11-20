@@ -435,6 +435,18 @@ test("deletes the character at or before the cursor", function()
   eq(notebook:selected().cursor, 2)
 end)
 
+current = "markdown export"
+test("exports markdown and code blocks", function()
+  local notebook = Notebook.new({ name = "export-test", cells = {
+    { kind = "markdown", source = "# Heading" },
+    { kind = "code", source = "print(1)", output = "1" },
+  } })
+  local text = Format.to_markdown(notebook)
+  assert(text:find("# Heading", 1, true))
+  assert(text:find("```lua", 1, true))
+  assert(text:find("> 1", 1, true))
+end)
+
 io.write(string.format("\n\n%d tests, %d passed, %d failed\n", passed + failed,
   passed, failed))
 if failed > 0 then

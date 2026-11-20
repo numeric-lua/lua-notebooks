@@ -700,6 +700,7 @@ function UI:palette_commands()
     { id = "restart-kernel", label = "Restart current kernel" },
     { id = "clear-outputs", label = "Clear all cell outputs" },
     { id = "run-all", label = "Run all code cells" },
+    { id = "export-md", label = "Export notebook as Markdown" },
     { id = "save", label = "Save notebook  (F6)" },
     { id = "save-as", label = "Save notebook as…" },
     { id = "open-dialog", label = "Open notebook…" },
@@ -740,6 +741,7 @@ function UI:run_palette_command(id)
   elseif id == "restart-kernel" then self.app:restart_kernel()
   elseif id == "clear-outputs" then self.app:clear_outputs()
   elseif id == "run-all" then self.app:run_all()
+  elseif id == "export-md" then self.app:export_markdown()
   elseif id == "save" then self.app:save()
   elseif id == "save-as" then self.app:save_as()
   elseif id == "open-dialog" then self.app:open_dialog()

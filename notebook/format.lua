@@ -77,6 +77,29 @@ function Format.save(notebook)
   return path, lovr.filesystem.getSaveDirectory() .. "/" .. path
 end
 
+function Format.to_markdown(notebook)
+  local lines = { "# " .. notebook:title(), "" }
+  for _, cell in ipairs(notebook.cells) do
+    if cell.kind == "markdown" then
+      lines[#lines + 1] = cell.source or ""
+      lines[#lines + 1] = ""
+    else
+      lines[#lines + 1] = "```lua"
+      lines[#lines + 1] = cell.source or ""
+      lines[#lines + 1] = "```"
+      if cell.error then
+        lines[#lines + 1] = "> error: " .. tostring(cell.error)
+      elseif cell.output and cell.output ~= "" then
+        for line in (cell.output .. "\n"):gmatch("(.-)\n") do
+          lines[#lines + 1] = "> " .. line
+        end
+      end
+      lines[#lines + 1] = ""
+    end
+  end
+  return table.concat(lines, "\n")
+end
+
 function Format.list()
   local items = lovr.filesystem.getDirectoryItems("notebooks")
   local names = {}
