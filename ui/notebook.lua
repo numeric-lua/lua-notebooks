@@ -839,6 +839,13 @@ function UI:draw_help(pass, width, height)
       } },
     },
     {
+      { title = "NEOVIM", rows = {
+        { "Alt+E", "open Neovim cell editor" },
+        { "F10", "save from Neovim" },
+        { "F5", "save from Neovim and run" },
+        { "F9", "discard Neovim changes" },
+        { "Alt+J/K", "save and move between cells" },
+      } },
       { title = "LSP", rows = {
         { "Ctrl+Space", "completion at cursor" },
         { "Ctrl+H", "hover type / binding" },
