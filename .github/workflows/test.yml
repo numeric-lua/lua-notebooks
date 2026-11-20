@@ -106,3 +106,15 @@ jobs:
           sudo ln -sf "$PWD/squashfs-root/AppRun" /usr/local/bin/lovr
       - name: Run pixel baselines
         run: xvfb-run -a ./scripts/visual-baseline.sh
+
+  nvim-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Neovim
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y neovim
+      - name: Run Neovim bridge tests
+        run: make test-nvim
