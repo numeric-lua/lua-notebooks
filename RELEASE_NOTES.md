@@ -1,7 +1,5 @@
-# lua-notebooks 1.31.0
+# lua-notebooks 1.31.1
 
-- per-cell Neovim editing is now inline over the active cell source;
-- the notebook and outputs stay visible while editing;
-- clicking outside applies the cell and returns to the notebook;
-- full-screen notebook-wide editing remains available via Alt+Shift+E;
-- cursor alignment and inline grid sizing polished.
+- draw the inline Neovim cursor above grid text;
+- switch from an invisible underline to a high-contrast insert bar;
+- retain inline per-cell editing and visible notebook context.
