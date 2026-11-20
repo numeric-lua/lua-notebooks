@@ -71,6 +71,11 @@ function Session.new(options)
     error("could not connect to nvim on port " .. tostring(port))
   end
   self.pid, self.port, self.rpc = pid, port, rpc
+  local server = self:request("nvim_get_vvar", { "servername" })
+  if type(server) ~= "string" or not server:find(tostring(port), 1, true) then
+    pcall(function() self:close() end)
+    error("nvim handshake failed on port " .. tostring(port))
+  end
   self:request("nvim_ui_attach", { self.cols, self.rows,
     Msgpack.map({ ext_linegrid = true, rgb = true }) })
   return self

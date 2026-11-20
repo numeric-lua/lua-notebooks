@@ -7,11 +7,13 @@ local Msgpack = require("notebook.nvim.msgpack")
 ffi.cdef[[
 typedef struct { uint16_t sin_family; uint16_t sin_port; uint32_t sin_addr; char pad[8]; } sockaddr_in;
 typedef struct { long tv_sec; long tv_usec; } timeval;
+typedef struct { int fd; short events; short revents; } pollfd;
 int socket(int domain, int type, int protocol);
 int connect(int fd, const void *addr, unsigned int len);
 long send(int fd, const void *buf, unsigned long len, int flags);
 long recv(int fd, void *buf, unsigned long len, int flags);
 int select(int nfds, void *readfds, void *writefds, void *exceptfds, timeval *timeout);
+int poll(pollfd *fds, unsigned long nfds, int timeout);
 int close(int fd);
 int fcntl(int fd, int cmd, int arg);
 uint16_t htons(uint16_t value);
@@ -24,11 +26,24 @@ Rpc.__index = Rpc
 
 local function send_all(fd, data)
   local offset = 1
+  local deadline = os.clock() + 5
   while offset <= #data do
     local chunk = data:sub(offset)
     local sent = tonumber(ffi.C.send(fd, chunk, #chunk, 0))
-    if sent <= 0 then return nil, "send failed" end
-    offset = offset + sent
+    if sent ~= nil and sent > 0 then
+      offset = offset + sent
+    else
+      local errno = ffi.errno()
+      if errno == 4 then
+        -- interrupted; retry immediately
+      elseif errno == 11 or errno == 35 then
+        local pfd = ffi.new("pollfd[1]", { { fd = fd, events = 4 } })
+        ffi.C.poll(pfd, 1, 100)
+      else
+        return nil, "send failed"
+      end
+      if os.clock() > deadline then return nil, "send timeout" end
+    end
   end
   return true
 end
