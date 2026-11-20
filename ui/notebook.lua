@@ -1718,6 +1718,16 @@ function UI:keypressed(key)
     return
   end
   if ctrl_down and key == "f" then self:open_find(); return end
+  if ctrl_down and key == "tab" then
+    local shift = lovr.system and lovr.system.isKeyDown and
+      (lovr.system.isKeyDown("lshift") or lovr.system.isKeyDown("rshift"))
+    local count = #self.app.notebooks
+    local target = self.app.active + (shift and -1 or 1)
+    if target < 1 then target = count end
+    if target > count then target = 1 end
+    self.app:set_tab(target)
+    return
+  end
   if ctrl_down and (key == "k") and lovr.system and
      lovr.system.isKeyDown and (lovr.system.isKeyDown("lshift") or
        lovr.system.isKeyDown("rshift")) then
