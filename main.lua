@@ -416,11 +416,11 @@ end
 function App:open_nvim()
   if self.nvim_session then return end
   local cell = self:notebook():selected()
-  if cell.kind ~= "code" then
-    self.status = "Neovim editor is for code cells"
+  if cell.kind ~= "code" and cell.kind ~= "markdown" then
+    self.status = "Neovim editor is for code and markdown cells"
     return
   end
-  local path = os.tmpname() .. ".lua"
+  local path = os.tmpname() .. (cell.kind == "markdown" and ".md" or ".lua")
   local handle = io.open(path, "wb")
   if handle == nil then self.status = "cannot create nvim buffer"; return end
   handle:write(cell.source or "")

@@ -2527,7 +2527,8 @@ function UI:mousepressed(x, y, button)
       self.focused_output_cell = nil
       self.focused_surface = nil
       self.focused_widget = nil
-      if self.app.nvim_default and target and target.kind == "code" then
+      if self.app.nvim_default and target and
+         (target.kind == "code" or target.kind == "markdown") then
         self.app:open_nvim()
       end
       return
