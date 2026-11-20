@@ -918,7 +918,7 @@ function UI:draw_nvim_inline(pass, width, height)
   local x = rect.x - 4
   local y = rect.y - 4
   local w = rect.w + 8
-  local h = math.max(46, rect.h + 26)
+  local h = math.max(46, rect.h + 10)
   self.nvim_rect = { x = x, y = y, w = w, h = h }
   box(pass, x - 2, y - 2, w + 4, h + 4, { 0.02, 0.03, 0.05, 0.98 })
   self.app.nvim_view:draw(pass, x, y, w, h, self.app.ui_scale or 1)
