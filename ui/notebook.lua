@@ -2564,6 +2564,10 @@ function UI:mousereleased(x, y, button)
 end
 
 function UI:wheelmoved(dy)
+  if self.app.show_nvim then
+    if self.app.nvim_view then self.app.nvim_view:wheelmoved(dy) end
+    return
+  end
   local mx, my = lovr.system.getMousePosition()
   for _, rect in pairs(self.scene_rects) do
     if inside(mx, my, rect) then

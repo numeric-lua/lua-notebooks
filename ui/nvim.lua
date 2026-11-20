@@ -139,6 +139,14 @@ function NvimView:mousepressed(px, py, button)
   return true
 end
 
+function NvimView:wheelmoved(dy)
+  local direction = dy > 0 and "up" or "down"
+  local cursor = self.session.grid.cursor or { row = 0, col = 0 }
+  self.session:request("nvim_input_mouse", { "wheel", direction, "",
+    0, cursor.row, cursor.col })
+  return true
+end
+
 function NvimView:textinput(text)
   self.session:input((text:gsub("<", "<lt>")))
 end
