@@ -1,6 +1,6 @@
-# lua-notebooks 1.15.0
+# lua-notebooks 1.16.0
 
-- sequential run-all queue;
-- notebook switch and backlink palette entries;
-- wiki-link preview without brackets;
-- cached source layout and search retained.
+- clickable [[wiki links]] that switch notebooks;
+- backlink-aware command palette entries;
+- starter notebook wiki-link example;
+- sequential run-all and source-layout caching.
