@@ -140,6 +140,7 @@ function UI.new(app)
     source_rects = {},
     nvim_rect = nil,
     suppress_nvim_open = false,
+    suppress_textinput_until = 0,
     tabs = {},
     buttons = {},
     extension_passes = {},
@@ -1382,6 +1383,12 @@ function UI:draw_scene(pass, x, y, w, h, cell)
 end
 
 function UI:textinput(value)
+  local now = lovr.timer and lovr.timer.getTime and lovr.timer.getTime() or 0
+  if self.suppress_textinput_until > now then
+    self.suppress_textinput_until = 0
+    return
+  end
+  self.suppress_textinput_until = 0
   if self.show_find then
     self.find_query = self.find_query .. value
     self:update_find()
@@ -2184,12 +2191,14 @@ function UI:keypressed(key)
       return
     elseif self.vim_scope == "notebook" and
            (key == "i" or key == "return") then
+      local now = lovr.timer and lovr.timer.getTime and lovr.timer.getTime() or 0
+      self.suppress_textinput_until = now + 0.15
       if self.app.nvim_default then
         self.app:open_nvim()
         return
       end
       self.vim_scope = "cell"
-      self.vim_normal = false
+      self.vim_normal = true
       return
     end
     if key == "q" then

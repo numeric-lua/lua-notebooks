@@ -24,3 +24,15 @@ ui:keypressed("escape")
 assert(not hidden, "Esc in insert mode should stay in Neovim")
 assert(forwarded == "escape")
 print("nvim escape ok")
+
+local text_calls = {}
+app.show_nvim = true
+app.nvim_session.grid.mode = "normal"
+app.nvim_view.textinput = function(_, value) text_calls[#text_calls + 1] = value end
+_G.lovr.timer = { getTime = function() return 100 end }
+ui.suppress_textinput_until = 100.1
+ui:textinput("i")
+assert(#text_calls == 0, "opening i must be swallowed")
+ui:textinput("i")
+assert(text_calls[1] == "i", "next i must enter insert")
+print("nvim opening key ok")
