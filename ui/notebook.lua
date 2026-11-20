@@ -1542,6 +1542,10 @@ function UI:keypressed(key)
     if self.app.vim_mode then self.vim_normal = true end
     return
   end
+  if alt_down and key == "e" then
+    self.app:open_nvim()
+    return
+  end
   if alt_down and key == "t" then
     Theme.set_opacity(Theme.opacity >= 0.999 and 0.82 or 1)
     Theme.save()

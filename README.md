@@ -463,8 +463,7 @@ Use the command palette action **Toggle notebook transparency** to switch the li
 ## Neovim editor (experimental)
 
 The `spike/nvim-ui` branch embeds a headless Neovim instance and renders its
-`ext_linegrid` UI in LÖVR. Open the command palette and choose **Neovim cell
-editor**.
+`ext_linegrid` UI in LÖVR. Press **Alt+E** or use the command palette action **Neovim cell editor**.
 
 - `F10` writes the buffer back to the current cell;
 - `F9` discards and closes;
