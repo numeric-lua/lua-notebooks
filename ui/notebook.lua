@@ -698,6 +698,7 @@ function UI:palette_commands()
   local commands = {
     { id = "run", label = "Run selected cell  (F5)" },
     { id = "restart-kernel", label = "Restart current kernel" },
+    { id = "clear-outputs", label = "Clear all cell outputs" },
     { id = "save", label = "Save notebook  (F6)" },
     { id = "save-as", label = "Save notebook as…" },
     { id = "open-dialog", label = "Open notebook…" },
@@ -736,6 +737,7 @@ function UI:run_palette_command(id)
   self.show_palette = false
   if id == "run" then self.app:run()
   elseif id == "restart-kernel" then self.app:restart_kernel()
+  elseif id == "clear-outputs" then self.app:clear_outputs()
   elseif id == "save" then self.app:save()
   elseif id == "save-as" then self.app:save_as()
   elseif id == "open-dialog" then self.app:open_dialog()

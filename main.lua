@@ -414,6 +414,17 @@ function App:toggle_nvim_default()
     (self.nvim_default and "enabled" or "disabled")
 end
 
+function App:clear_outputs()
+  for _, cell in ipairs(self:notebook().cells) do
+    cell.output = ""
+    cell.scene = nil
+    cell.widgets = {}
+    cell.error = nil
+    cell.running = false
+  end
+  self.status = "cleared outputs"
+end
+
 function App:restart_kernel()
   local id = "nb" .. self.active
   if self.supervisor.restart then
