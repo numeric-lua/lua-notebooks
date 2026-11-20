@@ -345,7 +345,7 @@ compositor and window stacking.
 ## LuaRocks
 
 ```sh
-luarocks make lua-notebooks-0.9.0-1.rockspec
+luarocks make lua-notebooks-1.0.0-1.rockspec
 lua-notebooks
 ```
 
@@ -354,7 +354,7 @@ The rockspec installs the app source under the LuaRocks share tree and a
 
 ```sh
 make rock
-luarocks install lua-notebooks-0.9.0-1.src.rock
+luarocks install lua-notebooks-1.0.0-1.src.rock
 ```
 
 Publishing to a remote rock server is intentionally not automated.
@@ -451,3 +451,7 @@ CI runs an offscreen LÖVR render smoke for QA cells and fails on blank captures
 ## Visual CI
 
 CI renders QA cells offscreen with LÖVR 0.19.0 and compares them to committed pixel baselines. A 25,000-pixel tolerance absorbs software-renderer/font variance; structural regressions still fail.
+
+## Stability
+
+The notebook format, extension contract, gateway flags, and LSP capabilities are covered by [docs/stability.md](docs/stability.md).

@@ -1,4 +1,7 @@
-# lua-notebooks 0.9.0
+# lua-notebooks 1.0.0
 
-- configurable kernel queue cap (default 256);
-- queue-full error instead of unbounded growth.
+- stable notebook format and extension contract policy;
+- gateway security, permissions, LSP symbols/signature help;
+- bounded output, math-layout cache, kernel queue backpressure;
+- cross-platform file dialogs and sandbox fallback;
+- Windows process and visual regression CI.
