@@ -1,6 +1,7 @@
-# lua-notebooks 1.7.0
+# lua-notebooks 1.8.0
 
-- markdown cells in the notebook-wide Neovim buffer;
-- overlay closes cleanly if Neovim exits;
-- Alt+Shift+E for notebook-wide editing;
-- grid mouse, resize, cursor-line, and completion polish.
+- markdown cells in the Neovim notebook buffer;
+- tested notebook-buffer codec;
+- overlay closes when Neovim exits;
+- Alt+Shift+E notebook editor and shortcut cheatsheet;
+- documentation and CI coverage updates.
