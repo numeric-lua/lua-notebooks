@@ -60,6 +60,9 @@ function App:new(notebooks)
   end
   self.ui_scale = 1
   self.nvim_inline = false
+  self.nvim_inline_original = nil
+  self._nvim_undo_started = false
+  self._nvim_sync_at = 0
   local scale_ok, scale_value = pcall(lovr.filesystem.read, "ui_scale.txt")
   if scale_ok and tonumber(scale_value) then
     self.ui_scale = math.max(0.7, math.min(2, tonumber(scale_value)))
@@ -517,11 +520,55 @@ function App:open_title(title)
   return false
 end
 
+function App:sync_inline_nvim()
+  if not self.show_nvim or not self.nvim_inline or
+     self.nvim_session == nil or self.nvim_session.exited then return end
+  local now = lovr.timer.getTime()
+  if now - (self._nvim_sync_at or 0) < 0.03 then return end
+  self._nvim_sync_at = now
+  local lines = self.nvim_session:get_lines()
+  if lines == nil then return end
+  local source = table.concat(lines, "\n")
+  local cell = self:notebook():selected()
+  if cell == nil then return end
+  if source ~= cell.source then
+    if not self._nvim_undo_started then
+      self:notebook():push_undo("Neovim edit")
+      self._nvim_undo_started = true
+    end
+    cell.source = source
+    self:notebook().dirty = true
+  end
+  local cursor = self.nvim_session:request("nvim_win_get_cursor", { 0 })
+  if type(cursor) == "table" and cursor[1] then
+    local row = math.max(1, cursor[1])
+    local col = math.max(0, cursor[2] or 0)
+    local start = 1
+    for _ = 1, row - 1 do
+      local newline = source:find("\n", start, true)
+      if newline == nil then break end
+      start = newline + 1
+    end
+    cell.cursor = math.max(1, math.min(start + col, #source + 1))
+  end
+  if self.ui then
+    self.ui.vim_scope = "cell"
+    self.ui.vim_normal = self.nvim_session.grid.mode ~= "insert"
+  end
+end
+
 function App:open_nvim()
   local cell = self:notebook():selected()
   if cell.kind ~= "code" and cell.kind ~= "markdown" then
     self.status = "Neovim editor is for code and markdown cells"
     return
+  end
+  self.nvim_inline_original = cell.source
+  self._nvim_undo_started = false
+  self._nvim_sync_at = 0
+  if self.ui then
+    self.ui.vim_scope = "cell"
+    self.ui.vim_normal = true
   end
   if self.nvim_session then
     self.nvim_session:input("<Esc>")
@@ -608,11 +655,21 @@ end
 
 function App:close_nvim(save, keep)
   if self.nvim_session == nil then return end
+  local was_inline = self.nvim_inline
+  local original = self.nvim_inline_original
   local session = self.nvim_session
   local cursor_row, cursor_col = 0, 0
   if session.grid then
     cursor_row = math.max(0, session.grid.cursor.row or 0)
     cursor_col = math.max(0, session.grid.cursor.col or 0)
+  end
+  if not save and was_inline and original ~= nil then
+    local cell = self:notebook():selected()
+    if cell then
+      cell.source = original
+      cell.cursor = math.max(1, math.min(cell.cursor or 1, #original + 1))
+      self:notebook().dirty = true
+    end
   end
   local lines
   if save then
@@ -759,6 +816,9 @@ function App:close_nvim(save, keep)
   if save and not applied then self.status = "Neovim discarded" end
   self.nvim_notebook = false
   self.nvim_inline = false
+  self.nvim_inline_original = nil
+  self._nvim_undo_started = false
+  self._nvim_sync_at = 0
   self.nvim_cells = {}
   self.nvim_cell_rows = {}
   return true
@@ -921,6 +981,7 @@ end
 function App:update()
   if self.show_nvim then
     if self.nvim_view then self.nvim_view:update() end
+    if self.nvim_inline then self:sync_inline_nvim() end
     if self.nvim_session and self.nvim_session.exited then
       self:close_nvim(false)
       self.status = "Neovim exited unexpectedly"
@@ -944,7 +1005,8 @@ function App:update()
     end
   end
   if self.qa_screenshot and not self.screenshot_requested and
-     not self.screenshot_readback and lovr.timer.getTime() > 3 then
+     not self.screenshot_readback and
+     lovr.timer.getTime() > (self.qa_screenshot_after or 3) then
     local cell = self:notebook().cells[self:notebook().active]
     if cell == nil or not cell.running then self.screenshot_requested = true end
   end
@@ -963,7 +1025,8 @@ function App:update()
   end
   local active_cell = self:notebook().cells[self:notebook().active]
   if self.qa_screenshot and not self.screenshot_requested and
-     not self.screenshot_readback and lovr.timer.getTime() > 3 and
+     not self.screenshot_readback and
+     lovr.timer.getTime() > (self.qa_screenshot_after or 3) and
      (active_cell == nil or not active_cell.running) then
     self.screenshot_requested = true
   end
@@ -1347,6 +1410,8 @@ function lovr.load()
   -- Visual QA/demo: select and run one cell, then leave the window open.
   if os.getenv("LUANB_QA_SCREENSHOT") or os.getenv("LUANB_SMOKE_SCREENSHOT") then
     app.qa_screenshot = true
+    app.qa_screenshot_after = tonumber(
+      os.getenv("LUANB_QA_SCREENSHOT_AFTER") or "") or 3
   end
   if os.getenv("LUANB_QA_ZEN") then
     app.ui.zen_mode = true
@@ -1374,6 +1439,17 @@ function lovr.load()
   end
   if os.getenv("LUANB_QA_NVIM") then
     app:open_nvim()
+    print("FONT " .. tostring(app.font:getWidth("M")) .. ":" ..
+      tostring(app.font:getHeight()) .. " cw=" ..
+      tostring(app.nvim_view and app.nvim_view.cell_width) .. " ts=" ..
+      tostring(app.nvim_view and app.nvim_view.text_scale))
+    print("GRIDLINE [" .. tostring(app.nvim_session and
+      app.nvim_session.grid:line(0)) .. "] fg=" ..
+      tostring(app.nvim_session and
+        app.nvim_session.grid.default_foreground) .. " bg=" ..
+      tostring(app.nvim_session and
+        app.nvim_session.grid.default_background))
+    io.stdout:flush()
   elseif os.getenv("LUANB_QA_NVIM_NOTEBOOK") then
     app:open_nvim_notebook()
     if os.getenv("LUANB_QA_NVIM_SAVE") and app.nvim_session then

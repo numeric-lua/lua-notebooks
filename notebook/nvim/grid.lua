@@ -181,7 +181,13 @@ function Grid:apply_redraw(params)
 end
 
 function Grid:attrs(hl)
-  return self.highlights[hl] or {}
+  local attrs = self.highlights[hl] or {}
+  -- Neovim uses 0 for "no explicit background"; treating it as black paints
+  -- bars across otherwise transparent syntax runs.
+  if attrs.background == 0 then
+    attrs = setmetatable({ background = nil }, { __index = attrs })
+  end
+  return attrs
 end
 
 return Grid

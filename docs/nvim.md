@@ -19,11 +19,12 @@ Working:
 - msgpack-RPC request/notification handling;
 - UI attach, grid lines, highlights, cursor, default colors;
 - cell source loaded into a temp buffer;
-- per-cell Neovim grid rendered inline over the active cell;
+- per-cell Neovim editing with the notebook rendering the text itself;
+- the cell buffer is synchronized live; only the cursor is overlaid;
 - cells open in Neovim normal mode; `i`/`a` enter insert;
 - block cursor in normal/visual mode, bar cursor in insert;
 - `Esc` returns from normal mode to notebook navigation;
-- inline source background and font metrics match the notebook cell;
+- inline font, background, and syntax colors are the notebook's own;
 - insert-mode typing and `F10` write-back;
 - `F5` writes and runs the cell;
 - `F9` discard;

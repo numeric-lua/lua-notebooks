@@ -919,11 +919,13 @@ function UI:draw_nvim_inline(pass, width, height)
   local w = rect.w + 8
   local h = math.max(46, rect.h + 10)
   self.nvim_rect = { x = x, y = y, w = w, h = h }
-  local cell_background = Theme.mode == "light" and { 1, 1, 1, 1 } or
-    { 0.075, 0.085, 0.11, 1 }
-  box(pass, x, y, w, h, cell_background)
-  self.app.nvim_view:draw(pass, x, y, w, h, self.app.ui_scale or 1,
-    cell_background)
+  local view = self.app.nvim_view
+  local scale = self.app.ui_scale or 1
+  view.origin_x, view.origin_y = x, y
+  view.draw_cw, view.draw_ch = view.cell_width * scale,
+    view.cell_height * scale
+  -- The notebook renders the cell text itself. Neovim only supplies editing
+  -- semantics, buffer contents, and the cursor position.
 end
 
 function UI:open_find()

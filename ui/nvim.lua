@@ -49,7 +49,7 @@ function NvimView.new(session, font, options)
     cell_width = glyph_width * (options.size or 18) *
       (options.text_scale or 0.86),
     cell_height = (options.size or 18) * (options.text_scale or 0.86) *
-      (options.line_height or 1.35),
+      (options.line_height or 1.3566),
     text_scale = (options.size or 18) * (options.text_scale or 0.86),
     scale = options.scale or 1,
   }, NvimView)
@@ -79,7 +79,8 @@ function NvimView:resize(width, height)
   end
 end
 
-function NvimView:draw(pass, x, y, width, height, scale, background_override)
+function NvimView:draw(pass, x, y, width, height, scale, background_override,
+                       skip_background)
   scale = scale or self.scale
   local grid = self.session.grid
   local cw = self.cell_width * scale
@@ -94,9 +95,11 @@ function NvimView:draw(pass, x, y, width, height, scale, background_override)
   local background = background_override or
     rgb(grid.default_background, { 0.06, 0.07, 0.1 })
   local foreground = rgb(grid.default_foreground, { 0.85, 0.88, 0.95 })
-  pass:setColor(background[1], background[2], background[3],
-    Theme.opacity or 1)
-  pass:plane(x + width / 2, y + height / 2, 0, width, height)
+  if not skip_background then
+    pass:setColor(background[1], background[2], background[3],
+      Theme.opacity or 1)
+    pass:plane(x + width / 2, y + height / 2, 0, width, height)
+  end
   local scissor_x = math.max(0, x * scale)
   local scissor_y = math.max(0, y * scale)
   local scissor_w = math.max(1, width * scale)

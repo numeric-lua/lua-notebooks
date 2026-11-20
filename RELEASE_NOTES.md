@@ -1,6 +1,7 @@
-# lua-notebooks 1.33.1
+# lua-notebooks 1.34.0
 
-- force normal mode when entering a cell, including reused Neovim sessions;
-- inline fallback editor also enters normal mode;
-- Esc from normal returns to notebook navigation;
-- mode-aware cursor and matched inline background/font retained.
+- per-cell Neovim is now a hidden editing engine;
+- the notebook renders cell text itself, preserving font, size, colors, and background;
+- only a mode-aware cursor is overlaid;
+- live buffer synchronization, cursor mapping, F10 apply, F5 run, F9 discard;
+- cells enter normal mode; Esc returns to notebook when normal.
