@@ -168,9 +168,13 @@ local function read_http(fd)
   return nil
 end
 
-local function handshake(fd)
+local function handshake(fd, authorize)
   local request = read_http(fd)
   if request == nil then return nil, "missing HTTP request" end
+  if authorize ~= nil and not authorize(request) then
+    pcall(send_all, fd, "HTTP/1.1 401 Unauthorized\r\nContent-Length: 0\r\n\r\n")
+    return nil, "unauthorized"
+  end
   local key = request:match("[Ss]ec%-[Ww]eb[Ss]ocket%-[Kk]ey:%s*([^\r\n]+)")
   if key == nil then return nil, "missing Sec-WebSocket-Key" end
   key = key:gsub("%s+$", "")
@@ -183,7 +187,8 @@ local function handshake(fd)
   return true
 end
 
-function WebSocket.listen(host, port)
+function WebSocket.listen(host, port, options)
+  options = options or {}
   local fd = ffi.C.socket(AF_INET, SOCK_STREAM, 0)
   if fd == INVALID then return nil, "socket() failed" end
   local reuse = ffi.new("int[1]", 1)
@@ -209,10 +214,11 @@ function WebSocket.listen(host, port)
   end
   return {
     fd = fd,
+    authorize = options.authorize,
     accept = function(self)
       local client = ffi.C.accept(self.fd, nil, nil)
       if client == INVALID then return nil, "accept failed" end
-      local ok, err = handshake(client)
+      local ok, err = handshake(client, self.authorize)
       if not ok then ffi.C.close(client); return nil, err end
       return { fd = client }
     end,
