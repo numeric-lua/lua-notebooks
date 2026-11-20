@@ -80,7 +80,14 @@ function Shader.draw(pass, spec, time, x, y, width, height, scale)
   pass:send("time", time or 0)
   pass:setColor(1, 1, 1, 1)
   scale = scale or 1
-  pass:setScissor(x * scale, y * scale, width * scale, height * scale)
+  if x + width <= 0 or y + height <= 0 or width <= 0 or height <= 0 then
+    return
+  end
+  local scissor_x = math.max(0, x * scale)
+  local scissor_y = math.max(0, y * scale)
+  local scissor_w = math.max(1, width * scale - (scissor_x - x * scale))
+  local scissor_h = math.max(1, height * scale - (scissor_y - y * scale))
+  pass:setScissor(scissor_x, scissor_y, scissor_w, scissor_h)
   pass:plane(x + width / 2, y + height / 2, 0, width, height)
   pass:setScissor()
   pass:setShader()
