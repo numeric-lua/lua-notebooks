@@ -692,7 +692,7 @@ function App:close_nvim(save, keep)
       return session:request("nvim_win_get_cursor", { 0 })
     end)
     if cursor_ok and type(cursor) == "table" then
-      cursor_row = math.max(0, cursor[1] or cursor_row)
+      cursor_row = math.max(0, (cursor[1] or 1) - 1)
       cursor_col = math.max(0, cursor[2] or cursor_col)
     end
   end
@@ -821,6 +821,16 @@ function App:close_nvim(save, keep)
   self._nvim_sync_at = 0
   self.nvim_cells = {}
   self.nvim_cell_rows = {}
+  if self.ui then
+    self.ui.vim_scope = "notebook"
+    self.ui.vim_normal = true
+    self.ui.vim_pending = nil
+    self.ui.vim_text_object = nil
+    self.ui.vim_pending_mark = nil
+    self.ui.vim_pending_register = false
+    self.ui.vim_command = nil
+    self.ui.vim_search = nil
+  end
   return true
 end
 
