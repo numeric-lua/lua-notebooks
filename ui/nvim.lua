@@ -5,6 +5,12 @@ local Theme = require("ui.theme")
 local NvimView = {}
 NvimView.__index = NvimView
 
+local function char_count(value)
+  local count = 0
+  for _ in value:gmatch("[^\128-\191]") do count = count + 1 end
+  return count
+end
+
 local function rgb(value, fallback)
   if type(value) ~= "number" then return fallback end
   return {
@@ -116,8 +122,9 @@ function NvimView:draw(pass, x, y, width, height, scale)
       if bg[1] ~= background[1] or bg[2] ~= background[2] or
          bg[3] ~= background[3] then
         pass:setColor(bg[1], bg[2], bg[3], 1)
-        pass:plane(x + first * cw + (#text * cw) / 2, row_y + ch / 2, 0,
-          #text * cw, ch)
+        local cells = char_count(text)
+        pass:plane(x + first * cw + (cells * cw) / 2, row_y + ch / 2, 0,
+          cells * cw, ch)
       end
       if text:find("%S") then
         pass:setColor(fg[1], fg[2], fg[3], 1)
