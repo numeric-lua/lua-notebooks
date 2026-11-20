@@ -25,17 +25,22 @@ Working in this milestone:
 - offline LÖVR 0.19 API docs, examples, and LuaLS annotations under `docs/lovr/`
 - noninteractive smoke tests that exercise the kernel and renderer
 
-Not yet implemented:
+Implemented after the original milestone:
 
-- native file dialogs and a notebook browser (F6/F7 use the LÖVR save directory)
-- explicit extension permissions and OS-level sandboxing
-- a standalone JSON-RPC LSP server for external editors
-- verified Windows process-kernel runtime
-- full LÖVR/WebGPU browser rendering (upstream blocker; the independent
-  `webapp/` path is usable)
-- broader pixel-level visual regression coverage and display-backed CI
-- TeX/MathJax-quality math layout and full Vim undo-tree/macro semantics
-- remote LuaRocks publishing and polished single-file distribution
+- native file dialogs on Linux, Windows, and macOS;
+- extension permissions, sandbox gating, and per-extension toggles;
+- a standalone stdio JSON-RPC LSP server;
+- Windows process-kernel CI;
+- gateway token authentication;
+- offscreen visual regression in CI;
+- LuaRocks publishing and LÖVR archive artifacts.
+
+Remaining limits:
+
+- OS sandboxing for user extensions is Linux/bubblewrap-specific;
+- semantic LSP analysis is local and partial;
+- TeX/MathJax-quality math and full Vim semantics are not implemented;
+- visual baselines use a tolerance for software-renderer variance.
 
 ## Requirements
 

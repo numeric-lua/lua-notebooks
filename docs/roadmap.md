@@ -25,15 +25,11 @@
 ## Not done
 
 - True TeX/MathJax-quality math layout and fonts.
-- A real LSP protocol server with semantic type/scope analysis.
-- OS-level sandboxing for user extensions (only Lua environment restrictions).
-- Native Windows process-kernel **runtime** verification. The Windows spawn,
-  stop, and cleanup commands are implemented and unit-tested; CI now runs the
-  pure platform/editor tests on windows-latest.
-- Remote LuaRocks publishing.
-- Full Vim (undo tree, regex semantics, text objects, macros).
-- Pixel-level visual regression baselines for cells 4/6/7 now exist under
-  `tests/visual/baseline`; broader coverage and CI display runners remain.
+- Semantic type/scope analysis beyond the current local LSP helpers.
+- OS sandboxing is available on Linux through bubblewrap; Windows/macOS
+  extension sandboxing remains platform-specific.
+- Full Vim semantics: undo tree, regex parity, text objects, macros.
+- Broader visual coverage beyond QA cells 4/6/7.
 
 ## Verify
 
