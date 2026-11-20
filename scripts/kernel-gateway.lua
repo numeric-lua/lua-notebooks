@@ -15,11 +15,14 @@ local WebSocket = require("scripts.websocket")
 
 local debug = os.getenv("LUANB_GATEWAY_DEBUG") == "1"
 local host, port = "127.0.0.1", 8765
-local token
+local token, origin, token_expires, max_frame
 for index = 1, #arg do
   if arg[index] == "--host" then host = arg[index + 1]
   elseif arg[index] == "--port" then port = tonumber(arg[index + 1])
   elseif arg[index] == "--token" then token = arg[index + 1]
+  elseif arg[index] == "--origin" then origin = arg[index + 1]
+  elseif arg[index] == "--token-expires" then token_expires = tonumber(arg[index + 1])
+  elseif arg[index] == "--max-frame" then max_frame = tonumber(arg[index + 1])
   end
 end
 if host == nil or port == nil then
@@ -27,18 +30,15 @@ if host == nil or port == nil then
   os.exit(2)
 end
 
-local options = nil
-if token ~= nil and token ~= "" then
-  options = {
-    authorize = function(request)
-      local path = request:match("^%u+%s+([^%s]+)")
-      if path == nil then return false end
-      local supplied = path:match("[?&]token=([^&]+)")
-      return supplied == token
-    end,
-  }
-end
-local server, err = WebSocket.listen(host, port, options)
+local Policy = require("notebook.gateway_policy")
+local server, err = WebSocket.listen(host, port, {
+  max_frame = max_frame,
+  authorize = function(request)
+    return Policy.authorize(request, {
+      token = token, origin = origin, token_expires = token_expires,
+    })
+  end,
+})
 if server == nil then
   io.stderr:write("gateway: " .. tostring(err) .. "\n")
   os.exit(1)

@@ -49,8 +49,22 @@ scripts/kernel-gateway.lua
           └── full LuaJIT + FFI libraries on LUA_PATH/LUA_CPATH
 ```
 
-The gateway binds to `127.0.0.1` by default. It is not an authenticated or
-sandboxed public service.
+The gateway binds to `127.0.0.1` by default. It is still a prototype and not a
+general-purpose public service; use it behind a TLS reverse proxy and an
+external sandbox.
+
+Optional hardening flags:
+
+```sh
+luajit scripts/kernel-gateway.lua --host 127.0.0.1 \
+  --token secret --origin https://notebook.example \
+  --token-expires 1893456000 --max-frame 1048576
+```
+
+- `--token` requires `?token=` in the WebSocket URL;
+- `--origin` requires an exact `Origin` header match;
+- `--token-expires` is an epoch timestamp after which connections fail;
+- `--max-frame` rejects oversized WebSocket frames.
 
 ## Run the gateway
 
@@ -143,7 +157,8 @@ upstream LÖVR/WebGPU issue described above.
 
 A remote kernel executes arbitrary Lua. Before exposing it beyond localhost:
 
-- require authentication and TLS;
+- use `--token`, `--origin`, `--token-expires`, and `--max-frame`;
+- require TLS at the reverse proxy;
 - run one sandbox/container per session;
 - enforce CPU, memory, wall-time, and output limits;
 - mount datasets read-only;

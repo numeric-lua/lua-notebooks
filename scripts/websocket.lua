@@ -215,6 +215,7 @@ function WebSocket.listen(host, port, options)
   return {
     fd = fd,
     authorize = options.authorize,
+    max_frame = options.max_frame,
     accept = function(self)
       local client = ffi.C.accept(self.fd, nil, nil)
       if client == INVALID then return nil, "accept failed" end
@@ -239,6 +240,9 @@ function WebSocket.listen(host, port, options)
         if extended == nil then return nil, "closed" end
         length = 0
         for index = 1, 8 do length = length * 256 + extended:byte(index) end
+      end
+      if self.max_frame ~= nil and length > self.max_frame then
+        return nil, "frame exceeds limit"
       end
       if not masked then return nil, "client frame is not masked" end
       local mask = receive_exact(client.fd, 4)
