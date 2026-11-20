@@ -122,7 +122,9 @@ end
 
 function Session:update()
   if self.rpc == nil then return 0 end
-  local count = self.rpc:feed(10) or 0
+  local count, feed_error = self.rpc:feed(10)
+  if count == nil then self.exited = true; return 0 end
+  count = count or 0
   local notifications = self.rpc.notifications
   self.rpc.notifications = {}
   for _, notification in ipairs(notifications) do

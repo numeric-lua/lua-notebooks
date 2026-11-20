@@ -627,6 +627,10 @@ end
 function App:update()
   if self.show_nvim then
     if self.nvim_view then self.nvim_view:update() end
+    if self.nvim_session and self.nvim_session.exited then
+      self:close_nvim(false)
+      self.status = "Neovim exited unexpectedly"
+    end
   elseif self.ui then
     self.ui:update()
   end
