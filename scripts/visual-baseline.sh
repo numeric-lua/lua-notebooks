@@ -33,6 +33,16 @@ for cell in 4 6 7; do
   "$IMAGE_TOOL" "$SHOT" -resize 50% -strip /tmp/luanb-visual-$cell.png
   kill "$APP" 2>/dev/null || true
   wait "$APP" 2>/dev/null || true
+  if [ "${VISUAL_SMOKE_ONLY:-0}" = "1" ]; then
+    SD=$("$IMAGE_TOOL" /tmp/luanb-visual-$cell.png -colorspace gray \
+      -format '%[fx:standard_deviation]' info:)
+    echo "cell=$cell render sd=$SD"
+    if awk "BEGIN { exit !($SD < 0.01) }"; then
+      echo "blank visual capture for cell $cell" >&2
+      exit 1
+    fi
+    continue
+  fi
   BASE=tests/visual/baseline/cell$cell.png
   if [ "$UPDATE" = "--update" ]; then
     cp /tmp/luanb-visual-$cell.png "$BASE"

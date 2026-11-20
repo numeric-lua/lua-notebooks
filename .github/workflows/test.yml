@@ -104,5 +104,7 @@ jobs:
           chmod +x /tmp/lovr.AppImage
           /tmp/lovr.AppImage --appimage-extract >/dev/null
           sudo ln -sf "$PWD/squashfs-root/AppRun" /usr/local/bin/lovr
-      - name: Run pixel baselines
+      - name: Run offscreen visual smoke
+        env:
+          VISUAL_SMOKE_ONLY: "1"
         run: xvfb-run -a ./scripts/visual-baseline.sh
