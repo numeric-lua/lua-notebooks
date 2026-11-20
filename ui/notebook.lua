@@ -409,8 +409,7 @@ function UI:draw(pass, logical_width, logical_height)
         -- by the accent rail, not a different background.
         fill = { 0, 0, 0, 0 }
       else
-        fill = selected and { 0.095, 0.11, 0.15, 1 } or
-          { 0.075, 0.085, 0.11, 1 }
+        fill = { 0.075, 0.085, 0.11, 1 }
       end
       box(pass, 20, y, width - 40, cell_height, fill)
       if selected then
@@ -920,8 +919,11 @@ function UI:draw_nvim_inline(pass, width, height)
   local w = rect.w + 8
   local h = math.max(46, rect.h + 10)
   self.nvim_rect = { x = x, y = y, w = w, h = h }
-  box(pass, x - 2, y - 2, w + 4, h + 4, { 0.02, 0.03, 0.05, 0.98 })
-  self.app.nvim_view:draw(pass, x, y, w, h, self.app.ui_scale or 1)
+  local cell_background = Theme.mode == "light" and { 1, 1, 1, 1 } or
+    { 0.075, 0.085, 0.11, 1 }
+  box(pass, x, y, w, h, cell_background)
+  self.app.nvim_view:draw(pass, x, y, w, h, self.app.ui_scale or 1,
+    cell_background)
 end
 
 function UI:open_find()
@@ -1736,6 +1738,12 @@ function UI:keypressed(key)
         self.app:notebook():move(key == "j" and 1 or -1)
         self.app:open_nvim()
       end
+      return
+    end
+    if key == "escape" and self.app.nvim_session and
+       self.app.nvim_session.grid.mode == "normal" and
+       not self.app.nvim_session.grid.popupmenu then
+      self.app:hide_nvim(true)
       return
     end
     if key == "f10" then self.app:hide_nvim(true); return end

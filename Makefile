@@ -33,6 +33,7 @@ test-nvim:
 	$(LUA) tests/nvim_msgpack.lua
 	$(LUA) tests/nvim_input.lua
 	$(LUA) tests/nvim_mouse.lua
+	$(LUA) tests/nvim_escape.lua
 	$(LUA) tests/nvim_buffer.lua
 	$(LUA) tests/nvim_rpc.lua
 	$(LUA) tests/nvim_session.lua
