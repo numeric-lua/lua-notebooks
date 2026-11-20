@@ -415,14 +415,7 @@ function App:toggle_nvim_default()
 end
 
 function App:duplicate_cell()
-  local notebook = self:notebook()
-  local source = notebook:selected()
-  local copy = {}
-  for key, value in pairs(source) do copy[key] = value end
-  copy.id = nil
-  table.insert(notebook.cells, notebook.active + 1, copy)
-  notebook:select(notebook.active + 1)
-  notebook.dirty = true
+  self:notebook():duplicate(self:notebook().active)
   self.scroll_to_selected = true
   self.status = "duplicated cell"
 end

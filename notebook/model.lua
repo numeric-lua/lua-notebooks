@@ -219,6 +219,19 @@ function Notebook:select(index)
   return true
 end
 
+function Notebook:duplicate(index)
+  local source = self.cells[index] or self:selected()
+  if source == nil then return nil end
+  local copy = {}
+  for key, value in pairs(source) do copy[key] = value end
+  copy.id = new_cell_id()
+  copy.running = false
+  table.insert(self.cells, index + 1, copy)
+  self.active = index + 1
+  self.dirty = true
+  return copy
+end
+
 function Notebook:add_cell_above(kind)
   return self:add_cell(kind, math.max(0, (self.active or 1) - 1))
 end
