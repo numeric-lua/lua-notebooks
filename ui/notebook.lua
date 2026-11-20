@@ -928,6 +928,7 @@ function UI:draw_find(pass, width, height)
   local rows = math.min(#self.find_results, 10)
   local panel_h = 74 + rows * 24
   local x, y = (width - panel_w) / 2, 80
+  self.find_panel = { x = x, y = y, w = panel_w, h = panel_h }
   box(pass, x, y, panel_w, panel_h, { 0.06, 0.07, 0.10, 0.98 })
   text(pass, self.app.font, "Find in notebook  (Ctrl+F)", x + 14, y + 12,
     { 0.9, 0.94, 1, 1 }, 0.78)
