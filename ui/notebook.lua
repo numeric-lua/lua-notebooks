@@ -11,6 +11,7 @@ local Math = require("notebook.math")
 local NotebookModel = require("notebook.model")
 local Theme = require("ui.theme")
 local Markdown = require("notebook.markdown")
+local Format = require("notebook.format")
 local Types = require("notebook.lsp.types")
 local Highlight = require("ui.highlight")
 local LSP = require("notebook.editor_text")
@@ -769,13 +770,10 @@ function UI:palette_commands()
   }
   local tags, tag_order = {}, {}
   for _, notebook in ipairs(self.app.notebooks) do
-    for _, cell in ipairs(notebook.cells) do
-      if cell.kind == "markdown" then
-        for tag in (cell.source or ""):gmatch("#([%a_][%w_-]*)") do
-          if tags[tag] == nil then tag_order[#tag_order + 1] = tag end
-          tags[tag] = (tags[tag] or 0) + 1
-        end
-      end
+    local counts, order = Format.tags(notebook.cells)
+    for _, tag in ipairs(order) do
+      if tags[tag] == nil then tag_order[#tag_order + 1] = tag end
+      tags[tag] = (tags[tag] or 0) + counts[tag]
     end
   end
   for index = 1, math.min(#tag_order, 20) do

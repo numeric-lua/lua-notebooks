@@ -471,6 +471,16 @@ test("duplicates a cell with a fresh id", function()
   eq(notebook.active, 2)
 end)
 
+current = "tag index"
+test("collects markdown tags in order", function()
+  local counts, order = Format.tags({
+    { kind = "markdown", source = "# Heading\nTags: #lua #notebook #lua" },
+    { kind = "code", source = "# not a tag" },
+  })
+  assert(counts.lua == 2 and counts.notebook == 1)
+  assert(order[1] == "lua" and order[2] == "notebook")
+end)
+
 io.write(string.format("\n\n%d tests, %d passed, %d failed\n", passed + failed,
   passed, failed))
 if failed > 0 then

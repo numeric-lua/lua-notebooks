@@ -77,6 +77,19 @@ function Format.save(notebook)
   return path, lovr.filesystem.getSaveDirectory() .. "/" .. path
 end
 
+function Format.tags(cells)
+  local counts, order = {}, {}
+  for _, cell in ipairs(cells or {}) do
+    if cell.kind == "markdown" then
+      for tag in (cell.source or ""):gmatch("#([%a_][%w_-]*)") do
+        if counts[tag] == nil then order[#order + 1] = tag end
+        counts[tag] = (counts[tag] or 0) + 1
+      end
+    end
+  end
+  return counts, order
+end
+
 function Format.to_markdown(notebook)
   local lines = { "# " .. notebook:title(), "" }
   for _, cell in ipairs(notebook.cells) do
