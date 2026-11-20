@@ -701,6 +701,8 @@ function UI:palette_commands()
     { id = "clear-outputs", label = "Clear all cell outputs" },
     { id = "run-all", label = "Run all code cells" },
     { id = "export-md", label = "Export notebook as Markdown" },
+    { id = "move-up", label = "Move selected cell up" },
+    { id = "move-down", label = "Move selected cell down" },
     { id = "save", label = "Save notebook  (F6)" },
     { id = "save-as", label = "Save notebook as…" },
     { id = "open-dialog", label = "Open notebook…" },
@@ -742,6 +744,8 @@ function UI:run_palette_command(id)
   elseif id == "clear-outputs" then self.app:clear_outputs()
   elseif id == "run-all" then self.app:run_all()
   elseif id == "export-md" then self.app:export_markdown()
+  elseif id == "move-up" then self.app:move_cell(-1)
+  elseif id == "move-down" then self.app:move_cell(1)
   elseif id == "save" then self.app:save()
   elseif id == "save-as" then self.app:save_as()
   elseif id == "open-dialog" then self.app:open_dialog()

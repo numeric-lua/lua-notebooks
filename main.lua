@@ -414,6 +414,19 @@ function App:toggle_nvim_default()
     (self.nvim_default and "enabled" or "disabled")
 end
 
+function App:move_cell(delta)
+  local notebook = self:notebook()
+  local index = notebook.active
+  local target = index + delta
+  if target < 1 or target > #notebook.cells then return end
+  notebook.cells[index], notebook.cells[target] =
+    notebook.cells[target], notebook.cells[index]
+  notebook:select(target)
+  notebook.dirty = true
+  self.scroll_to_selected = true
+  self.status = "moved cell " .. (delta < 0 and "up" or "down")
+end
+
 function App:run_all()
   local notebook = self:notebook()
   local original = notebook.active
