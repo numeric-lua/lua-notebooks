@@ -2041,14 +2041,9 @@ function UI:keypressed(key)
       self.vim_pending = "Z"; return
     elseif key == ">" or key == "<" then
       self.vim_pending = key; return
-    elseif key == "i" or key == "a" then
-      if self.vim_scope == "notebook" then
-        self.vim_scope = "cell"
-        self.vim_normal = true
-      else
-        self.vim_scope = "cell"
-        self.vim_normal = false
-      end
+    elseif key == "i" or key == "a" or key == "return" then
+      self.vim_scope = "cell"
+      self.vim_normal = false
       return
     elseif key == "j" then
       if self.nav_repeat and self.nav_repeat.key == "j" then return end
