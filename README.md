@@ -33,13 +33,16 @@ Implemented after the original milestone:
 - Windows process-kernel CI;
 - gateway token authentication;
 - offscreen visual regression in CI;
-- LuaRocks publishing and LÖVR archive artifacts.
+- LuaRocks publishing and LÖVR archive artifacts;
+- an embedded Neovim cell/notebook editor over msgpack-RPC;
+- configurable translucent light theme.
 
 Remaining limits:
 
 - OS sandboxing for user extensions is Linux/bubblewrap-specific;
 - semantic LSP analysis is local and partial;
-- TeX/MathJax-quality math and full Vim semantics are not implemented;
+- TeX/MathJax-quality math is not implemented;
+- Neovim editing requires `nvim` on PATH and is Linux/macOS POSIX-tested;
 - visual baselines use a tolerance for software-renderer variance.
 
 ## Requirements
