@@ -993,6 +993,7 @@ function UI:draw_help(pass, width, height)
         { "Ctrl+1 / 2", "code / markdown" },
         { "o / O", "insert below / above and edit" },
         { "Ctrl+F", "find across notebook cells" },
+        { "Ctrl+P", "command palette" },
         { "Ctrl+Tab", "next / previous notebook" },
         { "F2", "notebook filetree" },
         { "F1", "command palette" },
@@ -1754,6 +1755,12 @@ function UI:keypressed(key)
     return
   end
   if ctrl_down and key == "f" then self:open_find(); return end
+  if ctrl_down and key == "p" then
+    self.show_palette = true
+    self.palette_query = ""
+    self.palette_selected = 1
+    return
+  end
   if ctrl_down and key == "tab" then
     local shift = lovr.system and lovr.system.isKeyDown and
       (lovr.system.isKeyDown("lshift") or lovr.system.isKeyDown("rshift"))
