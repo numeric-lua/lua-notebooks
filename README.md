@@ -459,3 +459,17 @@ The notebook format, extension contract, gateway flags, and LSP capabilities are
 ## Transparency
 
 Use the command palette action **Toggle notebook transparency** to switch the light notebook between opaque white and a translucent WezTerm-like surface. LÖVR is configured with `t.window.transparent = true`; the opacity setting is stored in `opacity.txt` in the save directory.
+
+## Neovim editor (experimental)
+
+The `spike/nvim-ui` branch embeds a headless Neovim instance and renders its
+`ext_linegrid` UI in LÖVR. Open the command palette and choose **Neovim cell
+editor**.
+
+- `F10` writes the buffer back to the current cell;
+- `F9` discards and closes;
+- the editor starts in insert mode;
+- `Escape` enters Vim normal mode for full Vim keybindings.
+
+Requirements: `nvim` on `PATH`. The bridge uses msgpack-RPC over a local TCP
+socket, not `luv` or `lua-mp`.

@@ -72,6 +72,14 @@ function NvimView:draw(pass, x, y, width, height, scale)
   pass:setScissor(scissor_x, scissor_y, scissor_w, scissor_h)
   pass:setFont(self.font)
   local rows = math.min(grid.rows, math.ceil(height / ch))
+  local cursor = grid.cursor
+  if cursor and cursor.row < rows then
+    local cx = x + cursor.col * cw
+    local cy = y + cursor.row * ch
+    pass:setColor(0.75, 0.85, 1, 0.9)
+    pass:plane(cx + cw / 2, cy + ch - 1, 0, math.max(2, cw), 2)
+  end
+
   for row = 0, rows - 1 do
     local row_y = y + row * ch
     for col = 0, grid.cols - 1 do
@@ -94,13 +102,6 @@ function NvimView:draw(pass, x, y, width, height, scale)
         end
       end
     end
-  end
-  local cursor = grid.cursor
-  if cursor and cursor.row < rows then
-    local cx = x + cursor.col * cw
-    local cy = y + cursor.row * ch
-    pass:setColor(0.75, 0.85, 1, 0.85)
-    pass:plane(cx + cw / 2, cy + ch / 2, 0, math.max(2, cw), ch)
   end
   pass:setScissor()
 end
