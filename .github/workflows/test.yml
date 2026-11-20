@@ -71,6 +71,7 @@ jobs:
           luajit tests/inline_supervisor.lua
           luajit tests/platform.lua
           luajit tests/editor.lua
+          luajit tests/process.lua
           luajit tests/scope.lua
           luajit tests/lsp_protocol.lua
 
