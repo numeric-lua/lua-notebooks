@@ -1508,6 +1508,11 @@ end
 function UI:keypressed(key)
   if self.app.show_nvim then
     if key == "f10" then self.app:close_nvim(true); return end
+    if key == "f5" then
+      self.app:close_nvim(true)
+      self.app:run()
+      return
+    end
     if key == "f9" then self.app:close_nvim(false); return end
     if self.app.nvim_view then self.app.nvim_view:keypressed(key) end
     return
