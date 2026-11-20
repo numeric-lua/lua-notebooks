@@ -23,4 +23,8 @@ local swapped, swapped_order = Buffer.decode({
 })
 assert(swapped_order[1] == 2 and swapped_order[2] == 1)
 assert(swapped[2] == "b" and swapped[1] == "a")
+local typed, typed_order, _, typed_kinds = Buffer.decode({
+  "-- %% cell 1 markdown", "# title", "-- %% cell 2 code", "print(1)",
+})
+assert(typed_kinds[1] == "markdown" and typed_kinds[2] == "code")
 print("nvim buffer ok")

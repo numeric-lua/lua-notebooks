@@ -20,22 +20,29 @@ end
 
 function Buffer.decode(lines)
   local sources, order, seen, current, pieces = {}, {}, {}, nil, {}
+  local kinds = {}
   local error_message
+  local current_kind
   local function flush()
     if current ~= nil then
       if seen[current] then
         error_message = "duplicate cell marker " .. tostring(current)
       end
       seen[current] = true
+      kinds[current] = current_kind or "code"
       sources[current] = table.concat(pieces, "\n")
       order[#order + 1] = current
     end
   end
   for _, line in ipairs(lines or {}) do
-    local index = line:match("^%-%- %%%% cell (%d+)")
+    local index, kind = line:match("^%-%- %%%% cell (%d+)%s*(%a*)")
     if index then
       flush()
       current = tonumber(index)
+      current_kind = kind ~= "" and kind or "code"
+      if current_kind ~= "code" and current_kind ~= "markdown" then
+        error_message = "unsupported cell kind " .. current_kind
+      end
       pieces = {}
     elseif current ~= nil then
       pieces[#pieces + 1] = line
@@ -44,7 +51,7 @@ function Buffer.decode(lines)
     end
   end
   flush()
-  return sources, order, error_message
+  return sources, order, error_message, kinds
 end
 
 return Buffer

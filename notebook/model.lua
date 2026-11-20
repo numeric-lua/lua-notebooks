@@ -283,6 +283,10 @@ function Notebook:copy_cell(index)
   }
 end
 
+function Notebook:new_cell(kind, source)
+  return cell(kind or "code", source or "")
+end
+
 function Notebook:add_cell(kind, after_index)
   self:push_undo("add cell")
   local index = (after_index or self.active or #self.cells) + 1
