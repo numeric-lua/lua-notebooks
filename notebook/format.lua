@@ -100,6 +100,33 @@ function Format.to_markdown(notebook)
   return table.concat(lines, "\n")
 end
 
+local function escape_html(value)
+  return tostring(value):gsub("&", "&amp;"):gsub("<", "&lt;")
+    :gsub(">", "&gt;"):gsub('"', "&quot;")
+end
+
+function Format.to_html(notebook)
+  local out = { "<!doctype html><html><head><meta charset=\"utf-8\">",
+    "<title>" .. escape_html(notebook:title()) ..
+    "</title><style>body{font-family:system-ui,sans-serif;max-width:880px;margin:2rem auto;color:#202630}pre{background:#f4f5f7;padding:12px;overflow:auto;border-radius:6px}blockquote{border-left:3px solid #999;padding-left:10px;color:#555}</style></head><body>" }
+  for _, cell in ipairs(notebook.cells) do
+    if cell.kind == "markdown" then
+      out[#out + 1] = "<pre>" .. escape_html(cell.source or "") .. "</pre>"
+    else
+      out[#out + 1] = "<pre><code>" .. escape_html(cell.source or "") ..
+        "</code></pre>"
+      if cell.error then
+        out[#out + 1] = "<blockquote>error: " .. escape_html(cell.error) ..
+          "</blockquote>"
+      elseif cell.output and cell.output ~= "" then
+        out[#out + 1] = "<pre>" .. escape_html(cell.output) .. "</pre>"
+      end
+    end
+  end
+  out[#out + 1] = "</body></html>"
+  return table.concat(out, "\n")
+end
+
 function Format.list()
   local items = lovr.filesystem.getDirectoryItems("notebooks")
   local names = {}

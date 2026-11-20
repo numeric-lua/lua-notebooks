@@ -447,6 +447,16 @@ test("exports markdown and code blocks", function()
   assert(text:find("> 1", 1, true))
 end)
 
+current = "html export"
+test("exports escaped standalone HTML", function()
+  local notebook = Notebook.new({ name = "html-test", cells = {
+    { kind = "code", source = "print('<tag>')" },
+  } })
+  local text = Format.to_html(notebook)
+  assert(text:find("<!doctype html>", 1, true))
+  assert(text:find("&lt;tag&gt;", 1, true))
+end)
+
 io.write(string.format("\n\n%d tests, %d passed, %d failed\n", passed + failed,
   passed, failed))
 if failed > 0 then
