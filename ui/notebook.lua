@@ -809,7 +809,7 @@ function UI:draw_help(pass, width, height)
     {
       { title = "MODES & NAVIGATION", rows = {
         { "F3", "Vim mode on / off" },
-        { "i", "notebook -> cell" },
+        { "i / Enter", "open Neovim or enter cell" },
         { "i", "cell -> insert" },
         { "Esc", "step back one scope" },
         { "j / k", "move cells (hold to repeat)" },
