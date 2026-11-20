@@ -87,6 +87,11 @@ function Format.to_markdown(notebook)
       lines[#lines + 1] = "```lua"
       lines[#lines + 1] = cell.source or ""
       lines[#lines + 1] = "```"
+      if cell.scene then
+        lines[#lines + 1] = "> scene: " ..
+          (type(cell.scene) == "table" and (cell.scene.type or "luaplotlib") or
+            tostring(cell.scene))
+      end
       if cell.error then
         lines[#lines + 1] = "> error: " .. tostring(cell.error)
       elseif cell.output and cell.output ~= "" then
@@ -115,6 +120,11 @@ function Format.to_html(notebook)
     else
       out[#out + 1] = "<pre><code>" .. escape_html(cell.source or "") ..
         "</code></pre>"
+      if cell.scene then
+        out[#out + 1] = "<blockquote>scene: " .. escape_html(
+          type(cell.scene) == "table" and (cell.scene.type or "luaplotlib") or
+          tostring(cell.scene)) .. "</blockquote>"
+      end
       if cell.error then
         out[#out + 1] = "<blockquote>error: " .. escape_html(cell.error) ..
           "</blockquote>"
