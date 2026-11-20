@@ -15,7 +15,7 @@ assert(sources[3] == "", "empty cell")
 local duplicate, order, duplicate_error = Buffer.decode({
   "-- %% cell 1 code", "a", "-- %% cell 1 code", "b",
 })
-assert(duplicate_error and duplicate[1] == "a", duplicate_error)
+assert(duplicate_error == "duplicate cell marker 1", tostring(duplicate_error))
 local before, _, before_error = Buffer.decode({ "stray", "-- %% cell 1 code", "a" })
 assert(before_error, "text before marker")
 print("nvim buffer ok")
