@@ -21,7 +21,6 @@ Fixed after the static review:
 Remaining limits:
 
 - Windows uses the TCP transport; Unix sockets are POSIX-only.
-- External popup-menu rendering is still disabled; completion falls back to the
-  grid.
+- External popup-menu events are enabled and rendered over the grid.
 - Marker add/delete/reorder is rejected rather than mapped to the model.
 - LÖVR key repeat is off by default, so holding Backspace/arrows does not repeat.

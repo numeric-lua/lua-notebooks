@@ -106,7 +106,7 @@ function Session.new(options)
     error("nvim handshake failed")
   end
   self:request("nvim_ui_attach", { self.cols, self.rows,
-    Msgpack.map({ ext_linegrid = true, rgb = true }) })
+    Msgpack.map({ ext_linegrid = true, ext_popupmenu = true, rgb = true }) })
   return self
 end
 
@@ -126,7 +126,7 @@ function Session:refresh()
   self:request("nvim_ui_detach", {})
   self.grid:resize(self.cols, self.rows)
   self:request("nvim_ui_attach", { self.cols, self.rows,
-    Msgpack.map({ ext_linegrid = true, rgb = true }) })
+    Msgpack.map({ ext_linegrid = true, ext_popupmenu = true, rgb = true }) })
   for _ = 1, 5 do self:update() end
 end
 

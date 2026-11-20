@@ -1333,7 +1333,16 @@ function lovr.load()
       lovr.event.quit()
     end
   end
-  if os.getenv("LUANB_QA_NVIM_WARM") then
+  if os.getenv("LUANB_QA_NVIM_POPUP") then
+    app:open_nvim()
+    app.nvim_session:input("<Esc>")
+    app.nvim_session:command("set completeopt=menu,menuone,noselect")
+    app.nvim_session:set_lines({ "print(1)", "pairs({})", "pcall()" }, 1)
+    app.nvim_session:input("Gopr")
+    for _ = 1, 30 do app:update(); os.execute("sleep 0.02") end
+    app.nvim_session:input("<C-n>")
+    for _ = 1, 30 do app:update(); os.execute("sleep 0.02") end
+  elseif os.getenv("LUANB_QA_NVIM_WARM") then
     app:open_nvim()
     app.ui:textinput("A")
     for _ = 1, 20 do app:update(); os.execute("sleep 0.03") end
