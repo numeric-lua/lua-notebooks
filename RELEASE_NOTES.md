@@ -1,6 +1,6 @@
-# lua-notebooks 1.18.0
+# lua-notebooks 1.19.0
 
-- warm Neovim process reused across cell edits;
-- instant reopen and Alt+J/K cell switching;
-- F10/F5/F9 write-back paths preserved;
-- reliable cleanup on app quit.
+- warm Neovim session reused for per-cell and notebook-wide editing;
+- no startup cost when switching cells with Alt+J/K;
+- reliable F10/F5/F9 write-back and clean shutdown;
+- search, wiki links, exports, and kernel commands retained.

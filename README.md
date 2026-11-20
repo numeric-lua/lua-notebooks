@@ -348,7 +348,7 @@ compositor and window stacking.
 ## LuaRocks
 
 ```sh
-luarocks make lua-notebooks-1.18.0-1.rockspec
+luarocks make lua-notebooks-1.19.0-1.rockspec
 lua-notebooks
 ```
 
@@ -357,7 +357,7 @@ The rockspec installs the app source under the LuaRocks share tree and a
 
 ```sh
 make rock
-luarocks install lua-notebooks-1.18.0-1.src.rock
+luarocks install lua-notebooks-1.19.0-1.src.rock
 ```
 
 Publishing to a remote rock server is intentionally not automated.
@@ -489,3 +489,5 @@ as Markdown**. `Ctrl+Shift+K` restarts the current kernel.
 ## Links
 
 Wiki links such as `[[Notebook Title]]` are previewed without brackets. The command palette lists other tabs as **Switch to** entries and marks tabs that link to the current notebook as **Backlink**. Press **F1** to open it.
+
+The Neovim process is kept warm after F10/F9/F5, so reopening a cell or switching with Alt+J/K does not pay startup cost again. The process is destroyed when the app quits.
