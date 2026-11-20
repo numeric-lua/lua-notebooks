@@ -183,15 +183,24 @@ function NvimView:wheelmoved(dy)
 end
 
 function NvimView:textinput(text)
+  text = text:gsub("\r", ""):gsub("\n", ""):gsub("\t", "")
+  if text == "" then return end
+  local ctrl = lovr.system and lovr.system.isKeyDown and
+    (lovr.system.isKeyDown("lctrl") or lovr.system.isKeyDown("rctrl"))
+  local alt = lovr.system and lovr.system.isKeyDown and
+    (lovr.system.isKeyDown("lalt") or lovr.system.isKeyDown("ralt"))
+  if ctrl and not alt then return end
   self.session:input((text:gsub("<", "<lt>")))
 end
 
 function NvimView:keypressed(key)
-  local name = key_name(key)
-  if name == nil then return false end
+  local name = SPECIAL[key]
   local ctrl = lovr.system and lovr.system.isKeyDown and
     (lovr.system.isKeyDown("lctrl") or lovr.system.isKeyDown("rctrl"))
-  if ctrl and #name == 1 then name = "<C-" .. name .. ">" end
+  if name == nil and ctrl and #key == 1 then
+    name = "<C-" .. key .. ">"
+  end
+  if name == nil then return false end
   self.session:input(name)
   return true
 end

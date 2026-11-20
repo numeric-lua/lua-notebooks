@@ -88,25 +88,49 @@ end
 function Grid:apply(event)
   local name = event[1]
   if name == "grid_resize" then
-    local args = type(event[2]) == "table" and event[2] or event
-    self:resize(args[2] or args[3], args[3] or args[4])
-  elseif name == "grid_clear" then
-    for row = 0, self.rows - 1 do
-      for col = 0, self.cols - 1 do self.cells[row][col] = blank(0) end
+    local grid, cols, rows
+    if type(event[2]) == "table" then
+      grid, cols, rows = event[2][1], event[2][2], event[2][3]
+    else
+      grid, cols, rows = event[2], event[3], event[4]
     end
-  elseif name == "grid_line" then
-    for index = 2, #event do
-      local line = event[index]
-      if type(line) == "table" then
-        self:set_line(line[2], line[3], line[4] or {})
+    if grid == 1 then self:resize(cols, rows) end
+  elseif name == "grid_clear" then
+    local grid = type(event[2]) == "table" and event[2][1] or event[2]
+    if grid == 1 then
+      for row = 0, self.rows - 1 do
+        for col = 0, self.cols - 1 do self.cells[row][col] = blank(0) end
       end
     end
+  elseif name == "grid_line" then
+    if type(event[2]) == "table" then
+      for index = 2, #event do
+        local line = event[index]
+        if type(line) == "table" and line[1] == 1 then
+          self:set_line(line[2], line[3], line[4] or {})
+        end
+      end
+    elseif event[2] == 1 then
+      self:set_line(event[3], event[4], event[5] or {})
+    end
   elseif name == "grid_scroll" then
-    local args = type(event[2]) == "table" and event[2] or event
-    self:scroll(args[2], args[3], args[4], args[5], args[6])
+    local grid, top, bottom, left, right, rows
+    if type(event[2]) == "table" then
+      grid, top, bottom, left, right, rows = event[2][1], event[2][2],
+        event[2][3], event[2][4], event[2][5], event[2][6]
+    else
+      grid, top, bottom, left, right, rows = event[2], event[3], event[4],
+        event[5], event[6], event[7]
+    end
+    if grid == 1 then self:scroll(top, bottom, left, right, rows) end
   elseif name == "grid_cursor_goto" then
-    local args = type(event[2]) == "table" and event[2] or event
-    self.cursor = { row = args[2], col = args[3] }
+    local grid, row, col
+    if type(event[2]) == "table" then
+      grid, row, col = event[2][1], event[2][2], event[2][3]
+    else
+      grid, row, col = event[2], event[3], event[4]
+    end
+    if grid == 1 then self.cursor = { row = row, col = col } end
   elseif name == "hl_attr_define" then
     if type(event[2]) == "number" then
       self.highlights[event[2]] = event[3] or {}
@@ -126,6 +150,14 @@ function Grid:apply(event)
       self.default_foreground = event[2]
       self.default_background = event[3]
     end
+  elseif name == "mode_change" then
+    if type(event[2]) == "table" then
+      self.mode = event[2][1]
+    else
+      self.mode = event[2]
+    end
+  elseif name == "mode_info_set" then
+    self.mode_info = type(event[3]) == "table" and event[3] or event[2]
   elseif name == "popupmenu_show" then
     local nested = type(event[2]) == "table"
     local items = nested and event[2][1] or event[2]
@@ -136,20 +168,11 @@ function Grid:apply(event)
     self.popupmenu = { items = items or {}, selected = selected + 1,
       row = row or 0, col = col or 0 }
   elseif name == "popupmenu_select" then
-    local selected
-    if type(event[2]) == "table" then
-      selected = type(event[2][1]) == "number" and event[2][1] or event[2][2]
-    else
-      selected = event[2]
-    end
+    local selected = type(event[2]) == "table" and event[2][2] or event[2]
     if type(selected) ~= "number" then selected = 0 end
     if self.popupmenu then self.popupmenu.selected = selected + 1 end
   elseif name == "popupmenu_hide" then
     self.popupmenu = nil
-  elseif name == "mode_info_set" then
-    self.mode_info = event[3]
-  elseif name == "mode_change" then
-    self.mode = event[2]
   end
 end
 

@@ -24,3 +24,15 @@ grid:apply_redraw({ { "grid_resize", { 1, 10, 3 } } })
 assert(#grid:line(0) == 10)
 print("nvim grid ok")
 
+
+local flat = Grid.new(10, 3)
+flat:apply_redraw({
+  { "grid_resize", 1, 10, 3 },
+  { "grid_line", 1, 0, 0, { { "f", 1 }, { "l" }, { "a", 1 }, { "t" } }, false },
+  { "grid_cursor_goto", 1, 1, 2 },
+})
+assert(flat:line(0):sub(1, 4) == "flat", flat:line(0))
+assert(flat.cursor.row == 1 and flat.cursor.col == 2)
+flat:apply_redraw({ { "grid_scroll", 1, 0, 3, 0, 10, 1 } })
+assert(flat:line(0):match("^%s+$"))
+print("nvim flat grid ok")
