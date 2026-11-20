@@ -610,7 +610,9 @@ end
 function lovr.load()
   local app = App:new(Notebook.demo())
   app.font = lovr.graphics.newFont(18)
-  app.nvim_font = lovr.graphics.newFont("assets/DejaVuSansMono.ttf", 18)
+  local nvim_font_ok, nvim_font = pcall(lovr.graphics.newFont,
+    "assets/DejaVuSansMono.ttf", 18)
+  app.nvim_font = nvim_font_ok and nvim_font or app.font
   app.font:setPixelDensity(1)
   app.title_font = lovr.graphics.newFont(22)
   app.math_font = lovr.graphics.newFont("assets/DejaVuSans.ttf", 18)
