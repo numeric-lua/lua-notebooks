@@ -81,3 +81,16 @@ Validated in Chromium against a local gateway:
 - a `star_nest` shader widget rendered and animated in WebGL;
 - two scene canvases rendered (chart and cube);
 - no page exceptions.
+
+
+## Gateway token
+
+If the gateway is started with `--token secret`, use a URL that includes the
+token:
+
+```text
+ws://127.0.0.1:8765/?token=secret
+```
+
+The browser sends the token in the WebSocket upgrade query. Unauthorized
+upgrades receive HTTP 401 and the front-end reports the connection error.
