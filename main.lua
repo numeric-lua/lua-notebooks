@@ -445,7 +445,6 @@ function App:open_nvim()
   for _ in (cell.source or ""):sub(1, math.max(0, (cell.cursor or 1) - 1)):gmatch("\n") do
     cursor_line = cursor_line + 1
   end
-  session:request("nvim_win_set_cursor", { 0, { cursor_line, 0 } })
   session:input("i")
   for _ = 1, 5 do session:update(); os.execute("sleep 0.01") end
   self.nvim_session = session
