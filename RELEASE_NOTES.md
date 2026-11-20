@@ -1,7 +1,6 @@
-# lua-notebooks 1.33.0
+# lua-notebooks 1.33.1
 
-- Esc in normal mode exits the inline cell back to notebook navigation;
-- insert/visual Esc returns to normal first;
-- inline source uses the notebook cell background and font line height;
-- normal block vs insert bar cursors retained;
-- Esc behavior regression test added.
+- force normal mode when entering a cell, including reused Neovim sessions;
+- inline fallback editor also enters normal mode;
+- Esc from normal returns to notebook navigation;
+- mode-aware cursor and matched inline background/font retained.
