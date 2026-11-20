@@ -622,12 +622,12 @@ function App:close_nvim(save, keep)
     local ok, value, err = pcall(function() return session:get_lines() end)
     if not ok then
       self.status = "Neovim save failed: " .. tostring(value)
-      return
+      return false
     end
     lines = value
     if lines == nil or #lines == 0 then
       self.status = "Neovim save failed: " .. tostring(err or "empty buffer")
-      return
+      return false
     end
     local cursor_ok, cursor = pcall(function()
       return session:request("nvim_win_get_cursor", { 0 })
@@ -645,13 +645,13 @@ function App:close_nvim(save, keep)
       local notebook = self:notebook()
       if decode_error then
         self.status = "Neovim save failed: " .. decode_error
-        return
+        return false
       end
       local seen = {}
       for _, index in ipairs(order) do
         if seen[index] or index < 1 or index > #notebook.cells then
           self.status = "Neovim save failed: bad cell marker " .. index
-          return
+          return false
         end
         seen[index] = true
       end
@@ -659,7 +659,7 @@ function App:close_nvim(save, keep)
         if cell.kind == "code" or cell.kind == "markdown" then
           if not seen[index] then
             self.status = "Neovim save failed: missing marker for cell " .. index
-            return
+            return false
           end
         end
       end
@@ -708,6 +708,7 @@ function App:close_nvim(save, keep)
   self.nvim_notebook = false
   self.nvim_cells = {}
   self.nvim_cell_rows = {}
+  return true
 end
 
 function App:hide_nvim(save)
@@ -729,7 +730,7 @@ function App:run_nvim_cell()
   for _, entry in ipairs(self.nvim_cell_rows or {}) do
     if entry.row <= row then index = entry.index end
   end
-  self:hide_nvim(true)
+  if self:hide_nvim(true) == false then return end
   self:notebook():select(index)
   self.scroll_to_selected = true
   if self:notebook():selected().kind == "code" then
