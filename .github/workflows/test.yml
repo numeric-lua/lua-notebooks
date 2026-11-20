@@ -115,6 +115,6 @@ jobs:
       - name: Install Neovim
         run: |
           sudo apt-get update
-          sudo apt-get install -y neovim
+          sudo apt-get install -y neovim luajit
       - name: Run Neovim bridge tests
         run: make test-nvim
