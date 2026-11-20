@@ -422,6 +422,19 @@ test("stores per-extension permission overrides", function()
   assert(#listed.permissions == 1)
 end)
 
+current = "vim character deletion"
+test("deletes the character at or before the cursor", function()
+  local notebook = Notebook.new({ cells = {
+    { kind = "code", source = "abcdef" },
+  } })
+  notebook:selected().cursor = 3
+  assert(notebook:delete_character(true))
+  eq(notebook:selected().source, "abdef")
+  assert(notebook:delete_character(false))
+  eq(notebook:selected().source, "adef")
+  eq(notebook:selected().cursor, 2)
+end)
+
 io.write(string.format("\n\n%d tests, %d passed, %d failed\n", passed + failed,
   passed, failed))
 if failed > 0 then

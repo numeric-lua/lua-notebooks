@@ -2072,12 +2072,9 @@ function UI:keypressed(key)
     elseif key == "u" then
       self.app.status = notebook:undo() and "undo" or "nothing to undo"
       return
-    elseif key == "x" then
-      self.vim_last_change = "x"
-      local cell = notebook.cells[notebook.active]
-      if cell and (cell.kind == "code" or cell.kind == "markdown") then
-        cell.source = cell.source:sub(1, -2)
-      end
+    elseif key == "x" or key == "X" then
+      self.vim_last_change = key
+      notebook:delete_character(key == "x")
       return
     end
   elseif self.app.vim_mode and key == "escape" then
@@ -2373,6 +2370,7 @@ function UI:mousepressed(x, y, button)
       self.focused_surface = rect.surface
       self.focused_output_cell = rect.cell._index
       self.app:notebook():select(rect.cell._index)
+      rect.cell.cursor = 1
       if self.app.vim_mode then
         self.vim_scope = "cell"
         self.vim_normal = true

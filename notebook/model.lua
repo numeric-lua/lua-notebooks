@@ -482,6 +482,19 @@ function Notebook:delete()
   self.dirty = true
 end
 
+function Notebook:delete_character(forward)
+  local cell = self:selected()
+  if cell == nil then return false end
+  local source = cell.source or ""
+  local cursor = math.max(1, math.min(cell.cursor or 1, #source + 1))
+  local position = forward and cursor or cursor - 1
+  if position < 1 or position > #source then return false end
+  self:push_undo(forward and "delete character" or "delete previous character")
+  cell.source = source:sub(1, position - 1) .. source:sub(position + 1)
+  cell.cursor = math.min(position, #cell.source + 1)
+  return true
+end
+
 function Notebook:move_line(delta)
   local cell = self:selected()
   if cell == nil then return false end
