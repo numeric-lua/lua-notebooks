@@ -88,3 +88,21 @@ jobs:
         with:
           name: lua-notebooks-lovr
           path: dist/lua-notebooks.zip
+
+  visual-regression:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install rendering dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends             xvfb imagemagick libfuse2 mesa-vulkan-drivers
+      - name: Install LÖVR 0.19.1
+        run: |
+          curl -L --fail -o /tmp/lovr.AppImage             https://github.com/bjornbytes/lovr/releases/download/v0.19.1/lovr-v0.19.1-x86_64.AppImage
+          chmod +x /tmp/lovr.AppImage
+          /tmp/lovr.AppImage --appimage-extract >/dev/null
+          sudo ln -sf "$PWD/squashfs-root/AppRun" /usr/local/bin/lovr
+      - name: Run pixel baselines
+        run: xvfb-run -a ./scripts/visual-baseline.sh
