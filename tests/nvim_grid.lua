@@ -23,3 +23,4 @@ assert(grid:line(4):match("^%s+$"), "bottom row should be blank")
 grid:apply_redraw({ { "grid_resize", { 1, 10, 3 } } })
 assert(#grid:line(0) == 10)
 print("nvim grid ok")
+

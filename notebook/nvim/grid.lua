@@ -123,12 +123,23 @@ function Grid:apply(event)
       self.default_background = event[3]
     end
   elseif name == "popupmenu_show" then
-    local args = type(event[2]) == "table" and event[2] or event
-    self.popupmenu = { items = args[2] or {}, selected = (args[3] or 0) + 1,
-      row = args[4] or 0, col = args[5] or 0 }
+    local nested = type(event[2]) == "table"
+    local items = nested and event[2][1] or event[2]
+    local selected = nested and event[2][2] or event[3]
+    local row = nested and event[2][3] or event[4]
+    local col = nested and event[2][4] or event[5]
+    if type(selected) ~= "number" then selected = 0 end
+    self.popupmenu = { items = items or {}, selected = selected + 1,
+      row = row or 0, col = col or 0 }
   elseif name == "popupmenu_select" then
-    local selected = type(event[2]) == "table" and event[2][2] or event[2]
-    if self.popupmenu then self.popupmenu.selected = (selected or 0) + 1 end
+    local selected
+    if type(event[2]) == "table" then
+      selected = type(event[2][1]) == "number" and event[2][1] or event[2][2]
+    else
+      selected = event[2]
+    end
+    if type(selected) ~= "number" then selected = 0 end
+    if self.popupmenu then self.popupmenu.selected = selected + 1 end
   elseif name == "popupmenu_hide" then
     self.popupmenu = nil
   elseif name == "mode_info_set" then
