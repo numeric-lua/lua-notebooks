@@ -556,15 +556,31 @@ function App:open_nvim()
     self.status = "nvim failed: " .. tostring(session)
     return
   end
-  for _ = 1, 150 do
-    session:update()
-    if session.grid:line(0):find("%S") then break end
-    os.execute("sleep 0.02")
+  local ready = pcall(function()
+    for _ = 1, 150 do
+      session:update()
+      if session.grid:line(0):find("%S") then break end
+      os.execute("sleep 0.02")
+    end
+    session:input("i")
+    for _ = 1, 5 do session:update(); os.execute("sleep 0.01") end
+  end)
+  if not ready then
+    pcall(function() session:close() end)
+    os.remove(path)
+    self.status = "nvim failed to become ready"
+    return
   end
-  session:input("i")
-  for _ = 1, 5 do session:update(); os.execute("sleep 0.01") end
+  local view_ok, view = pcall(require("ui.nvim").new, session,
+    self.nvim_font or self.font)
+  if not view_ok then
+    pcall(function() session:close() end)
+    os.remove(path)
+    self.status = "nvim view failed: " .. tostring(view)
+    return
+  end
   self.nvim_session = session
-  self.nvim_view = require("ui.nvim").new(session, self.nvim_font or self.font)
+  self.nvim_view = view
   self.nvim_path = path
   self.show_nvim = true
   self.status = "Neovim: F10 save, F9 discard"
@@ -748,7 +764,8 @@ function App:open_nvim_notebook()
     return
   end
   local path = os.tmpname() .. ".lua"
-  local handle = assert(io.open(path, "wb"))
+  local handle = io.open(path, "wb")
+  if handle == nil then self.status = "cannot create notebook buffer"; return end
   handle:write(table.concat(lines, "\n"))
   handle:close()
   os.execute("chmod 600 '" .. path .. "'")
@@ -760,21 +777,37 @@ function App:open_nvim_notebook()
   if not ok then
     os.remove(path); self.status = "nvim failed: " .. tostring(session); return
   end
-  for _ = 1, 150 do
-    session:update()
-    if session.grid:line(0):find("%S") then break end
-    os.execute("sleep 0.02")
-  end
   local target_row = 1
   for _, entry in ipairs(rows) do
     if entry.index == notebook.active then target_row = entry.row + 1 end
   end
-  session:request("nvim_win_set_cursor", { 0, { target_row, 0 } })
+  local ready = pcall(function()
+    for _ = 1, 150 do
+      session:update()
+      if session.grid:line(0):find("%S") then break end
+      os.execute("sleep 0.02")
+    end
+    session:request("nvim_win_set_cursor", { 0, { target_row, 0 } })
+  end)
+  if not ready then
+    pcall(function() session:close() end)
+    os.remove(path)
+    self.status = "nvim failed to become ready"
+    return
+  end
+  local view_ok, view = pcall(require("ui.nvim").new, session,
+    self.nvim_font or self.font)
+  if not view_ok then
+    pcall(function() session:close() end)
+    os.remove(path)
+    self.status = "nvim view failed: " .. tostring(view)
+    return
+  end
   self.nvim_session, self.nvim_cells = session, cells
   self.nvim_cell_rows = rows
-  self.nvim_view = require("ui.nvim").new(session, self.nvim_font or self.font)
+  self.nvim_view = view
   self.nvim_path, self.nvim_notebook, self.show_nvim = path, true, true
-  self.status = "Neovim notebook: F10 save, F5 run cell"
+  self.status = "Neovim notebook (normal mode): i to edit, F10 save, F5 run"
 end
 
 function App:save()
