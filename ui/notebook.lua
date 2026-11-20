@@ -204,7 +204,7 @@ function UI:draw(pass, logical_width, logical_height)
   self.widget_rects = {}
   self.output_rects = {}
   if not self.zen_mode then
-  box(pass, 0, 0, width, 30,
+  box(pass, 0, 0, width, 40,
     light and { 0, 0, 0, 0.85 } or { 0.08, 0.09, 0.12, 1 })
 
   -- Tabs are notebook titles, derived from the first markdown `#` heading.
@@ -214,26 +214,27 @@ function UI:draw(pass, logical_width, logical_height)
     local tab_w = math.max(92, math.min(240,
       app.font:getWidth(label) * 0.76 + 24))
     local active = index == app.active
-    box(pass, tab_x, 4, tab_w, 22,
+    box(pass, tab_x, 7, tab_w, 26,
       active and { 0.18, 0.22, 0.32, 1 } or { 0.11, 0.12, 0.16, 1 })
-    text(pass, app.font, label, tab_x + 10, 8,
+    text(pass, app.font, label, tab_x + 10, 12,
       active and { 0.95, 0.96, 1, 1 } or { 0.55, 0.6, 0.7, 1 }, 0.76)
-    self.tabs[#self.tabs + 1] = { x = tab_x, y = 4, w = tab_w, h = 22,
+    self.tabs[#self.tabs + 1] = { x = tab_x, y = 7, w = tab_w, h = 26,
       index = index }
     tab_x = tab_x + tab_w + 6
   end
 
   -- Compact icon buttons.
   local run_x = width - 42
-  box(pass, run_x, 3, 30, 24, { 0.18, 0.42, 0.30, 1 })
-  stroke(pass, run_x + 10, 5, run_x + 10, 21, 2, { 0.92, 1, 0.94, 1 })
-  stroke(pass, run_x + 10, 5, run_x + 21, 13, 2, { 0.92, 1, 0.94, 1 })
-  stroke(pass, run_x + 21, 13, run_x + 10, 21, 2, { 0.92, 1, 0.94, 1 })
-  self.buttons.run = { x = run_x, y = 3, w = 30, h = 24 }
+  box(pass, run_x, 7, 30, 26, { 0.18, 0.42, 0.30, 1 })
+  stroke(pass, run_x + 10, 12, run_x + 10, 28, 2, { 0.92, 1, 0.94, 1 })
+  stroke(pass, run_x + 10, 12, run_x + 20, 20, 2, { 0.92, 1, 0.94, 1 })
+  stroke(pass, run_x + 20, 20, run_x + 10, 28, 2, { 0.92, 1, 0.94, 1 })
+  self.buttons.run = { x = run_x, y = 7, w = 30, h = 26 }
   local add_x = run_x - 36
-  box(pass, add_x, 3, 30, 24, { 0.15, 0.18, 0.25, 1 })
-  text(pass, app.font, "+", add_x + 9, 5, { 0.82, 0.88, 1, 1 }, 0.9)
-  self.buttons.add = { x = add_x, y = 3, w = 30, h = 24 }
+  box(pass, add_x, 7, 30, 26, { 0.15, 0.18, 0.25, 1 })
+  stroke(pass, add_x + 15, 14, add_x + 15, 26, 2, { 0.82, 0.88, 1, 1 })
+  stroke(pass, add_x + 9, 20, add_x + 21, 20, 2, { 0.82, 0.88, 1, 1 })
+  self.buttons.add = { x = add_x, y = 7, w = 30, h = 26 }
   end
 
   local notebook = app:notebook()
@@ -241,7 +242,7 @@ function UI:draw(pass, logical_width, logical_height)
     self.last_active = notebook.active
     self.scroll_to_selected = true
   end
-  local content_top = self.zen_mode and 12 or 42
+  local content_top = self.zen_mode and 12 or 52
   local y = content_top - self.scroll
   self.rects = {}
   local content_height = 0
@@ -317,7 +318,7 @@ function UI:draw(pass, logical_width, logical_height)
     self.rects[index] = { x = 20, y = y, w = width - 40, h = cell_height }
     content_height = content_height + cell_height + 10
 
-    if y + cell_height > 45 and y < height - 10 then
+    if y + cell_height > 55 and y < height - 10 then
       local selected = index == notebook.active
       local cell_scoped = selected and (not app.vim_mode or
         self.vim_scope == "cell")
