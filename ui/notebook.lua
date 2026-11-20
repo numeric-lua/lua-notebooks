@@ -972,6 +972,7 @@ function UI:draw_help(pass, width, height)
         { "Ctrl+1 / 2", "code / markdown" },
         { "o / O", "insert below / above and edit" },
         { "Ctrl+F", "find across notebook cells" },
+        { "Ctrl+Tab", "next / previous notebook" },
         { "F2", "notebook filetree" },
         { "F1", "command palette" },
       } },
