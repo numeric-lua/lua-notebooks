@@ -23,6 +23,7 @@ local Extensions = {
   order = {},
   errors = {},
   disabled = {},
+  permission_overrides = {},
 }
 
 local function register(descriptor)
@@ -59,6 +60,28 @@ function Extensions.is_enabled(id)
   return Extensions.registry[id] ~= nil and not Extensions.disabled[id]
 end
 
+function Extensions.permissions(id)
+  local descriptor = Extensions.registry[id]
+  if descriptor == nil then return {} end
+  local permissions = {}
+  local overrides = Extensions.permission_overrides[id] or {}
+  for _, permission in ipairs(descriptor.permissions or {}) do
+    if overrides[permission] ~= false then
+      permissions[#permissions + 1] = permission
+    end
+  end
+  return permissions
+end
+
+function Extensions.set_permission(id, permission, enabled)
+  if Extensions.registry[id] == nil then return false end
+  if type(permission) ~= "string" or permission == "" then return false end
+  Extensions.permission_overrides[id] =
+    Extensions.permission_overrides[id] or {}
+  Extensions.permission_overrides[id][permission] = enabled ~= false
+  return true
+end
+
 function Extensions.list()
   local result = {}
   for _, id in ipairs(Extensions.order) do
@@ -68,6 +91,7 @@ function Extensions.list()
         id = id,
         title = descriptor.title or id,
         enabled = not Extensions.disabled[id],
+        permissions = Extensions.permissions(id),
       }
     end
   end
@@ -108,15 +132,34 @@ function Extensions.load_preferences()
   if not ok or text == nil then return end
   local ok_decode, data = pcall(json.decode, text)
   if not ok_decode or type(data) ~= "table" then return end
-  for id, disabled in pairs(data) do
-    if Extensions.registry[id] then
-      Extensions.disabled[id] = disabled == true
+  local disabled_map = data.disabled or data
+  if type(disabled_map) == "table" then
+    for id, disabled in pairs(disabled_map) do
+      if Extensions.registry[id] and type(disabled) == "boolean" then
+        Extensions.disabled[id] = disabled == true
+      end
+    end
+  end
+  if type(data.permissions) == "table" then
+    for id, permissions in pairs(data.permissions) do
+      if Extensions.registry[id] and type(permissions) == "table" then
+        for permission, enabled in pairs(permissions) do
+          if type(enabled) == "boolean" then
+            Extensions.permission_overrides[id] =
+              Extensions.permission_overrides[id] or {}
+            Extensions.permission_overrides[id][permission] = enabled
+          end
+        end
+      end
     end
   end
 end
 
 function Extensions.save_preferences()
-  local ok, encoded = pcall(json.encode, Extensions.disabled)
+  local ok, encoded = pcall(json.encode, {
+    disabled = Extensions.disabled,
+    permissions = Extensions.permission_overrides,
+  })
   if not ok then return false end
   return pcall(lovr.filesystem.write, "extensions.json", encoded)
 end

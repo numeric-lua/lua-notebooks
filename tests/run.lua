@@ -407,6 +407,21 @@ test("extension permissions are validated and gate the sandbox", function()
   assert(env.lovr.timer == nil)
 end)
 
+current = "extension permission overrides"
+test("stores per-extension permission overrides", function()
+  local Extensions = require("extensions")
+  Extensions.registry = { demo = { id = "demo", title = "Demo",
+    permissions = { "graphics", "timer" } } }
+  Extensions.order = { "demo" }
+  Extensions.disabled = {}
+  Extensions.permission_overrides = {}
+  assert(Extensions.set_permission("demo", "timer", false))
+  local permissions = Extensions.permissions("demo")
+  assert(#permissions == 1 and permissions[1] == "graphics")
+  local listed = Extensions.list()[1]
+  assert(#listed.permissions == 1)
+end)
+
 io.write(string.format("\n\n%d tests, %d passed, %d failed\n", passed + failed,
   passed, failed))
 if failed > 0 then
