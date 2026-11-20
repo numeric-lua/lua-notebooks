@@ -22,5 +22,5 @@ Remaining limits:
 
 - Windows uses the TCP transport; Unix sockets are POSIX-only.
 - External popup-menu events are enabled and rendered over the grid.
-- Marker add/delete/reorder is rejected rather than mapped to the model.
+- Marker reordering is applied to the model; marker add/delete is rejected.
 - Held Backspace/Delete/arrows/Home/End/PageUp/PageDown repeat in the overlay.
