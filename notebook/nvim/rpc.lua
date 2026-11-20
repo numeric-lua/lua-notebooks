@@ -158,7 +158,9 @@ function Rpc:wait(seq, timeout)
     response = { err = err, result = result }
     if original then original(err, result) end
   end
+  local pfd = ffi.new("pollfd[1]", { { fd = self.fd, events = 1 } })
   while response == nil and os.clock() < deadline do
+    ffi.C.poll(pfd, 1, 5)
     local _, status = self:feed(50)
     if status then break end
   end
