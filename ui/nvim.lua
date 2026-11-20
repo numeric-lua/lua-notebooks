@@ -65,16 +65,16 @@ function NvimView:draw(pass, x, y, width, height, scale)
   local foreground = rgb(grid.default_foreground, { 0.85, 0.88, 0.95 })
   pass:setColor(background[1], background[2], background[3], 1)
   pass:plane(x + width / 2, y + height / 2, 0, width, height)
-  local scissor_x = math.max(0, x * scale - 2)
+  local scissor_x = math.max(0, x * scale)
   local scissor_y = math.max(0, y * scale)
-  local scissor_w = math.max(1, width * scale - (scissor_x - x * scale))
+  local scissor_w = math.max(1, width * scale)
   local scissor_h = math.max(1, height * scale - (scissor_y - y * scale))
   pass:setScissor(scissor_x, scissor_y, scissor_w, scissor_h)
   pass:setFont(self.font)
   local rows = math.min(grid.rows, math.ceil(height / ch))
   local cursor = grid.cursor
   if cursor and cursor.row < rows then
-    local cx = x + cursor.col * cw
+    local cx = x + cursor.col * cw + 12
     local cy = y + cursor.row * ch
     pass:setColor(0.75, 0.85, 1, 0.9)
     pass:plane(cx + cw / 2, cy + ch - 1, 0, math.max(2, cw), 2)
@@ -82,24 +82,35 @@ function NvimView:draw(pass, x, y, width, height, scale)
 
   for row = 0, rows - 1 do
     local row_y = y + row * ch
-    for col = 0, grid.cols - 1 do
+    local col = 0
+    while col < grid.cols do
       local cell = grid.cells[row] and grid.cells[row][col]
-      if cell then
-        local attrs = grid:attrs(cell.hl)
-        local fg = rgb(attrs.foreground, foreground)
-        local bg = rgb(attrs.background, background)
-        if attrs.reverse then fg, bg = bg, fg end
-        if bg[1] ~= background[1] or bg[2] ~= background[2] or
-           bg[3] ~= background[3] then
-          pass:setColor(bg[1], bg[2], bg[3], 1)
-          pass:plane(x + col * cw + cw / 2, row_y + ch / 2, 0, cw, ch)
-        end
-        if cell.text ~= " " then
-          pass:setColor(fg[1], fg[2], fg[3], 1)
-          pass:text(cell.text, x + col * cw,
-            row_y + (ch - self.text_scale * scale) / 2,
-            0, self.text_scale * scale, 0, 0, 1, 0, 0, "left", "top")
-        end
+      if cell == nil then break end
+      local hl = cell.hl
+      local first = col
+      local parts = {}
+      while col < grid.cols do
+        local current = grid.cells[row][col]
+        if current == nil or current.hl ~= hl then break end
+        parts[#parts + 1] = current.text
+        col = col + 1
+      end
+      local text = table.concat(parts)
+      local attrs = grid:attrs(hl)
+      local fg = rgb(attrs.foreground, foreground)
+      local bg = rgb(attrs.background, background)
+      if attrs.reverse then fg, bg = bg, fg end
+      if bg[1] ~= background[1] or bg[2] ~= background[2] or
+         bg[3] ~= background[3] then
+        pass:setColor(bg[1], bg[2], bg[3], 1)
+        pass:plane(x + first * cw + (#text * cw) / 2, row_y + ch / 2, 0,
+          #text * cw, ch)
+      end
+      if text:find("%S") then
+        pass:setColor(fg[1], fg[2], fg[3], 1)
+        pass:text("\t" .. text, x + first * cw - 2,
+          row_y + (ch - self.text_scale * scale) / 2,
+          0, self.text_scale * scale, 0, 0, 1, 0, 0, "left", "top")
       end
     end
   end
