@@ -414,6 +414,19 @@ function App:toggle_nvim_default()
     (self.nvim_default and "enabled" or "disabled")
 end
 
+function App:run_all()
+  local notebook = self:notebook()
+  local original = notebook.active
+  for index, cell in ipairs(notebook.cells) do
+    if cell.kind == "code" then
+      notebook:select(index)
+      self:run()
+    end
+  end
+  notebook:select(original)
+  self.status = "running all code cells"
+end
+
 function App:clear_outputs()
   for _, cell in ipairs(self:notebook().cells) do
     cell.output = ""
