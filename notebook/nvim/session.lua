@@ -32,6 +32,8 @@ function Session.new(options)
     local command = { shell_quote(self.exe), "--headless", "--clean",
       "--cmd", shell_quote("syntax on"),
       "--cmd", shell_quote("set termguicolors"),
+      "--cmd", shell_quote("set background=" ..
+        (options.background or "dark")),
       "--listen", "127.0.0.1:" .. port }
     if options.file then command[#command + 1] = shell_quote(options.file) end
     local handle = assert(io.popen(table.concat(command, " ") ..

@@ -5,7 +5,8 @@ local Grid = require("notebook.nvim.grid")
 local grid = Grid.new(20, 5)
 grid:apply_redraw({
   { "default_colors_set", 0xffffff, 0x000000, 0, 0, 0 },
-  { "hl_attr_define", 1, { foreground = 0xff0000, bold = true }, {}, {} },
+  { "hl_attr_define",
+    { 1, { foreground = 0xff0000, bold = true }, {}, {} } },
   { "grid_line",
     { 1, 0, 0, { { "h", 1 }, { "i" } }, false },
     { 1, 1, 0, { { "l", 1, 2 }, { "o" } }, false },

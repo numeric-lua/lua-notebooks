@@ -419,6 +419,7 @@ function App:open_nvim()
   handle:close()
   local ok, session = pcall(require("notebook.nvim.session").new, {
     cols = 100, rows = 30, file = path,
+    background = require("ui.theme").mode,
   })
   if not ok then
     os.remove(path)
