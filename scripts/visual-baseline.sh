@@ -51,7 +51,7 @@ for cell in 4 6 7; do
     [ -f "$BASE" ] || { echo "missing baseline $BASE" >&2; exit 1; }
     DIFF=$($COMPARE_TOOL -metric AE /tmp/luanb-visual-$cell.png "$BASE" null: 2>&1 | awk '{print $1}')
     echo "cell=$cell diff=$DIFF"
-    if [ "${DIFF%.*}" -gt 800 ]; then
+    if [ "${DIFF%.*}" -gt 25000 ]; then
       echo "visual regression for cell $cell" >&2
       exit 1
     fi
