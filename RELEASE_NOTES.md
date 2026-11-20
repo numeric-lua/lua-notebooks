@@ -1,5 +1,6 @@
-# lua-notebooks 1.25.1
+# lua-notebooks 1.26.0
 
-- restore `main.lua`, which 1.25.0 accidentally replaced with the UI module;
-- keep external popupmenu completion and special-key repeat;
-- retain the private Unix-socket Neovim transport and fail-closed saves.
+- cursor-aware notebook cell switching with Alt+J/K;
+- external popupmenu completion and held-key repeat;
+- truncated RPC frames and unsupported client requests rejected;
+- private Unix-socket transport, fail-closed saves, marker validation.
