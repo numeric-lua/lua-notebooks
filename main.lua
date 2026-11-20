@@ -639,7 +639,12 @@ function lovr.load()
   app.ui = UI.new(app)
   Theme.load()
   local nvim_ok, nvim_default = pcall(lovr.filesystem.read, "nvim_default.txt")
-  app.nvim_default = nvim_ok and nvim_default and nvim_default:find("1") ~= nil
+  if nvim_ok and nvim_default then
+    app.nvim_default = nvim_default:find("1") ~= nil
+  else
+    local ok, NvimSession = pcall(require, "notebook.nvim.session")
+    app.nvim_default = ok and NvimSession.available("nvim")
+  end
   if os.getenv("LUANB_QA_THEME") then Theme.set(os.getenv("LUANB_QA_THEME")) end
   if os.getenv("LUANB_QA_HELP") then app.ui.show_help = true end
   if os.getenv("LUANB_QA_CELL_SCOPE") then
