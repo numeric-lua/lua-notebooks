@@ -32,11 +32,15 @@ end
 
 function NvimView.new(session, font, options)
   options = options or {}
+  local glyph_width = font:getWidth("M")
+  local glyph_height = 1
+  if font.getHeight then glyph_height = font:getHeight() or 1 end
+  if glyph_height > 1 then glyph_width = glyph_width / glyph_height end
   return setmetatable({
     session = session,
     font = font,
     size = options.size or 18,
-    cell_width = font:getWidth("M") * (options.size or 18) *
+    cell_width = glyph_width * (options.size or 18) *
       (options.text_scale or 0.86),
     cell_height = (options.size or 18) * (options.text_scale or 0.86) *
       (options.line_height or 1.2),
