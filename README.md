@@ -348,7 +348,7 @@ compositor and window stacking.
 ## LuaRocks
 
 ```sh
-luarocks make lua-notebooks-1.9.0-1.rockspec
+luarocks make lua-notebooks-1.10.0-1.rockspec
 lua-notebooks
 ```
 
@@ -357,7 +357,7 @@ The rockspec installs the app source under the LuaRocks share tree and a
 
 ```sh
 make rock
-luarocks install lua-notebooks-1.9.0-1.src.rock
+luarocks install lua-notebooks-1.10.0-1.src.rock
 ```
 
 Publishing to a remote rock server is intentionally not automated.
@@ -475,3 +475,7 @@ The `spike/nvim-ui` branch embeds a headless Neovim instance and renders its
 
 Requirements: `nvim` on `PATH`. The bridge uses msgpack-RPC over a local TCP
 socket, not `luv` or `lua-mp`.
+
+## Search
+
+Press **Ctrl+F** to search every cell. Use Up/Down and Enter or click a result to select the matching cell and cursor position.

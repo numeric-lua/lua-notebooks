@@ -1,6 +1,5 @@
-# lua-notebooks 1.9.0
+# lua-notebooks 1.10.0
 
-- pressing i/Enter on a cell opens the default Neovim editor;
-- F5 from Neovim respects markdown cells;
-- reliable F10 write-back;
-- notebook-wide buffer and codec tests.
+- Ctrl+F notebook-wide search with keyboard and mouse selection;
+- Neovim keyboard entry, notebook-wide buffer, and reliable F10 write-back;
+- light-theme plots, widgets, 3-D surfaces, and readable output panels.
