@@ -529,10 +529,13 @@ function App:open_nvim()
     for source_line in ((cell.source or "") .. "\n"):gmatch("(.-)\n") do
       lines[#lines + 1] = source_line
     end
-    self.nvim_session:set_lines(lines, 1)
-    self.nvim_session:command("set filetype=" ..
-      (cell.kind == "markdown" and "markdown" or "lua"))
-    self.nvim_session:input("i")
+    local loaded, load_error = self:load_nvim_buffer(lines,
+      cell.kind == "markdown" and "markdown" or "lua")
+    if not loaded then
+      self:close_nvim(false)
+      self.status = "Neovim reload failed: " .. tostring(load_error)
+      return self:open_nvim()
+    end
     self.show_nvim, self.nvim_notebook = true, false
     self.status = "Neovim (warm): F10 save, F5 run"
     return
@@ -565,6 +568,23 @@ function App:open_nvim()
   self.nvim_path = path
   self.show_nvim = true
   self.status = "Neovim: F10 save, F9 discard"
+end
+
+function App:load_nvim_buffer(lines, filetype)
+  local session = self.nvim_session
+  if session == nil then return false end
+  pcall(function()
+    session:input("<Esc>")
+    session:update()
+  end)
+  local ok, err = session:set_lines(lines, 1)
+  if not ok then return nil, err end
+  session:command("set filetype=" .. filetype)
+  -- A reused buffer should not carry the previous cell's undo history.
+  session:command("set undolevels=-1")
+  session:command("set undolevels=1000")
+  session:input("i")
+  return true
 end
 
 function App:close_nvim(save, keep)
@@ -691,9 +711,12 @@ function App:open_nvim_notebook()
   if self.nvim_session then
     self.nvim_session:input("<Esc>")
     self.nvim_session:update()
-    self.nvim_session:set_lines(lines, 1)
-    self.nvim_session:command("set filetype=lua")
-    self.nvim_session:input("i")
+    local loaded, load_error = self:load_nvim_buffer(lines, "lua")
+    if not loaded then
+      self:close_nvim(false)
+      self.status = "Neovim reload failed: " .. tostring(load_error)
+      return self:open_nvim_notebook()
+    end
     self.nvim_cells, self.nvim_cell_rows = cells, rows
     self.show_nvim, self.nvim_notebook = true, true
     self.status = "Neovim notebook (warm): F10 save, F5 run"
