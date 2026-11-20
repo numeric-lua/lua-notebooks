@@ -69,6 +69,11 @@ local function box(pass, x, y, w, h, color)
   pass:plane(x + w / 2, y + h / 2, 0, w, h)
 end
 
+local function box_raw(pass, x, y, w, h, color)
+  pass:setColor(color[1], color[2], color[3], color[4] or 1)
+  pass:plane(x + w / 2, y + h / 2, 0, w, h)
+end
+
 local TOKEN_COLORS = {
   keyword = { 0.78, 0.62, 1, 1 },
   string = { 0.55, 0.85, 0.62, 1 },
@@ -572,14 +577,24 @@ function UI:draw(pass, logical_width, logical_height)
       if #output_lines > 0 then
         self.output_rects[index] = { x = 34, y = output_y - 3,
           w = width - 68, h = output_height }
-        box(pass, 34, output_y - 3, width - 68, output_height,
-          light and { 0.94, 0.95, 0.97, 1 } or { 0.04, 0.05, 0.07, 1 })
+        if light then
+          box_raw(pass, 34, output_y - 3, width - 68, output_height,
+            { 0.94, 0.95, 0.97, 1 })
+        else
+          box(pass, 34, output_y - 3, width - 68, output_height,
+            { 0.04, 0.05, 0.07, 1 })
+        end
         local output_color = cell.error and
           (light and { 0.65, 0.10, 0.12, 1 } or { 1, 0.45, 0.45, 1 }) or
           (light and { 0.10, 0.40, 0.22, 1 } or { 0.55, 0.9, 0.65, 1 })
         for line_index = 1, math.min(#output_lines, 6) do
-          text(pass, app.font, output_lines[line_index], 42,
-            output_y + (line_index - 1) * 19, output_color, 0.78)
+          if light then
+            text_raw(pass, app.font, output_lines[line_index], 42,
+              output_y + (line_index - 1) * 19, output_color, 0.78)
+          else
+            text(pass, app.font, output_lines[line_index], 42,
+              output_y + (line_index - 1) * 19, output_color, 0.78)
+          end
         end
         output_y = output_y + output_height + 4
       end

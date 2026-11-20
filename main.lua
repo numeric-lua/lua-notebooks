@@ -1042,7 +1042,12 @@ end
 function lovr.update(dt)
   if app == nil then return end
   local profile_start = os.getenv("LUANB_PROFILE") and lovr.timer.getTime()
-  app:update()
+  local ok, err = pcall(App.update, app)
+  if not ok then
+    app.status = "update error: " .. tostring(err)
+    print("UPDATE_ERROR " .. tostring(err))
+    return
+  end
   if profile_start then
     local elapsed = lovr.timer.getTime() - profile_start
     if elapsed > 0.02 then
@@ -1189,7 +1194,13 @@ function lovr.draw(window)
     app.screenshot_requested = false
     app.screenshot_readback = canvas:newReadback()
   end
-  local passes = app.ui:draw(canvas_pass, logical_width, logical_height)
+  local ok, passes = pcall(UI.draw, app.ui, canvas_pass, logical_width,
+    logical_height)
+  if not ok then
+    app.status = "draw error: " .. tostring(passes)
+    print("DRAW_ERROR " .. tostring(passes))
+    return
+  end
   window:fill(canvas)
   passes[#passes + 1] = canvas_pass
   passes[#passes + 1] = window
@@ -1209,7 +1220,12 @@ function lovr.textinput(text, code)
 end
 
 function lovr.keypressed(key)
-  if app then app.ui:keypressed(key) end
+  if app == nil then return end
+  local ok, err = pcall(UI.keypressed, app.ui, key)
+  if not ok then
+    app.status = "key error: " .. tostring(err)
+    print("KEY_ERROR " .. tostring(err))
+  end
 end
 
 function lovr.mousepressed(x, y, button)
