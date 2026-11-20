@@ -11,8 +11,18 @@ local function quote(value)
   return "'" .. tostring(value):gsub("'", "'\\''") .. "'"
 end
 
+function Dialog.backend()
+  if command_exists("zenity") then return "zenity" end
+  if command_exists("kdialog") then return "kdialog" end
+  if package.config:sub(1, 1) == "\\" and command_exists("powershell") then
+    return "powershell"
+  end
+  if command_exists("osascript") then return "osascript" end
+  return nil
+end
+
 function Dialog.available()
-  return command_exists("zenity") or command_exists("kdialog")
+  return Dialog.backend() ~= nil
 end
 
 local function run(command)
@@ -26,26 +36,46 @@ end
 
 function Dialog.open(start)
   start = start or os.getenv("HOME") or "."
-  if command_exists("zenity") then
+  local backend = Dialog.backend()
+  if backend == "zenity" then
     return run("zenity --file-selection --title=" .. quote("Open notebook") ..
       " --filename=" .. quote(start .. "/"))
-  elseif command_exists("kdialog") then
-    return run("kdialog --getopenfilename " .. quote(start) ..
-      " '*.luanb'")
+  elseif backend == "kdialog" then
+    return run("kdialog --getopenfilename " .. quote(start) .. " '*.luanb'")
+  elseif backend == "powershell" then
+    local command = "Add-Type -AssemblyName System.Windows.Forms; " ..
+      "$d=New-Object System.Windows.Forms.OpenFileDialog; " ..
+      "$d.Filter='Lua notebooks (*.luanb)|*.luanb|All files (*.*)|*.*'; " ..
+      "if($d.ShowDialog() -eq 'OK'){Write-Output $d.FileName}"
+    return run("powershell -NoProfile -Command " .. quote(command))
+  elseif backend == "osascript" then
+    return run("osascript -e " .. quote(
+      "POSIX path of (choose file with prompt \"Open notebook\")"))
   end
-  return nil, "no native dialog backend (zenity/kdialog)"
+  return nil, "no native dialog backend"
 end
 
 function Dialog.save(default_name)
   default_name = default_name or "notebook.luanb"
-  if command_exists("zenity") then
+  local backend = Dialog.backend()
+  if backend == "zenity" then
     return run("zenity --file-selection --save --confirm-overwrite --title=" ..
       quote("Save notebook") .. " --filename=" .. quote(default_name))
-  elseif command_exists("kdialog") then
-    return run("kdialog --getsavefilename " .. quote(default_name) ..
-      " '*.luanb'")
+  elseif backend == "kdialog" then
+    return run("kdialog --getsavefilename " .. quote(default_name) .. " '*.luanb'")
+  elseif backend == "powershell" then
+    local command = "Add-Type -AssemblyName System.Windows.Forms; " ..
+      "$d=New-Object System.Windows.Forms.SaveFileDialog; " ..
+      "$d.Filter='Lua notebooks (*.luanb)|*.luanb'; " ..
+      "$d.FileName=" .. quote(default_name) .. "; " ..
+      "if($d.ShowDialog() -eq 'OK'){Write-Output $d.FileName}"
+    return run("powershell -NoProfile -Command " .. quote(command))
+  elseif backend == "osascript" then
+    return run("osascript -e " .. quote(
+      "POSIX path of (choose file name with prompt \"Save notebook\" default name \"" ..
+      default_name .. "\")"))
   end
-  return nil, "no native dialog backend (zenity/kdialog)"
+  return nil, "no native dialog backend"
 end
 
 return Dialog
