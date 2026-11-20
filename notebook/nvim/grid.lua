@@ -122,6 +122,15 @@ function Grid:apply(event)
       self.default_foreground = event[2]
       self.default_background = event[3]
     end
+  elseif name == "popupmenu_show" then
+    local args = type(event[2]) == "table" and event[2] or event
+    self.popupmenu = { items = args[2] or {}, selected = (args[3] or 0) + 1,
+      row = args[4] or 0, col = args[5] or 0 }
+  elseif name == "popupmenu_select" then
+    local selected = type(event[2]) == "table" and event[2][2] or event[2]
+    if self.popupmenu then self.popupmenu.selected = (selected or 0) + 1 end
+  elseif name == "popupmenu_hide" then
+    self.popupmenu = nil
   elseif name == "mode_info_set" then
     self.mode_info = event[3]
   elseif name == "mode_change" then

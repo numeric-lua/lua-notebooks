@@ -125,6 +125,39 @@ function NvimView:draw(pass, x, y, width, height, scale)
       end
     end
   end
+  local menu = grid.popupmenu
+  if menu and #menu.items > 0 then
+    local item_h = ch
+    local width = 160
+    for _, item in ipairs(menu.items) do
+      local word = tostring(item[1] or "")
+      width = math.max(width, #word * cw + 16)
+    end
+    width = math.min(width, width)
+    local visible = math.min(#menu.items, 8)
+    local menu_x = x + menu.col * cw
+    local menu_y = y + (menu.row + 1) * ch
+    if menu_y + visible * item_h > y + height then
+      menu_y = math.max(y, y + height - visible * item_h)
+    end
+    pass:setColor(0.97, 0.98, 1, 0.98)
+    pass:plane(menu_x + width / 2, menu_y + visible * item_h / 2, 0,
+      width, visible * item_h)
+    for index = 1, visible do
+      local item = menu.items[index]
+      local selected = index == menu.selected
+      if selected then
+        pass:setColor(0.72, 0.82, 1, 1)
+        pass:plane(menu_x + width / 2, menu_y + (index - 1) * item_h +
+          item_h / 2, 0, width, item_h)
+      end
+      pass:setColor(selected and 0.05 or 0.12, selected and 0.08 or 0.15,
+        selected and 0.12 or 0.2, 1)
+      pass:text(tostring(item[1] or ""), menu_x + 6, menu_y +
+        (index - 1) * item_h + (item_h - self.text_scale) / 2, 0,
+        self.text_scale, 0, 0, 1, 0, 0, "left", "top")
+    end
+  end
   pass:setScissor()
 end
 
