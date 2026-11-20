@@ -456,36 +456,122 @@ end
 
 function App:close_nvim(save)
   if self.nvim_session == nil then return end
-  local source
-  if save then
-    local ok, lines = pcall(function() return self.nvim_session:get_lines() end)
-    if ok and lines then source = table.concat(lines, "\n") end
+  local session = self.nvim_session
+  local cursor_row, cursor_col = 0, 0
+  if session.grid then
+    cursor_row = math.max(0, session.grid.cursor.row)
+    cursor_col = math.max(0, session.grid.cursor.col)
   end
-  pcall(function() self.nvim_session:close() end)
+  local lines
+  if save then
+    local ok, value = pcall(function() return session:get_lines() end)
+    if ok then lines = value end
+  end
+  pcall(function() session:close() end)
   if self.nvim_path then os.remove(self.nvim_path); self.nvim_path = nil end
   self.nvim_session, self.nvim_view, self.show_nvim = nil, nil, false
-  if save and source then
-    local cell = self:notebook():selected()
-    cell.source = source
-    local cursor = 1
-    if self.nvim_session and self.nvim_session.grid then
-      local row = math.max(0, self.nvim_session.grid.cursor.row)
-      local col = math.max(0, self.nvim_session.grid.cursor.col)
+  if save and lines then
+    if self.nvim_notebook then
+      local current = nil
+      local pieces = {}
+      local function flush()
+        if current then
+          pieces[current] = table.concat(pieces[current] or {}, "\n")
+        end
+      end
+      for _, line in ipairs(lines) do
+        local index = line:match("^%-%- %%%% cell (%d+)")
+        if index then
+          if current then self.nvim_cells[current] =
+            table.concat(pieces[current] or {}, "\n") end
+          current = tonumber(index)
+          pieces[current] = {}
+        elseif current then
+          pieces[current][#pieces[current] + 1] = line
+        end
+      end
+      if current then self.nvim_cells[current] =
+        table.concat(pieces[current] or {}, "\n") end
+      for index, source in pairs(self.nvim_cells) do
+        local cell = self:notebook().cells[index]
+        if cell then cell.source = source end
+      end
+      self:notebook().dirty = true
+      self.status = "saved notebook from Neovim"
+    else
+      local source = table.concat(lines, "\n")
+      local cell = self:notebook():selected()
+      cell.source = source
       local line_start = 1
-      for _ = 1, row do
+      for _ = 1, cursor_row do
         local newline = source:find("\n", line_start, true)
         if newline == nil then break end
         line_start = newline + 1
       end
       local line_end = source:find("\n", line_start, true) or (#source + 1)
-      cursor = math.min(line_start + col, line_end)
+      cell.cursor = math.max(1, math.min(line_start + cursor_col,
+        #source + 1))
+      self:notebook().dirty = true
+      self.status = "saved from Neovim"
     end
-    cell.cursor = math.max(1, math.min(#source + 1, cursor))
-    self:notebook().dirty = true
-    self.status = "saved from Neovim"
   else
     self.status = "closed Neovim"
   end
+  self.nvim_notebook = false
+  self.nvim_cells = {}
+  self.nvim_cell_rows = {}
+end
+
+function App:run_nvim_cell()
+  if self.nvim_session == nil then return end
+  local row = (self.nvim_session.grid.cursor.row or 0) + 1
+  local index = self:notebook().active
+  for _, entry in ipairs(self.nvim_cell_rows or {}) do
+    if entry.row <= row then index = entry.index end
+  end
+  self:close_nvim(true)
+  self:notebook():select(index)
+  self.scroll_to_selected = true
+  self:run()
+end
+
+function App:open_nvim_notebook()
+  local notebook = self:notebook()
+  local lines, cells, rows = {}, {}, {}
+  for index, cell in ipairs(notebook.cells) do
+    if cell.kind == "code" then
+      lines[#lines + 1] = string.format("-- %%%% cell %d", index)
+      cells[index] = true
+      rows[#rows + 1] = { row = #lines, index = index }
+      for source_line in (cell.source .. "\n"):gmatch("(.-)\n") do
+        lines[#lines + 1] = source_line
+      end
+    end
+  end
+  if #lines == 0 then self.status = "notebook has no code cells"; return end
+  local path = os.tmpname() .. ".lua"
+  local handle = assert(io.open(path, "wb"))
+  handle:write(table.concat(lines, "\n"))
+  handle:close()
+  local ok, session = pcall(require("notebook.nvim.session").new, {
+    cols = 100, rows = 30, file = path,
+    background = require("ui.theme").mode,
+    clean = os.getenv("LUANB_NVIM_CLEAN") ~= "0",
+  })
+  if not ok then
+    os.remove(path); self.status = "nvim failed: " .. tostring(session); return
+  end
+  for _ = 1, 150 do
+    session:update()
+    if session.grid:line(0):find("%S") then break end
+    os.execute("sleep 0.02")
+  end
+  session:input("i")
+  self.nvim_session, self.nvim_cells = session, cells
+  self.nvim_cell_rows = rows
+  self.nvim_view = require("ui.nvim").new(session, self.nvim_font or self.font)
+  self.nvim_path, self.nvim_notebook, self.show_nvim = path, true, true
+  self.status = "Neovim notebook: F10 save, F5 run cell"
 end
 
 function App:save()
@@ -986,6 +1072,8 @@ function lovr.load()
   end
   if os.getenv("LUANB_QA_NVIM") then
     app:open_nvim()
+  elseif os.getenv("LUANB_QA_NVIM_NOTEBOOK") then
+    app:open_nvim_notebook()
   end
   if os.getenv("LUANB_QA_NVIM_EDIT") then
     app:open_nvim()

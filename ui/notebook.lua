@@ -762,6 +762,7 @@ function UI:run_palette_command(id)
   elseif id == "help" then self.show_help = true
   elseif id == "nvim" then self.app:open_nvim()
   elseif id == "nvim-default" then self.app:toggle_nvim_default()
+  elseif id == "nvim-notebook" then self.app:open_nvim_notebook()
   elseif id == "transparency" then
     Theme.set_opacity(Theme.opacity >= 0.999 and 0.82 or 1)
     Theme.save()
@@ -1518,8 +1519,12 @@ function UI:keypressed(key)
     end
     if key == "f10" then self.app:close_nvim(true); return end
     if key == "f5" then
-      self.app:close_nvim(true)
-      self.app:run()
+      if self.app.nvim_notebook then
+        self.app:run_nvim_cell()
+      else
+        self.app:close_nvim(true)
+        self.app:run()
+      end
       return
     end
     if key == "f9" then self.app:close_nvim(false); return end
