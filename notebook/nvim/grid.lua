@@ -108,10 +108,14 @@ function Grid:apply(event)
     local args = type(event[2]) == "table" and event[2] or event
     self.cursor = { row = args[2], col = args[3] }
   elseif name == "hl_attr_define" then
-    for index = 2, #event do
-      local entry = event[index]
-      if type(entry) == "table" then
-        self.highlights[entry[1]] = entry[2] or {}
+    if type(event[2]) == "number" then
+      self.highlights[event[2]] = event[3] or {}
+    else
+      for index = 2, #event do
+        local entry = event[index]
+        if type(entry) == "table" then
+          self.highlights[entry[1]] = entry[2] or {}
+        end
       end
     end
   elseif name == "default_colors_set" then
