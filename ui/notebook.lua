@@ -2820,7 +2820,8 @@ function UI:mousepressed(x, y, button)
       end
       self.app:notebook():select(index)
       if self.app.vim_mode then
-        self.vim_normal = not was_active
+        -- Entering a cell starts in Vim normal mode, matching Neovim.
+        self.vim_normal = true
         self.vim_scope = "cell"
         self.vim_pending = nil
         self.vim_text_object = nil

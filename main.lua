@@ -563,6 +563,7 @@ function App:open_nvim()
       if session.grid:line(0):find("%S") then break end
       os.execute("sleep 0.02")
     end
+    session:input("<Esc>")
     for _ = 1, 5 do session:update(); os.execute("sleep 0.01") end
   end)
   if not ready then
