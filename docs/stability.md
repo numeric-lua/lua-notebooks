@@ -16,7 +16,8 @@
 - extension manifest fields: `id`, `version`, `title`, `permissions`,
   `render`, and optional callbacks;
 - gateway flags documented in `docs/remote.md`;
-- LSP capabilities advertised by `notebook.lsp.server`.
+- LSP capabilities advertised by `notebook.lsp.server`;
+- the optional Neovim bridge when `nvim` is available (experimental).
 
 ## Not stable yet
 
