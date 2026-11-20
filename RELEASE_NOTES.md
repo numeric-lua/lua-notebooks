@@ -1,6 +1,6 @@
-# lua-notebooks 1.16.0
+# lua-notebooks 1.17.0
 
-- clickable [[wiki links]] that switch notebooks;
-- backlink-aware command palette entries;
-- starter notebook wiki-link example;
-- sequential run-all and source-layout caching.
+- search includes cell outputs;
+- wiki-link preview test;
+- exports include scene markers;
+- clickable wiki links and backlink palette entries.
