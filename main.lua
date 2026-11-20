@@ -467,7 +467,20 @@ function App:close_nvim(save)
   if save and source then
     local cell = self:notebook():selected()
     cell.source = source
-    cell.cursor = #source + 1
+    local cursor = 1
+    if self.nvim_session and self.nvim_session.grid then
+      local row = math.max(0, self.nvim_session.grid.cursor.row)
+      local col = math.max(0, self.nvim_session.grid.cursor.col)
+      local line_start = 1
+      for _ = 1, row do
+        local newline = source:find("\n", line_start, true)
+        if newline == nil then break end
+        line_start = newline + 1
+      end
+      local line_end = source:find("\n", line_start, true) or (#source + 1)
+      cursor = math.min(line_start + col, line_end)
+    end
+    cell.cursor = math.max(1, math.min(#source + 1, cursor))
     self:notebook().dirty = true
     self.status = "saved from Neovim"
   else
