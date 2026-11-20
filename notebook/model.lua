@@ -640,6 +640,57 @@ return { scene = {
       style = { color = "#ff7f0e", radius = 5, label = "samples" } },
   },
 } }]]),
+      cell("markdown", "## More plots\nThe renderer accepts line, scatter, bar, and histogram series. Each cell returns a plain Lua table, so scenes are testable without a GPU."),
+      cell("code", [[
+-- Bar chart.
+return { scene = {
+  type = "luaplotlib", width = 800, height = 300,
+  title = "weekly totals", xlabel = "day", ylabel = "count", grid = true,
+  xlim = { 0, 6 }, ylim = { 0, 10 },
+  series = {
+    { kind = "bar", x = { 1, 2, 3, 4, 5 },
+      y = { 3, 7, 4, 9, 5 }, width = 0.7,
+      style = { color = "#2ca02c", alpha = 1, label = "count" } },
+  },
+} }]]),
+      cell("code", [[
+-- Histogram from precomputed edges and counts.
+local edges, counts = {}, {}
+for i = 1, 16 do
+  edges[i] = (i - 1) * 0.25
+  counts[i] = math.floor(10 * math.exp(-((edges[i] - 2) ^ 2)))
+end
+return { scene = {
+  type = "luaplotlib", width = 800, height = 300,
+  title = "histogram", xlabel = "value", ylabel = "frequency", grid = true,
+  xlim = { 0, 4 }, ylim = { 0, 11 },
+  series = {
+    { kind = "hist", edges = edges, counts = counts,
+      style = { color = "#9467bd", alpha = 1, label = "samples" } },
+  },
+} }]]),
+      cell("code", [[
+-- Multiple lines and a scatter overlay.
+local xs = {}
+for i = 1, 120 do xs[i] = i * 0.05 end
+local sin, cos = {}, {}
+for i = 1, #xs do
+  sin[i] = math.sin(xs[i])
+  cos[i] = math.cos(xs[i])
+end
+return { scene = {
+  type = "luaplotlib", width = 800, height = 320,
+  title = "trigonometric pair", xlabel = "x", ylabel = "y",
+  xlim = { 0, 6 }, ylim = { -1.2, 1.2 }, grid = true,
+  series = {
+    { kind = "line", x = xs, y = sin,
+      style = { color = "#1f77b4", alpha = 1, label = "sin" } },
+    { kind = "line", x = xs, y = cos,
+      style = { color = "#d62728", alpha = 1, label = "cos" } },
+    { kind = "scatter", x = { 0, math.pi }, y = { 0, 0 },
+      style = { color = "#ff7f0e", radius = 5 } },
+  },
+} }]]),
       cell("code", [[
 -- Extensions are discovered from the extensions/ directory.
 return { scene = "grid" }]]),
@@ -654,7 +705,7 @@ widgets.select({ label = "mode", options = { "fast", "slow" }, value = "fast" })
 widgets.text({ label = "name", value = "notebook",
   on_change = function(value) print("name", value) end })
 widgets.shader({ label = "Star Nest", shader = "star_nest", height = 180 })]]),
-      cell("markdown", "# A 3D notebook\nMath: $E = mc^2$ and $\\alpha + \\beta = \\pi$.\n$$\\left(\\frac{a}{b}\\right)$$\n$$\\mathbf{F}=m\\mathbf{a}$$\n$$\\sqrt{x}$$\n$$\\begin{matrix}a & b \\\\ c & d\\end{matrix}$$\n## Collapsible section\nClick the heading arrow to fold the next cells."),
+      cell("markdown", "# A 3D notebook\n\nA notebook is a list of cells. Code cells share one persistent kernel; markdown cells render prose and math.\n\n## Math\nInline: $E = mc^2$ and $\\alpha + \\beta = \\pi$.\n\n$$\\left(\\frac{a}{b}\\right)$$\n$$\\mathbf{F}=m\\mathbf{a}$$\n$$\\sqrt{x}$$\n$$\\begin{matrix}a & b \\\\ c & d\\end{matrix}$$\n\n## Keyboard\n- **F5** run the selected cell\n- **F6 / F7** save and load\n- **F10** extensions\n- **F1** shortcut help\n\n## Collapsible section\nClick the heading arrow to fold the following cells. Add your own plots by returning `{ scene = { ... } }` from a code cell."),
     },
   })
   local second = Notebook.new({

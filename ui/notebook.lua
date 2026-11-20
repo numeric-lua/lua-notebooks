@@ -131,6 +131,7 @@ function UI.new(app)
     show_extensions = false,
     extension_rects = {},
     math_layout_cache = {},
+    source_lines_cache = {},
     show_outline = false,
     outline_rects = {},
     show_help = false,
@@ -193,7 +194,9 @@ function UI:draw(pass, logical_width, logical_height)
   pass:setProjection(projection)
   pass:setDepthTest()
 
-  box(pass, 0, 0, width, height, { 0.055, 0.06, 0.08, 1 })
+  local light = Theme.mode == "light"
+  local background = light and { 0, 0, 0, 0.90 } or { 0.055, 0.06, 0.08, 1 }
+  box(pass, 0, 0, width, height, background)
   self.tabs = {}
   self.buttons = {}
   self.extension_passes = {}
@@ -201,7 +204,8 @@ function UI:draw(pass, logical_width, logical_height)
   self.widget_rects = {}
   self.output_rects = {}
   if not self.zen_mode then
-  box(pass, 0, 0, width, 40, { 0.08, 0.09, 0.12, 1 })
+  box(pass, 0, 0, width, 40,
+    light and { 0, 0, 0, 0.72 } or { 0.08, 0.09, 0.12, 1 })
 
   -- Tabs are notebook titles, derived from the first markdown `#` heading.
   local tab_x = 12
@@ -254,7 +258,12 @@ function UI:draw(pass, logical_width, logical_height)
   for _, index in ipairs(visible) do
     local cell = notebook.cells[index]
     cell._index = index
-    local source_lines = split_lines(cell.source)
+    local source_lines = self.source_lines_cache[cell.source]
+    if source_lines == nil then
+      source_lines = split_lines(cell.source)
+      self.source_lines_cache[cell.source] = source_lines
+      if #self.source_lines_cache > 1024 then self.source_lines_cache = {} end
+    end
     local math_layouts = {}
     local source_height = 0
     for line_index, source_line in ipairs(source_lines) do
@@ -315,9 +324,17 @@ function UI:draw(pass, logical_width, logical_height)
       local in_visual = self.vim_visual and self.vim_anchor and
         index >= math.min(self.vim_anchor, notebook.active) and
         index <= math.max(self.vim_anchor, notebook.active)
-      local fill = in_visual and { 0.13, 0.16, 0.24, 1 } or
-        (selected and { 0.095, 0.11, 0.15, 1 } or
-        { 0.075, 0.085, 0.11, 1 })
+      local fill
+      if in_visual then
+        fill = { 0.13, 0.16, 0.24, 1 }
+      elseif light then
+        -- White cells with a subtle translucent blend; selection is indicated
+        -- by the accent rail, not a different background.
+        fill = { 0, 0, 0, 0.40 }
+      else
+        fill = selected and { 0.095, 0.11, 0.15, 1 } or
+          { 0.075, 0.085, 0.11, 1 }
+      end
       box(pass, 20, y, width - 40, cell_height, fill)
       if selected then
         local accent = cell_scoped and { 0.30, 0.82, 1, 1 } or

@@ -5,6 +5,7 @@ function lovr.conf(t)
   t.window.height = 800
   t.window.resizable = true
   t.window.vsync = 1
+  t.window.transparent = true
   t.modules.headset = false
   t.modules.physics = false
   t.modules.audio = false
