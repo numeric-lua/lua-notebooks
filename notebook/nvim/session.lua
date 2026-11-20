@@ -99,8 +99,10 @@ function Session:input(keys)
 end
 
 function Session:resize(cols, rows)
+  if cols == self.cols and rows == self.rows then return true end
   self.cols, self.rows = cols, rows
-  self.grid:resize(cols, rows)
+  -- Wait for the grid_resize event; clearing locally hides the current screen
+  -- for a frame and used to leave the grid blank when nvim was busy.
   return self:request("nvim_ui_try_resize", { cols, rows })
 end
 

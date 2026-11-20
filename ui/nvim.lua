@@ -61,6 +61,11 @@ function NvimView:draw(pass, x, y, width, height, scale)
   local grid = self.session.grid
   local cw = self.cell_width * scale
   local ch = self.cell_height * scale
+  local wanted_cols = math.max(20, math.floor(width / cw))
+  local wanted_rows = math.max(4, math.floor(height / ch))
+  if wanted_cols ~= self.session.cols or wanted_rows ~= self.session.rows then
+    self.session:resize(wanted_cols, wanted_rows)
+  end
   self.origin_x, self.origin_y = x, y
   self.draw_cw, self.draw_ch = cw, ch
   local background = rgb(grid.default_background, { 0.06, 0.07, 0.1 })
