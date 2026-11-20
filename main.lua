@@ -593,6 +593,7 @@ function App:load_nvim_buffer(lines, filetype, insert, cursor_row)
     session:input("<Esc>")
     session:update()
   end)
+  session:command("enew!")
   local ok, err = session:set_lines(lines, cursor_row or 1)
   if not ok then return nil, err end
   session:command("set filetype=" .. filetype)
