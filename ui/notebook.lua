@@ -195,7 +195,7 @@ function UI:draw(pass, logical_width, logical_height)
   pass:setDepthTest()
 
   local light = Theme.mode == "light"
-  local background = light and { 0, 0, 0, 0.85 } or { 0.055, 0.06, 0.08, 1 }
+  local background = light and { 0, 0, 0, 1 } or { 0.055, 0.06, 0.08, 1 }
   box(pass, 0, 0, width, height, background)
   self.tabs = {}
   self.buttons = {}
@@ -205,7 +205,7 @@ function UI:draw(pass, logical_width, logical_height)
   self.output_rects = {}
   if not self.zen_mode then
   box(pass, 0, 0, width, 40,
-    light and { 0, 0, 0, 0.85 } or { 0.08, 0.09, 0.12, 1 })
+    light and { 0, 0, 0, 1 } or { 0.08, 0.09, 0.12, 1 })
 
   -- Tabs are notebook titles, derived from the first markdown `#` heading.
   local tab_x = 12
