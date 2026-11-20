@@ -348,7 +348,7 @@ compositor and window stacking.
 ## LuaRocks
 
 ```sh
-luarocks make lua-notebooks-1.10.0-1.rockspec
+luarocks make lua-notebooks-1.11.0-1.rockspec
 lua-notebooks
 ```
 
@@ -357,7 +357,7 @@ The rockspec installs the app source under the LuaRocks share tree and a
 
 ```sh
 make rock
-luarocks install lua-notebooks-1.10.0-1.src.rock
+luarocks install lua-notebooks-1.11.0-1.src.rock
 ```
 
 Publishing to a remote rock server is intentionally not automated.
@@ -479,3 +479,7 @@ socket, not `luv` or `lua-mp`.
 ## Search
 
 Press **Ctrl+F** to search every cell. Use Up/Down and Enter or click a result to select the matching cell and cursor position.
+
+## Kernel commands
+
+The command palette exposes **Restart current kernel**, **Clear all cell outputs**, and **Run all code cells**. `Ctrl+Shift+K` restarts the current kernel.
