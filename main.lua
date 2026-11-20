@@ -405,6 +405,14 @@ function App:set_cell_kind(kind)
   end
 end
 
+function App:toggle_nvim_default()
+  self.nvim_default = not self.nvim_default
+  pcall(lovr.filesystem.write, "nvim_default.txt",
+    self.nvim_default and "1" or "0")
+  self.status = "Neovim for code cells " ..
+    (self.nvim_default and "enabled" or "disabled")
+end
+
 function App:open_nvim()
   if self.nvim_session then return end
   local cell = self:notebook():selected()
@@ -624,6 +632,8 @@ function lovr.load()
   app.title_font:setPixelDensity(1)
   app.ui = UI.new(app)
   Theme.load()
+  local nvim_ok, nvim_default = pcall(lovr.filesystem.read, "nvim_default.txt")
+  app.nvim_default = nvim_ok and nvim_default and nvim_default:find("1") ~= nil
   if os.getenv("LUANB_QA_THEME") then Theme.set(os.getenv("LUANB_QA_THEME")) end
   if os.getenv("LUANB_QA_HELP") then app.ui.show_help = true end
   if os.getenv("LUANB_QA_CELL_SCOPE") then

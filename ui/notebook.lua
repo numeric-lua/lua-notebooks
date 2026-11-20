@@ -761,6 +761,7 @@ function UI:run_palette_command(id)
   elseif id == "outline" then self.show_outline = true
   elseif id == "help" then self.show_help = true
   elseif id == "nvim" then self.app:open_nvim()
+  elseif id == "nvim-default" then self.app:toggle_nvim_default()
   elseif id == "transparency" then
     Theme.set_opacity(Theme.opacity >= 0.999 and 0.82 or 1)
     Theme.save()
@@ -2526,6 +2527,9 @@ function UI:mousepressed(x, y, button)
       self.focused_output_cell = nil
       self.focused_surface = nil
       self.focused_widget = nil
+      if self.app.nvim_default and target and target.kind == "code" then
+        self.app:open_nvim()
+      end
       return
     end
   end
