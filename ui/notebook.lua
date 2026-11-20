@@ -1564,7 +1564,12 @@ function UI:keypressed(key)
     return
   end
   if alt_down and key == "e" then
-    self.app:open_nvim()
+    if lovr.system and lovr.system.isKeyDown and
+       (lovr.system.isKeyDown("lshift") or lovr.system.isKeyDown("rshift")) then
+      self.app:open_nvim_notebook()
+    else
+      self.app:open_nvim()
+    end
     return
   end
   if alt_down and key == "t" then
