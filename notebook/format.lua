@@ -110,13 +110,33 @@ local function escape_html(value)
     :gsub(">", "&gt;"):gsub('"', "&quot;")
 end
 
+local function markdown_html(source)
+  local out = {}
+  for line in ((source or "") .. "\n"):gmatch("(.-)\n") do
+    local escaped = escape_html(line)
+    local level, heading = escaped:match("^(#+)%s+(.*)$")
+    if level and #level <= 6 then
+      out[#out + 1] = "<h" .. #level .. ">" .. heading .. "</h" .. #level .. ">"
+    elseif escaped:match("^%s*[-*+]%s+") then
+      local item = escaped:gsub("^%s*[-*+]%s+", "")
+      out[#out + 1] = "<ul><li>" .. item .. "</li></ul>"
+    elseif escaped ~= "" then
+      escaped = escaped:gsub("%*%*(.-)%*%*", "<strong>%1</strong>")
+      escaped = escaped:gsub("`([^`]*)`", "<code>%1</code>")
+      escaped = escaped:gsub("%[%[([^%]]+)%]%]", "%1")
+      out[#out + 1] = "<p>" .. escaped .. "</p>"
+    end
+  end
+  return table.concat(out, "\n")
+end
+
 function Format.to_html(notebook)
   local out = { "<!doctype html><html><head><meta charset=\"utf-8\">",
     "<title>" .. escape_html(notebook:title()) ..
     "</title><style>body{font-family:system-ui,sans-serif;max-width:880px;margin:2rem auto;color:#202630}pre{background:#f4f5f7;padding:12px;overflow:auto;border-radius:6px}blockquote{border-left:3px solid #999;padding-left:10px;color:#555}</style></head><body>" }
   for _, cell in ipairs(notebook.cells) do
     if cell.kind == "markdown" then
-      out[#out + 1] = "<pre>" .. escape_html(cell.source or "") .. "</pre>"
+      out[#out + 1] = markdown_html(cell.source)
     else
       out[#out + 1] = "<pre><code>" .. escape_html(cell.source or "") ..
         "</code></pre>"

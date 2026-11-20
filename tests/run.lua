@@ -450,11 +450,13 @@ end)
 current = "html export"
 test("exports escaped standalone HTML", function()
   local notebook = Notebook.new({ name = "html-test", cells = {
+    { kind = "markdown", source = "# Heading" },
     { kind = "code", source = "print('<tag>')" },
   } })
   local text = Format.to_html(notebook)
   assert(text:find("<!doctype html>", 1, true))
   assert(text:find("&lt;tag&gt;", 1, true))
+  assert(text:find("<h1>Heading</h1>", 1, true))
 end)
 
 current = "duplicate cell"
