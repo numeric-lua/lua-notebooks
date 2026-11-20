@@ -103,13 +103,6 @@ function NvimView:draw(pass, x, y, width, height, scale)
   pass:setScissor(scissor_x, scissor_y, scissor_w, scissor_h)
   pass:setFont(self.font)
   local rows = math.min(grid.rows, math.ceil(height / ch))
-  local cursor = grid.cursor
-  if cursor and cursor.row < rows then
-    local cx = x + cursor.col * cw
-    local cy = y + cursor.row * ch
-    pass:setColor(0.75, 0.85, 1, 0.9)
-    pass:plane(cx + cw / 2, cy + ch - 1, 0, math.max(2, cw), 2)
-  end
 
   for row = 0, rows - 1 do
     local row_y = y + row * ch
@@ -149,6 +142,16 @@ function NvimView:draw(pass, x, y, width, height, scale)
         pass:setScissor(scissor_x, scissor_y, scissor_w, scissor_h)
       end
     end
+  end
+  local cursor = grid.cursor
+  if cursor and cursor.row < rows then
+    local cx = x + cursor.col * cw
+    local cy = y + cursor.row * ch
+    -- Draw above the text: a thin underline disappeared behind cell runs.
+    pass:setColor(1, 0.72, 0.2, 0.96)
+    pass:plane(cx + 1, cy + ch / 2, 0, 3, ch)
+    pass:setColor(1, 0.9, 0.55, 0.8)
+    pass:plane(cx + 1, cy + ch - 2, 0, math.max(4, cw), 2)
   end
   local menu = grid.popupmenu
   if menu and #menu.items > 0 then
