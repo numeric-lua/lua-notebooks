@@ -403,7 +403,7 @@ function UI:draw(pass, logical_width, logical_height)
       local preview = cell.kind == "markdown" and not selected
       local line_tops = {}
       local line_y = source_y
-      for line_index = 1, math.min(#source_lines, 14) do
+      for line_index = 1, #source_lines do
         line_tops[line_index] = line_y
         local raw_display = source_lines[line_index]
         local display = preview and Markdown.preview(raw_display) or raw_display
@@ -527,7 +527,7 @@ function UI:draw(pass, logical_width, logical_height)
         local cursor_pos = cell.cursor or (#cell.source + 1)
         local line_start = 0
         local cursor_line = 1
-        for candidate = 1, math.min(#source_lines, 14) do
+        for candidate = 1, #source_lines do
           local line_length = #source_lines[candidate]
           if cursor_pos <= line_start + line_length + 1 then
             cursor_line = candidate
