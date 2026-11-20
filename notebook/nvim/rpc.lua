@@ -9,6 +9,7 @@ typedef struct { uint16_t sin_family; uint16_t sin_port; uint32_t sin_addr; char
 typedef struct { long tv_sec; long tv_usec; } timeval;
 typedef struct { int fd; short events; short revents; } pollfd;
 typedef struct { uint16_t sun_family; char sun_path[108]; } sockaddr_un;
+typedef struct { uint8_t sun_len; uint8_t sun_family; char sun_path[104]; } sockaddr_un_osx;
 int socket(int domain, int type, int protocol);
 int connect(int fd, const void *addr, unsigned int len);
 long send(int fd, const void *buf, unsigned long len, int flags);
@@ -53,9 +54,17 @@ end
 function Rpc.connect_unix(path)
   local fd = ffi.C.socket(AF_UNIX, SOCK_STREAM, 0)
   if fd < 0 then return nil, "socket failed" end
-  local address = ffi.new("sockaddr_un")
-  address.sun_family = AF_UNIX
-  ffi.copy(address.sun_path, path, math.min(#path, 107))
+  local address
+  if ffi.os == "OSX" then
+    address = ffi.new("sockaddr_un_osx")
+    address.sun_len = #path + 1
+    address.sun_family = AF_UNIX
+    ffi.copy(address.sun_path, path, math.min(#path, 103))
+  else
+    address = ffi.new("sockaddr_un")
+    address.sun_family = AF_UNIX
+    ffi.copy(address.sun_path, path, math.min(#path, 107))
+  end
   if ffi.C.connect(fd, address, ffi.sizeof(address)) ~= 0 then
     ffi.C.close(fd)
     return nil, "connect failed"
