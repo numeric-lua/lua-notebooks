@@ -1,7 +1,7 @@
-# lua-notebooks 1.22.0
+# lua-notebooks 1.23.0
 
-- accept flat and batched ext_linegrid events;
-- single text-input path for real Neovim typing;
-- fail closed when Neovim save/dead-peer detection fails;
-- notebook buffers open in normal mode and reject broken markers;
-- correct float32 decoding, send backpressure, server handshake, private temp/log files.
+- Neovim uses a private Unix socket on Linux/macOS, with TCP fallback on Windows;
+- per-session private socket directory and mode-600 buffers;
+- no world-readable Neovim log;
+- OSX sockaddr layout and O_NONBLOCK handling;
+- flat/batched linegrid events, single input path, dead-peer and save-failure handling.
