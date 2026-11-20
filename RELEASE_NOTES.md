@@ -1,6 +1,7 @@
-# lua-notebooks 1.12.0
+# lua-notebooks 1.13.0
 
-- Ctrl+F notebook-wide search;
-- restart kernel, clear outputs, run all cells;
-- move and duplicate cells;
-- Markdown notebook export with code/output blocks.
+- standalone HTML notebook export;
+- Markdown export;
+- move/duplicate cell commands;
+- Ctrl+F notebook search;
+- kernel restart, clear outputs, run all cells.
