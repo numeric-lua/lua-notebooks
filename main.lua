@@ -956,7 +956,7 @@ function lovr.load()
     if app.nvim_view then
       app.ui:textinput("XYZ")
       for _ = 1, 20 do app:update(); os.execute("sleep 0.02") end
-      app:close_nvim(true)
+      app.ui:keypressed("f10")
       print("NVIM_EDIT [" .. app:notebook():selected().source .. "]")
       io.stdout:flush()
     end
