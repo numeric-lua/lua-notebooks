@@ -100,7 +100,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends             xvfb imagemagick libfuse2 mesa-vulkan-drivers
       - name: Install LÖVR 0.19.0
         run: |
-          curl -L --fail -o /tmp/lovr.AppImage             https://github.com/bjornbytes/lovr/releases/download/v0.19.1/lovr-v0.19.0-x86_64.AppImage
+          curl -L --fail -o /tmp/lovr.AppImage             https://github.com/bjornbytes/lovr/releases/download/v0.19.0/lovr-v0.19.0-x86_64.AppImage
           chmod +x /tmp/lovr.AppImage
           /tmp/lovr.AppImage --appimage-extract >/dev/null
           sudo ln -sf "$PWD/squashfs-root/AppRun" /usr/local/bin/lovr
