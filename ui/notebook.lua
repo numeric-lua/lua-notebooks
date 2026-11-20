@@ -155,6 +155,7 @@ function UI.new(app)
     extension_rects = {},
     math_layout_cache = {},
     source_lines_cache = {},
+    output_lines_cache = {},
     show_outline = false,
     outline_rects = {},
     show_help = false,
@@ -350,7 +351,15 @@ function UI:draw(pass, logical_width, logical_height)
         math_layouts = math_layouts, source_height = source_height }
     end
     local widget_height = Widgets.height(cell.widgets)
-    local output_lines = cell.output ~= "" and split_lines(cell.output) or {}
+    local output_lines = {}
+    if cell.output ~= "" then
+      output_lines = self.output_lines_cache[cell.output]
+      if output_lines == nil then
+        output_lines = split_lines(cell.output)
+        self.output_lines_cache[cell.output] = output_lines
+        if #self.output_lines_cache > 512 then self.output_lines_cache = {} end
+      end
+    end
     local output_height = 0
     if #output_lines > 0 then
       output_height = math.min(#output_lines, 6) * 19 + 14
