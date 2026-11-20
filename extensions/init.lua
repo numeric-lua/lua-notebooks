@@ -92,6 +92,7 @@ function Extensions.list()
         title = descriptor.title or id,
         enabled = not Extensions.disabled[id],
         permissions = Extensions.permissions(id),
+        all_permissions = descriptor.permissions or {},
       }
     end
   end

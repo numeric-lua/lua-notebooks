@@ -985,6 +985,7 @@ end
 
 function UI:draw_extension_browser(pass, width, height)
   self.extension_rects = {}
+  self.permission_rects = {}
   if not self.show_extensions then return end
   local panel_w, panel_h = 520, 120 + #Extensions.list() * 36
   local x, y = (width - panel_w) / 2, 90
@@ -1005,10 +1006,36 @@ function UI:draw_extension_browser(pass, width, height)
       text(pass, self.app.font, table.concat(extension.permissions, ", "),
         x + 50, row_y + 18, { 0.55, 0.65, 0.8, 1 }, 0.55)
     end
+    local granted = {}
+    for _, permission in ipairs(extension.permissions or {}) do
+      granted[permission] = true
+    end
+    local button_x = x + 300
+    for _, permission in ipairs(extension.all_permissions or {}) do
+      local on = granted[permission] == true
+      box(pass, button_x, row_y + 5, 64, 20,
+        on and { 0.16, 0.34, 0.25, 1 } or { 0.2, 0.12, 0.14, 1 })
+      text(pass, self.app.font, permission, button_x + 5, row_y + 9,
+        on and { 0.75, 1, 0.85, 1 } or { 0.85, 0.55, 0.6, 1 }, 0.48)
+      self.permission_rects[#self.permission_rects + 1] = {
+        x = button_x, y = row_y + 5, w = 64, h = 20, id = extension.id,
+        permission = permission,
+      }
+      button_x = button_x + 70
+    end
     self.extension_rects[#self.extension_rects + 1] = {
-      x = x + 12, y = row_y, w = panel_w - 24, h = 30, id = extension.id,
+      x = x + 12, y = row_y, w = 280, h = 30, id = extension.id,
     }
   end
+end
+
+function UI:toggle_permission(id, permission)
+  local granted = {}
+  for _, current in ipairs(Extensions.permissions(id)) do granted[current] = true end
+  Extensions.set_permission(id, permission, not granted[permission])
+  Extensions.save_preferences()
+  self.app.status = (not granted[permission] and "granted " or "revoked ") ..
+    permission .. " for " .. id
 end
 
 function UI:toggle_extension(id)
@@ -2233,6 +2260,12 @@ function UI:mousepressed(x, y, button)
     end
   end
   if self.show_extensions then
+    for _, rect in ipairs(self.permission_rects or {}) do
+      if inside(x, y, rect) then
+        self:toggle_permission(rect.id, rect.permission)
+        return
+      end
+    end
     for _, rect in ipairs(self.extension_rects) do
       if inside(x, y, rect) then
         self:toggle_extension(rect.id)
