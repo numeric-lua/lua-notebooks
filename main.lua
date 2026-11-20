@@ -8,6 +8,7 @@
 -- kernel/engine.lua.
 --
 local Notebook = require("notebook.model")
+local NvimBuffer = require("notebook.nvim.buffer")
 local Supervisor = require("notebook.supervisor")
 local InlineSupervisor = require("notebook.inline_supervisor")
 local ProcessSupervisor = require("notebook.process_supervisor")
@@ -472,26 +473,8 @@ function App:close_nvim(save)
   self.nvim_session, self.nvim_view, self.show_nvim = nil, nil, false
   if save and lines then
     if self.nvim_notebook then
-      local current = nil
-      local pieces = {}
-      local function flush()
-        if current then
-          pieces[current] = table.concat(pieces[current] or {}, "\n")
-        end
-      end
-      for _, line in ipairs(lines) do
-        local index = line:match("^%-%- %%%% cell (%d+)")
-        if index then
-          if current then self.nvim_cells[current] =
-            table.concat(pieces[current] or {}, "\n") end
-          current = tonumber(index)
-          pieces[current] = {}
-        elseif current then
-          pieces[current][#pieces[current] + 1] = line
-        end
-      end
-      if current then self.nvim_cells[current] =
-        table.concat(pieces[current] or {}, "\n") end
+      local sources = NvimBuffer.decode(lines)
+      self.nvim_cells = sources
       for index, source in pairs(self.nvim_cells) do
         local cell = self:notebook().cells[index]
         if cell then cell.source = source end
@@ -541,17 +524,9 @@ end
 
 function App:open_nvim_notebook()
   local notebook = self:notebook()
-  local lines, cells, rows = {}, {}, {}
-  for index, cell in ipairs(notebook.cells) do
-    if cell.kind == "code" or cell.kind == "markdown" then
-      lines[#lines + 1] = string.format("-- %%%% cell %d %s", index, cell.kind)
-      cells[index] = true
-      rows[#rows + 1] = { row = #lines, index = index }
-      for source_line in (cell.source .. "\n"):gmatch("(.-)\n") do
-        lines[#lines + 1] = source_line
-      end
-    end
-  end
+  local lines, rows = NvimBuffer.encode(notebook.cells)
+  local cells = {}
+  for _, entry in ipairs(rows) do cells[entry.index] = true end
   if #lines == 0 then self.status = "notebook has no code cells"; return end
   local path = os.tmpname() .. ".lua"
   local handle = assert(io.open(path, "wb"))
