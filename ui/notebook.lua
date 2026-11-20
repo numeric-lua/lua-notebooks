@@ -2052,13 +2052,19 @@ function UI:keypressed(key)
       return
     elseif key == "j" then
       if self.nav_repeat and self.nav_repeat.key == "j" then return end
-      notebook:move_line(1)
+      if not notebook:move_line(1) and notebook:move(1) then
+        notebook:selected().cursor = 1
+        self.scroll_to_selected = true
+      end
       self.nav_repeat = { key = "j", kind = "line",
         next = lovr.timer.getTime() + 0.35 }
       return
     elseif key == "k" then
       if self.nav_repeat and self.nav_repeat.key == "k" then return end
-      notebook:move_line(-1)
+      if not notebook:move_line(-1) and notebook:move(-1) then
+        notebook:selected().cursor = #notebook:selected().source + 1
+        self.scroll_to_selected = true
+      end
       self.nav_repeat = { key = "k", kind = "line",
         next = lovr.timer.getTime() + 0.35 }
       return
@@ -2394,6 +2400,16 @@ function UI:mousepressed(x, y, button)
   for index, rect in pairs(self.output_rects) do
     if inside(x, y, rect) then
       self.app:notebook():select(index)
+      if self.app.vim_mode then
+        self.vim_scope = "cell"
+        self.vim_normal = true
+        self.vim_pending = nil
+        self.vim_text_object = nil
+        self.vim_pending_mark = nil
+        self.vim_pending_register = false
+        self.vim_command = nil
+        self.vim_search = nil
+      end
       self.focused_output_cell = index
       self.focused_surface = nil
       self.focused_widget = nil
@@ -2412,6 +2428,12 @@ function UI:mousepressed(x, y, button)
       if self.app.vim_mode then
         self.vim_normal = true
         self.vim_scope = "cell"
+        self.vim_pending = nil
+        self.vim_text_object = nil
+        self.vim_pending_mark = nil
+        self.vim_pending_register = false
+        self.vim_command = nil
+        self.vim_search = nil
       end
       self.focused_output_cell = nil
       self.focused_surface = nil
