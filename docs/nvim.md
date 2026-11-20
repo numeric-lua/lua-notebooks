@@ -24,7 +24,7 @@ Working:
 - `F9` discard;
 - `Alt+E` opens, `Alt+J/K` saves and moves to the next/previous cell;
 - mouse clicks and wheel scrolling;
-- popup-menu completion events;
+- grid-rendered completion (external popup events disabled until polished);
 - markdown cell buffers;
 - light/dark background and colorscheme;
 - cursor line restoration and live resize;
