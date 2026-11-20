@@ -156,6 +156,7 @@ function UI.new(app)
     math_layout_cache = {},
     source_lines_cache = {},
     output_lines_cache = {},
+    diagnostic_cache = {},
     show_outline = false,
     outline_rects = {},
     show_help = false,
@@ -370,8 +371,17 @@ function UI:draw(pass, logical_width, logical_height)
     elseif cell.scene then
       scene_height = 170
     end
-    local diagnostic = cell.kind == "code" and
-      (self.app:server_diagnostic(cell) or LSP.diagnostics(cell.source))
+    local diagnostic
+    if cell.kind == "code" then
+      diagnostic = self.diagnostic_cache[cell.source]
+      if diagnostic == nil then
+        diagnostic = self.app:server_diagnostic(cell) or
+          LSP.diagnostics(cell.source) or false
+        self.diagnostic_cache[cell.source] = diagnostic
+        if #self.diagnostic_cache > 512 then self.diagnostic_cache = {} end
+      end
+      if diagnostic == false then diagnostic = nil end
+    end
     local diagnostic_height = diagnostic and 18 or 0
     local cell_height = 12 + source_height + widget_height +
       output_height + scene_height + diagnostic_height + 10
