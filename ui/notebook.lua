@@ -1670,6 +1670,12 @@ function UI:play_macro()
   self.vim_replaying = false
 end
 
+function UI:keyreleased(key)
+  if self.app.show_nvim and self.app.nvim_view then
+    self.app.nvim_view:keyreleased(key)
+  end
+end
+
 function UI:keypressed(key)
   if self.app.show_nvim then
     local alt = lovr.system and lovr.system.isKeyDown and

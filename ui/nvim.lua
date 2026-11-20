@@ -55,8 +55,20 @@ function NvimView.new(session, font, options)
   }, NvimView)
 end
 
+local REPEATABLE = {
+  backspace = true, delete = true, up = true, down = true, left = true,
+  right = true, home = true, ["end"] = true, pageup = true, pagedown = true,
+}
+
 function NvimView:update()
   self.session:update()
+  if self.repeat_key then
+    local now = lovr.timer.getTime()
+    if now >= self.repeat_at then
+      self.session:input(SPECIAL[self.repeat_key])
+      self.repeat_at = now + 0.05
+    end
+  end
 end
 
 function NvimView:resize(width, height)
@@ -213,7 +225,15 @@ function NvimView:keypressed(key)
   end
   if name == nil then return false end
   self.session:input(name)
+  if REPEATABLE[key] then
+    self.repeat_key = key
+    self.repeat_at = lovr.timer.getTime() + 0.45
+  end
   return true
+end
+
+function NvimView:keyreleased(key)
+  if self.repeat_key == key then self.repeat_key = nil end
 end
 
 return NvimView
