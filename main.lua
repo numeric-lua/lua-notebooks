@@ -441,10 +441,6 @@ function App:open_nvim()
     if session.grid:line(0):find("%S") then break end
     os.execute("sleep 0.02")
   end
-  local cursor_line = 1
-  for _ in (cell.source or ""):sub(1, math.max(0, (cell.cursor or 1) - 1)):gmatch("\n") do
-    cursor_line = cursor_line + 1
-  end
   session:input("i")
   for _ = 1, 5 do session:update(); os.execute("sleep 0.01") end
   self.nvim_session = session
