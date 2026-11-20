@@ -1514,6 +1514,13 @@ function UI:keypressed(key)
     if self.app.vim_mode then self.vim_normal = true end
     return
   end
+  if alt_down and key == "t" then
+    Theme.set_opacity(Theme.opacity >= 0.999 and 0.82 or 1)
+    Theme.save()
+    self.app.status = string.format("background opacity %.0f%%",
+      Theme.opacity * 100)
+    return
+  end
   if alt_down and (key == "j" or key == "k") then
     if self.nav_repeat == nil or self.nav_repeat.key ~= key then
       notebook:move(key == "j" and 1 or -1)
