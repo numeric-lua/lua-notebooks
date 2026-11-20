@@ -1681,9 +1681,17 @@ function UI:keypressed(key)
     local alt = lovr.system and lovr.system.isKeyDown and
       (lovr.system.isKeyDown("lalt") or lovr.system.isKeyDown("ralt"))
     if alt and (key == "j" or key == "k") then
+      local was_notebook = self.app.nvim_notebook
+      local target = self.app:notebook_cell_at_cursor()
       if self.app:hide_nvim(true) == false then return end
-      self.app:notebook():move(key == "j" and 1 or -1)
-      self.app:open_nvim()
+      if was_notebook then
+        self.app:notebook():select(target)
+        self.app:notebook():move(key == "j" and 1 or -1)
+        self.app:open_nvim_notebook()
+      else
+        self.app:notebook():move(key == "j" and 1 or -1)
+        self.app:open_nvim()
+      end
       return
     end
     if key == "f10" then self.app:hide_nvim(true); return end

@@ -715,8 +715,9 @@ function App:hide_nvim(save)
   return self:close_nvim(save, true)
 end
 
-function App:run_nvim_cell()
-  if self.nvim_session == nil then return end
+function App:notebook_cell_at_cursor()
+  local index = self:notebook().active
+  if self.nvim_session == nil then return index end
   local row = (self.nvim_session.grid.cursor.row or 0) + 1
   pcall(function()
     self.nvim_session:input("<Esc>")
@@ -726,10 +727,15 @@ function App:run_nvim_cell()
       row = cursor[1] + 1
     end
   end)
-  local index = self:notebook().active
   for _, entry in ipairs(self.nvim_cell_rows or {}) do
     if entry.row <= row then index = entry.index end
   end
+  return index
+end
+
+function App:run_nvim_cell()
+  if self.nvim_session == nil then return end
+  local index = self:notebook_cell_at_cursor()
   if self:hide_nvim(true) == false then return end
   self:notebook():select(index)
   self.scroll_to_selected = true
