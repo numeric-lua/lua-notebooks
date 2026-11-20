@@ -1,6 +1,6 @@
-# lua-notebooks 1.34.1
+# lua-notebooks 1.34.2
 
-- fix Neovim cursor row using 0-based save math;
-- returning from a cell resets notebook scope in one Esc;
-- the cursor stays on the same line when leaving the cell;
-- hidden Neovim engine preserves native cell font/background.
+- Esc leaves the inline cell without synchronous RPC or window freeze;
+- source is synchronized live and flushed in the background with a short timeout;
+- leaving resets notebook scope and keeps the cursor on the same line;
+- one Esc exits from normal mode.
