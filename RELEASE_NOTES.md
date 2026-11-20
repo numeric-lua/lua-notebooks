@@ -1,6 +1,6 @@
-# lua-notebooks 1.28.0
+# lua-notebooks 1.29.0
 
-- marker block reordering applied to the notebook model;
-- marker ordering tests and tag navigation;
-- external popupmenu completion and held-key repeat;
-- warm Neovim, private Unix RPC, fail-closed saves.
+- Ctrl+P palette and Ctrl+S save shortcuts;
+- tested Format.tags helper for markdown tag navigation;
+- real popupmenu integration test and end-to-end marker ordering test;
+- refreshed Neovim docs and organization status.
