@@ -130,6 +130,7 @@ function UI.new(app)
     heading_rects = {},
     show_extensions = false,
     extension_rects = {},
+    math_layout_cache = {},
     show_outline = false,
     outline_rects = {},
     show_help = false,
@@ -260,11 +261,19 @@ function UI:draw(pass, logical_width, logical_height)
       local expression = cell.kind == "markdown" and
         source_line:match("^%$%$(.-)%$%$$")
       if expression and not source_line:find("\\begin{matrix}", 1, true) then
-        local result = MathEngine.typeset(expression, {
-          font = app.math_font, scale = 1.1, display = true,
-          max_width = width - 100,
-          fonts = { bold = app.math_bold, italic = app.math_italic },
-        })
+        local cache_key = expression .. "|" .. tostring(width) .. "|" ..
+          tostring(app.math_font)
+        local result = self.math_layout_cache[cache_key]
+        if result == nil then
+          result = MathEngine.typeset(expression, {
+            font = app.math_font, scale = 1.1, display = true,
+            max_width = width - 100,
+            fonts = { bold = app.math_bold, italic = app.math_italic },
+          })
+          self.math_layout_cache[cache_key] = result or false
+          if #self.math_layout_cache > 512 then self.math_layout_cache = {} end
+        end
+        if result == false then result = nil end
         if result then
           math_layouts[line_index] = result
           source_height = source_height + result.h + 10

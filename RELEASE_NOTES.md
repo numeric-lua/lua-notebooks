@@ -1,4 +1,4 @@
-# lua-notebooks 0.7.0
+# lua-notebooks 0.8.0
 
-- 1 MiB default kernel output cap;
-- truncation marker and bounded output test.
+- incremental display-math layout cache keyed by expression, width, and font;
+- bounded cache size.
