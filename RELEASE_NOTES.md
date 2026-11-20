@@ -1,6 +1,7 @@
-# lua-notebooks 1.30.0
+# lua-notebooks 1.31.0
 
-- new `-- %% cell N kind` blocks create cells when applying Neovim notebook edits;
-- cell kind comes from the marker and defaults to code;
-- marker deletion remains fail-closed; reordering is supported;
-- cell creation and kind tests added.
+- per-cell Neovim editing is now inline over the active cell source;
+- the notebook and outputs stay visible while editing;
+- clicking outside applies the cell and returns to the notebook;
+- full-screen notebook-wide editing remains available via Alt+Shift+E;
+- cursor alignment and inline grid sizing polished.
