@@ -2373,6 +2373,16 @@ function UI:mousepressed(x, y, button)
       self.focused_surface = rect.surface
       self.focused_output_cell = rect.cell._index
       self.app:notebook():select(rect.cell._index)
+      if self.app.vim_mode then
+        self.vim_scope = "cell"
+        self.vim_normal = true
+        self.vim_pending = nil
+        self.vim_text_object = nil
+        self.vim_pending_mark = nil
+        self.vim_pending_register = false
+        self.vim_command = nil
+        self.vim_search = nil
+      end
       rect.surface:pointer({
         type = "down",
         x = x - rect.x,
