@@ -21,6 +21,7 @@ uint32_t htonl(uint32_t value);
 ]]
 
 local AF_INET, SOCK_STREAM = 2, 1
+local O_NONBLOCK = ffi.os == "OSX" and 4 or 2048
 local Rpc = {}
 Rpc.__index = Rpc
 
@@ -60,7 +61,7 @@ function Rpc.connect(host, port)
     return nil, "connect failed"
   end
   local flags = ffi.C.fcntl(fd, 3, 0)
-  ffi.C.fcntl(fd, 4, bit.bor(flags, 2048))
+  ffi.C.fcntl(fd, 4, bit.bor(flags, O_NONBLOCK))
   return setmetatable({ fd = fd, buffer = "", seq = 0,
     callbacks = {}, notifications = {} }, Rpc)
 end
