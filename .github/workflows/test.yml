@@ -2,7 +2,7 @@ name: tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, spike/nvim-ui]
   pull_request:
 
 jobs:
