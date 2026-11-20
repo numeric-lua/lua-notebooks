@@ -564,7 +564,7 @@ function lovr.load()
   if os.getenv("LUANB_QA_THEME") then Theme.set(os.getenv("LUANB_QA_THEME")) end
   if os.getenv("LUANB_QA_HELP") then app.ui.show_help = true end
   if os.getenv("LUANB_QA_CELL_SCOPE") then
-    app.ui.vim_scope = "cell"
+    app.ui.vim_scope = os.getenv("LUANB_QA_LASTJ") == "notebook" and "notebook" or "cell"
     app.ui.vim_normal = true
   end
   if os.getenv("LUANB_QA_UI_SCALE") then
@@ -1194,12 +1194,22 @@ function lovr.draw(window)
     app.screenshot_requested = false
     app.screenshot_readback = canvas:newReadback()
   end
+  -- Always lay down an opaque base before the UI so a render failure cannot
+  -- leave the window black.
+  canvas_pass:setColor(1, 1, 1, 1)
+  canvas_pass:plane(width / 2, height / 2, 0, width, height)
   local ok, passes = pcall(UI.draw, app.ui, canvas_pass, logical_width,
     logical_height)
   if not ok then
-    app.status = "draw error: " .. tostring(passes)
-    print("DRAW_ERROR " .. tostring(passes))
-    return
+    local message = tostring(passes)
+    app.status = "draw error: " .. message
+    print("DRAW_ERROR " .. message)
+    passes = {}
+    if app.font then
+      canvas_pass:setFont(app.font)
+      canvas_pass:setColor(0.55, 0.08, 0.10, 1)
+      canvas_pass:text("render error: " .. message, 24, 24, 0, 0.8)
+    end
   end
   window:fill(canvas)
   passes[#passes + 1] = canvas_pass
