@@ -4,6 +4,7 @@
 --
 local Theme = {}
 Theme.mode = "dark"
+Theme.opacity = 1.0
 local cache = {}
 
 local function rgb_to_hsl(r, g, b)
@@ -57,13 +58,27 @@ function Theme.toggle()
   return Theme.mode
 end
 
+function Theme.set_opacity(value)
+  value = tonumber(value) or 1
+  Theme.opacity = math.max(0.55, math.min(1, value))
+  return Theme.opacity
+end
+
+function Theme.toggle_transparency()
+  return Theme.set_opacity(Theme.opacity >= 0.999 and 0.82 or 1)
+end
+
 function Theme.load()
   local ok, value = pcall(lovr.filesystem.read, "theme.txt")
   if ok and value then Theme.set(value:gsub("%s+", "")) end
+  local opacity_ok, opacity = pcall(lovr.filesystem.read, "opacity.txt")
+  if opacity_ok and opacity then Theme.set_opacity(opacity) end
 end
 
 function Theme.save()
   pcall(lovr.filesystem.write, "theme.txt", Theme.mode)
+  pcall(lovr.filesystem.write, "opacity.txt", string.format("%.3f",
+    Theme.opacity))
 end
 
 return Theme

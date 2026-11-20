@@ -218,7 +218,9 @@ function UI:draw(pass, logical_width, logical_height)
   pass:setDepthTest()
 
   local light = Theme.mode == "light"
-  local background = light and { 0, 0, 0, 1 } or { 0.055, 0.06, 0.08, 1 }
+  local alpha = Theme.opacity or 1
+  local background = light and { 0, 0, 0, alpha } or
+    { 0.055, 0.06, 0.08, alpha }
   box(pass, 0, 0, width, height, background)
   self.tabs = {}
   self.buttons = {}
@@ -228,7 +230,7 @@ function UI:draw(pass, logical_width, logical_height)
   self.output_rects = {}
   if not self.zen_mode then
   box(pass, 0, 0, width, 40,
-    light and { 0, 0, 0, 1 } or { 0.08, 0.09, 0.12, 1 })
+    light and { 0, 0, 0, alpha } or { 0.08, 0.09, 0.12, alpha })
 
   -- Tabs are notebook titles, derived from the first markdown `#` heading.
   local tab_x = 12
@@ -750,6 +752,11 @@ function UI:run_palette_command(id)
   elseif id == "extensions" then self.show_extensions = true
   elseif id == "outline" then self.show_outline = true
   elseif id == "help" then self.show_help = true
+  elseif id == "transparency" then
+    Theme.set_opacity(Theme.opacity >= 0.999 and 0.82 or 1)
+    Theme.save()
+    self.app.status = string.format("background opacity %.0f%%",
+      Theme.opacity * 100)
   end
 end
 

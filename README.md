@@ -455,3 +455,7 @@ CI renders QA cells offscreen with LÖVR 0.19.0 and compares them to committed p
 ## Stability
 
 The notebook format, extension contract, gateway flags, and LSP capabilities are covered by [docs/stability.md](docs/stability.md).
+
+## Transparency
+
+Use the command palette action **Toggle notebook transparency** to switch the light notebook between opaque white and a translucent WezTerm-like surface. LÖVR is configured with `t.window.transparent = true`; the opacity setting is stored in `opacity.txt` in the save directory.
