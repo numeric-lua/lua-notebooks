@@ -438,3 +438,7 @@ luaplotlib backend design.
 BSD-3-Clause for this project. Vendored LÖVR documentation is covered by its
 upstream licensing; example code is CC0 per the LÖVR docs README. See
 `docs/lovr/README.md`.
+
+## Visual CI
+
+CI runs an offscreen LÖVR render smoke for QA cells and fails on blank captures. Pixel-level baseline comparison remains a manual/local check because GPU and font rendering differ across runners.
