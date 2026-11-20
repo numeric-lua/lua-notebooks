@@ -1,7 +1,5 @@
-# lua-notebooks 1.8.0
+# lua-notebooks 1.8.1
 
-- markdown cells in the Neovim notebook buffer;
-- tested notebook-buffer codec;
-- overlay closes when Neovim exits;
-- Alt+Shift+E notebook editor and shortcut cheatsheet;
-- documentation and CI coverage updates.
+- fix Neovim F10 write-back when opening a cell;
+- open Neovim at the buffer start for reliable edits;
+- docs cleanup.
