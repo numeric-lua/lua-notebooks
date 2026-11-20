@@ -27,7 +27,7 @@ Working:
 - grid-rendered completion (external popup events disabled until polished);
 - markdown cell buffers;
 - light/dark background and colorscheme;
-- cursor line restoration and live resize;
+- live grid resize;
 - notebook-wide code buffer with `-- %% cell N` markers;
 - `F5` runs the cell containing the cursor from that buffer;
 - pure tests for codec, grid, RPC, and session.
