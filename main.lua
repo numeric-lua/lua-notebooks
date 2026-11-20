@@ -532,15 +532,19 @@ function App:run_nvim_cell()
   self:close_nvim(true)
   self:notebook():select(index)
   self.scroll_to_selected = true
-  self:run()
+  if self:notebook():selected().kind == "code" then
+    self:run()
+  else
+    self.status = "markdown cell selected; not executed"
+  end
 end
 
 function App:open_nvim_notebook()
   local notebook = self:notebook()
   local lines, cells, rows = {}, {}, {}
   for index, cell in ipairs(notebook.cells) do
-    if cell.kind == "code" then
-      lines[#lines + 1] = string.format("-- %%%% cell %d", index)
+    if cell.kind == "code" or cell.kind == "markdown" then
+      lines[#lines + 1] = string.format("-- %%%% cell %d %s", index, cell.kind)
       cells[index] = true
       rows[#rows + 1] = { row = #lines, index = index }
       for source_line in (cell.source .. "\n"):gmatch("(.-)\n") do
