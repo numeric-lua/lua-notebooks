@@ -218,8 +218,6 @@ function UI:draw(pass, logical_width, logical_height)
   pass:setDepthTest()
 
   if app.show_nvim and app.nvim_view then
-    pass:setColor(1, 1, 1, 1)
-    pass:plane(width / 2, height / 2, 0, width, height)
     app.nvim_view:draw(pass, 44, 18, width - 56, height - 36,
       app.ui_scale or 1)
     return {}

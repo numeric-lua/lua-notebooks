@@ -1,6 +1,7 @@
 --
 -- LÖVR renderer and input adapter for the Neovim ext_linegrid UI.
 --
+local Theme = require("ui.theme")
 local NvimView = {}
 NvimView.__index = NvimView
 
@@ -70,7 +71,8 @@ function NvimView:draw(pass, x, y, width, height, scale)
   self.draw_cw, self.draw_ch = cw, ch
   local background = rgb(grid.default_background, { 0.06, 0.07, 0.1 })
   local foreground = rgb(grid.default_foreground, { 0.85, 0.88, 0.95 })
-  pass:setColor(background[1], background[2], background[3], 1)
+  pass:setColor(background[1], background[2], background[3],
+    Theme.opacity or 1)
   pass:plane(x + width / 2, y + height / 2, 0, width, height)
   local scissor_x = math.max(0, x * scale)
   local scissor_y = math.max(0, y * scale)
