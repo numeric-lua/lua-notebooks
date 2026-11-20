@@ -1,5 +1,4 @@
-# lua-notebooks 0.5.0
+# lua-notebooks 0.6.0
 
-- document symbols in the LSP;
-- workspace symbol search;
-- capability advertisements for symbol providers.
+- LSP signature help for core and common Lua functions;
+- protocol test coverage.

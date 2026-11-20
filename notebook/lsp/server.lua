@@ -119,6 +119,7 @@ function Server:handle(message)
         referencesProvider = true,
         documentSymbolProvider = true,
         workspaceSymbolProvider = true,
+        signatureHelpProvider = { triggerCharacters = { "(", "," } },
         renameProvider = { prepareProvider = false },
       },
       serverInfo = { name = "lua-notebooks-lsp", version = "0.1.0" },
@@ -168,6 +169,44 @@ function Server:handle(message)
       end
     end
     return response(id, symbols)
+  elseif message.method == "textDocument/signatureHelp" then
+    local uri = params.textDocument and params.textDocument.uri
+    local position = params.position or {}
+    local document = self.documents[uri]
+    if document == nil then return response(id, json.null) end
+    local line, line_index = "", 0
+    for candidate in (document.text .. "\n"):gmatch("(.-)\n") do
+      if line_index == (position.line or 0) then line = candidate; break end
+      line_index = line_index + 1
+    end
+    local before = line:sub(1, position.character or #line)
+    local name = before:match("([%a_][%w_%.]*)[%s]*%([^()]*$")
+    local signatures = {
+      print = { "print(...)", { "..." } },
+      type = { "type(value)", { "value" } },
+      tostring = { "tostring(value)", { "value" } },
+      tonumber = { "tonumber(value, base)", { "value", "base" } },
+      pairs = { "pairs(table)", { "table" } },
+      ipairs = { "ipairs(table)", { "table" } },
+      ["table.insert"] = { "table.insert(list, value)", { "list", "value" } },
+      ["string.format"] = { "string.format(format, ...)", { "format", "..." } },
+      ["math.floor"] = { "math.floor(value)", { "value" } },
+    }
+    local signature = name and signatures[name]
+    if signature == nil then return response(id, json.null) end
+    local active = 0
+    for _ in before:sub((before:find("%(") or 0) + 1):gmatch(",") do
+      active = active + 1
+    end
+    if active >= #signature[2] then active = #signature[2] - 1 end
+    return response(id, { signatures = { { label = signature[1],
+      parameters = (function()
+        local result = {}
+        for _, parameter in ipairs(signature[2]) do
+          result[#result + 1] = { label = parameter }
+        end
+        return result
+      end)() } }, activeSignature = 0, activeParameter = active })
   elseif message.method == "shutdown" then
     self.shutdown = true
     return response(id, json.null)
@@ -408,6 +447,44 @@ function Server:handle(message)
       end
     end
     return response(id, symbols)
+  elseif message.method == "textDocument/signatureHelp" then
+    local uri = params.textDocument and params.textDocument.uri
+    local position = params.position or {}
+    local document = self.documents[uri]
+    if document == nil then return response(id, json.null) end
+    local line, line_index = "", 0
+    for candidate in (document.text .. "\n"):gmatch("(.-)\n") do
+      if line_index == (position.line or 0) then line = candidate; break end
+      line_index = line_index + 1
+    end
+    local before = line:sub(1, position.character or #line)
+    local name = before:match("([%a_][%w_%.]*)[%s]*%([^()]*$")
+    local signatures = {
+      print = { "print(...)", { "..." } },
+      type = { "type(value)", { "value" } },
+      tostring = { "tostring(value)", { "value" } },
+      tonumber = { "tonumber(value, base)", { "value", "base" } },
+      pairs = { "pairs(table)", { "table" } },
+      ipairs = { "ipairs(table)", { "table" } },
+      ["table.insert"] = { "table.insert(list, value)", { "list", "value" } },
+      ["string.format"] = { "string.format(format, ...)", { "format", "..." } },
+      ["math.floor"] = { "math.floor(value)", { "value" } },
+    }
+    local signature = name and signatures[name]
+    if signature == nil then return response(id, json.null) end
+    local active = 0
+    for _ in before:sub((before:find("%(") or 0) + 1):gmatch(",") do
+      active = active + 1
+    end
+    if active >= #signature[2] then active = #signature[2] - 1 end
+    return response(id, { signatures = { { label = signature[1],
+      parameters = (function()
+        local result = {}
+        for _, parameter in ipairs(signature[2]) do
+          result[#result + 1] = { label = parameter }
+        end
+        return result
+      end)() } }, activeSignature = 0, activeParameter = active })
   elseif message.method == "shutdown" then
     return response(id, json.null)
   elseif message.method == "$/cancelRequest" then

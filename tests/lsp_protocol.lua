@@ -126,7 +126,7 @@ assert(field_completion.result and #field_completion.result.items > 0)
 local symbol_uri = "file:///symbols.lua"
 server:handle({ jsonrpc = "2.0", method = "textDocument/didOpen", params = {
   textDocument = { uri = symbol_uri, version = 1,
-    text = "local function helper()\nend\nfunction module.run()\nend\n" },
+    text = "local function helper()\nend\nfunction module.run()\nend\nprint(1)\n" },
 } })
 local document_symbols = server:handle({ jsonrpc = "2.0", id = 21,
   method = "textDocument/documentSymbol", params = {
@@ -136,6 +136,11 @@ assert(#document_symbols.result == 2, #document_symbols.result)
 local workspace_symbols = server:handle({ jsonrpc = "2.0", id = 22,
   method = "workspace/symbol", params = { query = "run" } })
 assert(#workspace_symbols.result == 1, #workspace_symbols.result)
+local signature = server:handle({ jsonrpc = "2.0", id = 23,
+  method = "textDocument/signatureHelp", params = {
+    textDocument = { uri = symbol_uri }, position = { line = 4, character = 7 },
+  } })
+assert(signature.result and signature.result.signatures[1].label:find("print"))
 local shutdown = server:handle({ jsonrpc = "2.0", id = 3, method = "shutdown", params = json.null })
 eq(shutdown.result, json.null)
 print("lsp protocol tests ok")
