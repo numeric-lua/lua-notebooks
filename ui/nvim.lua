@@ -103,6 +103,14 @@ function NvimView:draw(pass, x, y, width, height, scale)
   pass:setScissor(scissor_x, scissor_y, scissor_w, scissor_h)
   pass:setFont(self.font)
   local rows = math.min(grid.rows, math.ceil(height / ch))
+  local cursor = grid.cursor
+  local insert_mode = grid.mode == "insert"
+  if cursor and cursor.row < rows and not insert_mode then
+    local cx = x + cursor.col * cw
+    local cy = y + cursor.row * ch
+    pass:setColor(1, 0.62, 0.12, 0.55)
+    pass:plane(cx + cw / 2, cy + ch / 2, 0, cw, ch)
+  end
 
   for row = 0, rows - 1 do
     local row_y = y + row * ch
@@ -143,15 +151,21 @@ function NvimView:draw(pass, x, y, width, height, scale)
       end
     end
   end
-  local cursor = grid.cursor
   if cursor and cursor.row < rows then
     local cx = x + cursor.col * cw
     local cy = y + cursor.row * ch
-    -- Draw above the text: a thin underline disappeared behind cell runs.
-    pass:setColor(1, 0.72, 0.2, 0.96)
-    pass:plane(cx + 1, cy + ch / 2, 0, 3, ch)
-    pass:setColor(1, 0.9, 0.55, 0.8)
-    pass:plane(cx + 1, cy + ch - 2, 0, math.max(4, cw), 2)
+    if insert_mode then
+      pass:setColor(1, 0.72, 0.2, 0.96)
+      pass:plane(cx + 1, cy + ch / 2, 0, 3, ch)
+      pass:setColor(1, 0.9, 0.55, 0.8)
+      pass:plane(cx + 1, cy + ch - 2, 0, math.max(4, cw), 2)
+    else
+      pass:setColor(1, 0.78, 0.25, 0.9)
+      pass:plane(cx + cw / 2, cy + 1, 0, cw, 2)
+      pass:plane(cx + cw / 2, cy + ch - 1, 0, cw, 2)
+      pass:plane(cx + 1, cy + ch / 2, 0, 2, ch)
+      pass:plane(cx + cw - 1, cy + ch / 2, 0, 2, ch)
+    end
   end
   local menu = grid.popupmenu
   if menu and #menu.items > 0 then

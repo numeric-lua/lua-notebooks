@@ -531,14 +531,14 @@ function App:open_nvim()
       lines[#lines + 1] = source_line
     end
     local loaded, load_error = self:load_nvim_buffer(lines,
-      cell.kind == "markdown" and "markdown" or "lua")
+      cell.kind == "markdown" and "markdown" or "lua", false)
     if not loaded then
       self:close_nvim(false)
       self.status = "Neovim reload failed: " .. tostring(load_error)
       return self:open_nvim()
     end
     self.show_nvim, self.nvim_notebook, self.nvim_inline = true, false, true
-    self.status = "Neovim inline: F10 save, F5 run"
+    self.status = "Neovim normal mode: i inserts, F10 applies"
     return
   end
   local path = os.tmpname() .. (cell.kind == "markdown" and ".md" or ".lua")
@@ -563,7 +563,6 @@ function App:open_nvim()
       if session.grid:line(0):find("%S") then break end
       os.execute("sleep 0.02")
     end
-    session:input("i")
     for _ = 1, 5 do session:update(); os.execute("sleep 0.01") end
   end)
   if not ready then
@@ -585,7 +584,7 @@ function App:open_nvim()
   self.nvim_path = path
   self.show_nvim = true
   self.nvim_inline = true
-  self.status = "Neovim inline: F10 save, F9 discard"
+  self.status = "Neovim normal mode: i inserts, F10 applies"
 end
 
 function App:load_nvim_buffer(lines, filetype, insert, cursor_row)
@@ -1417,6 +1416,7 @@ function lovr.load()
   elseif os.getenv("LUANB_QA_NVIM_EDIT") then
     app:open_nvim()
     if app.nvim_view then
+      app.ui:textinput("i")
       app.ui:textinput("XYZ")
       for _ = 1, 20 do app:update(); os.execute("sleep 0.02") end
       app.ui:keypressed("f10")

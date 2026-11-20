@@ -32,6 +32,18 @@ local dead_lines, dead_error = dead:get_lines()
 assert(dead_lines == nil and dead_error ~= nil, "get_lines after EOF")
 dead:close()
 print("nvim dead peer ok")
+
+local modes = Session.new({ cols = 20, rows = 5 })
+for _ = 1, 20 do modes:update(); os.execute("sleep 0.02") end
+assert(modes.grid.mode == "normal", tostring(modes.grid.mode))
+modes:input("i")
+for _ = 1, 20 do modes:update(); os.execute("sleep 0.02") end
+assert(modes.grid.mode == "insert", tostring(modes.grid.mode))
+modes:input("<Esc>")
+for _ = 1, 20 do modes:update(); os.execute("sleep 0.02") end
+assert(modes.grid.mode == "normal", tostring(modes.grid.mode))
+modes:close()
+print("nvim modes ok")
 local popup = Session.new({ cols = 40, rows = 10 })
 popup:command("set completeopt=menu,menuone,noselect")
 popup:set_lines({ "print(1)", "pairs({})" }, 1)
