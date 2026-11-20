@@ -1,8 +1,7 @@
-# lua-notebooks 1.2.0
+# lua-notebooks 1.3.0
 
-- Neovim cell editor: mouse/wheel input, popup completions, markdown cells;
-- Alt+E opens Neovim, Alt+J/K saves and moves between cells;
-- F5 saves from Neovim and runs the cell;
-- optional Neovim editing for code/markdown cell clicks;
-- font fallback and clean Neovim shutdown;
-- merged Neovim bridge CI job.
+- Neovim editing is enabled by default when nvim is installed;
+- cursor-line restoration, markdown buffers, default-click editing;
+- live resize, popup-menu events, transparency-aware overlay;
+- optional user Neovim config via LUANB_NVIM_CLEAN=0;
+- no swap files; clean shutdown on app quit.
