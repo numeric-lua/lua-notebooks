@@ -18,8 +18,17 @@ end
 
 math.randomseed(os.time() + math.floor(os.clock() * 100000))
 
+function Session.available(exe)
+  local status = os.execute("command -v " .. shell_quote(exe or "nvim") ..
+    " >/dev/null 2>&1")
+  return status == 0 or status == true
+end
+
 function Session.new(options)
   options = options or {}
+  if options.exe == nil and not Session.available("nvim") then
+    error("nvim is not installed or not on PATH")
+  end
   local self = setmetatable({
     cols = options.cols or 80, rows = options.rows or 24,
     exe = options.exe or "nvim", cwd = options.cwd,

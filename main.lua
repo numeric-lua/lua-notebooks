@@ -1341,6 +1341,7 @@ end
 function lovr.quit()
   if app and app.supervisor.close then app.supervisor:close() end
   if app and app.lsp_in then app.lsp_in:push("__quit") end
+  if app and app.close_nvim then app:close_nvim(false) end
 end
 
 function lovr.filechanged(path, action)
