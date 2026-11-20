@@ -106,3 +106,8 @@ jobs:
           sudo ln -sf "$PWD/squashfs-root/AppRun" /usr/local/bin/lovr
       - name: Run pixel baselines
         run: xvfb-run -a ./scripts/visual-baseline.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: visual-debug
+          path: /tmp/luanb-visual-*.png
