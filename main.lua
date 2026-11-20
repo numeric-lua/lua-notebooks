@@ -571,49 +571,82 @@ function App:close_nvim(save, keep)
   local session = self.nvim_session
   local cursor_row, cursor_col = 0, 0
   if session.grid then
-    cursor_row = math.max(0, session.grid.cursor.row)
-    cursor_col = math.max(0, session.grid.cursor.col)
+    cursor_row = math.max(0, session.grid.cursor.row or 0)
+    cursor_col = math.max(0, session.grid.cursor.col or 0)
   end
   local lines
   if save then
-    local ok, value = pcall(function() return session:get_lines() end)
-    if ok then lines = value end
+    -- Flush typeahead before reading the buffer.
+    pcall(function()
+      session:input("<Esc>")
+      session:update()
+    end)
+    local ok, value, err = pcall(function() return session:get_lines() end)
+    if not ok then
+      self.status = "Neovim save failed: " .. tostring(value)
+      return
+    end
+    lines = value
+    if lines == nil or #lines == 0 then
+      self.status = "Neovim save failed: " .. tostring(err or "empty buffer")
+      return
+    end
+    local cursor_ok, cursor = pcall(function()
+      return session:request("nvim_win_get_cursor", { 0 })
+    end)
+    if cursor_ok and type(cursor) == "table" then
+      cursor_row = math.max(0, cursor[1] or cursor_row)
+      cursor_col = math.max(0, cursor[2] or cursor_col)
+    end
   end
-  if not keep then
-    pcall(function() session:close() end)
-    if self.nvim_path then os.remove(self.nvim_path); self.nvim_path = nil end
-    self.nvim_session, self.nvim_view = nil, nil
-  end
-  self.show_nvim = false
+
+  local applied = false
   if save and lines then
     if self.nvim_notebook then
       local sources = NvimBuffer.decode(lines)
-      self.nvim_cells = sources
-      for index, source in pairs(self.nvim_cells) do
-        local cell = self:notebook().cells[index]
+      local notebook = self:notebook()
+      local changed = false
+      for index, source in pairs(sources) do
+        local cell = notebook.cells[index]
+        if cell and cell.source ~= source then changed = true end
+      end
+      if changed then notebook:push_undo("Neovim notebook edit") end
+      for index, source in pairs(sources) do
+        local cell = notebook.cells[index]
         if cell then cell.source = source end
       end
-      self:notebook().dirty = true
-      self.status = "saved notebook from Neovim"
+      notebook.dirty = changed or notebook.dirty
+      applied = true
+      self.status = changed and "applied Neovim changes; F6 writes the file" or
+        "no Neovim changes; F6 writes the file"
     else
       local source = table.concat(lines, "\n")
       local cell = self:notebook():selected()
-      cell.source = source
+      if cell.source ~= source then
+        self:notebook():push_undo("Neovim edit")
+        cell.source = source
+        self:notebook().dirty = true
+      end
       local line_start = 1
       for _ = 1, cursor_row do
         local newline = source:find("\n", line_start, true)
         if newline == nil then break end
         line_start = newline + 1
       end
-      local line_end = source:find("\n", line_start, true) or (#source + 1)
       cell.cursor = math.max(1, math.min(line_start + cursor_col,
         #source + 1))
-      self:notebook().dirty = true
-      self.status = "saved from Neovim"
+      applied = true
+      self.status = "applied Neovim changes; F6 writes the file"
     end
-  else
-    self.status = "closed Neovim"
   end
+
+  if not keep then
+    pcall(function() session:close() end)
+    if self.nvim_path then os.remove(self.nvim_path); self.nvim_path = nil end
+    self.nvim_session, self.nvim_view = nil, nil
+  end
+  self.show_nvim = false
+  if save and not applied then self.status = "Neovim discarded" end
   self.nvim_notebook = false
   self.nvim_cells = {}
   self.nvim_cell_rows = {}
@@ -626,6 +659,14 @@ end
 function App:run_nvim_cell()
   if self.nvim_session == nil then return end
   local row = (self.nvim_session.grid.cursor.row or 0) + 1
+  pcall(function()
+    self.nvim_session:input("<Esc>")
+    self.nvim_session:update()
+    local cursor = self.nvim_session:request("nvim_win_get_cursor", { 0 })
+    if type(cursor) == "table" and cursor[1] then
+      row = cursor[1] + 1
+    end
+  end)
   local index = self:notebook().active
   for _, entry in ipairs(self.nvim_cell_rows or {}) do
     if entry.row <= row then index = entry.index end

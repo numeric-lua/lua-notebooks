@@ -166,15 +166,14 @@ function Msgpack.decode(data, position)
     local low = read_uint(data, position + 5, 4)
     return high * 4294967296 + low - (high >= 2147483648 and 18446744073709551616 or 0), position + 9
   elseif byte == 0xca then
-    local high = unpack_u32(data, position + 1)
-    local low = unpack_u32(data, position + 5)
-    -- Decode a 32-bit float via a double conversion helper.
-    local sign = high >= 2147483648 and -1 or 1
-    if sign < 0 then high = high - 2147483648 end
-    local exponent = math.floor(high / 8388608)
-    local fraction = (high % 8388608) * 4294967296 + low
-    if exponent == 0 then return sign * math.ldexp(fraction / 2 ^ 23, -126), position + 5 end
-    return sign * math.ldexp(fraction / 2 ^ 23 + 1, exponent - 127), position + 5
+    local bits = unpack_u32(data, position + 1)
+    local sign = bits >= 2147483648 and -1 or 1
+    local exponent = math.floor((bits % 2147483648) / 8388608)
+    local fraction = bits % 8388608
+    if exponent == 0 then
+      return sign * math.ldexp(fraction, -149), position + 5
+    end
+    return sign * math.ldexp(fraction + 8388608, exponent - 150), position + 5
   elseif byte == 0xcb then
     return unpack_double(data, position + 1), position + 9
   elseif byte == 0xdc then

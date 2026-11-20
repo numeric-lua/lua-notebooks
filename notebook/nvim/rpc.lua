@@ -60,7 +60,10 @@ function Rpc:request(method, params, callback)
   self.callbacks[seq] = callback
   local ok, err = self:send(Msgpack.array({ 0, seq, method,
     Msgpack.array(params or {}) }))
-  if not ok then return nil, err end
+  if not ok then
+    self.callbacks[seq] = nil
+    return nil, err
+  end
   return seq
 end
 
@@ -86,7 +89,12 @@ function Rpc:feed(timeout)
   local decoded = 0
   while true do
     local count = tonumber(ffi.C.recv(self.fd, buffer, 65536, 0))
-    if count == nil or count <= 0 then break end
+    if count == nil or count < 0 then
+      local errno = ffi.errno()
+      if errno == 4 or errno == 11 then break end
+      return decoded, "error"
+    end
+    if count == 0 then return decoded, "closed" end
     self.buffer = self.buffer .. ffi.string(buffer, count)
     while #self.buffer > 0 do
       local ok, message, position = pcall(Msgpack.decode, self.buffer, 1)
@@ -100,6 +108,7 @@ function Rpc:feed(timeout)
 end
 
 function Rpc:wait(seq, timeout)
+  if seq == nil then return nil, "no request" end
   local deadline = os.clock() + (timeout or 5)
   local response
   local original = self.callbacks[seq]
@@ -108,8 +117,10 @@ function Rpc:wait(seq, timeout)
     if original then original(err, result) end
   end
   while response == nil and os.clock() < deadline do
-    self:feed(50)
+    local _, status = self:feed(50)
+    if status then break end
   end
+  if response == nil then self.callbacks[seq] = original end
   return response and response.result, response and response.err
 end
 

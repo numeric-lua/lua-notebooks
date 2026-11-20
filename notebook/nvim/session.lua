@@ -75,7 +75,10 @@ function Session.new(options)
 end
 
 function Session:request(method, params, timeout)
-  return self.rpc:wait(self.rpc:request(method, params), timeout or 5)
+  if self.rpc == nil or self.exited then return nil, "closed" end
+  local seq, err = self.rpc:request(method, params)
+  if seq == nil then return nil, err end
+  return self.rpc:wait(seq, timeout or 5)
 end
 
 function Session:command(command)
@@ -104,8 +107,9 @@ function Session:set_lines(lines, cursor_row)
 end
 
 function Session:get_lines()
-  local lines = self:request("nvim_buf_get_lines", { 0, 0, -1, false })
-  return lines or {}
+  local lines, err = self:request("nvim_buf_get_lines", { 0, 0, -1, false })
+  if lines == nil then return nil, err or "nvim did not return a buffer" end
+  return lines
 end
 
 function Session:input(keys)
@@ -122,8 +126,11 @@ end
 
 function Session:update()
   if self.rpc == nil then return 0 end
-  local count, feed_error = self.rpc:feed(10)
-  if count == nil then self.exited = true; return 0 end
+  local count, status = self.rpc:feed(10)
+  if status == "closed" or status == "error" then
+    self.exited = true
+    return 0
+  end
   count = count or 0
   local notifications = self.rpc.notifications
   self.rpc.notifications = {}
@@ -139,7 +146,7 @@ function Session:close()
   if self.closed then return end
   self.closed = true
   if self.rpc then
-    pcall(function() self:command("qa!") end)
+    if not self.exited then pcall(function() self:command("qa!") end) end
     pcall(function() self.rpc:close() end)
     self.rpc = nil
   end

@@ -30,6 +30,7 @@ test:
 
 test-nvim:
 	$(LUA) tests/nvim_grid.lua
+	$(LUA) tests/nvim_msgpack.lua
 	$(LUA) tests/nvim_buffer.lua
 	$(LUA) tests/nvim_rpc.lua
 	$(LUA) tests/nvim_session.lua
