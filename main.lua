@@ -333,6 +333,7 @@ function App:on_result(kernel_id, request, message)
   else
     self.status = "finished " .. cell_label(target.cell)
   end
+  if self._run_all_position ~= nil then self:_run_next_all() end
 end
 
 function App:widget_event(cell_index, spec, event)
@@ -433,17 +434,26 @@ function App:move_cell(delta)
   self.status = "moved cell " .. (delta < 0 and "up" or "down")
 end
 
-function App:run_all()
+function App:_run_next_all()
+  if self._run_all_position == nil then return end
   local notebook = self:notebook()
-  local original = notebook.active
-  for index, cell in ipairs(notebook.cells) do
-    if cell.kind == "code" then
+  for index = self._run_all_position + 1, #notebook.cells do
+    if notebook.cells[index].kind == "code" then
+      self._run_all_position = index
       notebook:select(index)
+      self.scroll_to_selected = true
       self:run()
+      return
     end
   end
-  notebook:select(original)
+  self._run_all_position = nil
+  self.status = "all code cells finished"
+end
+
+function App:run_all()
+  self._run_all_position = 0
   self.status = "running all code cells"
+  self:_run_next_all()
 end
 
 function App:export_html()
@@ -480,6 +490,7 @@ function App:clear_outputs()
 end
 
 function App:restart_kernel()
+  self._run_all_position = nil
   local id = "nb" .. self.active
   if self.supervisor.restart then
     self.supervisor:restart(id)
