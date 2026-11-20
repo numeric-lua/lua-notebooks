@@ -1,7 +1,7 @@
-# lua-notebooks 1.32.0
+# lua-notebooks 1.33.0
 
-- entering a cell starts Neovim in normal mode;
-- i/a enter insert mode explicitly;
-- full block cursor in normal/visual mode, thin bar in insert mode;
-- mode-change regression test added;
-- inline per-cell editing retained.
+- Esc in normal mode exits the inline cell back to notebook navigation;
+- insert/visual Esc returns to normal first;
+- inline source uses the notebook cell background and font line height;
+- normal block vs insert bar cursors retained;
+- Esc behavior regression test added.
