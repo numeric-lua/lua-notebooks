@@ -49,11 +49,13 @@ function Session.new(options)
       command[#command + 1] = "--cmd"
       command[#command + 1] = shell_quote(cmd)
     end
+    command[#command + 1] = "--cmd"
+    command[#command + 1] = shell_quote("set nomodeline")
     command[#command + 1] = "--listen"
     command[#command + 1] = "127.0.0.1:" .. port
     if options.file then command[#command + 1] = shell_quote(options.file) end
     local handle = assert(io.popen(table.concat(command, " ") ..
-      " >/tmp/lua-notebooks-nvim.log 2>&1 & echo $!"))
+      " >/dev/null 2>&1 & echo $!"))
     pid = tonumber(handle:read("*l") or "")
     handle:close()
     for _ = 1, 40 do

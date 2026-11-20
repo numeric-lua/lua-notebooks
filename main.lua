@@ -542,6 +542,7 @@ function App:open_nvim()
   if handle == nil then self.status = "cannot create nvim buffer"; return end
   handle:write(cell.source or "")
   handle:close()
+  os.execute("chmod 600 '" .. path .. "'")
   local ok, session = pcall(require("notebook.nvim.session").new, {
     cols = 100, rows = 30, file = path,
     background = require("ui.theme").mode,
@@ -702,6 +703,7 @@ function App:open_nvim_notebook()
   local handle = assert(io.open(path, "wb"))
   handle:write(table.concat(lines, "\n"))
   handle:close()
+  os.execute("chmod 600 '" .. path .. "'")
   local ok, session = pcall(require("notebook.nvim.session").new, {
     cols = 100, rows = 30, file = path,
     background = require("ui.theme").mode,

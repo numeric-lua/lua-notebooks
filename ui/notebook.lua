@@ -2540,6 +2540,12 @@ function UI:handle_widget(rect, cell_index, x, y)
 end
 
 function UI:mousepressed(x, y, button)
+  if self.app.show_nvim then
+    if self.app.nvim_view then
+      self.app.nvim_view:mousepressed(x, y, button)
+    end
+    return
+  end
   if button ~= 1 then return end
   for index, rect in pairs(self.heading_rects) do
     if inside(x, y, rect) then
@@ -2753,6 +2759,7 @@ function UI:mousepressed(x, y, button)
 end
 
 function UI:mousemoved(x, y, dx, dy)
+  if self.app.show_nvim then return end
   if self.widget_drag then
     self:set_widget_value(self.widget_drag.rect, x)
     return
@@ -2770,6 +2777,7 @@ function UI:mousemoved(x, y, dx, dy)
 end
 
 function UI:mousereleased(x, y, button)
+  if self.app.show_nvim then return end
   if button == 1 then
     if self.widget_drag then
       local drag = self.widget_drag
