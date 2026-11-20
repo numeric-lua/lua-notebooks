@@ -18,4 +18,9 @@ local duplicate, order, duplicate_error = Buffer.decode({
 assert(duplicate_error == "duplicate cell marker 1", tostring(duplicate_error))
 local before, _, before_error = Buffer.decode({ "stray", "-- %% cell 1 code", "a" })
 assert(before_error, "text before marker")
+local swapped, swapped_order = Buffer.decode({
+  "-- %% cell 2 code", "b", "-- %% cell 1 code", "a",
+})
+assert(swapped_order[1] == 2 and swapped_order[2] == 1)
+assert(swapped[2] == "b" and swapped[1] == "a")
 print("nvim buffer ok")
