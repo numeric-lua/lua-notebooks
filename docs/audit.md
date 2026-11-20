@@ -27,10 +27,10 @@
 
 ## Next candidates
 
-- Persistent Neovim process reused across cells (avoid startup latency).
+- Warm Neovim process is reused across cells; startup is paid once.
 - Windows Neovim transport (named pipes or TCP FFI definitions).
 - Verified external popup-menu rendering and completion tests.
-- Cell-height cache and true virtualization.
+- Cell-height cache and true virtualization; source/output/diagnostic caches landed.
 - Markdown links/backlinks and global full-text search.
 - macOS/Windows OS sandbox backends.
 - Broader visual baselines with renderer pinning.
