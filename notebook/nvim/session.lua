@@ -144,8 +144,9 @@ function Session:set_lines(lines, cursor_row)
   return true
 end
 
-function Session:get_lines()
-  local lines, err = self:request("nvim_buf_get_lines", { 0, 0, -1, false })
+function Session:get_lines(timeout)
+  local lines, err = self:request("nvim_buf_get_lines", { 0, 0, -1, false },
+    timeout)
   if lines == nil then return nil, err or "nvim did not return a buffer" end
   return lines
 end

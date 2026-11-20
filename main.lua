@@ -63,6 +63,8 @@ function App:new(notebooks)
   self.nvim_inline_original = nil
   self._nvim_undo_started = false
   self._nvim_sync_at = 0
+  self._nvim_pending_hide = false
+  self._nvim_hidden_cell = nil
   local scale_ok, scale_value = pcall(lovr.filesystem.read, "ui_scale.txt")
   if scale_ok and tonumber(scale_value) then
     self.ui_scale = math.max(0.7, math.min(2, tonumber(scale_value)))
@@ -520,6 +522,45 @@ function App:open_title(title)
   return false
 end
 
+function App:leave_inline_nvim()
+  if not self.nvim_inline then return end
+  self._nvim_hidden_cell = self:notebook():selected()
+  self._nvim_pending_hide = self.nvim_session ~= nil
+  self.show_nvim = false
+  self.nvim_inline = false
+  self.nvim_inline_original = nil
+  self._nvim_undo_started = false
+  self._nvim_sync_at = 0
+  if self.ui then
+    self.ui.vim_scope = "notebook"
+    self.ui.vim_normal = true
+    self.ui.vim_pending = nil
+    self.ui.vim_text_object = nil
+    self.ui.vim_pending_mark = nil
+    self.ui.vim_pending_register = false
+    self.ui.vim_command = nil
+    self.ui.vim_search = nil
+  end
+  self.status = "left cell; edits applied live"
+end
+
+function App:sync_hidden_nvim()
+  if not self._nvim_pending_hide then return end
+  self._nvim_pending_hide = false
+  local cell = self._nvim_hidden_cell
+  self._nvim_hidden_cell = nil
+  if cell == nil or self.nvim_session == nil or self.nvim_session.exited then
+    return
+  end
+  local lines = self.nvim_session:get_lines(0.2)
+  if lines == nil then return end
+  local source = table.concat(lines, "\n")
+  if source ~= cell.source then
+    cell.source = source
+    self:notebook().dirty = true
+  end
+end
+
 function App:sync_inline_nvim()
   if not self.show_nvim or not self.nvim_inline or
      self.nvim_session == nil or self.nvim_session.exited then return end
@@ -566,6 +607,8 @@ function App:open_nvim()
   self.nvim_inline_original = cell.source
   self._nvim_undo_started = false
   self._nvim_sync_at = 0
+  self._nvim_pending_hide = false
+  self._nvim_hidden_cell = nil
   if self.ui then
     self.ui.vim_scope = "cell"
     self.ui.vim_normal = true
@@ -819,6 +862,8 @@ function App:close_nvim(save, keep)
   self.nvim_inline_original = nil
   self._nvim_undo_started = false
   self._nvim_sync_at = 0
+  self._nvim_pending_hide = false
+  self._nvim_hidden_cell = nil
   self.nvim_cells = {}
   self.nvim_cell_rows = {}
   if self.ui then
@@ -1000,6 +1045,7 @@ function App:update()
     self.ui:update()
   end
   self.supervisor:poll()
+  if not self.show_nvim then self:sync_hidden_nvim() end
   if self.screenshot_readback and self.screenshot_readback:isComplete() then
     local image = self.screenshot_readback:getImage()
     self.screenshot_readback = nil

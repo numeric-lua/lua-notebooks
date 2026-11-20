@@ -1745,7 +1745,11 @@ function UI:keypressed(key)
     if key == "escape" and self.app.nvim_session and
        self.app.nvim_session.grid.mode == "normal" and
        not self.app.nvim_session.grid.popupmenu then
-      self.app:hide_nvim(true)
+      if self.app.leave_inline_nvim then
+        self.app:leave_inline_nvim()
+      else
+        self.app:hide_nvim(true)
+      end
       return
     end
     if key == "f10" then self.app:hide_nvim(true); return end
@@ -2622,7 +2626,7 @@ function UI:mousepressed(x, y, button)
   if self.app.show_nvim then
     if self.app.nvim_inline and self.nvim_rect and
        not inside(x, y, self.nvim_rect) then
-      self.app:hide_nvim(true)
+      self.app:leave_inline_nvim()
       self.suppress_nvim_open = true
       return
     end
