@@ -19,6 +19,7 @@ Working:
 - msgpack-RPC request/notification handling;
 - UI attach, grid lines, highlights, cursor, default colors;
 - cell source loaded into a temp buffer;
+- per-cell Neovim grid rendered inline over the active cell;
 - insert-mode typing and `F10` write-back;
 - `F5` writes and runs the cell;
 - `F9` discard;
@@ -31,7 +32,7 @@ Working:
 - live grid resize;
 - warm Neovim process reused across cells;
 - private Unix socket with a 0700 directory and server handshake;
-- notebook-wide code buffer with `-- %% cell N` markers;
+- optional full-screen notebook-wide buffer with `-- %% cell N` markers;
 - `F5` runs the cell containing the cursor from that buffer;
 - pure tests for codec, grid, RPC, and session.
 
