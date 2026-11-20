@@ -1079,6 +1079,11 @@ function lovr.load()
       io.stdout:flush()
     end
   end
+  if os.getenv("LUANB_QA_FIND") then
+    app.ui:open_find()
+    app.ui.find_query = os.getenv("LUANB_QA_FIND")
+    app.ui:update_find()
+  end
   local qa_scroll = tonumber(os.getenv("LUANB_QA_SCROLL") or "")
   if qa_scroll then
     app.ui.scroll = qa_scroll

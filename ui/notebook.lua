@@ -158,6 +158,11 @@ function UI.new(app)
     show_outline = false,
     outline_rects = {},
     show_help = false,
+    show_find = false,
+    find_query = "",
+    find_results = {},
+    find_selected = 1,
+    find_rects = {},
     show_palette = false,
     palette_rects = {},
     palette_query = "",
@@ -676,6 +681,7 @@ function UI:draw(pass, logical_width, logical_height)
   self:draw_outline(pass, width, height)
   self:draw_history(pass, width, height)
   self:draw_extension_browser(pass, width, height)
+  self:draw_find(pass, width, height)
   self:draw_help(pass, width, height)
   self:draw_palette(pass, width, height)
   if self.vim_command ~= nil or self.vim_search ~= nil then
@@ -803,6 +809,63 @@ function UI:draw_palette(pass, width, height)
   end
 end
 
+function UI:open_find()
+  self.show_find = true
+  self.find_query = ""
+  self.find_selected = 1
+  self.find_results = {}
+end
+
+function UI:update_find()
+  self.find_results = {}
+  self.find_selected = 1
+  local query = self.find_query:lower()
+  if query == "" then return end
+  for cell_index, cell in ipairs(self.app:notebook().cells) do
+    local offset = 1
+    for line in ((cell.source or "") .. "\n"):gmatch("(.-)\n") do
+      local position = line:lower():find(query, 1, true)
+      if position then
+        self.find_results[#self.find_results + 1] = {
+          cell = cell_index, line = line,
+          cursor = offset + position - 1,
+        }
+        if #self.find_results >= 40 then return end
+      end
+      offset = offset + #line + 1
+    end
+  end
+end
+
+function UI:draw_find(pass, width, height)
+  self.find_rects = {}
+  if not self.show_find then return end
+  local panel_w = math.min(760, width - 60)
+  local rows = math.min(#self.find_results, 10)
+  local panel_h = 74 + rows * 24
+  local x, y = (width - panel_w) / 2, 80
+  box(pass, x, y, panel_w, panel_h, { 0.06, 0.07, 0.10, 0.98 })
+  text(pass, self.app.font, "Find in notebook  (Ctrl+F)", x + 14, y + 12,
+    { 0.9, 0.94, 1, 1 }, 0.78)
+  box(pass, x + 12, y + 36, panel_w - 24, 26, { 0.11, 0.13, 0.18, 1 })
+  text(pass, self.app.font, self.find_query .. "|", x + 20, y + 41,
+    { 0.9, 0.94, 1, 1 }, 0.75)
+  for index = 1, rows do
+    local result = self.find_results[index]
+    local row_y = y + 68 + (index - 1) * 24
+    if index == self.find_selected then
+      box(pass, x + 10, row_y - 2, panel_w - 20, 22, { 0.16, 0.24, 0.36, 1 })
+    end
+    local label = string.format("[%d] %s", result.cell, result.line)
+    text(pass, self.app.font, label:sub(1, 90), x + 18, row_y + 2,
+      index == self.find_selected and { 1, 1, 1, 1 } or
+      { 0.65, 0.72, 0.84, 1 }, 0.62)
+    self.find_rects[#self.find_rects + 1] = {
+      x = x + 10, y = row_y - 2, w = panel_w - 20, h = 22, index = index,
+    }
+  end
+end
+
 function UI:draw_help(pass, width, height)
   if not self.show_help then return end
   local columns = {
@@ -824,6 +887,7 @@ function UI:draw_help(pass, width, height)
         { "Alt+X / dd", "delete focused cell" },
         { "Ctrl+1 / 2", "code / markdown" },
         { "o / O", "insert below / above and edit" },
+        { "Ctrl+F", "find across notebook cells" },
         { "F2", "notebook filetree" },
         { "F1", "command palette" },
       } },
@@ -1184,6 +1248,11 @@ function UI:draw_scene(pass, x, y, w, h, cell)
 end
 
 function UI:textinput(value)
+  if self.show_find then
+    self.find_query = self.find_query .. value
+    self:update_find()
+    return
+  end
   if self.app.show_nvim then
     if self.app.nvim_view then self.app.nvim_view:textinput(value) end
     return
@@ -1546,6 +1615,25 @@ function UI:keypressed(key)
   local notebook = self.app:notebook()
   local ctrl_down = lovr.system and lovr.system.isKeyDown and
     (lovr.system.isKeyDown("lctrl") or lovr.system.isKeyDown("rctrl"))
+  if self.show_find then
+    if key == "escape" then self.show_find = false
+    elseif key == "backspace" then
+      self.find_query = self.find_query:sub(1, -2); self:update_find()
+    elseif key == "return" and self.find_results[self.find_selected] then
+      local result = self.find_results[self.find_selected]
+      notebook:select(result.cell)
+      notebook.cells[result.cell].cursor = result.cursor
+      self.scroll_to_selected = true
+      self.show_find = false
+    elseif key == "up" then
+      self.find_selected = math.max(1, self.find_selected - 1)
+    elseif key == "down" then
+      self.find_selected = math.min(#self.find_results,
+        self.find_selected + 1)
+    end
+    return
+  end
+  if ctrl_down and key == "f" then self:open_find(); return end
   if ctrl_down and (key == "=" or key == "+" or key == "-" or
      key == "0") then
     if key == "0" then self.app:set_ui_scale(1)
