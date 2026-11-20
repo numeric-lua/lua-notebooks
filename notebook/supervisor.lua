@@ -92,6 +92,20 @@ function Supervisor:threaderror(thread, message)
   end
 end
 
+function Supervisor:restart(id)
+  local kernel = self.kernels[id]
+  if kernel == nil then return self:open(id) end
+  if kernel.status == "running" then
+    kernel.in_channel:push("__quit")
+    if kernel.thread and kernel.thread.wait then kernel.thread:wait() end
+  end
+  self.kernels[id] = nil
+  for request, pending in pairs(self.pending) do
+    if pending.kernel == id then self.pending[request] = nil end
+  end
+  return self:open(id)
+end
+
 function Supervisor:close()
   for _, kernel in pairs(self.kernels) do
     if kernel.status == "running" then

@@ -697,6 +697,7 @@ end
 function UI:palette_commands()
   local commands = {
     { id = "run", label = "Run selected cell  (F5)" },
+    { id = "restart-kernel", label = "Restart current kernel" },
     { id = "save", label = "Save notebook  (F6)" },
     { id = "save-as", label = "Save notebook as…" },
     { id = "open-dialog", label = "Open notebook…" },
@@ -734,6 +735,7 @@ end
 function UI:run_palette_command(id)
   self.show_palette = false
   if id == "run" then self.app:run()
+  elseif id == "restart-kernel" then self.app:restart_kernel()
   elseif id == "save" then self.app:save()
   elseif id == "save-as" then self.app:save_as()
   elseif id == "open-dialog" then self.app:open_dialog()
@@ -1634,6 +1636,12 @@ function UI:keypressed(key)
     return
   end
   if ctrl_down and key == "f" then self:open_find(); return end
+  if ctrl_down and (key == "k") and lovr.system and
+     lovr.system.isKeyDown and (lovr.system.isKeyDown("lshift") or
+       lovr.system.isKeyDown("rshift")) then
+    self.app:restart_kernel()
+    return
+  end
   if ctrl_down and (key == "=" or key == "+" or key == "-" or
      key == "0") then
     if key == "0" then self.app:set_ui_scale(1)

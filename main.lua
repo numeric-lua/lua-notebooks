@@ -414,6 +414,18 @@ function App:toggle_nvim_default()
     (self.nvim_default and "enabled" or "disabled")
 end
 
+function App:restart_kernel()
+  local id = "nb" .. self.active
+  if self.supervisor.restart then
+    self.supervisor:restart(id)
+    local notebook = self:notebook()
+    for _, cell in ipairs(notebook.cells) do cell.running = false end
+    self.status = "kernel restarted"
+  else
+    self.status = "kernel restart is unavailable for this backend"
+  end
+end
+
 function App:open_nvim()
   if self.nvim_session then return end
   local cell = self:notebook():selected()
