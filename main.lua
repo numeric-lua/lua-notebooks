@@ -503,6 +503,19 @@ function App:restart_kernel()
   end
 end
 
+function App:open_title(title)
+  for index, notebook in ipairs(self.notebooks) do
+    if notebook:title() == title or notebook.name == title or
+       notebook.name == title .. ".luanb" then
+      self:set_tab(index)
+      self.status = "opened " .. title
+      return true
+    end
+  end
+  self.status = "no notebook named " .. tostring(title)
+  return false
+end
+
 function App:open_nvim()
   if self.nvim_session then return end
   local cell = self:notebook():selected()

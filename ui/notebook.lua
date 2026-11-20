@@ -163,6 +163,7 @@ function UI.new(app)
     find_results = {},
     find_selected = 1,
     find_rects = {},
+    link_rects = {},
     show_palette = false,
     palette_rects = {},
     palette_query = "",
@@ -283,6 +284,7 @@ function UI:draw(pass, logical_width, logical_height)
   local content_top = self.zen_mode and 12 or 52
   local y = content_top - self.scroll
   self.rects = {}
+  self.link_rects = {}
   local content_height = 0
 
   local visible = {}
@@ -506,8 +508,9 @@ function UI:draw(pass, logical_width, logical_height)
         elseif cell.kind == "markdown" then
           local x = 36
           local heading_preview = preview and raw_display:match("^%s*#")
-          local text_color = heading_preview and { 0.88, 0.92, 1, 1 } or
-            source_color
+          local wiki_target = raw_display:match("%[%[([^%]]+)%]%]")
+          local text_color = wiki_target and { 0.45, 0.72, 1, 1 } or
+            (heading_preview and { 0.88, 0.92, 1, 1 } or source_color)
           local text_scale = heading_preview and 0.98 or 0.86
           for _, segment in ipairs(Math.segments(display)) do
             local line_font = segment.math and (app.math_font or app.font) or
@@ -515,6 +518,12 @@ function UI:draw(pass, logical_width, logical_height)
             text(pass, line_font, segment.text, x, line_y, text_color,
               text_scale)
             x = x + line_font:getWidth(segment.text) * text_scale
+          end
+          if wiki_target then
+            self.link_rects[#self.link_rects + 1] = {
+              x = 36, y = line_y, w = width - 72, h = 20,
+              target = wiki_target,
+            }
           end
           line_y = line_y + 21
         else
