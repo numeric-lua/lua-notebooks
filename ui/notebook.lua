@@ -139,6 +139,7 @@ function UI.new(app)
     rects = {},
     source_rects = {},
     nvim_rect = nil,
+    suppress_nvim_open = false,
     tabs = {},
     buttons = {},
     extension_passes = {},
@@ -921,8 +922,6 @@ function UI:draw_nvim_inline(pass, width, height)
   self.nvim_rect = { x = x, y = y, w = w, h = h }
   box(pass, x - 2, y - 2, w + 4, h + 4, { 0.02, 0.03, 0.05, 0.98 })
   self.app.nvim_view:draw(pass, x, y, w, h, self.app.ui_scale or 1)
-  text(pass, self.app.font, "nvim  F10 apply  F5 run  F9 discard",
-    x + w - 6, y + h + 3, { 0.5, 0.58, 0.72, 1 }, 0.58, "right")
 end
 
 function UI:open_find()
@@ -2614,6 +2613,7 @@ function UI:mousepressed(x, y, button)
     if self.app.nvim_inline and self.nvim_rect and
        not inside(x, y, self.nvim_rect) then
       self.app:hide_nvim(true)
+      self.suppress_nvim_open = true
       return
     end
     if self.app.nvim_view then
@@ -2824,7 +2824,9 @@ function UI:mousepressed(x, y, button)
       self.focused_output_cell = nil
       self.focused_surface = nil
       self.focused_widget = nil
-      if self.app.nvim_default and target and
+      if self.suppress_nvim_open then
+        self.suppress_nvim_open = false
+      elseif self.app.nvim_default and target and
          (target.kind == "code" or target.kind == "markdown") then
         self.app:open_nvim()
       end
