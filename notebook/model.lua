@@ -731,7 +731,7 @@ widgets.select({ label = "mode", options = { "fast", "slow" }, value = "fast" })
 widgets.text({ label = "name", value = "notebook",
   on_change = function(value) print("name", value) end })
 widgets.shader({ label = "Star Nest", shader = "star_nest", height = 180 })]]),
-      cell("markdown", "# A 3D notebook\n\nA notebook is a list of cells. Code cells share one persistent kernel; markdown cells render prose and math.\n\n## Math\nInline: $E = mc^2$ and $\\alpha + \\beta = \\pi$.\n\n$$\\left(\\frac{a}{b}\\right)$$\n$$\\mathbf{F}=m\\mathbf{a}$$\n$$\\sqrt{x}$$\n$$\\begin{matrix}a & b \\\\ c & d\\end{matrix}$$\n\n## Keyboard\n- **F5** run the selected cell\n- **F6 / F7** save and load\n- **F10** extensions\n- **F1** shortcut help\n\n## Collapsible section\nClick the heading arrow to fold the following cells. Add your own plots by returning `{ scene = { ... } }` from a code cell."),
+      cell("markdown", "# A 3D notebook\n\nA notebook is a list of cells. Code cells share one persistent kernel; markdown cells render prose and math.\n\n## Math\nInline: $E = mc^2$ and $\\alpha + \\beta = \\pi$.\n\n$$\\left(\\frac{a}{b}\\right)$$\n$$\\mathbf{F}=m\\mathbf{a}$$\n$$\\sqrt{x}$$\n$$\\begin{matrix}a & b \\\\ c & d\\end{matrix}$$\n\n## Keyboard\n- **F5** run the selected cell\n- **F6 / F7** save and load\n- **F10** extensions\n- **F1** shortcut help\n\n## Links\nThis notebook links to [[Second kernel]].\n\n## Collapsible section\nClick the heading arrow to fold the following cells. Add your own plots by returning `{ scene = { ... } }` from a code cell."),
     },
   })
   local second = Notebook.new({
