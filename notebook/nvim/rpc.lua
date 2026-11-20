@@ -123,6 +123,11 @@ function Rpc:_dispatch(message)
   elseif message[1] == 2 then
     local method, params = message[2], message[3] or {}
     self.notifications[#self.notifications + 1] = { method, params }
+  elseif message[1] == 0 then
+    local id, method = message[2], message[3]
+    self:send(Msgpack.array({ 1, id,
+      { code = -32601, message = "unsupported client request: " ..
+        tostring(method) }, nil }))
   end
 end
 
@@ -138,9 +143,14 @@ function Rpc:feed(timeout)
     end
     if count == 0 then return decoded, "closed" end
     self.buffer = self.buffer .. ffi.string(buffer, count)
+    if #self.buffer > 8388608 then
+      self.buffer = ""
+      return decoded, "error"
+    end
     while #self.buffer > 0 do
       local ok, message, position = pcall(Msgpack.decode, self.buffer, 1)
-      if not ok or position == nil or position <= 1 then break end
+      if not ok or position == nil or position <= 1 or
+         position > #self.buffer + 1 then break end
       self.buffer = self.buffer:sub(position)
       self:_dispatch(message)
       decoded = decoded + 1
