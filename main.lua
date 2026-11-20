@@ -673,7 +673,20 @@ function App:close_nvim(save, keep)
         local cell = notebook.cells[index]
         if cell then cell.source = source end
       end
-      notebook.dirty = changed or notebook.dirty
+      local reordered_flag = false
+      if #order == #notebook.cells then
+        reordered_flag = true
+        local active_cell = notebook:selected()
+        local reordered = {}
+        for _, index in ipairs(order) do
+          reordered[#reordered + 1] = notebook.cells[index]
+        end
+        notebook.cells = reordered
+        for index, cell in ipairs(notebook.cells) do
+          if cell == active_cell then notebook.active = index end
+        end
+      end
+      notebook.dirty = changed or reordered_flag or notebook.dirty
       applied = true
       self.status = changed and "applied Neovim changes; F6 writes the file" or
         "no Neovim changes; F6 writes the file"
