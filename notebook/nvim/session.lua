@@ -38,14 +38,19 @@ function Session.new(options)
   local port, rpc, pid
   for attempt = 1, 12 do
     port = options.port or free_port()
-    local command = { shell_quote(self.exe), "--headless", "--clean",
-      "--cmd", shell_quote("syntax on"),
-      "--cmd", shell_quote("set termguicolors"),
-      "--cmd", shell_quote("set background=" ..
-        (options.background or "dark")),
-      "--cmd", shell_quote("colorscheme " ..
-        (options.background == "light" and "morning" or "habamax")),
-      "--listen", "127.0.0.1:" .. port }
+    local command = { shell_quote(self.exe), "--headless" }
+    if options.clean ~= false then command[#command + 1] = "--clean" end
+    for _, cmd in ipairs({
+      "syntax on", "set termguicolors",
+      "set background=" .. (options.background or "dark"),
+      "colorscheme " .. (options.background == "light" and "morning" or
+        "habamax"),
+    }) do
+      command[#command + 1] = "--cmd"
+      command[#command + 1] = shell_quote(cmd)
+    end
+    command[#command + 1] = "--listen"
+    command[#command + 1] = "127.0.0.1:" .. port
     if options.file then command[#command + 1] = shell_quote(options.file) end
     local handle = assert(io.popen(table.concat(command, " ") ..
       " >/tmp/lua-notebooks-nvim.log 2>&1 & echo $!"))
