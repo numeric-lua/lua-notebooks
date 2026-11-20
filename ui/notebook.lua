@@ -303,8 +303,16 @@ function UI:draw(pass, logical_width, logical_height)
       self.source_lines_cache[cell.source] = source_lines
       if #self.source_lines_cache > 1024 then self.source_lines_cache = {} end
     end
-    local math_layouts = {}
-    local source_height = 0
+    local layout_key = (cell.source or "") .. "|" .. tostring(width) .. "|" ..
+      cell.kind
+    local cached_layout = cell._source_layout
+    local math_layouts, source_height
+    if cached_layout and cached_layout.key == layout_key then
+      math_layouts = cached_layout.math_layouts
+      source_height = cached_layout.source_height
+    else
+      math_layouts = {}
+      source_height = 0
     for line_index, source_line in ipairs(source_lines) do
       local expression = cell.kind == "markdown" and
         source_line:match("^%$%$(.-)%$%$$")
@@ -336,6 +344,9 @@ function UI:draw(pass, logical_width, logical_height)
       end
     end
     source_height = math.max(21, source_height)
+      cell._source_layout = { key = layout_key,
+        math_layouts = math_layouts, source_height = source_height }
+    end
     local widget_height = Widgets.height(cell.widgets)
     local output_lines = cell.output ~= "" and split_lines(cell.output) or {}
     local output_height = 0
