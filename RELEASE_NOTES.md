@@ -1,6 +1,6 @@
-# lua-notebooks 1.29.0
+# lua-notebooks 1.30.0
 
-- Ctrl+P palette and Ctrl+S save shortcuts;
-- tested Format.tags helper for markdown tag navigation;
-- real popupmenu integration test and end-to-end marker ordering test;
-- refreshed Neovim docs and organization status.
+- new `-- %% cell N kind` blocks create cells when applying Neovim notebook edits;
+- cell kind comes from the marker and defaults to code;
+- marker deletion remains fail-closed; reordering is supported;
+- cell creation and kind tests added.
