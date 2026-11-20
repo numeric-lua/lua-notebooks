@@ -23,4 +23,13 @@ lines = session:get_lines()
 assert(#lines == 1 and lines[1] == "print(x)", "dd did not delete: " ..
   table.concat(lines, "|"))
 session:close()
+
+local dead = Session.new({ cols = 20, rows = 5 })
+pcall(function() dead:command("qall!") end)
+for _ = 1, 40 do dead:update(); os.execute("sleep 0.02") end
+assert(dead.exited, "EOF was not detected")
+local dead_lines, dead_error = dead:get_lines()
+assert(dead_lines == nil and dead_error ~= nil, "get_lines after EOF")
+dead:close()
+print("nvim dead peer ok")
 print("nvim session ok")
