@@ -485,3 +485,7 @@ Press **Ctrl+F** to search every cell. Use Up/Down and Enter or click a result t
 The command palette exposes **Restart current kernel**, **Clear all cell outputs**, **Run all code cells**,
 **Move selected cell up/down**, **Duplicate selected cell**, and **Export notebook
 as Markdown**. `Ctrl+Shift+K` restarts the current kernel.
+
+## Links
+
+Wiki links such as `[[Notebook Title]]` are previewed without brackets. The command palette lists other tabs as **Switch to** entries and marks tabs that link to the current notebook as **Backlink**. Press **F1** to open it.
