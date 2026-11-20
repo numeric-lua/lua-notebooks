@@ -34,8 +34,10 @@ function NvimView.new(session, font, options)
   return setmetatable({
     session = session,
     font = font,
-    cell_width = font:getWidth("M"),
-    cell_height = font:getHeight() * (options.line_height or 1.25),
+    size = options.size or 18,
+    cell_width = font:getWidth("M") * (options.size or 18),
+    cell_height = (options.size or 18) * (options.line_height or 1.2),
+    text_scale = (options.size or 18) * (options.text_scale or 0.86),
     scale = options.scale or 1,
   }, NvimView)
 end
@@ -85,8 +87,9 @@ function NvimView:draw(pass, x, y, width, height, scale)
         end
         if cell.text ~= " " then
           pass:setColor(fg[1], fg[2], fg[3], 1)
-          pass:text(cell.text, x + col * cw, row_y + (ch - self.font:getHeight() * scale) / 2,
-            0, scale, 0, 0, 1, 0, 0, "left", "top")
+          pass:text(cell.text, x + col * cw,
+            row_y + (ch - self.text_scale * scale) / 2,
+            0, self.text_scale * scale, 0, 0, 1, 0, 0, "left", "top")
         end
       end
     end

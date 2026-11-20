@@ -110,9 +110,13 @@ function Grid:apply(event)
   elseif name == "hl_attr_define" then
     self.highlights[event[2]] = event[3] or {}
   elseif name == "default_colors_set" then
-    local args = type(event[2]) == "table" and event[2] or event
-    self.default_foreground = args[2]
-    self.default_background = args[3]
+    if type(event[2]) == "table" then
+      self.default_foreground = event[2][1]
+      self.default_background = event[2][2]
+    else
+      self.default_foreground = event[2]
+      self.default_background = event[3]
+    end
   elseif name == "mode_info_set" then
     self.mode_info = event[3]
   elseif name == "mode_change" then

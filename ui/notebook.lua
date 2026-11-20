@@ -217,6 +217,14 @@ function UI:draw(pass, logical_width, logical_height)
   pass:setProjection(projection)
   pass:setDepthTest()
 
+  if app.show_nvim and app.nvim_view then
+    pass:setColor(1, 1, 1, 1)
+    pass:plane(width / 2, height / 2, 0, width, height)
+    app.nvim_view:draw(pass, 18, 18, width - 36, height - 36,
+      app.ui_scale or 1)
+    return {}
+  end
+
   local light = Theme.mode == "light"
   local alpha = Theme.opacity or 1
   local background = light and { 0, 0, 0, alpha } or
@@ -752,6 +760,7 @@ function UI:run_palette_command(id)
   elseif id == "extensions" then self.show_extensions = true
   elseif id == "outline" then self.show_outline = true
   elseif id == "help" then self.show_help = true
+  elseif id == "nvim" then self.app:open_nvim()
   elseif id == "transparency" then
     Theme.set_opacity(Theme.opacity >= 0.999 and 0.82 or 1)
     Theme.save()
@@ -1165,6 +1174,10 @@ function UI:draw_scene(pass, x, y, w, h, cell)
 end
 
 function UI:textinput(value)
+  if self.app.show_nvim then
+    if self.app.nvim_view then self.app.nvim_view:textinput(value) end
+    return
+  end
   if value == "\r" or value == "\n" then return end
   if lovr.system and lovr.system.isKeyDown and
      (lovr.system.isKeyDown("lalt") or lovr.system.isKeyDown("ralt")) then
@@ -1288,6 +1301,10 @@ function UI:draw_history(pass, width, height)
 end
 
 function UI:update(dt)
+  if self.app.show_nvim then
+    if self.app.nvim_view then self.app.nvim_view:update() end
+    return
+  end
   if self.nav_repeat == nil then return end
   local key = self.nav_repeat.key
   local down = lovr.system and lovr.system.isKeyDown and
@@ -1489,6 +1506,12 @@ function UI:play_macro()
 end
 
 function UI:keypressed(key)
+  if self.app.show_nvim then
+    if key == "f10" then self.app:close_nvim(true); return end
+    if key == "f9" then self.app:close_nvim(false); return end
+    if self.app.nvim_view then self.app.nvim_view:keypressed(key) end
+    return
+  end
   local notebook = self.app:notebook()
   local ctrl_down = lovr.system and lovr.system.isKeyDown and
     (lovr.system.isKeyDown("lctrl") or lovr.system.isKeyDown("rctrl"))
