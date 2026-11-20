@@ -42,7 +42,8 @@ Remaining limits:
 - OS sandboxing for user extensions is Linux/bubblewrap-specific;
 - semantic LSP analysis is local and partial;
 - TeX/MathJax-quality math is not implemented;
-- Neovim editing requires `nvim` on PATH and is Linux/macOS POSIX-tested;
+- Neovim editing requires `nvim` on PATH; Linux/macOS use a private Unix-socket
+  transport, Windows falls back to TCP;
 - visual baselines use a tolerance for software-renderer variance.
 
 ## Requirements
@@ -463,10 +464,10 @@ The notebook format, extension contract, gateway flags, and LSP capabilities are
 
 Use the command palette action **Toggle notebook transparency** to switch the light notebook between opaque white and a translucent WezTerm-like surface. LÖVR is configured with `t.window.transparent = true`; the opacity setting is stored in `opacity.txt` in the save directory.
 
-## Neovim editor (experimental)
+## Neovim editor
 
-The `spike/nvim-ui` branch embeds a headless Neovim instance and renders its
-`ext_linegrid` UI in LÖVR. Press **Alt+E** or use the command palette action **Neovim cell editor**.
+The app embeds a headless Neovim instance and renders its `ext_linegrid` UI in
+LÖVR. Press **Alt+E** or use the command palette action **Neovim cell editor**.
 
 - `F10` writes the buffer back to the current cell;
 - `F9` discards and closes;
@@ -495,3 +496,5 @@ The Neovim process is kept warm after F10/F9/F5, so reopening a cell or switchin
 ## Tags
 
 Markdown `#tags` are indexed across open notebooks in the command palette; selecting one opens notebook-wide search for that tag.
+
+Neovim completion uses external popupmenu events rendered over the grid. Held Backspace, Delete, arrow, Home/End, and PageUp/PageDown keys repeat. F10 applies changes to the notebook model; F6 writes the `.luanb` file.
