@@ -1,7 +1,7 @@
 SHELL := /bin/sh
 LUA ?= luajit
 
-.PHONY: test bench test-remote test-webapp test-lua51 run package install install-desktop rock clean
+.PHONY: test test-nvim bench test-remote test-webapp test-lua51 run package install install-desktop rock clean
 
 bench:
 	$(LUA) tests/bench_large.lua
@@ -27,6 +27,11 @@ test:
 	$(LUA) tests/lsp_client.lua
 	$(LUA) tests/lsp_edits.lua
 	$(LUA) tests/scope.lua
+
+test-nvim:
+	$(LUA) tests/nvim_grid.lua
+	$(LUA) tests/nvim_rpc.lua
+	$(LUA) tests/nvim_session.lua
 
 test-remote:
 	sh tests/remote_gateway.sh

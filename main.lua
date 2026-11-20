@@ -405,6 +405,62 @@ function App:set_cell_kind(kind)
   end
 end
 
+function App:open_nvim()
+  if self.nvim_session then return end
+  local cell = self:notebook():selected()
+  if cell.kind ~= "code" then
+    self.status = "Neovim editor is for code cells"
+    return
+  end
+  local path = os.tmpname() .. ".lua"
+  local handle = io.open(path, "wb")
+  if handle == nil then self.status = "cannot create nvim buffer"; return end
+  handle:write(cell.source or "")
+  handle:close()
+  local ok, session = pcall(require("notebook.nvim.session").new, {
+    cols = 100, rows = 30, file = path,
+    background = require("ui.theme").mode,
+  })
+  if not ok then
+    os.remove(path)
+    self.status = "nvim failed: " .. tostring(session)
+    return
+  end
+  for _ = 1, 150 do
+    session:update()
+    if session.grid:line(0):find("%S") then break end
+    os.execute("sleep 0.02")
+  end
+  session:input("i")
+  for _ = 1, 5 do session:update(); os.execute("sleep 0.01") end
+  self.nvim_session = session
+  self.nvim_view = require("ui.nvim").new(session, self.nvim_font or self.font)
+  self.nvim_path = path
+  self.show_nvim = true
+  self.status = "Neovim: F10 save, F9 discard"
+end
+
+function App:close_nvim(save)
+  if self.nvim_session == nil then return end
+  local source
+  if save then
+    local ok, lines = pcall(function() return self.nvim_session:get_lines() end)
+    if ok and lines then source = table.concat(lines, "\n") end
+  end
+  pcall(function() self.nvim_session:close() end)
+  if self.nvim_path then os.remove(self.nvim_path); self.nvim_path = nil end
+  self.nvim_session, self.nvim_view, self.show_nvim = nil, nil, false
+  if save and source then
+    local cell = self:notebook():selected()
+    cell.source = source
+    cell.cursor = #source + 1
+    self:notebook().dirty = true
+    self.status = "saved from Neovim"
+  else
+    self.status = "closed Neovim"
+  end
+end
+
 function App:save()
   local ok, path, absolute = pcall(Format.save, self:notebook())
   if not ok then
@@ -452,7 +508,11 @@ function App:load()
 end
 
 function App:update()
-  if self.ui then self.ui:update() end
+  if self.show_nvim then
+    if self.nvim_view then self.nvim_view:update() end
+  elseif self.ui then
+    self.ui:update()
+  end
   self.supervisor:poll()
   if self.screenshot_readback and self.screenshot_readback:isComplete() then
     local image = self.screenshot_readback:getImage()
@@ -550,6 +610,7 @@ end
 function lovr.load()
   local app = App:new(Notebook.demo())
   app.font = lovr.graphics.newFont(18)
+  app.nvim_font = lovr.graphics.newFont("assets/DejaVuSansMono.ttf", 18)
   app.font:setPixelDensity(1)
   app.title_font = lovr.graphics.newFont(22)
   app.math_font = lovr.graphics.newFont("assets/DejaVuSans.ttf", 18)
@@ -886,6 +947,19 @@ function lovr.load()
   if qa_cell then
     app:notebook():select(qa_cell)
     app:run()
+  end
+  if os.getenv("LUANB_QA_NVIM") then
+    app:open_nvim()
+  end
+  if os.getenv("LUANB_QA_NVIM_EDIT") then
+    app:open_nvim()
+    if app.nvim_view then
+      app.ui:textinput("XYZ")
+      for _ = 1, 20 do app:update(); os.execute("sleep 0.02") end
+      app.ui:keypressed("f10")
+      print("NVIM_EDIT [" .. app:notebook():selected().source .. "]")
+      io.stdout:flush()
+    end
   end
   local qa_scroll = tonumber(os.getenv("LUANB_QA_SCROLL") or "")
   if qa_scroll then
@@ -1267,6 +1341,7 @@ end
 function lovr.quit()
   if app and app.supervisor.close then app.supervisor:close() end
   if app and app.lsp_in then app.lsp_in:push("__quit") end
+  if app and app.close_nvim then app:close_nvim(false) end
 end
 
 function lovr.filechanged(path, action)
