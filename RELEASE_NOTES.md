@@ -1,6 +1,6 @@
-# lua-notebooks 1.17.0
+# lua-notebooks 1.18.0
 
-- search includes cell outputs;
-- wiki-link preview test;
-- exports include scene markers;
-- clickable wiki links and backlink palette entries.
+- warm Neovim process reused across cell edits;
+- instant reopen and Alt+J/K cell switching;
+- F10/F5/F9 write-back paths preserved;
+- reliable cleanup on app quit.
