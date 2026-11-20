@@ -1,4 +1,6 @@
-# lua-notebooks 1.14.0
+# lua-notebooks 1.15.0
 
-- cache per-cell source layout across frames;
-- keep notebook-wide search, exports, kernel commands, and Neovim editing.
+- sequential run-all queue;
+- notebook switch and backlink palette entries;
+- wiki-link preview without brackets;
+- cached source layout and search retained.
