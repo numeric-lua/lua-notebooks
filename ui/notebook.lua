@@ -389,6 +389,7 @@ function UI:draw(pass, logical_width, logical_height)
       end
 
       local source_y = y + 6
+      cell._source_y = source_y
       local source_color = cell.kind == "markdown" and
         { 0.75, 0.78, 0.9, 1 } or { 0.86, 0.88, 0.94, 1 }
       local char_a, char_b
@@ -2403,6 +2404,20 @@ function UI:mousepressed(x, y, button)
   for index, rect in pairs(self.output_rects) do
     if inside(x, y, rect) then
       local was_active = self.app:notebook().active == index
+      local target = self.app:notebook().cells[index]
+      if target and target._source_y then
+        local line = math.floor((y - target._source_y) / 21) + 1
+        local lines = 1
+        for _ in (target.source or ""):gmatch("\n") do lines = lines + 1 end
+        line = math.max(1, math.min(line, lines))
+        local start = 1
+        for _ = 1, line - 1 do
+          local newline = target.source:find("\n", start, true)
+          if newline == nil then break end
+          start = newline + 1
+        end
+        target.cursor = start
+      end
       self.app:notebook():select(index)
       if self.app.vim_mode then
         self.vim_scope = "cell"
@@ -2429,6 +2444,20 @@ function UI:mousepressed(x, y, button)
   for index, rect in pairs(self.rects) do
     if inside(x, y, rect) then
       local was_active = self.app:notebook().active == index
+      local target = self.app:notebook().cells[index]
+      if target and target._source_y then
+        local line = math.floor((y - target._source_y) / 21) + 1
+        local lines = 1
+        for _ in (target.source or ""):gmatch("\n") do lines = lines + 1 end
+        line = math.max(1, math.min(line, lines))
+        local start = 1
+        for _ = 1, line - 1 do
+          local newline = target.source:find("\n", start, true)
+          if newline == nil then break end
+          start = newline + 1
+        end
+        target.cursor = start
+      end
       self.app:notebook():select(index)
       if self.app.vim_mode then
         self.vim_normal = not was_active
