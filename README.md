@@ -442,3 +442,7 @@ upstream licensing; example code is CC0 per the LÖVR docs README. See
 ## Visual CI
 
 CI runs an offscreen LÖVR render smoke for QA cells and fails on blank captures. Pixel-level baseline comparison remains a manual/local check because GPU and font rendering differ across runners.
+
+## Visual CI
+
+CI renders QA cells offscreen with LÖVR 0.19.0 and compares them to committed pixel baselines. A 25,000-pixel tolerance absorbs software-renderer/font variance; structural regressions still fail.
