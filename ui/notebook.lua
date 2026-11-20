@@ -48,6 +48,13 @@ local function text(pass, font, value, x, y, color, scale, align)
     align or "left", "top")
 end
 
+local function text_raw(pass, font, value, x, y, color, scale, align)
+  pass:setFont(font)
+  pass:setColor(color[1], color[2], color[3], color[4] or 1)
+  pass:text(value, x, y, 0, scale or 1, 0, 0, 1, 0, 0,
+    align or "left", "top")
+end
+
 local function stroke(pass, x1, y1, x2, y2, thickness, color)
   local dx, dy = x2 - x1, y2 - y1
   local length = math.sqrt(dx * dx + dy * dy)
@@ -72,11 +79,22 @@ local TOKEN_COLORS = {
   space = { 0.86, 0.88, 0.94, 1 },
 }
 
+local LIGHT_TOKEN_COLORS = {
+  keyword = { 0.42, 0.18, 0.72, 1 },
+  string = { 0.02, 0.42, 0.22, 1 },
+  number = { 0.68, 0.32, 0.02, 1 },
+  comment = { 0.40, 0.44, 0.50, 1 },
+  identifier = { 0.10, 0.12, 0.16, 1 },
+  operator = { 0.16, 0.32, 0.62, 1 },
+  space = { 0.10, 0.12, 0.16, 1 },
+}
+
 local function draw_code_line(pass, font, line, x, y, scale)
   local cursor = x
+  local palette = Theme.mode == "light" and LIGHT_TOKEN_COLORS or TOKEN_COLORS
   for _, token in ipairs(Highlight.line(line)) do
-    local color = TOKEN_COLORS[token.kind] or TOKEN_COLORS.identifier
-    text(pass, font, token.text, cursor, y, color, scale)
+    local color = palette[token.kind] or palette.identifier
+    text_raw(pass, font, token.text, cursor, y, color, scale)
     cursor = cursor + font:getWidth(token.text) * scale
   end
 end
