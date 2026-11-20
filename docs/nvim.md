@@ -20,6 +20,8 @@ Working:
 - UI attach, grid lines, highlights, cursor, default colors;
 - cell source loaded into a temp buffer;
 - per-cell Neovim grid rendered inline over the active cell;
+- cells open in Neovim normal mode; `i`/`a` enter insert;
+- block cursor in normal/visual mode, bar cursor in insert;
 - insert-mode typing and `F10` write-back;
 - `F5` writes and runs the cell;
 - `F9` discard;

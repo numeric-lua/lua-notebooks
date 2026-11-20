@@ -1,5 +1,7 @@
-# lua-notebooks 1.31.1
+# lua-notebooks 1.32.0
 
-- draw the inline Neovim cursor above grid text;
-- switch from an invisible underline to a high-contrast insert bar;
-- retain inline per-cell editing and visible notebook context.
+- entering a cell starts Neovim in normal mode;
+- i/a enter insert mode explicitly;
+- full block cursor in normal/visual mode, thin bar in insert mode;
+- mode-change regression test added;
+- inline per-cell editing retained.
