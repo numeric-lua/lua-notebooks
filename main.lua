@@ -273,7 +273,7 @@ function App:open_path(path)
   self.notebooks[#self.notebooks + 1] = notebook
   self.active = #self.notebooks
   self.supervisor:open("nb" .. self.active)
-  self.status = "opened " .. name
+  self.status = "opened " .. notebook.name
 end
 
 function App:open_all_kernels()
@@ -988,12 +988,19 @@ function App:open_nvim_notebook()
 end
 
 function App:save()
-  local ok, path, absolute = pcall(Format.save, self:notebook())
+  local notebook = self:notebook()
+  local ok, path, absolute
+  if notebook._path and not notebook._path:match("^notebooks/") then
+    ok, path = pcall(Format.save_path, notebook, notebook._path)
+    absolute = path
+  else
+    ok, path, absolute = pcall(Format.save, notebook)
+  end
   if not ok then
     self.status = "save failed: " .. tostring(path)
     return
   end
-  self.status = "saved " .. tostring(absolute)
+  self.status = "saved " .. tostring(absolute or path)
 end
 
 function App:save_as()
@@ -1143,6 +1150,15 @@ end
 
 function lovr.load()
   local app = App:new(Notebook.demo())
+  local target_paths = {}
+  if arg then
+    for _, value in ipairs(arg) do
+      if type(value) == "string" and not value:match("^%-") and
+          value:match("%.luanb$") then
+        target_paths[#target_paths + 1] = value
+      end
+    end
+  end
   app.font = lovr.graphics.newFont(18)
   local nvim_font_ok, nvim_font = pcall(lovr.graphics.newFont,
     "assets/DejaVuSansMono.ttf", 18)
@@ -1196,6 +1212,9 @@ function lovr.load()
   if #errors + #user_errors > 0 then
     app.status = app.status .. "; " ..
       (#errors + #user_errors) .. " extension error(s)"
+  end
+  for _, target_path in ipairs(target_paths) do
+    app:open_path(target_path)
   end
   if Runtime.has_native_filesystem() then lovr.filesystem.watch() end
   _G.app = app

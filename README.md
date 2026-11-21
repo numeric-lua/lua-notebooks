@@ -118,6 +118,23 @@ cd ~/Códigos/numeric-lua/lua-notebooks
 lovr .
 ```
 
+Open a notebook at startup by passing its `.luanb` path:
+
+```sh
+lovr . /path/to/notebook.luanb
+# or from the installed command:
+lua-notebooks /path/to/notebook.luanb
+```
+
+Pass more than one path to open several notebooks as tabs:
+
+```sh
+lua-notebooks santa-2026.luanb enveda-casmi26.luanb
+```
+
+External notebooks are read with `io.open`; F6 saves them back to the same
+path.
+
 Controls:
 
 | input | action |

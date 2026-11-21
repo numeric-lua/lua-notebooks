@@ -239,9 +239,15 @@ function Format.delete(name)
 end
 
 function Format.load_path(path)
-  local text = lovr.filesystem.read(path)
-  if text == nil then return nil, "not found: " .. path end
-  local notebook = Format.decode(text)
+  local text = lovr and lovr.filesystem and lovr.filesystem.read(path)
+  if text == nil then
+    local handle, err = io.open(path, "rb")
+    if handle == nil then return nil, "not found: " .. path .. ": " .. tostring(err) end
+    text = handle:read("*a")
+    handle:close()
+  end
+  local ok, notebook = pcall(Format.decode, text)
+  if not ok then return nil, tostring(notebook) end
   notebook._path = path
   return notebook
 end
