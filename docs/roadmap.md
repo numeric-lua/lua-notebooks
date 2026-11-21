@@ -46,5 +46,5 @@
 make test
 ./scripts/input-smoke.sh   # needs a seat and /dev/uinput
 ./scripts/visual-smoke.sh  # needs a display
-luarocks make lua-notebooks-1.43.0-1.rockspec --tree=/tmp/luanb-rocks
+luarocks make lua-notebooks-1.44.0-1.rockspec --tree=/tmp/luanb-rocks
 ```
