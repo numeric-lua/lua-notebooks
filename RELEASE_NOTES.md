@@ -1,6 +1,6 @@
-# lua-notebooks 1.37.0
+# lua-notebooks 1.38.0
 
-- restore open notebook paths across sessions via session.json;
-- command-line paths take precedence over the restored session;
-- clear-session command palette action;
-- autosave recovery and explicit-path notebooks retained.
+- Ctrl+H notebook-wide literal replace;
+- find/replace panel with keyboard field switching;
+- replacement is one undoable edit;
+- 1.37 session restore and autosave retained.
