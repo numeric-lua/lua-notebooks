@@ -752,4 +752,29 @@ print("counter =", counter)]]),
   return { first, second }
 end
 
+function Notebook:replace_all(find, replacement)
+  if type(find) ~= "string" or find == "" then return 0, false end
+  replacement = replacement or ""
+  local escaped = find:gsub("([^%w])", "%%%1")
+  local total = 0
+  local changed = false
+  for _, cell in ipairs(self.cells) do
+    if type(cell.source) == "string" then
+      local count
+      cell.source, count = cell.source:gsub(escaped, function()
+        return replacement
+      end)
+      if count > 0 then
+        changed = true
+        total = total + count
+      end
+    end
+  end
+  if changed then
+    self:push_undo("replace in notebook")
+    self.dirty = true
+  end
+  return total, changed
+end
+
 return Notebook

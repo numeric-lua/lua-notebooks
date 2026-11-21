@@ -166,6 +166,11 @@ function UI.new(app)
     outline_rects = {},
     show_help = false,
     show_find = false,
+    show_replace = false,
+    replace_find = "",
+    replace_with = "",
+    replace_phase = "find",
+    replace_count = nil,
     find_query = "",
     find_results = {},
     find_selected = 1,
@@ -728,6 +733,7 @@ function UI:draw(pass, logical_width, logical_height)
   self:draw_outline(pass, width, height)
   self:draw_history(pass, width, height)
   self:draw_extension_browser(pass, width, height)
+  self:draw_replace(pass, width, height)
   self:draw_find(pass, width, height)
   self:draw_help(pass, width, height)
   self:draw_palette(pass, width, height)
@@ -751,6 +757,7 @@ function UI:palette_commands()
     { id = "export-md", label = "Export notebook as Markdown" },
     { id = "export-html", label = "Export notebook as HTML" },
     { id = "recover-autosave", label = "Recover autosaved notebook" },
+    { id = "replace", label = "Replace in notebook  (Ctrl+H)" },
     { id = "clear-session", label = "Clear restored session" },
     { id = "move-up", label = "Move selected cell up" },
     { id = "move-down", label = "Move selected cell down" },
@@ -829,6 +836,7 @@ function UI:run_palette_command(id)
   elseif id == "export-md" then self.app:export_markdown()
   elseif id == "export-html" then self.app:export_html()
   elseif id == "recover-autosave" then self.app:recover_autosave()
+  elseif id == "replace" then self:open_replace()
   elseif id == "clear-session" then self.app:clear_session()
   elseif id == "move-up" then self.app:move_cell(-1)
   elseif id == "move-down" then self.app:move_cell(1)
@@ -933,6 +941,34 @@ function UI:draw_nvim_inline(pass, width, height)
   -- semantics, buffer contents, and the cursor position.
 end
 
+function UI:open_replace()
+  self.show_replace = true
+  self.replace_find = ""
+  self.replace_with = ""
+  self.replace_phase = "find"
+end
+
+function UI:draw_replace(pass, width, height)
+  if not self.show_replace then return end
+  local panel_w = math.min(680, width - 60)
+  local x, y = (width - panel_w) / 2, 96
+  box(pass, x, y, panel_w, 118, { 0.06, 0.07, 0.10, 0.98 })
+  text(pass, self.app.font, "Replace in notebook  (Tab switches field)",
+    x + 14, y + 10, { 0.9, 0.94, 1, 1 }, 0.78)
+  local find_color = self.replace_phase == "find" and
+    { 0.25, 0.35, 0.5, 1 } or { 0.11, 0.13, 0.18, 1 }
+  local replace_color = self.replace_phase == "replace" and
+    { 0.25, 0.35, 0.5, 1 } or { 0.11, 0.13, 0.18, 1 }
+  box(pass, x + 12, y + 34, panel_w - 24, 26, find_color)
+  text(pass, self.app.font, "find: " .. self.replace_find .. "|",
+    x + 20, y + 39, { 0.9, 0.94, 1, 1 }, 0.74)
+  box(pass, x + 12, y + 70, panel_w - 24, 26, replace_color)
+  text(pass, self.app.font, "replace: " .. self.replace_with .. "|",
+    x + 20, y + 75, { 0.9, 0.94, 1, 1 }, 0.74)
+  text(pass, self.app.font, "Enter next field / apply  ·  Esc cancel  ·  Ctrl+H",
+    x + 14, y + 102, { 0.5, 0.58, 0.72, 1 }, 0.6)
+end
+
 function UI:open_find()
   self.show_find = true
   self.find_query = ""
@@ -1024,6 +1060,7 @@ function UI:draw_help(pass, width, height)
         { "Ctrl+1 / 2", "code / markdown" },
         { "o / O", "insert below / above and edit" },
         { "Ctrl+F", "find across notebook cells" },
+        { "Ctrl+H", "replace in notebook" },
         { "Ctrl+P", "command palette" },
         { "Ctrl+S", "save notebook" },
         { "Ctrl+Tab", "next / previous notebook" },
@@ -1387,6 +1424,14 @@ function UI:draw_scene(pass, x, y, w, h, cell)
 end
 
 function UI:textinput(value)
+  if self.show_replace then
+    if self.replace_phase == "find" then
+      self.replace_find = self.replace_find .. value
+    else
+      self.replace_with = self.replace_with .. value
+    end
+    return
+  end
   local now = lovr.timer and lovr.timer.getTime and lovr.timer.getTime() or 0
   if self.suppress_textinput_until > now then
     self.suppress_textinput_until = 0
@@ -1784,6 +1829,30 @@ function UI:keypressed(key)
   local notebook = self.app:notebook()
   local ctrl_down = lovr.system and lovr.system.isKeyDown and
     (lovr.system.isKeyDown("lctrl") or lovr.system.isKeyDown("rctrl"))
+  if self.show_replace then
+    if key == "escape" then
+      self.show_replace = false
+    elseif key == "backspace" then
+      if self.replace_phase == "find" then
+        self.replace_find = self.replace_find:sub(1, -2)
+      else
+        self.replace_with = self.replace_with:sub(1, -2)
+      end
+    elseif key == "tab" then
+      self.replace_phase = self.replace_phase == "find" and "replace" or "find"
+    elseif key == "return" then
+      if self.replace_phase == "find" then
+        self.replace_phase = "replace"
+      else
+        local count = self.app:notebook():replace_all(self.replace_find,
+          self.replace_with)
+        self.app.status = count > 0 and ("replaced " .. count .. " occurrence(s)") or
+          "no matches"
+        self.show_replace = false
+      end
+    end
+    return
+  end
   if self.show_find then
     if key == "escape" then self.show_find = false
     elseif key == "backspace" then
@@ -1803,6 +1872,7 @@ function UI:keypressed(key)
     return
   end
   if ctrl_down and key == "f" then self:open_find(); return end
+  if ctrl_down and key == "h" then self:open_replace(); return end
   if ctrl_down and key == "p" then
     self.show_palette = true
     self.palette_query = ""

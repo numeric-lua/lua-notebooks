@@ -512,6 +512,20 @@ test("session files round-trip paths and active tab", function()
   eq(bad, nil)
 end)
 
+current = "replace"
+test("replace_all replaces literal text across cells", function()
+  local notebook = Notebook.new({ cells = {
+    { kind = "code", source = "foo = 1\nprint(foo)" },
+    { kind = "markdown", source = "foo bar" },
+  } })
+  local count, changed = notebook:replace_all("foo", "baz")
+  eq(count, 3); eq(changed, true)
+  assert(notebook.cells[1].source:find("baz", 1, true))
+  assert(notebook.cells[2].source:find("baz", 1, true))
+  eq(select(1, notebook:replace_all("missing", "x")), 0)
+  eq(select(1, notebook:replace_all("", "x")), 0)
+end)
+
 io.write(string.format("\n\n%d tests, %d passed, %d failed\n", passed + failed,
   passed, failed))
 if failed > 0 then
