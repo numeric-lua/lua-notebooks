@@ -777,7 +777,7 @@ function Format.scene_svg(scene, width, height)
       for _, series in ipairs(collected) do
         if series.points ~= nil then
           if series.kind == "line" then
-            local step = math.max(1, math.floor(#series.points / 800))
+            local step = math.max(1, math.ceil(#series.points / 800))
             local points = {}
             for index = 1, #series.points, step do
               local point = series.points[index]
@@ -788,7 +788,7 @@ function Format.scene_svg(scene, width, height)
               '<polyline class="scene-series" points="%s" stroke="%s"/>',
               table.concat(points, " "), series.color)
           else
-            local step = math.max(1, math.floor(#series.points / 400))
+            local step = math.max(1, math.ceil(#series.points / 400))
             for index = 1, #series.points, step do
               local point = series.points[index]
               out[#out + 1] = string.format(
