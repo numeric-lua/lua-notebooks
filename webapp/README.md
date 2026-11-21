@@ -41,7 +41,13 @@ or with the settings button in the top bar.
 - kernel widgets: sliders, buttons, checkboxes, selects, text, numbers,
   progress, labels;
 - `star_nest` shader widgets in an animated local WebGL canvas;
-- `luaplotlib` line, scatter, and bar scenes;
+- `luaplotlib` Cartesian line, scatter, bar, and histogram scenes with axes,
+  grid, titles/labels, categorical ticks, explicit bar widths, and the same
+  800/400-point line/scatter sampling caps as the static export;
+- polar `luaplotlib` line, scatter, and bar scenes on the shared circular
+  frame: r rings, theta spokes, `theta_zero`/`theta_direction`, an explicit or
+  observed `rmax`, clamped radii, short tick labels, and wide or
+  negative-radius bar wedges;
 - `cube` and `grid` scene strings as local canvas drawings;
 - run all, kernel restart, auto-reconnect.
 
@@ -71,7 +77,33 @@ The front-end speaks the same `open` / `run` / `widget` / `restart` protocol as
 `RemoteSupervisor`, so the desktop LÖVR host and the browser share one kernel
 contract.
 
+## Scene parity
+
+`webapp/js/polar.js` mirrors the dependency-free `notebook/polar.lua` geometry
+used by the desktop viewport and the HTML export: rmax fallback, y-down
+projection, tick filtering and fallbacks, label limits, sample caps,
+point-radius clamps, and bar sectors. The fixture at
+`webapp/tests/fixtures/polar-parity.json` is read by both `tests/polar.lua` and
+`webapp/tests/polar.test.mjs`, so a geometry drift on either side fails a
+suite.
+
+Cartesian scenes also use the export's palette, explicit bar widths, bar and
+histogram extents in the data bounds, and its 800/400 sampling caps. Rendering
+stays Canvas 2D; the browser never needs a GPU or a LÖVR build.
+
 ## Tested
+
+The Node suite and the headless browser check run without npm packages:
+
+```sh
+make test-webapp   # scene geometry, draw calls, notebook import/export
+make qa-webapp     # Chromium pixel check for the whole scene matrix
+```
+
+`scripts/scene-qa.sh` serves this directory with `webapp/serve.lua`, renders
+the fixture matrix in headless Chromium, and checks each canvas for a non-blank
+frame and series-colour pixels. It uses `getImageData`, so the check sees the
+real Canvas output instead of only the source calls.
 
 Validated in Chromium against a local gateway:
 
@@ -79,7 +111,7 @@ Validated in Chromium against a local gateway:
 - `print(...); return 6*7` produced the captured output and `42`;
 - widgets created and a button click returned `pong`;
 - a `star_nest` shader widget rendered and animated in WebGL;
-- two scene canvases rendered (chart and cube);
+- polar, Cartesian, histogram, categorical, cube, and grid canvases rendered;
 - no page exceptions.
 
 
