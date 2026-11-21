@@ -1,0 +1,62 @@
+{
+  "comment": "Cross-renderer polar fixture. Both tests/polar.lua and webapp/tests/polar.test.mjs compute this scene with their own renderer libraries and compare against expected.",
+  "layout": {
+    "width": 600,
+    "height": 230,
+    "cx": 300,
+    "cy": 117,
+    "radius": 73
+  },
+  "scene": {
+    "type": "luaplotlib",
+    "orientation": "polar",
+    "title": "parity",
+    "polar": {
+      "theta_zero": 0,
+      "theta_direction": "counterclockwise",
+      "rmax": 2,
+      "theta_ticks": [
+        { "value": 0, "label": "0" },
+        { "value": 1.5707963267948966, "label": "90" }
+      ],
+      "r_ticks": [
+        { "value": 0.5, "label": "0.5" },
+        { "value": 1, "label": "1" },
+        { "value": 1.5, "label": "1.5" },
+        { "value": 2, "label": "2" }
+      ],
+      "series": [
+        {
+          "kind": "line",
+          "theta": [0, 1.5707963267948966],
+          "r": [1, 2],
+          "style": { "color": "#1f77b4" }
+        },
+        {
+          "kind": "bar",
+          "theta": [0.7853981633974483],
+          "r": [1.5],
+          "widths": [0.45],
+          "colors": ["#2ca02c"]
+        }
+      ]
+    }
+  },
+  "expected": {
+    "rmax": 2,
+    "observed": 2,
+    "direction": 1,
+    "series_kinds": ["line", "bar"],
+    "radius_labels": ["0.5", "1", "1.5", "2"],
+    "theta_labels": ["0", "90"],
+    "projection": [
+      { "theta": 0, "r": 1, "x": 336.5, "y": 117, "angle": 0 },
+      { "theta": 1.5707963267948966, "r": 2, "x": 300, "y": 44, "angle": 1.5707963267948966 }
+    ],
+    "bar_sector": {
+      "radius": 54.75,
+      "start_angle": 0.5603981633974483,
+      "end_angle": 1.0103981633974483
+    }
+  }
+}

@@ -10,6 +10,7 @@ local Polar = require("notebook.polar")
 local Format = require("notebook.format")
 local Theme = require("ui.theme")
 local Plot = require("ui.plot")
+local json = require("notebook.json")
 
 local passed, failed = 0, 0
 local failures = {}
@@ -438,6 +439,58 @@ test("cartesian scenes keep the original draw path", function()
   local seen = {}
   for _, value in ipairs(values) do seen[value] = true end
   assert(seen["sin"])
+end)
+
+-- webapp/tests/polar.test.mjs reads this same fixture and asserts the same
+-- numbers with the browser module.  A drift on either side breaks one suite.
+test("matches the cross-renderer browser fixture", function()
+  local path = root .. "/webapp/tests/fixtures/polar-parity.json"
+  local handle = assert(io.open(path, "rb"))
+  local text = handle:read("*a")
+  handle:close()
+  local fixture = assert(json.decode(text))
+  local expected = fixture.expected
+  local resolved = Polar.resolve(fixture.scene)
+
+  eq(resolved.rmax, expected.rmax)
+  eq(resolved.observed, expected.observed)
+  eq(resolved.direction, expected.direction)
+  for index, kind in ipairs(expected.series_kinds) do
+    eq(resolved.series[index].kind, kind)
+  end
+
+  local layout = fixture.layout
+  local cx, cy, radius = Plot.polar_layout(0, 0, layout.width, layout.height)
+  near(cx, layout.cx)
+  near(cy, layout.cy)
+  near(radius, layout.radius)
+  near(Polar.frame_radius(layout.width - 104, layout.height - 64),
+    layout.radius)
+
+  for _, projection in ipairs(expected.projection) do
+    local x, y, angle = Polar.project(cx, cy, radius, resolved.rmax,
+      resolved.theta_zero, resolved.direction, projection.theta,
+      projection.r)
+    near(x, projection.x)
+    near(y, projection.y)
+    near(angle, projection.angle)
+  end
+
+  local rings = Polar.rings(resolved.polar, resolved.rmax)
+  for index, tick in ipairs(rings) do
+    eq(Polar.radius_label(tick), expected.radius_labels[index])
+  end
+  local spokes = Polar.spokes(resolved.polar)
+  for index, tick in ipairs(spokes) do
+    eq(Polar.theta_label(tick), expected.theta_labels[index])
+  end
+
+  local sectors = Polar.bar_sectors(resolved.series[2].bars[1], radius,
+    resolved.rmax, resolved.theta_zero, resolved.direction)
+  eq(#sectors, 1)
+  near(sectors[1].radius, expected.bar_sector.radius)
+  near(sectors[1].start_angle, expected.bar_sector.start_angle)
+  near(sectors[1].end_angle, expected.bar_sector.end_angle)
 end)
 
 print(string.format("\npolar tests: %d passed, %d failed", passed, failed))

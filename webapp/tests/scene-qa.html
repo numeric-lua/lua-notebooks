@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>lua-notebooks scene QA</title>
+  <style>
+    body { margin: 0; background: #0b0d13; color: #e8ebf4;
+      font: 13px/1.5 ui-sans-serif, system-ui, sans-serif; }
+    #stage { display: grid; gap: 8px; padding: 8px; }
+    canvas { display: block; width: 600px; height: 260px; }
+    #result { margin: 8px; white-space: pre-wrap; color: #62d7a2; }
+  </style>
+</head>
+<body>
+  <pre id="result">SCENE_QA_RUNNING</pre>
+  <div id="stage"></div>
+  <script type="module">
+    import { paintScene } from "../js/scene.js";
+    import { sceneMatrix } from "./fixtures.js";
+
+    const WIDTH = 600;
+    const HEIGHT = 260;
+    const BACKGROUND = [12, 16, 25]; // #0c1019
+    const lines = [];
+    let ok = true;
+
+    function countPixels(data, color) {
+      let nonBackground = 0;
+      let series = 0;
+      for (let offset = 0; offset < data.length; offset += 4) {
+        const red = data[offset], green = data[offset + 1], blue = data[offset + 2];
+        if (red !== BACKGROUND[0] || green !== BACKGROUND[1] || blue !== BACKGROUND[2]) {
+          nonBackground += 1;
+        }
+        if (color && Math.abs(red - color[0]) <= 1
+          && Math.abs(green - color[1]) <= 1
+          && Math.abs(blue - color[2]) <= 1) {
+          series += 1;
+        }
+      }
+      return { nonBackground, series };
+    }
+
+    const stage = document.getElementById("stage");
+    for (const entry of sceneMatrix) {
+      const canvas = document.createElement("canvas");
+      canvas.width = WIDTH;
+      canvas.height = HEIGHT;
+      canvas.style.width = `${WIDTH}px`;
+      canvas.style.height = `${HEIGHT}px`;
+      stage.appendChild(canvas);
+      try {
+        paintScene(canvas, entry.scene());
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const counts = countPixels(image.data, entry.seriesColor);
+        const pass = counts.nonBackground >= 200
+          && counts.series >= entry.minSeriesPixels;
+        if (!pass) ok = false;
+        lines.push(`case=${entry.name} ${pass ? "ok" : "FAIL"}`
+          + ` non_bg=${counts.nonBackground}`
+          + ` series=${counts.series}`
+          + ` min_series=${entry.minSeriesPixels}`);
+      } catch (error) {
+        ok = false;
+        lines.push(`case=${entry.name} FAIL error=${String(error)}`);
+      }
+    }
+    lines.push(ok ? "SCENE_QA_OK" : "SCENE_QA_FAIL");
+    document.getElementById("result").textContent = lines.join("\n");
+    document.body.dataset.sceneQa = ok ? "ok" : "fail";
+  </script>
+</body>
+</html>
