@@ -79,4 +79,14 @@ assert(added_ok and #notebook.cells == 4 and notebook.cells[4].source == "four",
   "new marker creates a cell")
 assert(Buffer.plan(notebook.cells, { "no marker here" }) == nil,
   "text before the first marker is still rejected")
+
+-- The confirmation prompt previews the cells it would remove.
+local previews = Buffer.missing_previews(notebook.cells, { 1, 3 }, 20)
+assert(#previews == 2, "one preview per missing cell")
+assert(previews[1].index == 1 and previews[1].preview == "one",
+  previews[1].preview)
+assert(previews[2].index == 3 and previews[2].preview == "three")
+local empty = Notebook.new({ cells = { { kind = "code", source = "  \n\t" } } })
+assert(Buffer.preview(empty.cells[1], 20) == "(empty cell)")
+assert(Buffer.preview({ kind = "code", source = "abcdef" }, 4) == "abc…")
 print("nvim marker deletion ok")

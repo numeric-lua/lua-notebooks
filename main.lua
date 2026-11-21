@@ -432,10 +432,13 @@ function App:on_result(kernel_id, request, message)
   else
     notebook:set_result(target.cell, message)
   end
+  local elapsed = type(message.elapsed) == "number" and
+    Format.duration(message.elapsed) or nil
+  local timing = elapsed ~= nil and (" (" .. elapsed .. ")") or ""
   if message.ok == false then
-    self.status = "error in " .. cell_label(target.cell)
+    self.status = "error in " .. cell_label(target.cell) .. timing
   else
-    self.status = "finished " .. cell_label(target.cell)
+    self.status = "finished " .. cell_label(target.cell) .. timing
   end
   if self._run_all_position ~= nil then self:_run_next_all() end
 end
@@ -551,7 +554,13 @@ function App:_run_next_all()
     end
   end
   self._run_all_position = nil
-  self.status = "all code cells finished"
+  local total, timed = Format.total_elapsed(notebook.cells)
+  if total ~= nil and timed > 0 then
+    self.status = string.format("all code cells finished in %s (%d timed)",
+      Format.duration(total), timed)
+  else
+    self.status = "all code cells finished"
+  end
 end
 
 function App:run_all()
@@ -854,9 +863,11 @@ function App:close_nvim(save, keep, options)
         self.nvim_delete_prompt = {
           missing = plan.missing,
           old_count = plan.old_count,
+          previews = NvimBuffer.missing_previews(notebook.cells,
+            plan.missing, 58),
         }
         self.status = string.format(
-          "Neovim markers omit %d cell(s); Enter deletes, Esc cancels",
+          "Neovim markers omit %d cell(s); Enter/y deletes, Esc/n cancels",
           #plan.missing)
         return false
       end

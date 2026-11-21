@@ -661,6 +661,17 @@ test("formats timing without changing the cell baseline", function()
   eq(Format.duration(nil), nil)
 end)
 
+test("sums recorded timings for the run-all status", function()
+  local total, count = Format.total_elapsed({
+    { elapsed = 0.1 }, { elapsed = 0.2 }, {}, { elapsed = -1 },
+  })
+  assert(math.abs(total - 0.3) < 1e-9, total)
+  eq(count, 3)
+  local none, zero = Format.total_elapsed({ {}, { elapsed = "1" } })
+  eq(none, nil)
+  eq(zero, 0)
+end)
+
 current = "autosave"
 test("autosave paths are safe and deterministic", function()
   local notebook = Notebook.new({ name = "my notebook.luanb", cells = {} })

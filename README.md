@@ -496,8 +496,10 @@ LÖVR. Press **Alt+E** or use the command palette action **Neovim cell editor**.
 - the editor starts in insert mode;
 - `Escape` enters Vim normal mode for full Vim keybindings;
 - in the notebook-wide buffer, a save that omits a `-- %% cell N` marker
-  pauses and asks before deleting that cell. `Enter`/`y` deletes the omitted
-  cell(s) as one undoable change; `Esc`/`n` cancels and keeps the buffer.
+  pauses and asks before deleting that cell. The confirmation lists each
+  omitted cell with a preview of its first non-empty line. `Enter`/`y` deletes
+  the omitted cell(s) as one undoable change; `Esc`/`n` cancels and keeps the
+  buffer.
 
 Requirements: `nvim` on `PATH`. The bridge uses msgpack-RPC over a local TCP
 socket, not `luv` or `lua-mp`.
@@ -509,8 +511,9 @@ Press **Ctrl+F** to search every cell. Use Up/Down and Enter or click a result t
 ## Kernel commands
 
 The command palette exposes **Restart current kernel**, **Clear all cell outputs**, **Run all code cells**,
-**Move selected cell up/down**, **Duplicate selected cell**, and **Export notebook
-as Markdown**. `Ctrl+Shift+K` restarts the current kernel.
+**Move selected cell up/down**, **Duplicate selected cell**, **Export notebook
+as Markdown**, and **Export notebook as HTML**. `Ctrl+Shift+K` restarts the
+current kernel.
 
 ## Links
 
@@ -520,11 +523,13 @@ The Neovim process is kept warm after F10/F9/F5, so reopening a cell or switchin
 
 ## Tags
 
-Markdown `#tags` are indexed across open notebooks in the command palette; selecting one opens notebook-wide search for that tag. Press **Ctrl+T** for a tag-index overlay that shows every tag with its total use count and the notebooks that contain it. Click a tag to switch to the current notebook (or the first notebook that has it) and run notebook-wide search for `#tag`; `Esc` closes the overlay.
+Markdown `#tags` are indexed across open notebooks in the command palette; selecting one opens notebook-wide search for that tag. Press **Ctrl+T** for a tag-index overlay that shows every tag with its total use count and a clickable chip for each notebook that contains it, including that notebook's per-tag count (up to three chips, then `+N more`). Click a chip to jump straight to that notebook and search for `#tag`, or click the tag row to use the current notebook when it has the tag and the first matching notebook otherwise; `Esc` closes the overlay.
+
+Tag scanning only reads Markdown prose. Tags inside fenced code blocks, inline code spans, URL fragments, and hex colors such as `#fff`, `#cafe`, or `#1a2b3c` are ignored; tags in headings, lists, and parentheses are counted.
 
 ## Execution timing
 
-Every code-cell run records its kernel execution time. The timing stays hidden by default, so the cell layout and committed visual baselines do not change; press **Ctrl+Shift+E** or choose **Toggle execution timing** in the command palette to show a compact duration next to the cell index. Timings are live session data and are not persisted in `.luanb` files.
+Every code-cell run records its kernel execution time. The timing stays hidden by default, so the cell layout and committed visual baselines do not change; press **Ctrl+Shift+E** or choose **Toggle execution timing** in the command palette to show a compact duration next to the cell index. Timings are live session data and are not persisted in `.luanb` files. The status bar always reports the duration of the run that just finished, and **Run all code cells** ends with the summed timed duration (for example, `all code cells finished in 1.24 s (6 timed)`).
 
 Neovim completion uses external popupmenu events rendered over the grid. Held Backspace, Delete, arrow, Home/End, and PageUp/PageDown keys repeat. F10 applies changes to the notebook model; F6 writes the `.luanb` file.
 
@@ -542,7 +547,9 @@ Successfully opened paths are kept in `recent.json` (latest ten). They appear as
 
 ## HTML export
 
-Exports are self-contained HTML with a title, cell sections, styled outputs, and a closing backlinks list computed from `[[wiki links]]` across the open notebooks.
+Exports are self-contained HTML with no external assets. The document has viewport and description metadata, a dark-mode-aware stylesheet, a print stylesheet, a sticky table of contents with unique heading anchors, a figures section, per-cell permalinks, styled outputs and errors, and a closing backlinks list computed from `[[wiki links]]` across the open notebooks.
+
+Code-cell scene outputs become `<figure>` placeholders with a deterministic inline SVG preview (line, scatter, bar, histogram, `cube`, and `grid` are recognized), a caption with series/point counts, and a collapsible JSON scene dump. Interactive widgets are listed but not exported. The static preview is a sketch of the scene, not a raster of the live renderer.
 
 ## Link graph
 

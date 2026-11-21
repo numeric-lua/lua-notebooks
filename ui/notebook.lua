@@ -75,6 +75,12 @@ local function box_raw(pass, x, y, w, h, color)
   pass:plane(x + w / 2, y + h / 2, 0, w, h)
 end
 
+local function shorten(value, limit)
+  value = tostring(value)
+  if #value <= limit then return value end
+  return value:sub(1, limit - 1) .. "…"
+end
+
 local TOKEN_COLORS = {
   keyword = { 0.78, 0.62, 1, 1 },
   string = { 0.55, 0.85, 0.62, 1 },
@@ -1022,33 +1028,53 @@ end
 function UI:draw_nvim_delete_prompt(pass, width, height)
   local prompt = self.app.nvim_delete_prompt
   if prompt == nil then return end
-  local panel_w = math.min(660, width - 60)
-  local panel_h = 154
-  local x = (width - panel_w) / 2
-  local y = math.max(60, (height - panel_h) / 2)
-  local missing = {}
-  for index = 1, math.min(#prompt.missing, 8) do
-    missing[#missing + 1] = tostring(prompt.missing[index])
+  local previews = prompt.previews
+  if previews == nil then
+    previews = {}
+    for _, index in ipairs(prompt.missing or {}) do
+      previews[#previews + 1] = { index = index, preview = "" }
+    end
   end
-  local label = table.concat(missing, ", ")
-  if #prompt.missing > #missing then label = label .. ", …" end
+  local shown = math.min(#previews, 4)
+  local more = #previews > shown
+  local list_rows = math.max(shown, 1) + (more and 1 or 0)
+  local panel_w = math.min(660, width - 60)
+  local panel_h = 78 + list_rows * 22 + 62
+  local x = (width - panel_w) / 2
+  local y = math.max(40, (height - panel_h) / 2)
   box(pass, x + 5, y + 5, panel_w, panel_h, { 0, 0, 0, 0.4 })
   box(pass, x, y, panel_w, panel_h, { 0.05, 0.06, 0.09, 0.99 })
   box(pass, x, y, panel_w, 3, { 1, 0.72, 0.3, 1 })
   text(pass, self.app.font, "Delete cells omitted from the Neovim buffer?",
-    x + 20, y + 18, { 0.98, 0.94, 0.86, 1 }, 0.82)
+    x + 20, y + 16, { 0.98, 0.94, 0.86, 1 }, 0.82)
+  text(pass, self.app.font, string.format(
+    "No marker was found for %d cell(s). The save is paused; confirming",
+    #previews), x + 20, y + 44, { 0.86, 0.89, 0.96, 1 }, 0.68)
+  local list_y = y + 70
+  for index = 1, shown do
+    local item = previews[index]
+    local preview = item.preview or ""
+    if preview == "" then preview = "(empty cell)" end
+    text(pass, self.app.font, "#" .. tostring(item.index) .. "  " .. preview,
+      x + 24, list_y + (index - 1) * 22,
+      index % 2 == 0 and { 0.72, 0.8, 0.94, 1 } or
+      { 0.82, 0.88, 1, 1 }, 0.62)
+  end
+  if more then
+    text(pass, self.app.font,
+      "… and " .. tostring(#previews - shown) .. " more cell(s)",
+      x + 24, list_y + shown * 22, { 0.55, 0.62, 0.76, 1 }, 0.6)
+  end
+  local explain_y = list_y + list_rows * 22 + 8
   text(pass, self.app.font,
-    "No marker was found for cell(s) " .. label .. ".",
-    x + 20, y + 48, { 0.86, 0.89, 0.96, 1 }, 0.7)
+    "deletes them and keeps the other marker edits as one undoable change.",
+    x + 20, explain_y, { 0.65, 0.7, 0.8, 1 }, 0.62)
   text(pass, self.app.font,
-    "The save is paused. Confirming deletes those cells and keeps the",
-    x + 20, y + 72, { 0.65, 0.7, 0.8, 1 }, 0.64)
-  text(pass, self.app.font,
-    "other marker edits as one undoable change.",
-    x + 20, y + 92, { 0.65, 0.7, 0.8, 1 }, 0.64)
+    "The buffer stays open until you confirm.",
+    x + 20, explain_y + 18, { 0.65, 0.7, 0.8, 1 }, 0.62)
   text(pass, self.app.font,
     "Enter / y  delete cells     ·     Esc / n  keep buffer",
-    x + 20, y + 120, { 0.55, 0.8, 1, 1 }, 0.68)
+    x + 20, y + panel_h - 28, { 0.55, 0.8, 1, 1 }, 0.68)
 end
 
 function UI:open_tags()
@@ -1061,7 +1087,7 @@ function UI:toggle_timing()
     "execution timing off"
 end
 
-function UI:open_tag(tag)
+function UI:open_tag(tag, notebook_index)
   local entries = Format.tag_index(self.app.notebooks)
   local entry
   for _, candidate in ipairs(entries) do
@@ -1069,9 +1095,17 @@ function UI:open_tag(tag)
   end
   if entry == nil then return end
   self.show_tags = false
-  local target = entry.notebooks[1]
-  for _, candidate in ipairs(entry.notebooks) do
-    if candidate.index == self.app.active then target = candidate; break end
+  local target
+  if notebook_index ~= nil then
+    for _, candidate in ipairs(entry.notebooks) do
+      if candidate.index == notebook_index then target = candidate; break end
+    end
+  end
+  if target == nil then
+    target = entry.notebooks[1]
+    for _, candidate in ipairs(entry.notebooks) do
+      if candidate.index == self.app.active then target = candidate; break end
+    end
   end
   if target.index ~= self.app.active then self.app:set_tab(target.index) end
   self:open_find()
@@ -1085,13 +1119,14 @@ function UI:draw_tags(pass, width, height)
   self.tag_rects = {}
   if not self.show_tags then return end
   local entries = Format.tag_index(self.app.notebooks)
-  local visible = math.min(#entries, 20)
-  local row_h = 24
-  local panel_w = math.min(660, width - 80)
+  local row_h = 38
+  local max_rows = math.max(1, math.floor((height - 130) / row_h))
+  local visible = math.min(#entries, math.min(20, max_rows))
+  local panel_w = math.min(700, width - 80)
   local rows = math.max(visible, 1)
-  local panel_h = 68 + rows * row_h + 30
+  local panel_h = 74 + rows * row_h + 34
   local x = (width - panel_w) / 2
-  local y = math.max(60, (height - panel_h) / 2)
+  local y = math.max(28, (height - panel_h) / 2)
   box(pass, x + 5, y + 5, panel_w, panel_h, { 0, 0, 0, 0.35 })
   box(pass, x, y, panel_w, panel_h, { 0.055, 0.065, 0.095, 0.99 })
   box(pass, x, y, panel_w, 2, { 0.45, 0.78, 1, 1 })
@@ -1104,7 +1139,7 @@ function UI:draw_tags(pass, width, height)
   end
   for index = 1, visible do
     local entry = entries[index]
-    local row_y = y + 46 + (index - 1) * row_h
+    local row_y = y + 48 + (index - 1) * row_h
     box(pass, x + 10, row_y, panel_w - 20, row_h - 2,
       index % 2 == 0 and { 0.075, 0.09, 0.13, 1 } or
       { 0.095, 0.11, 0.16, 1 })
@@ -1114,6 +1149,27 @@ function UI:draw_tags(pass, width, height)
       #entry.notebooks)
     text(pass, self.app.font, meta, x + panel_w - 18, row_y + 4,
       { 0.52, 0.62, 0.76, 1 }, 0.62, "right")
+    local chip_x, shown = x + 20, 0
+    for _, notebook in ipairs(entry.notebooks) do
+      if shown >= 3 then break end
+      local label = shorten(notebook.title, 22) .. " · " .. notebook.count
+      local chip_w = self.app.font:getWidth(label) * 0.56 + 12
+      if chip_x + chip_w > x + panel_w - 20 then break end
+      box(pass, chip_x, row_y + 20, chip_w, 15, { 0.13, 0.17, 0.24, 1 })
+      text(pass, self.app.font, label, chip_x + 6, row_y + 21,
+        { 0.62, 0.76, 0.95, 1 }, 0.56)
+      self.tag_rects[#self.tag_rects + 1] = {
+        x = chip_x, y = row_y + 19, w = chip_w, h = 17,
+        tag = entry.tag, notebook = notebook.index,
+      }
+      chip_x = chip_x + chip_w + 6
+      shown = shown + 1
+    end
+    if shown < #entry.notebooks then
+      text(pass, self.app.font,
+        "+" .. tostring(#entry.notebooks - shown) .. " more",
+        chip_x, row_y + 21, { 0.5, 0.6, 0.74, 1 }, 0.56)
+    end
     self.tag_rects[#self.tag_rects + 1] = {
       x = x + 10, y = row_y, w = panel_w - 20, h = row_h - 2,
       tag = entry.tag,
@@ -1122,11 +1178,11 @@ function UI:draw_tags(pass, width, height)
   if #entries > visible then
     text(pass, self.app.font,
       string.format("showing %d of %d tags; search narrows in a notebook",
-        visible, #entries), x + 18, y + 46 + visible * row_h,
+        visible, #entries), x + 18, y + 48 + visible * row_h,
       { 0.55, 0.62, 0.74, 1 }, 0.6)
   end
   text(pass, self.app.font,
-    "Click a tag to search  ·  Ctrl+T toggles  ·  Esc closes",
+    "Click a tag or notebook chip to search  ·  Ctrl+T toggles  ·  Esc closes",
     x + 18, y + panel_h - 22, { 0.5, 0.58, 0.72, 1 }, 0.62)
 end
 
@@ -3003,7 +3059,7 @@ function UI:mousepressed(x, y, button)
   if self.show_tags then
     for _, rect in ipairs(self.tag_rects) do
       if inside(x, y, rect) then
-        self:open_tag(rect.tag)
+        self:open_tag(rect.tag, rect.notebook)
         return
       end
     end

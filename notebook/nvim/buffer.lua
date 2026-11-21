@@ -62,6 +62,34 @@ function Buffer.decode(lines)
   return sources, order, error_message, kinds
 end
 
+-- Human-readable first line for a cell, used by the deletion confirmation so a
+-- destructive marker edit names the content it would remove.
+function Buffer.preview(cell, limit)
+  limit = limit or 64
+  local source = type(cell) == "table" and (cell.source or "") or ""
+  for line in (source .. "\n"):gmatch("(.-)\n") do
+    local trimmed = line:gsub("^%s+", ""):gsub("%s+$", "")
+    if trimmed ~= "" then
+      if #trimmed > limit then
+        return trimmed:sub(1, limit - 1) .. "…"
+      end
+      return trimmed
+    end
+  end
+  return "(empty cell)"
+end
+
+function Buffer.missing_previews(cells, missing, limit)
+  local result = {}
+  for _, index in ipairs(missing or {}) do
+    result[#result + 1] = {
+      index = index,
+      preview = Buffer.preview(cells and cells[index], limit),
+    }
+  end
+  return result
+end
+
 -- Validate a notebook-wide buffer against the live cell list.  The plan keeps
 -- the marker-deletion decision separate from applying it: callers must ask the
 -- user before passing delete_missing to Buffer.apply.

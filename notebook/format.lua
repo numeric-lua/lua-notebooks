@@ -177,6 +177,21 @@ function Format.duration(seconds)
   return string.format("%.1f min", seconds / 60)
 end
 
+-- Sum the recorded per-cell timings, ignoring cells that have never run.  Used
+-- by the status bar after Run All so the optional timing stays useful without
+-- widening the cell layout.
+function Format.total_elapsed(cells)
+  local total, count = 0, 0
+  for _, cell in ipairs(cells or {}) do
+    if type(cell.elapsed) == "number" then
+      total = total + math.max(0, cell.elapsed)
+      count = count + 1
+    end
+  end
+  if count == 0 then return nil, 0 end
+  return total, count
+end
+
 function Format.to_markdown(notebook)
   local lines = { "# " .. notebook:title(), "" }
   for _, cell in ipairs(notebook.cells) do
