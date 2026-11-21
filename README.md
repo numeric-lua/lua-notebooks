@@ -515,3 +515,7 @@ The Neovim process is kept warm after F10/F9/F5, so reopening a cell or switchin
 Markdown `#tags` are indexed across open notebooks in the command palette; selecting one opens notebook-wide search for that tag.
 
 Neovim completion uses external popupmenu events rendered over the grid. Held Backspace, Delete, arrow, Home/End, and PageUp/PageDown keys repeat. F10 applies changes to the notebook model; F6 writes the `.luanb` file.
+
+## Autosave and recovery
+
+While a notebook is dirty, the app writes a crash-recovery copy every 20 seconds under the app save directory (`autosaves/`). The command palette action **Recover autosaved notebook** opens that copy as a new tab. A successful F6 save removes the recovery copy.

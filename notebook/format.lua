@@ -77,6 +77,38 @@ function Format.save(notebook)
   return path, lovr.filesystem.getSaveDirectory() .. "/" .. path
 end
 
+local function autosave_name(notebook)
+  local name = notebook.name:gsub("%.luanb$", "")
+  name = name:gsub("[^%w_.-]", "_")
+  return name
+end
+
+function Format.autosave_path(notebook)
+  return "autosaves/" .. autosave_name(notebook) .. ".luanb"
+end
+
+function Format.write_autosave(notebook)
+  if not (lovr and lovr.filesystem) then return nil, "filesystem unavailable" end
+  lovr.filesystem.createDirectory("autosaves")
+  local path = Format.autosave_path(notebook)
+  lovr.filesystem.write(path, Format.encode(notebook))
+  return path
+end
+
+function Format.load_autosave(notebook)
+  if not (lovr and lovr.filesystem) then return nil, "filesystem unavailable" end
+  local text = lovr.filesystem.read(Format.autosave_path(notebook))
+  if text == nil then return nil, "no autosave" end
+  local ok, decoded = pcall(Format.decode, text)
+  if not ok then return nil, tostring(decoded) end
+  return decoded
+end
+
+function Format.remove_autosave(notebook)
+  if not (lovr and lovr.filesystem) then return end
+  pcall(lovr.filesystem.remove, Format.autosave_path(notebook))
+end
+
 function Format.tags(cells)
   local counts, order = {}, {}
   for _, cell in ipairs(cells or {}) do

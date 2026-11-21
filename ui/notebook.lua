@@ -750,6 +750,7 @@ function UI:palette_commands()
     { id = "run-all", label = "Run all code cells" },
     { id = "export-md", label = "Export notebook as Markdown" },
     { id = "export-html", label = "Export notebook as HTML" },
+    { id = "recover-autosave", label = "Recover autosaved notebook" },
     { id = "move-up", label = "Move selected cell up" },
     { id = "move-down", label = "Move selected cell down" },
     { id = "duplicate-cell", label = "Duplicate selected cell" },
@@ -826,6 +827,7 @@ function UI:run_palette_command(id)
   elseif id == "run-all" then self.app:run_all()
   elseif id == "export-md" then self.app:export_markdown()
   elseif id == "export-html" then self.app:export_html()
+  elseif id == "recover-autosave" then self.app:recover_autosave()
   elseif id == "move-up" then self.app:move_cell(-1)
   elseif id == "move-down" then self.app:move_cell(1)
   elseif id == "duplicate-cell" then self.app:duplicate_cell()

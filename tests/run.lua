@@ -497,6 +497,12 @@ test("collects markdown tags in order", function()
   assert(order[1] == "lua" and order[2] == "notebook")
 end)
 
+current = "autosave"
+test("autosave paths are safe and deterministic", function()
+  local notebook = Notebook.new({ name = "my notebook.luanb", cells = {} })
+  eq(Format.autosave_path(notebook), "autosaves/my_notebook.luanb")
+end)
+
 io.write(string.format("\n\n%d tests, %d passed, %d failed\n", passed + failed,
   passed, failed))
 if failed > 0 then

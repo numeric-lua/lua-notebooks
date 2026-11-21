@@ -65,6 +65,7 @@ function App:new(notebooks)
   self._nvim_sync_at = 0
   self._nvim_pending_hide = false
   self._nvim_hidden_cell = nil
+  self.autosave_at = 0
   local scale_ok, scale_value = pcall(lovr.filesystem.read, "ui_scale.txt")
   if scale_ok and tonumber(scale_value) then
     self.ui_scale = math.max(0.7, math.min(2, tonumber(scale_value)))
@@ -254,6 +255,33 @@ function App:delete_notebook(path)
   end
   self.active = math.max(1, math.min(self.active, #self.notebooks))
   self.status = "deleted " .. path
+end
+
+function App:autosave_tick()
+  local notebook = self:notebook()
+  if notebook == nil or not notebook.dirty then return end
+  local now = lovr.timer.getTime()
+  if now - (self.autosave_at or 0) < 20 then return end
+  self.autosave_at = now
+  local path, err = Format.write_autosave(notebook)
+  if path then
+    self.status = "autosaved backup"
+  elseif err then
+    self.status = "autosave failed: " .. tostring(err)
+  end
+end
+
+function App:recover_autosave()
+  local notebook, err = Format.load_autosave(self:notebook())
+  if notebook == nil then
+    self.status = "no autosave: " .. tostring(err)
+    return
+  end
+  notebook._path = nil
+  self.notebooks[#self.notebooks + 1] = notebook
+  self.active = #self.notebooks
+  self.supervisor:open("nb" .. self.active)
+  self.status = "recovered autosave"
 end
 
 function App:open_path(path)
@@ -1000,6 +1028,8 @@ function App:save()
     self.status = "save failed: " .. tostring(path)
     return
   end
+  notebook.dirty = false
+  Format.remove_autosave(notebook)
   self.status = "saved " .. tostring(absolute or path)
 end
 
@@ -1053,6 +1083,7 @@ function App:update()
   end
   self.supervisor:poll()
   if not self.show_nvim then self:sync_hidden_nvim() end
+  self:autosave_tick()
   if self.screenshot_readback and self.screenshot_readback:isComplete() then
     local image = self.screenshot_readback:getImage()
     self.screenshot_readback = nil
