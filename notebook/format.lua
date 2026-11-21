@@ -154,6 +154,30 @@ function Format.tags(cells)
   return counts, order
 end
 
+-- Aggregate markdown tags across open notebooks for the tag-index overlay.
+-- Entries stay in first-seen order and remember which notebook owns each use.
+function Format.tag_index(notebooks)
+  local entries, by_tag = {}, {}
+  for notebook_index, notebook in ipairs(notebooks or {}) do
+    local counts, order = Format.tags(notebook.cells)
+    for _, tag in ipairs(order) do
+      local entry = by_tag[tag]
+      if entry == nil then
+        entry = { tag = tag, count = 0, notebooks = {} }
+        by_tag[tag] = entry
+        entries[#entries + 1] = entry
+      end
+      entry.count = entry.count + counts[tag]
+      entry.notebooks[#entry.notebooks + 1] = {
+        index = notebook_index,
+        title = notebook:title(),
+        count = counts[tag],
+      }
+    end
+  end
+  return entries
+end
+
 -- Compact, deterministic duration text for the optional cell timing label.
 function Format.duration(seconds)
   if type(seconds) ~= "number" then return nil end

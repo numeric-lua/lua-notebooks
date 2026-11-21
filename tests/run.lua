@@ -504,6 +504,26 @@ test("collects markdown tags in order", function()
   assert(order[1] == "lua" and order[2] == "notebook")
 end)
 
+test("aggregates tag index across open notebooks", function()
+  local a = Notebook.new({ name = "a.luanb", cells = {
+    { kind = "markdown", source = "#lua #tags #lua" },
+    { kind = "code", source = "#lua" },
+  } })
+  local b = Notebook.new({ name = "b.luanb", cells = {
+    { kind = "markdown", source = "#tags #plots" },
+  } })
+  local entries = Format.tag_index({ a, b })
+  eq(#entries, 3)
+  eq(entries[1].tag, "lua")
+  eq(entries[1].count, 2)
+  eq(#entries[1].notebooks, 1)
+  eq(entries[2].tag, "tags")
+  eq(entries[2].count, 2)
+  eq(#entries[2].notebooks, 2)
+  eq(entries[2].notebooks[2].title, "b")
+  eq(entries[3].tag, "plots")
+end)
+
 current = "execution timing"
 test("formats timing without changing the cell baseline", function()
   eq(Format.duration(0.0004), "<1 ms")

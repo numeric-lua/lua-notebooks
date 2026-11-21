@@ -1262,6 +1262,7 @@ function lovr.load()
   end
   if os.getenv("LUANB_QA_PALETTE") then app.ui.show_palette = true end
   if os.getenv("LUANB_QA_OUTLINE") then app.ui.show_outline = true end
+  if os.getenv("LUANB_QA_TAGS") then app.ui.show_tags = true end
   if os.getenv("LUANB_QA_TIMING") then app.ui.show_timing = true end
   if os.getenv("LUANB_QA_HISTORY") then
     local notebook = app:notebook()

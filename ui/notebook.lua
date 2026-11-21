@@ -169,6 +169,8 @@ function UI.new(app)
     show_replace = false,
     show_graph = false,
     graph_rects = {},
+    show_tags = false,
+    tag_rects = {},
     show_timing = false,
     replace_find = "",
     replace_with = "",
@@ -748,6 +750,7 @@ function UI:draw(pass, logical_width, logical_height)
   self:draw_replace(pass, width, height)
   self:draw_find(pass, width, height)
   self:draw_graph(pass, width, height)
+  self:draw_tags(pass, width, height)
   self:draw_help(pass, width, height)
   self:draw_palette(pass, width, height)
   self:draw_nvim_inline(pass, width, height)
@@ -772,6 +775,7 @@ function UI:palette_commands()
     { id = "recover-autosave", label = "Recover autosaved notebook" },
     { id = "replace", label = "Replace in notebook  (Ctrl+H)" },
     { id = "graph", label = "Link graph" },
+    { id = "tags", label = "Tag index  (Ctrl+T)" },
     { id = "timing", label = "Toggle execution timing" },
     { id = "clear-recent", label = "Clear recent notebooks" },
     { id = "clear-session", label = "Clear restored session" },
@@ -861,6 +865,7 @@ function UI:run_palette_command(id)
   elseif id == "recover-autosave" then self.app:recover_autosave()
   elseif id == "replace" then self:open_replace()
   elseif id == "graph" then self:open_graph()
+  elseif id == "tags" then self:open_tags()
   elseif id == "timing" then self:toggle_timing()
   elseif id == "clear-recent" then self.app:clear_recent()
   elseif id == "clear-session" then self.app:clear_session()
@@ -1046,10 +1051,83 @@ function UI:draw_nvim_delete_prompt(pass, width, height)
     x + 20, y + 120, { 0.55, 0.8, 1, 1 }, 0.68)
 end
 
+function UI:open_tags()
+  self.show_tags = true
+end
+
 function UI:toggle_timing()
   self.show_timing = not self.show_timing
   self.app.status = self.show_timing and "execution timing on" or
     "execution timing off"
+end
+
+function UI:open_tag(tag)
+  local entries = Format.tag_index(self.app.notebooks)
+  local entry
+  for _, candidate in ipairs(entries) do
+    if candidate.tag == tag then entry = candidate; break end
+  end
+  if entry == nil then return end
+  self.show_tags = false
+  local target = entry.notebooks[1]
+  for _, candidate in ipairs(entry.notebooks) do
+    if candidate.index == self.app.active then target = candidate; break end
+  end
+  if target.index ~= self.app.active then self.app:set_tab(target.index) end
+  self:open_find()
+  self.find_query = "#" .. tag
+  self:update_find()
+  self.app.status = string.format("tag #%s in %s (%d occurrence(s))", tag,
+    target.title, target.count)
+end
+
+function UI:draw_tags(pass, width, height)
+  self.tag_rects = {}
+  if not self.show_tags then return end
+  local entries = Format.tag_index(self.app.notebooks)
+  local visible = math.min(#entries, 20)
+  local row_h = 24
+  local panel_w = math.min(660, width - 80)
+  local rows = math.max(visible, 1)
+  local panel_h = 68 + rows * row_h + 30
+  local x = (width - panel_w) / 2
+  local y = math.max(60, (height - panel_h) / 2)
+  box(pass, x + 5, y + 5, panel_w, panel_h, { 0, 0, 0, 0.35 })
+  box(pass, x, y, panel_w, panel_h, { 0.055, 0.065, 0.095, 0.99 })
+  box(pass, x, y, panel_w, 2, { 0.45, 0.78, 1, 1 })
+  text(pass, self.app.font, string.format(
+    "Tag index — %d tag(s) across %d open notebook(s)", #entries,
+    #self.app.notebooks), x + 18, y + 14, { 0.9, 0.94, 1, 1 }, 0.8)
+  if #entries == 0 then
+    text(pass, self.app.font, "No markdown #tags in open notebooks.",
+      x + 18, y + 54, { 0.6, 0.66, 0.78, 1 }, 0.7)
+  end
+  for index = 1, visible do
+    local entry = entries[index]
+    local row_y = y + 46 + (index - 1) * row_h
+    box(pass, x + 10, row_y, panel_w - 20, row_h - 2,
+      index % 2 == 0 and { 0.075, 0.09, 0.13, 1 } or
+      { 0.095, 0.11, 0.16, 1 })
+    text(pass, self.app.font, "#" .. entry.tag, x + 18, row_y + 4,
+      { 0.85, 0.92, 1, 1 }, 0.7)
+    local meta = string.format("%d use(s) · %d notebook(s)", entry.count,
+      #entry.notebooks)
+    text(pass, self.app.font, meta, x + panel_w - 18, row_y + 4,
+      { 0.52, 0.62, 0.76, 1 }, 0.62, "right")
+    self.tag_rects[#self.tag_rects + 1] = {
+      x = x + 10, y = row_y, w = panel_w - 20, h = row_h - 2,
+      tag = entry.tag,
+    }
+  end
+  if #entries > visible then
+    text(pass, self.app.font,
+      string.format("showing %d of %d tags; search narrows in a notebook",
+        visible, #entries), x + 18, y + 46 + visible * row_h,
+      { 0.55, 0.62, 0.74, 1 }, 0.6)
+  end
+  text(pass, self.app.font,
+    "Click a tag to search  ·  Ctrl+T toggles  ·  Esc closes",
+    x + 18, y + panel_h - 22, { 0.5, 0.58, 0.72, 1 }, 0.62)
 end
 
 function UI:open_replace()
@@ -1172,7 +1250,7 @@ function UI:draw_help(pass, width, height)
         { "o / O", "insert below / above and edit" },
         { "Ctrl+F", "find across notebook cells" },
         { "Ctrl+H", "replace in notebook" },
-        { "Ctrl+G", "link graph" },
+        { "Ctrl+G / Ctrl+T", "link graph / tag index" },
         { "Ctrl+P", "command palette" },
         { "Ctrl+S", "save notebook" },
         { "Ctrl+Tab", "next / previous notebook" },
@@ -1979,6 +2057,12 @@ function UI:keypressed(key)
     if key == "escape" then self.show_graph = false end
     return
   end
+  if self.show_tags then
+    if key == "escape" or (ctrl_down and key == "t" and not shift_down) then
+      self.show_tags = false
+    end
+    return
+  end
   if self.show_find then
     if key == "escape" then self.show_find = false
     elseif key == "backspace" then
@@ -2000,6 +2084,9 @@ function UI:keypressed(key)
   if ctrl_down and key == "f" then self:open_find(); return end
   if ctrl_down and key == "h" then self:open_replace(); return end
   if ctrl_down and key == "g" then self:open_graph(); return end
+  if ctrl_down and key == "t" and not shift_down then
+    self:open_tags(); return
+  end
   if ctrl_down and key == "e" and shift_down then
     self:toggle_timing(); return
   end
@@ -2908,6 +2995,15 @@ function UI:mousepressed(x, y, button)
       if inside(x, y, rect) then
         self.show_graph = false
         self.app:open_title(rect.title)
+        return
+      end
+    end
+    return
+  end
+  if self.show_tags then
+    for _, rect in ipairs(self.tag_rects) do
+      if inside(x, y, rect) then
+        self:open_tag(rect.tag)
         return
       end
     end
