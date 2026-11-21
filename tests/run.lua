@@ -479,7 +479,107 @@ test("exports escaped standalone HTML", function()
   local text = Format.to_html(notebook)
   assert(text:find("<!doctype html>", 1, true))
   assert(text:find("&lt;tag&gt;", 1, true))
-  assert(text:find("<h1>Heading</h1>", 1, true))
+  assert(text:find('<h1 id="heading">Heading</h1>', 1, true))
+end)
+
+current = "html navigation"
+test("builds deterministic heading anchors and table of contents", function()
+  local notebook = Notebook.new({ name = "nav.luanb", cells = {
+    { kind = "markdown", source = table.concat({
+      "# Intro",
+      "",
+      "```lua",
+      "# not a heading",
+      "```",
+      "",
+      "# Intro",
+      "",
+      "## **Bold** `plot` section",
+    }, "\n") },
+    { kind = "code", source = "return { scene = 'cube' }" },
+  } })
+  notebook.cells[2].scene = "cube"
+  local headings = Format.headings(notebook.cells)
+  eq(#headings, 3)
+  eq(headings[1].id, "intro")
+  eq(headings[1].level, 1)
+  eq(headings[2].id, "intro-2")
+  eq(headings[3].text, "Bold plot section")
+  eq(headings[3].id, "bold-plot-section")
+  eq(headings[3].cell, 1)
+  local html = Format.to_html(notebook)
+  assert(html:find('<nav class="toc"', 1, true))
+  assert(html:find('href="#intro-2"', 1, true))
+  assert(html:find('id="bold-plot-section"', 1, true))
+  assert(html:find('id="cell-1"', 1, true))
+  assert(html:find('name="viewport"', 1, true))
+  assert(html:find('name="generator"', 1, true))
+  assert(html:find("Figure 1: Cell 2", 1, true))
+  assert(html:find('id="not-a-heading"', 1, true) == nil)
+  eq(Format.to_html(notebook), html)
+end)
+
+current = "html figures"
+test("renders scene and widget placeholders", function()
+  local notebook = Notebook.new({ name = "fig.luanb", cells = {
+    { kind = "code", source = "return { scene = plot }" },
+    { kind = "code", source = "widgets.slider({ label = 'gain' })" },
+  } })
+  notebook.cells[1].scene = {
+    type = "luaplotlib", title = "sin <x>", xlim = { 0, 2 },
+    ylim = { -1, 1 }, grid = true,
+    series = {
+      { kind = "line", x = { 0, 1, 2 }, y = { 0, 1, 0 },
+        style = { color = "#1f77b4" } },
+      { kind = "scatter", x = { 1, 2 }, y = { 0.5, 0.5 } },
+    },
+  }
+  notebook.cells[2].widgets = {
+    { kind = "slider", label = "gain" },
+    { kind = "button", label = "Ping" },
+  }
+  local summary = Format.scene_summary(notebook.cells[1].scene)
+  eq(summary.kind, "luaplotlib")
+  eq(summary.count, 2)
+  eq(summary.points, 5)
+  local svg = Format.scene_svg(notebook.cells[1].scene)
+  assert(svg:find("<polyline", 1, true))
+  assert(svg:find("<circle", 1, true))
+  local html = Format.to_html(notebook)
+  assert(html:find('class="scene"', 1, true))
+  assert(html:find("<figcaption>", 1, true))
+  assert(html:find("sin &lt;x&gt;", 1, true))
+  assert(html:find("Scene data", 1, true))
+  assert(html:find("Interactive widgets", 1, true))
+  assert(html:find("slider — gain", 1, true))
+  assert(html:find('id="figure-1"', 1, true))
+  eq(Format.scene_summary({ type = "luaplotlib", series = {
+    { kind = "bar", x = { 1, 2 }, y = { 3, 4 } },
+  } }).points, 2)
+  eq(Format.scene_summary("cube").kind, "extension")
+  assert(Format.scene_svg("cube"):find("<polygon", 1, true))
+  eq(Format.scene_svg(nil), nil)
+end)
+
+current = "html escaping"
+test("escapes scene metadata and limits scene JSON", function()
+  local notebook = Notebook.new({ name = "escape.luanb", cells = {
+    { kind = "code", source = "return scene" },
+  } })
+  notebook.cells[1].scene = {
+    type = "luaplotlib", title = '<script>alert("x")</script>', series = {},
+  }
+  local html = Format.to_html(notebook)
+  assert(html:find("<script>alert", 1, true) == nil)
+  assert(html:find("&lt;script&gt;alert", 1, true))
+  local text, truncated = Format.scene_json({ text = string.rep("a", 5000) },
+    40)
+  eq(truncated, true)
+  assert(#text >= 40)
+  local small, cut = Format.scene_json({ ok = true })
+  eq(cut, false)
+  assert(small:find('"ok":true', 1, true))
+  eq(Format.scene_json({ bad = function() end }), nil)
 end)
 
 current = "duplicate cell"
@@ -502,6 +602,33 @@ test("collects markdown tags in order", function()
   })
   assert(counts.lua == 2 and counts.notebook == 1)
   assert(order[1] == "lua" and order[2] == "notebook")
+end)
+
+test("ignores tags in code, URLs, colors, and strikethrough", function()
+  local counts = Format.tags({
+    { kind = "markdown", source = table.concat({
+      "# Heading #lua",
+      "`#inline` and ``#double``",
+      "```sh",
+      "# fenced #hidden",
+      "```",
+      "See https://example.com/page#fragment",
+      "Color #fff and #1a2b3c; #cafe is a color.",
+      "(#paren) [#bracket] #ok.",
+      "~~#strike~~",
+    }, "\n") },
+  })
+  eq(counts.lua, 1)
+  eq(counts.paren, 1)
+  eq(counts.bracket, 1)
+  eq(counts.ok, 1)
+  eq(counts.inline, nil)
+  eq(counts.double, nil)
+  eq(counts.hidden, nil)
+  eq(counts.fragment, nil)
+  eq(counts.fff, nil)
+  eq(counts.cafe, nil)
+  eq(counts.strike, nil)
 end)
 
 test("aggregates tag index across open notebooks", function()
