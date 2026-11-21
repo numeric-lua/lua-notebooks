@@ -1,6 +1,6 @@
-# lua-notebooks 1.36.0
+# lua-notebooks 1.37.0
 
-- crash-recovery autosaves every 20 seconds for dirty notebooks;
-- recover a backup as a new tab from the command palette;
-- successful F6 saves remove the recovery copy;
-- explicit-path CLI notebooks and fail-safe invalid loads retained.
+- restore open notebook paths across sessions via session.json;
+- command-line paths take precedence over the restored session;
+- clear-session command palette action;
+- autosave recovery and explicit-path notebooks retained.
