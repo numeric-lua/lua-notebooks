@@ -53,5 +53,5 @@ make test-webapp           # Node scene/model tests, no packages
 ./scripts/input-smoke.sh   # needs a seat and /dev/uinput
 ./scripts/visual-smoke.sh  # needs a display
 ./scripts/scene-qa.sh      # needs chromium
-luarocks make lua-notebooks-1.45.0-1.rockspec --tree=/tmp/luanb-rocks
+luarocks make lua-notebooks-1.46.0-1.rockspec --tree=/tmp/luanb-rocks
 ```

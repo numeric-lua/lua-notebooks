@@ -1,18 +1,24 @@
-# lua-notebooks 1.45.0
+# lua-notebooks 1.46.0
 
-- render luaplotlib polar scenes in the live notebook viewport: circular
-  frame, r rings, theta spokes, line/scatter/bar series,
-  `theta_zero`/`theta_direction`, clamped `rmax`, short tick labels, and a
-  theme-aware surface;
-- share polar geometry through `notebook/polar.lua` so the live renderer and
-  the static HTML export agree on rmax fallback, projection, tick filtering,
-  sampling caps, long-label omission, and wide/negative-radius bar wedges;
-- add a polar scene to the welcome notebook and give polar cells a taller
-  scene area;
-- add `tests/polar.lua` for shared geometry, live draw calls, and export/live
-  parity, `LUANB_SMOKE_POLAR=1` for a repeatable app smoke, and
-  `scripts/polar-qa.sh` for a live, non-blank screenshot check;
-- document the shared polar backend and parity contract.
+- render luaplotlib polar scenes in the browser webapp: circular frame, r
+  rings, theta spokes, line/scatter/bar series, `theta_zero`/
+  `theta_direction`, explicit or observed `rmax`, clamped radii, short tick
+  labels, and wide or negative-radius bar wedges;
+- bring the browser Cartesian renderer to parity with the desktop and export
+  paths: histogram series, categorical x ticks, explicit bar widths,
+  bar/histogram extents in the data bounds, non-finite filtering, and the same
+  800/400 line/scatter sampling caps;
+- add a polar rose cell to the webapp welcome notebook;
+- add `webapp/js/polar.js` as the JavaScript counterpart of
+  `notebook/polar.lua`, with `webapp/tests/fixtures/polar-parity.json` read by
+  both `tests/polar.lua` and the Node suite so rmax, projection, ticks, labels,
+  and bar sectors cannot drift silently;
+- add `make test-webapp` coverage for polar geometry, Cartesian parity, draw
+  calls, and malformed scenes, plus `make qa-webapp` /
+  `scripts/scene-qa.sh`, a headless Chromium Canvas pixel check for the whole
+  scene fixture matrix;
+- document the browser renderer, its shared parity contract, and the new QA
+  commands.
 
-No new runtime dependencies. The inline Neovim path and the committed visual
-pixel baselines are unchanged.
+No new runtime dependencies. The desktop viewport, Neovim path, and committed
+visual pixel baselines are unchanged.

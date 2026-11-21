@@ -390,7 +390,7 @@ compositor and window stacking.
 ## LuaRocks
 
 ```sh
-luarocks make lua-notebooks-1.45.0-1.rockspec
+luarocks make lua-notebooks-1.46.0-1.rockspec
 lua-notebooks
 ```
 
@@ -399,7 +399,7 @@ The rockspec installs the app source under the LuaRocks share tree and a
 
 ```sh
 make rock
-luarocks install lua-notebooks-1.45.0-1.src.rock
+luarocks install lua-notebooks-1.46.0-1.src.rock
 ```
 
 Publishing to a remote rock server is intentionally not automated.
