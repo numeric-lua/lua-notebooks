@@ -527,3 +527,7 @@ Notebook paths opened during a session are recorded in `session.json`. On the ne
 ## Recent notebooks
 
 Successfully opened paths are kept in `recent.json` (latest ten). They appear as **Recent:** entries in the command palette; **Clear recent notebooks** removes them.
+
+## HTML export
+
+Exports are self-contained HTML with a title, cell sections, styled outputs, and a closing backlinks list computed from `[[wiki links]]` across the open notebooks.

@@ -564,7 +564,8 @@ function App:export_html()
   local path = "exports/" .. safe .. ".html"
   pcall(lovr.filesystem.createDirectory, "exports")
   local ok, err = pcall(lovr.filesystem.write, path,
-    require("notebook.format").to_html(notebook))
+    require("notebook.format").to_html(notebook,
+      require("notebook.format").backlinks(self.notebooks, notebook:title())))
   self.status = ok and ("exported " .. path) or ("export failed: " ..
     tostring(err))
 end

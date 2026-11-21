@@ -207,11 +207,40 @@ local function markdown_html(source)
   return table.concat(out, "\n")
 end
 
-function Format.to_html(notebook)
+function Format.wiki_links(cells)
+  local links, seen = {}, {}
+  for _, cell in ipairs(cells or {}) do
+    for title in (cell.source or ""):gmatch("%[%[([^%]]+)%]%]") do
+      if not seen[title] then seen[title] = true; links[#links + 1] = title end
+    end
+  end
+  return links
+end
+
+function Format.backlinks(notebooks, title)
+  local result = {}
+  for _, notebook in ipairs(notebooks or {}) do
+    if notebook:title() ~= title then
+      for _, cell in ipairs(notebook.cells) do
+        if (cell.source or ""):find("[[" .. title .. "]]", 1, true) then
+          result[#result + 1] = notebook:title(); break
+        end
+      end
+    end
+  end
+  return result
+end
+
+function Format.to_html(notebook, backlinks)
   local out = { "<!doctype html><html><head><meta charset=\"utf-8\">",
     "<title>" .. escape_html(notebook:title()) ..
-    "</title><style>body{font-family:system-ui,sans-serif;max-width:880px;margin:2rem auto;color:#202630}pre{background:#f4f5f7;padding:12px;overflow:auto;border-radius:6px}blockquote{border-left:3px solid #999;padding-left:10px;color:#555}</style></head><body>" }
+    "</title><style>body{font-family:system-ui,sans-serif;max-width:880px;margin:2rem auto;color:#202630;line-height:1.55}h1{font-size:2rem;margin-bottom:.2rem}.cell{margin:1.5rem 0}pre{background:#f4f5f7;padding:12px;overflow:auto;border-radius:6px;font-size:.88rem}pre.output{background:#eef7f1;border-left:3px solid #77aa88}blockquote{border-left:3px solid #999;padding-left:10px;color:#555}.meta{color:#666;font-size:.85rem;margin-bottom:2rem}.backlinks{border-top:1px solid #ddd;margin-top:2rem;padding-top:1rem}</style></head><body>" }
+  out[#out + 1] = "<h1>" .. escape_html(notebook:title()) .. "</h1>"
+  out[#out + 1] = "<div class=\"meta\">" .. #notebook.cells ..
+    " cells · " .. (notebook.kernel or "lua") .. "</div>"
   for _, cell in ipairs(notebook.cells) do
+    out[#out + 1] = "<section class=\"cell\" data-kind=\"" ..
+      escape_html(cell.kind) .. "\">"
     if cell.kind == "markdown" then
       out[#out + 1] = markdown_html(cell.source)
     else
@@ -226,9 +255,15 @@ function Format.to_html(notebook)
         out[#out + 1] = "<blockquote>error: " .. escape_html(cell.error) ..
           "</blockquote>"
       elseif cell.output and cell.output ~= "" then
-        out[#out + 1] = "<pre>" .. escape_html(cell.output) .. "</pre>"
+        out[#out + 1] = "<pre class=\"output\">" .. escape_html(cell.output) ..
+          "</pre>"
       end
     end
+    out[#out + 1] = "</section>"
+  end
+  if backlinks and #backlinks > 0 then
+    out[#out + 1] = "<div class=\"backlinks\"><strong>Backlinks:</strong> " ..
+      escape_html(table.concat(backlinks, ", ")) .. "</div>"
   end
   out[#out + 1] = "</body></html>"
   return table.concat(out, "\n")

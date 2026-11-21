@@ -534,6 +534,23 @@ test("recent files round-trip and cap", function()
   eq(#Format.decode_recent("bad"), 0)
 end)
 
+current = "html"
+test("html export has structure, output classes, and backlinks", function()
+  local a = Notebook.new({ name = "a.luanb", cells = {
+    { kind = "markdown", source = "# Hello\n\n[[b]]" },
+    { kind = "code", source = "print(1)" },
+  } })
+  a.cells[2].output = "1"
+  local b = Notebook.new({ name = "b.luanb", cells = {
+    { kind = "markdown", source = "[[" .. a:title() .. "]]" },
+  } })
+  local html = Format.to_html(a, Format.backlinks({ a, b }, a:title()))
+  assert(html:find('class="cell"', 1, true))
+  assert(html:find('class="output"', 1, true))
+  assert(html:find("Backlinks:", 1, true))
+  eq(#Format.wiki_links(a.cells), 1)
+end)
+
 io.write(string.format("\n\n%d tests, %d passed, %d failed\n", passed + failed,
   passed, failed))
 if failed > 0 then
