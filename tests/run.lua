@@ -519,6 +519,46 @@ test("builds deterministic heading anchors and table of contents", function()
   eq(Format.to_html(notebook), html)
 end)
 
+current = "html search"
+test("renders search controls and a searchable cell index", function()
+  local notebook = Notebook.new({ name = "search.luanb", cells = {
+    { kind = "markdown", source =
+      "# Intro\n\nQuick   brown fox. See [docs](https://example.com/secret)." },
+    { kind = "code", source = "print('needle')", output = "haystack value" },
+  } })
+  local prose = Format.search_text(notebook.cells[1])
+  assert(prose:find("Quick brown fox", 1, true))
+  assert(prose:find("docs", 1, true))
+  assert(prose:find("secret", 1, true) == nil)
+  local code = Format.search_text(notebook.cells[2])
+  assert(code:find("needle", 1, true))
+  assert(code:find("haystack", 1, true))
+  eq(Format.search_text(nil), "")
+  local html = Format.to_html(notebook)
+  assert(html:find('<html lang="en" class="no-js">', 1, true))
+  assert(html:find('id="search-input"', 1, true))
+  assert(html:find('<option value="figures">Figure cells</option>', 1, true))
+  assert(html:find('data-search="', 1, true))
+  assert(html:find('data-cell="1"', 1, true))
+  assert(html:find("URLSearchParams", 1, true))
+  eq(Format.to_html(notebook), html)
+end)
+
+test("escapes search attributes and flags figure cells", function()
+  local notebook = Notebook.new({ name = "search-escape.luanb", cells = {
+    { kind = "code", source = 'print("a & b <tag>")' },
+  } })
+  notebook.cells[1].scene = "cube"
+  notebook.cells[1].widgets = {
+    { kind = "slider", label = 'volume "up"' },
+  }
+  local html = Format.to_html(notebook)
+  assert(html:find(
+    'data-search="print(&quot;a &amp; b &lt;tag&gt;&quot;)', 1, true))
+  assert(html:find('data-has-scene="true"', 1, true))
+  assert(html:find("extension scene · cube", 1, true))
+end)
+
 current = "html figures"
 test("renders scene and widget placeholders", function()
   local notebook = Notebook.new({ name = "fig.luanb", cells = {
@@ -559,6 +599,83 @@ test("renders scene and widget placeholders", function()
   eq(Format.scene_summary("cube").kind, "extension")
   assert(Format.scene_svg("cube"):find("<polygon", 1, true))
   eq(Format.scene_svg(nil), nil)
+end)
+
+current = "html polar"
+test("summarizes and previews polar scenes", function()
+  local notebook = Notebook.new({ name = "polar.luanb", cells = {
+    { kind = "code", source = "return { scene = polar_plot }" },
+  } })
+  notebook.cells[1].scene = {
+    type = "luaplotlib", orientation = "polar", title = "rose <r>",
+    theta_zero = math.pi / 2, theta_direction = "clockwise",
+    polar = {
+      theta_zero = math.pi / 2,
+      theta_direction = "clockwise",
+      rmax = 2,
+      theta_ticks = {
+        { value = 0, degrees = 0, label = "E" },
+        { value = math.pi / 2, degrees = 90, label = "<N>" },
+      },
+      r_ticks = { { value = 1, label = "1" }, { value = 2, label = "2" } },
+      series = {
+        { kind = "line", theta = { 0, math.pi / 2, math.pi },
+          r = { 1, 2, 1 },
+          style = { color = "#1f77b4", label = "spiral" } },
+        { kind = "scatter", theta = { 0 }, r = { 1 },
+          style = { color = "#ff7f0e", radius = 4 } },
+        { kind = "bar", theta = { math.pi }, r = { 1.5 },
+          widths = { 0.4 }, colors = { "#2ca02c" } },
+      },
+    },
+  }
+  local summary = Format.scene_summary(notebook.cells[1].scene)
+  eq(summary.kind, "luaplotlib")
+  eq(summary.orientation, "polar")
+  eq(summary.count, 3)
+  eq(summary.points, 5)
+  local svg = Format.scene_svg(notebook.cells[1].scene)
+  assert(svg:find('class="scene-polar"', 1, true))
+  assert(svg:find('data-theta-direction="clockwise"', 1, true))
+  assert(svg:find("scene-polar-spoke", 1, true))
+  assert(svg:find("scene-polar-ring", 1, true))
+  assert(svg:find("<polyline", 1, true))
+  assert(svg:find("scene-polar-point", 1, true))
+  assert(svg:find("scene-polar-bar", 1, true))
+  assert(svg:find("&lt;N&gt;", 1, true))
+  local html = Format.to_html(notebook)
+  assert(html:find('data-orientation="polar"', 1, true))
+  assert(html:find("polar · line, scatter, bar · 3 series · 5 points",
+    1, true))
+  assert(html:find("rose &lt;r&gt;", 1, true))
+  local indexed = Format.search_text(notebook.cells[1])
+  assert(indexed:find("polar", 1, true))
+  assert(indexed:find("spiral", 1, true))
+  eq(Format.to_html(notebook), html)
+end)
+
+test("polar preview handles empty and non-finite data", function()
+  local empty = { type = "luaplotlib", orientation = "polar", polar = {} }
+  local summary = Format.scene_summary(empty)
+  eq(summary.orientation, "polar")
+  eq(summary.count, 0)
+  eq(summary.points, 0)
+  local svg = Format.scene_svg(empty)
+  assert(svg:find("scene-polar-frame", 1, true))
+  assert(svg:find("scene-polar-spoke", 1, true))
+  local bad = {
+    type = "luaplotlib", orientation = "polar",
+    polar = {
+      rmax = 0,
+      series = {
+        { kind = "line", theta = { 0, 1 / 0, 2 }, r = { 1, 2, 0 / 0 } },
+      },
+    },
+  }
+  local bad_svg = Format.scene_svg(bad)
+  assert(bad_svg:find('data-rmax="', 1, true))
+  assert(bad_svg:find("nan", 1, true) == nil)
+  assert(bad_svg:find("inf", 1, true) == nil)
 end)
 
 current = "html escaping"

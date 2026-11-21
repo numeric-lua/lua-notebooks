@@ -526,6 +526,26 @@ function Format.scene_summary(scene)
   end
   if type(scene) ~= "table" then return nil end
   local scene_type = type(scene.type) == "string" and scene.type or "scene"
+  if scene.orientation == "polar" then
+    local polar = type(scene.polar) == "table" and scene.polar or {}
+    local series, points = {}, 0
+    for _, item in ipairs(polar.series or {}) do
+      if type(item) == "table" then
+        local count = 0
+        if type(item.theta) == "table" and type(item.r) == "table" then
+          count = math.min(#item.theta, #item.r)
+        end
+        points = points + count
+        series[#series + 1] = {
+          kind = type(item.kind) == "string" and item.kind or "line",
+          count = count,
+          label = type(item.style) == "table" and item.style.label or nil,
+        }
+      end
+    end
+    return { kind = "luaplotlib", type = scene_type, orientation = "polar",
+      title = scene.title, series = series, count = #series, points = points }
+  end
   if scene_type == "luaplotlib" or type(scene.series) == "table" then
     local series, points = {}, 0
     for _, item in ipairs(scene.series or {}) do
@@ -630,6 +650,89 @@ local function collect_plot_series(scene)
   return collected
 end
 
+local function polar_config(scene)
+  local polar = type(scene.polar) == "table" and scene.polar or {}
+  local rmax = finite_number(polar.rmax) and polar.rmax > 0 and polar.rmax or nil
+  local theta_zero = finite_number(polar.theta_zero) and polar.theta_zero or 0
+  local direction = polar.theta_direction == "clockwise" and -1 or 1
+  return polar, rmax, theta_zero, direction
+end
+
+-- Map the polar scene IR into the small point/bar shapes the preview draws.
+-- The observed maximum radius is returned for scenes that omit `polar.rmax`.
+local function collect_polar_series(scene)
+  local polar = type(scene.polar) == "table" and scene.polar or {}
+  local collected, observed, palette_index = {}, 0, 0
+  local function note(value)
+    if finite_number(value) then
+      local magnitude = math.abs(value)
+      if magnitude > observed then observed = magnitude end
+    end
+  end
+  for _, item in ipairs(polar.series or {}) do
+    if type(item) == "table" then
+      local color = type(item.style) == "table" and
+        valid_color(item.style.color) or nil
+      if color == nil then
+        palette_index = palette_index + 1
+        color = SCENE_PALETTE[(palette_index - 1) % #SCENE_PALETTE + 1]
+      end
+      local theta, r = item.theta, item.r
+      if type(theta) == "table" and type(r) == "table" then
+        local count = math.min(#theta, #r)
+        if item.kind == "bar" then
+          local widths = type(item.widths) == "table" and item.widths or nil
+          local colors = type(item.colors) == "table" and item.colors or nil
+          local bars = {}
+          for index = 1, count do
+            if finite_number(theta[index]) and finite_number(r[index]) then
+              note(r[index])
+              local width = widths and finite_number(widths[index]) and
+                math.max(0.001, widths[index]) or 0.2
+              local bar_color = colors and valid_color(colors[index]) or color
+              bars[#bars + 1] = {
+                theta = theta[index], r = r[index], width = width,
+                color = bar_color or color,
+              }
+            end
+          end
+          if #bars > 0 then
+            collected[#collected + 1] = {
+              kind = "bar", bars = bars, color = color,
+            }
+          end
+        else
+          local radii = type(item.radii) == "table" and item.radii or nil
+          local colors = type(item.colors) == "table" and item.colors or nil
+          local style_radius = type(item.style) == "table" and
+            item.style.radius or nil
+          local points = {}
+          for index = 1, count do
+            if finite_number(theta[index]) and finite_number(r[index]) then
+              note(r[index])
+              points[#points + 1] = {
+                theta = theta[index],
+                r = r[index],
+                radius = radii and finite_number(radii[index]) and
+                  radii[index] or style_radius,
+                color = colors and valid_color(colors[index]) or nil,
+              }
+            end
+          end
+          if #points > 0 then
+            collected[#collected + 1] = {
+              kind = item.kind == "scatter" and "scatter" or "line",
+              points = points,
+              color = color,
+            }
+          end
+        end
+      end
+    end
+  end
+  return collected, observed
+end
+
 local function plot_bounds(scene, collected)
   local xmin, xmax, ymin, ymax
   local function include(x, y)
@@ -678,8 +781,11 @@ function Format.scene_svg(scene, width, height)
   height = tonumber(height) or 240
   local label = summary.kind == "extension" and
     ("extension scene " .. tostring(summary.type)) or
-    string.format("luaplotlib scene with %d series and %d points",
-      summary.count, summary.points)
+    (summary.orientation == "polar" and
+      string.format("polar luaplotlib scene with %d series and %d points",
+        summary.count, summary.points) or
+      string.format("luaplotlib scene with %d series and %d points",
+        summary.count, summary.points))
   local out = { string.format(
     '<svg class="scene-svg" viewBox="0 0 %d %d" width="%d" height="%d" role="img" aria-label="%s" xmlns="http://www.w3.org/2000/svg">',
     width, height, width, height, escape_html(label)) }
@@ -741,6 +847,142 @@ function Format.scene_svg(scene, width, height)
       svg_number(cx + 26), svg_number(cy),
       svg_number(cx), svg_number(cy + 22),
       svg_number(cx - 26), svg_number(cy))
+  elseif summary.orientation == "polar" then
+    local collected, observed = collect_polar_series(scene)
+    local polar, rmax, theta_zero, direction = polar_config(scene)
+    rmax = rmax or (observed > 0 and observed or 1)
+    local radius = math.max(1, math.min(plot_w, plot_h) / 2 - 10)
+    local cx, cy = left + plot_w / 2, top + plot_h / 2
+    local function project(theta, value)
+      local angle = theta_zero + direction * theta
+      local ratio = value / rmax
+      if ratio > 1 then ratio = 1 elseif ratio < -1 then ratio = -1 end
+      return cx + radius * ratio * math.cos(angle),
+        cy - radius * ratio * math.sin(angle)
+    end
+    local direction_label = polar.theta_direction == "clockwise" and
+      "clockwise" or "counterclockwise"
+    out[#out + 1] = string.format(
+      '<g class="scene-polar" data-polar="true" data-rmax="%s" data-theta-zero="%s" data-theta-direction="%s">',
+      svg_number(rmax), svg_number(theta_zero),
+      escape_html(direction_label))
+    if scene.grid ~= false then
+      local rings = {}
+      if type(polar.r_ticks) == "table" then
+        for _, tick in ipairs(polar.r_ticks) do
+          if type(tick) == "table" and finite_number(tick.value) and
+             tick.value > 0 and tick.value <= rmax * (1 + 1e-9) then
+            rings[#rings + 1] = tick
+          end
+        end
+      end
+      if #rings == 0 then
+        for index = 1, 4 do
+          rings[#rings + 1] = { value = rmax * index / 4 }
+        end
+      end
+      for _, tick in ipairs(rings) do
+        local ring_radius = radius * tick.value / rmax
+        out[#out + 1] = string.format(
+          '<circle class="scene-polar-ring" cx="%s" cy="%s" r="%s"/>',
+          svg_number(cx), svg_number(cy), svg_number(ring_radius))
+        if type(tick.label) == "string" and tick.label ~= "" and
+           #tick.label <= 12 then
+          out[#out + 1] = string.format(
+            '<text class="scene-polar-label" text-anchor="end" x="%s" y="%s">%s</text>',
+            svg_number(cx + ring_radius - 3), svg_number(cy + 3),
+            escape_html(tick.label))
+        end
+      end
+      local spokes = {}
+      if type(polar.theta_ticks) == "table" then
+        for _, tick in ipairs(polar.theta_ticks) do
+          if type(tick) == "table" and finite_number(tick.value) then
+            spokes[#spokes + 1] = tick
+          end
+        end
+      end
+      if #spokes == 0 then
+        for index = 0, 11 do
+          spokes[#spokes + 1] = { value = index * math.pi / 6 }
+        end
+      end
+      for _, tick in ipairs(spokes) do
+        local angle = theta_zero + direction * tick.value
+        local x2 = cx + radius * math.cos(angle)
+        local y2 = cy - radius * math.sin(angle)
+        out[#out + 1] = string.format(
+          '<line class="scene-polar-spoke" x1="%s" y1="%s" x2="%s" y2="%s"/>',
+          svg_number(cx), svg_number(cy), svg_number(x2), svg_number(y2))
+        if type(tick.label) == "string" and tick.label ~= "" and
+           #tick.label <= 18 then
+          local label_radius = radius + 12
+          out[#out + 1] = string.format(
+            '<text class="scene-polar-label" text-anchor="middle" x="%s" y="%s">%s</text>',
+            svg_number(cx + label_radius * math.cos(angle)),
+            svg_number(cy - label_radius * math.sin(angle) + 3),
+            escape_html(tick.label))
+        end
+      end
+    end
+    out[#out + 1] = string.format(
+      '<circle class="scene-polar-frame" cx="%s" cy="%s" r="%s"/>',
+      svg_number(cx), svg_number(cy), svg_number(radius))
+    for _, series in ipairs(collected) do
+      if series.points ~= nil then
+        if series.kind == "line" then
+          local step = math.max(1, math.ceil(#series.points / 800))
+          local points = {}
+          for index = 1, #series.points, step do
+            local point = series.points[index]
+            local x, y = project(point.theta, point.r)
+            points[#points + 1] = svg_number(x) .. "," .. svg_number(y)
+          end
+          out[#out + 1] = string.format(
+            '<polyline class="scene-series scene-polar-line" points="%s" stroke="%s"/>',
+            table.concat(points, " "), series.color)
+        else
+          local step = math.max(1, math.ceil(#series.points / 400))
+          for index = 1, #series.points, step do
+            local point = series.points[index]
+            local x, y = project(point.theta, point.r)
+            local point_radius = finite_number(point.radius) and
+              math.max(1, math.min(8, point.radius)) or 2.6
+            out[#out + 1] = string.format(
+              '<circle class="scene-point scene-polar-point" cx="%s" cy="%s" r="%s" fill="%s"/>',
+              svg_number(x), svg_number(y), svg_number(point_radius),
+              point.color or series.color)
+          end
+        end
+      elseif series.bars ~= nil then
+        local step = math.max(1, math.ceil(#series.bars / 400))
+        for index = 1, #series.bars, step do
+          local bar = series.bars[index]
+          local ratio = math.abs(bar.r / rmax)
+          if ratio > 1 then ratio = 1 end
+          if ratio > 0 then
+            local theta = bar.theta + (bar.r < 0 and math.pi or 0)
+            local half = math.min(math.pi, math.abs(bar.width) / 2)
+            local start_angle = theta_zero + direction * (theta - half)
+            local end_angle = theta_zero + direction * (theta + half)
+            local bar_radius = radius * ratio
+            local x0 = cx + bar_radius * math.cos(start_angle)
+            local y0 = cy - bar_radius * math.sin(start_angle)
+            local x1 = cx + bar_radius * math.cos(end_angle)
+            local y1 = cy - bar_radius * math.sin(end_angle)
+            local large = (half * 2 > math.pi) and 1 or 0
+            local sweep = direction < 0 and 1 or 0
+            out[#out + 1] = string.format(
+              '<path class="scene-polar-bar" d="M %s %s L %s %s A %s %s 0 %d %d %s %s Z" fill="%s"/>',
+              svg_number(cx), svg_number(cy), svg_number(x0),
+              svg_number(y0), svg_number(bar_radius),
+              svg_number(bar_radius), large, sweep, svg_number(x1),
+              svg_number(y1), bar.color)
+          end
+        end
+      end
+    end
+    out[#out + 1] = "</g>"
   else
     local collected = collect_plot_series(scene)
     local xmin, xmax, ymin, ymax = plot_bounds(scene, collected)
@@ -869,12 +1111,65 @@ function Format.html_stats(notebook)
   return stats
 end
 
+-- Searchable projection of Markdown prose: keep visible labels, drop link and
+-- image destinations (they are not rendered as text), and neutralize schemes
+-- the renderer refuses to emit so the index never carries them verbatim.
+local function markdown_search_text(source)
+  local text = source or ""
+  text = text:gsub("!%[([^%]]*)%]%b()", "%1")
+  text = text:gsub("%[([^%]]*)%]%b()", "%1")
+  text = text:gsub("([Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt]):", "%1 ")
+  text = text:gsub("([Vv][Bb][Ss][Cc][Rr][Ii][Pp][Tt]):", "%1 ")
+  return text
+end
+
+local function search_join(parts)
+  local text = table.concat(parts, " ")
+  return text:gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
+end
+
+-- Plain-text projection of a cell for the reader's client-side search.  Case
+-- is preserved (the browser lowercases both sides) and whitespace is collapsed
+-- so the value can live in one HTML attribute.
+function Format.search_text(cell)
+  if type(cell) ~= "table" then return "" end
+  local parts = {}
+  local function add(value)
+    if type(value) == "string" and value ~= "" then
+      parts[#parts + 1] = value
+    end
+  end
+  if cell.kind == "markdown" then
+    add(markdown_search_text(cell.source))
+  else
+    add(cell.source)
+  end
+  add(cell.output)
+  add(cell.error)
+  local summary = cell.scene ~= nil and Format.scene_summary(cell.scene) or nil
+  if summary ~= nil then
+    add(summary.type)
+    add(summary.title)
+    add(summary.orientation)
+    for _, item in ipairs(summary.series) do
+      add(item.kind)
+      add(item.label)
+    end
+  end
+  for _, widget in ipairs(Format.widget_summary(cell)) do
+    add(widget.kind)
+    add(widget.label)
+  end
+  return search_join(parts)
+end
+
 local function render_scene(scene, number)
   local summary = Format.scene_summary(scene)
   if summary == nil then return nil end
   local out = { string.format(
-    '<figure class="scene" id="figure-%d" data-scene="%s">', number,
-    escape_html(summary.type or "scene")) }
+    '<figure class="scene" id="figure-%d" data-scene="%s"%s>', number,
+    escape_html(summary.type or "scene"),
+    summary.orientation == "polar" and ' data-orientation="polar"' or "") }
   local svg = Format.scene_svg(scene, 480, 240)
   if svg ~= nil then out[#out + 1] = svg end
   out[#out + 1] = '<figcaption><span class="figure-index">Figure ' ..
@@ -896,6 +1191,7 @@ local function render_scene(scene, number)
     label = string.format("%d series · %d points", summary.count,
       summary.points)
     if #kinds > 0 then label = table.concat(kinds, ", ") .. " · " .. label end
+    if summary.orientation == "polar" then label = "polar · " .. label end
   end
   out[#out + 1] = '<span class="figure-meta">' .. escape_html(label) ..
     "</span>"
@@ -944,6 +1240,14 @@ a{color:var(--accent)}
 .eyebrow{margin:0 0 .5rem;color:var(--muted);font-size:.8rem;letter-spacing:.08em;text-transform:uppercase}
 h1{font-size:2.15rem;line-height:1.15;margin:0 0 .7rem}
 .meta{color:var(--muted);font-size:.9rem;margin:0}
+.search{display:none;gap:.55rem;align-items:center;flex-wrap:wrap;margin:1rem 0 0}
+.js .search{display:flex}
+.search-label{color:var(--muted);font-size:.8rem;letter-spacing:.06em;text-transform:uppercase}
+.search input[type=search]{flex:1 1 240px;min-width:0;padding:.5rem .65rem;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--fg);font:inherit}
+.search input[type=search]:focus{outline:2px solid var(--accent);outline-offset:1px}
+.search select{padding:.5rem .55rem;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--fg);font:inherit}
+.search-status{color:var(--muted);font-size:.85rem;margin:.45rem 0 0}
+[hidden]{display:none!important}
 .layout{display:grid;grid-template-columns:minmax(0,220px) minmax(0,1fr);gap:2.2rem;max-width:1080px;margin:0 auto;padding:1rem 1.4rem 3rem;align-items:start}
 .toc{position:sticky;top:1rem;background:var(--toc);border:1px solid var(--border);border-radius:12px;padding:1rem;font-size:.9rem;max-height:calc(100vh - 2rem);overflow:auto}
 .toc-title{font-weight:650;margin:0 0 .6rem}
@@ -992,8 +1296,126 @@ pre.scene-data{max-height:18rem;font-size:12px}
 .scene-series{fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .scene-bar{stroke:none;opacity:.88}
 .scene-point{stroke:none}
-@media (max-width:760px){.layout{display:block;padding-top:0}.toc{position:static;max-height:none;margin-bottom:1.4rem}h1{font-size:1.7rem}}
-@media print{:root{--bg:#fff;--fg:#000;--muted:#444;--card:#fff;--code:#f4f4f4;--output:#f4f4f4;--border:#ccc;--figure:#fff}.toc,.skip,.permalink{display:none!important}.layout{display:block;max-width:none;padding:0}.document-header{padding:0 0 1rem}.cell{box-shadow:none;break-inside:avoid;page-break-inside:avoid}a{color:#000;text-decoration:none}.scene details{display:none}}
+.scene-polar-frame{fill:none;stroke:var(--muted);stroke-width:1.2}
+.scene-polar-ring{fill:none;stroke:var(--border);stroke-width:1}
+.scene-polar-spoke{stroke:var(--border);stroke-width:1}
+.scene-polar-label{fill:var(--muted);font:9px/1 system-ui,-apple-system,"Segoe UI",sans-serif}
+.scene-polar-line{fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.scene-polar-bar{stroke:none;opacity:.82}
+@media (max-width:760px){.layout{display:block;padding-top:0}.toc{position:static;max-height:none;margin-bottom:1.4rem}h1{font-size:1.7rem}.search input[type=search]{flex-basis:100%}}
+@media print{:root{--bg:#fff;--fg:#000;--muted:#444;--card:#fff;--code:#f4f4f4;--output:#f4f4f4;--border:#ccc;--figure:#fff}.toc,.skip,.permalink,.search,.search-status{display:none!important}.layout{display:block;max-width:none;padding:0}.document-header{padding:0 0 1rem}.cell{box-shadow:none;break-inside:avoid;page-break-inside:avoid}a{color:#000;text-decoration:none}.scene details{display:none}}
+]==]
+
+local HTML_SEARCH_SCRIPT = [==[
+(function(){
+  var input = document.getElementById('search-input');
+  if (!input) return;
+  var kindFilter = document.getElementById('search-kind');
+  var status = document.getElementById('search-status');
+  var cells = Array.prototype.slice.call(
+    document.querySelectorAll('main .cell'));
+  var tocLinks = Array.prototype.slice.call(
+    document.querySelectorAll('.toc a[data-cell]'));
+  var tocSections = Array.prototype.slice.call(
+    document.querySelectorAll('.toc .toc-section'));
+  function lower(value) { return (value || '').toLowerCase(); }
+  function terms() {
+    var raw = lower(input.value).split(/\s+/);
+    var result = [];
+    for (var index = 0; index < raw.length; index++) {
+      if (raw[index] !== '') result.push(raw[index]);
+    }
+    return result;
+  }
+  function matchesCell(cell, query) {
+    var haystack = lower(cell.getAttribute('data-search'));
+    for (var index = 0; index < query.length; index++) {
+      if (haystack.indexOf(query[index]) < 0) return false;
+    }
+    return true;
+  }
+  function matchesKind(cell, kind) {
+    if (kind === 'code' || kind === 'markdown') {
+      return cell.getAttribute('data-kind') === kind;
+    }
+    if (kind === 'figures') {
+      return cell.getAttribute('data-has-scene') === 'true';
+    }
+    return true;
+  }
+  function apply() {
+    var query = terms();
+    var kind = kindFilter ? kindFilter.value : 'all';
+    var active = query.length > 0 || kind !== 'all';
+    var shown = 0;
+    for (var index = 0; index < cells.length; index++) {
+      var cell = cells[index];
+      var visible = matchesKind(cell, kind) && matchesCell(cell, query);
+      cell.hidden = !visible;
+      if (visible) shown++;
+    }
+    for (var linkIndex = 0; linkIndex < tocLinks.length; linkIndex++) {
+      var link = tocLinks[linkIndex];
+      var target = document.getElementById(
+        'cell-' + link.getAttribute('data-cell'));
+      link.hidden = !(target && !target.hidden);
+    }
+    for (var sectionIndex = 0; sectionIndex < tocSections.length;
+         sectionIndex++) {
+      var section = tocSections[sectionIndex];
+      var node = section.nextElementSibling;
+      var any = false;
+      while (node && !node.classList.contains('toc-section')) {
+        if (node.tagName === 'A' && !node.hidden) any = true;
+        node = node.nextElementSibling;
+      }
+      section.hidden = !any;
+    }
+    if (status) {
+      status.hidden = !active;
+      if (active) {
+        status.textContent = shown === 0
+          ? 'No cells match this search.'
+          : 'Showing ' + shown + ' of ' + cells.length + ' cells.';
+      } else {
+        status.textContent = '';
+      }
+    }
+  }
+  try {
+    var params = new URLSearchParams(window.location.search);
+    var query = params.get('q');
+    if (query) input.value = query;
+    var kind = params.get('kind');
+    if (kind === 'all' || kind === 'code' || kind === 'markdown' ||
+        kind === 'figures') {
+      kindFilter.value = kind;
+    }
+  } catch (error) {}
+  input.addEventListener('input', apply);
+  if (kindFilter) kindFilter.addEventListener('change', apply);
+  input.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+      input.value = '';
+      if (kindFilter) kindFilter.value = 'all';
+      apply();
+      input.blur();
+    }
+  });
+  document.addEventListener('keydown', function(event) {
+    if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey) {
+      return;
+    }
+    var target = event.target;
+    var tag = target && target.tagName;
+    if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT') {
+      event.preventDefault();
+      input.focus();
+      input.select();
+    }
+  });
+  apply();
+})();
 ]==]
 
 function Format.to_html(notebook, backlinks, options)
@@ -1008,7 +1430,7 @@ function Format.to_html(notebook, backlinks, options)
     title, stats.cells, stats.code, stats.markdown, stats.figures, kernel)
   local out = {
     "<!doctype html>",
-    '<html lang="en">',
+    '<html lang="en" class="no-js">',
     "<head>",
     '<meta charset="utf-8">',
     '<meta name="viewport" content="width=device-width, initial-scale=1">',
@@ -1021,6 +1443,7 @@ function Format.to_html(notebook, backlinks, options)
     '<meta property="og:type" content="article">',
     "<title>" .. escape_html(title) .. "</title>",
     "<style>" .. HTML_STYLE .. "</style>",
+    "<script>document.documentElement.className=\"js\";</script>",
     "</head>",
     "<body>",
     '<a class="skip" href="#content">Skip to content</a>',
@@ -1032,6 +1455,20 @@ function Format.to_html(notebook, backlinks, options)
       "%d cells · %d code · %d markdown · %d figure(s) · %d widget(s)",
       stats.cells, stats.code, stats.markdown, stats.figures,
       stats.widgets) .. "</p>",
+    '<div class="search" role="search">',
+    '<label class="search-label" for="search-input">Search</label>',
+    '<input id="search-input" type="search" ' ..
+      'placeholder="Search code, prose, and figures" autocomplete="off" ' ..
+      'spellcheck="false">',
+    '<select id="search-kind" aria-label="Filter by cell kind">',
+    '<option value="all">All cells</option>',
+    '<option value="code">Code cells</option>',
+    '<option value="markdown">Markdown cells</option>',
+    '<option value="figures">Figure cells</option>',
+    "</select>",
+    "</div>",
+    '<p class="search-status" id="search-status" role="status" ' ..
+      'aria-live="polite" hidden></p>',
     "</header>",
     '<div class="layout">',
   }
@@ -1045,8 +1482,8 @@ function Format.to_html(notebook, backlinks, options)
     else
       for _, heading in ipairs(headings) do
         out[#out + 1] = string.format(
-          '<a class="toc-entry toc-level-%d" href="#%s">%s</a>',
-          heading.level, escape_html(heading.id),
+          '<a class="toc-entry toc-level-%d" href="#%s" data-cell="%d">%s</a>',
+          heading.level, escape_html(heading.id), heading.cell,
           escape_html(heading.text))
       end
     end
@@ -1066,8 +1503,8 @@ function Format.to_html(notebook, backlinks, options)
           summary.title ~= "" and summary.title or
           ("Cell " .. tostring(figure.index))
         out[#out + 1] = string.format(
-          '<a class="toc-entry toc-figure" href="#figure-%d">Figure %d: %s</a>',
-          number, number, escape_html(label))
+          '<a class="toc-entry toc-figure" href="#figure-%d" data-cell="%d">Figure %d: %s</a>',
+          number, figure.index, number, escape_html(label))
       end
     end
     out[#out + 1] = "</nav>"
@@ -1076,9 +1513,11 @@ function Format.to_html(notebook, backlinks, options)
   out[#out + 1] = '<main id="content">'
   local figure_number = 0
   for index, cell in ipairs(notebook.cells) do
+    local has_scene = cell.scene ~= nil and ' data-has-scene="true"' or ""
     out[#out + 1] = string.format(
-      '<section class="cell" id="cell-%d" data-kind="%s">', index,
-      escape_html(cell.kind or "code"))
+      '<section class="cell" id="cell-%d" data-kind="%s" data-search="%s"%s>',
+      index, escape_html(cell.kind or "code"),
+      escape_html(Format.search_text(cell)), has_scene)
     out[#out + 1] = '<div class="cell-head"><span class="cell-label">' ..
       (cell.kind == "markdown" and "Markdown" or "Code") .. " cell " ..
       index .. '</span><a class="permalink" href="#cell-' .. index ..
@@ -1121,6 +1560,7 @@ function Format.to_html(notebook, backlinks, options)
   out[#out + 1] = '<footer class="footer">Static export from ' ..
     "lua-notebooks · " .. stats.cells .. " cells · " .. #headings ..
     " heading(s) · " .. stats.tags .. " tag(s)</footer>"
+  out[#out + 1] = "<script>" .. HTML_SEARCH_SCRIPT .. "</script>"
   out[#out + 1] = "</body></html>"
   return table.concat(out, "\n")
 end
