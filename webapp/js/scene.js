@@ -1,35 +1,116 @@
-const PALETTE = ["#8aa4ff", "#ff9f6e", "#62d7a2", "#f6c177", "#d59bff", "#6ecbff"];
+import {
+  BAR_SAMPLE_LIMIT, LINE_SAMPLE_LIMIT, PALETTE as SCENE_PALETTE,
+  SCATTER_SAMPLE_LIMIT, barSectors, finiteNumber, frameRadius, pointRadius,
+  polarRings, polarSpokes, projectPolar, radiusLabel, resolvePolar,
+  ringLabelPosition, sampleStep, thetaLabel, thetaLabelPosition, validColor,
+} from "./polar.js";
+
 const scenes = new WeakMap();
+const TAU = Math.PI * 2;
 
 function cssSize(canvas) {
   const rect = canvas.getBoundingClientRect();
   return { width: Math.max(240, rect.width || 600), height: Math.max(120, rect.height || 230) };
 }
 
-function number(value, fallback) {
-  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+function arrayOf(value) {
+  return Array.isArray(value) ? value : [];
 }
 
-function valuesOf(series, key) {
-  return Array.isArray(series[key]) ? series[key].filter((v) => Number.isFinite(Number(v))).map(Number) : [];
+// Normalize the Cartesian IR into the same point/bar shapes the export and
+// live renderers use.  Filtering non-finite values and copying coefficients
+// keeps the draw loops simple and makes the sample caps meaningful.
+function collectCartesian(scene) {
+  const collected = [];
+  let paletteIndex = 0;
+  for (const item of arrayOf(scene && scene.series)) {
+    if (!item || typeof item !== "object") continue;
+    const style = item.style && typeof item.style === "object" ? item.style : {};
+    let color = validColor(style.color);
+    if (color === null) {
+      paletteIndex += 1;
+      color = SCENE_PALETTE[(paletteIndex - 1) % SCENE_PALETTE.length];
+    }
+    const alpha = finiteNumber(style.alpha) ? style.alpha : 1;
+    if (item.kind === "bar") {
+      const xs = arrayOf(item.x);
+      const ys = arrayOf(item.y);
+      const width = finiteNumber(item.width) ? Math.max(0.001, item.width) : 0.7;
+      const bars = [];
+      for (let index = 0; index < Math.min(xs.length, ys.length); index += 1) {
+        if (finiteNumber(xs[index]) && finiteNumber(ys[index])) {
+          bars.push({ x: xs[index], y: ys[index], width });
+        }
+      }
+      if (bars.length) collected.push({ kind: "bar", bars, color, alpha });
+    } else if (item.kind === "hist") {
+      const edges = arrayOf(item.edges);
+      const counts = arrayOf(item.counts);
+      const bars = [];
+      for (let index = 0; index < Math.min(edges.length - 1, counts.length); index += 1) {
+        if (finiteNumber(edges[index]) && finiteNumber(edges[index + 1]) && finiteNumber(counts[index])) {
+          bars.push({
+            x: (edges[index] + edges[index + 1]) / 2,
+            y: counts[index],
+            width: edges[index + 1] - edges[index],
+          });
+        }
+      }
+      if (bars.length) collected.push({ kind: "hist", bars, color, alpha });
+    } else if (item.kind === "line" || item.kind === "scatter" || item.kind === undefined) {
+      const xs = arrayOf(item.x);
+      const ys = arrayOf(item.y);
+      const points = [];
+      for (let index = 0; index < Math.min(xs.length, ys.length); index += 1) {
+        if (finiteNumber(xs[index]) && finiteNumber(ys[index])) {
+          points.push({ x: xs[index], y: ys[index] });
+        }
+      }
+      if (points.length) {
+        collected.push({
+          kind: item.kind === "scatter" ? "scatter" : "line",
+          points,
+          color,
+          alpha,
+          width: finiteNumber(style.width) ? style.width : null,
+          radius: finiteNumber(style.radius) ? style.radius
+            : finiteNumber(style.markersize) ? style.markersize : null,
+        });
+      }
+    }
+  }
+  return collected;
 }
 
-function bounds(scene) {
+function cartesianBounds(scene, collected) {
   let xmin = Infinity, xmax = -Infinity, ymin = Infinity, ymax = -Infinity;
-  for (const series of scene.series || []) {
-    const xs = valuesOf(series, "x");
-    const ys = valuesOf(series, "y");
-    for (let i = 0; i < Math.min(xs.length, ys.length); i += 1) {
-      xmin = Math.min(xmin, xs[i]); xmax = Math.max(xmax, xs[i]);
-      ymin = Math.min(ymin, ys[i]); ymax = Math.max(ymax, ys[i]);
+  const include = (x, y) => {
+    if (!finiteNumber(x) || !finiteNumber(y)) return;
+    xmin = Math.min(xmin, x); xmax = Math.max(xmax, x);
+    ymin = Math.min(ymin, y); ymax = Math.max(ymax, y);
+  };
+  for (const series of collected) {
+    if (series.points) {
+      for (const point of series.points) include(point.x, point.y);
+    } else if (series.bars) {
+      for (const bar of series.bars) {
+        include(bar.x - bar.width / 2, 0);
+        include(bar.x + bar.width / 2, bar.y);
+      }
     }
   }
   if (!Number.isFinite(xmin)) { xmin = 0; xmax = 1; ymin = 0; ymax = 1; }
+  const xlim = Array.isArray(scene.xlim) ? scene.xlim : null;
+  const ylim = Array.isArray(scene.ylim) ? scene.ylim : null;
+  if (xlim && finiteNumber(xlim[0]) && finiteNumber(xlim[1]) && xlim[0] < xlim[1]) {
+    xmin = xlim[0]; xmax = xlim[1];
+  }
+  if (ylim && finiteNumber(ylim[0]) && finiteNumber(ylim[1]) && ylim[0] < ylim[1]) {
+    ymin = ylim[0]; ymax = ylim[1];
+  }
   if (xmax === xmin) { xmax += 1; xmin -= 1; }
   if (ymax === ymin) { ymax += 1; ymin -= 1; }
-  xmin = number(scene.xlim?.[0], xmin); xmax = number(scene.xlim?.[1], xmax);
-  ymin = number(scene.ylim?.[0], ymin); ymax = number(scene.ylim?.[1], ymax);
-  const xpad = (xmax - xmin) * 0.04 || 0.1;
+  const xpad = (xmax - xmin) * 0.05 || 0.1;
   const ypad = (ymax - ymin) * 0.08 || 0.1;
   return { xmin: xmin - xpad, xmax: xmax + xpad, ymin: ymin - ypad, ymax: ymax + ypad };
 }
@@ -39,7 +120,8 @@ function drawChart(canvas, scene, ctx) {
   const margin = { left: 44, right: 16, top: scene.title ? 32 : 16, bottom: 34 };
   const plotW = width - margin.left - margin.right;
   const plotH = height - margin.top - margin.bottom;
-  const b = bounds(scene);
+  const collected = collectCartesian(scene);
+  const b = cartesianBounds(scene, collected);
   const sx = (x) => margin.left + ((x - b.xmin) / (b.xmax - b.xmin)) * plotW;
   const sy = (y) => margin.top + plotH - ((y - b.ymin) / (b.ymax - b.ymin)) * plotH;
 
@@ -54,6 +136,7 @@ function drawChart(canvas, scene, ctx) {
     ctx.font = "600 13px ui-sans-serif, system-ui, sans-serif";
     ctx.textAlign = "center";
     ctx.fillText(String(scene.title), margin.left + plotW / 2, 16);
+    ctx.font = "11px ui-sans-serif, system-ui, sans-serif";
   }
 
   if (scene.grid !== false) {
@@ -82,52 +165,62 @@ function drawChart(canvas, scene, ctx) {
     ctx.fillText(formatTick(value), margin.left - 7, y);
   }
   ctx.textAlign = "center";
-  for (let i = 0; i <= 4; i += 1) {
-    const value = b.xmin + ((b.xmax - b.xmin) * i) / 4;
-    const x = sx(value);
-    ctx.fillText(formatTick(value), x, margin.top + plotH + 16);
+  const categories = Array.isArray(scene.category_ticks) ? scene.category_ticks : null;
+  if (categories) {
+    for (const tick of categories) {
+      if (tick && finiteNumber(tick.position)) {
+        ctx.fillText(String(tick.label ?? ""), sx(tick.position), margin.top + plotH + 16);
+      }
+    }
+  } else {
+    for (let i = 0; i <= 4; i += 1) {
+      const value = b.xmin + ((b.xmax - b.xmin) * i) / 4;
+      const x = sx(value);
+      ctx.fillText(formatTick(value), x, margin.top + plotH + 16);
+    }
   }
 
-  const clipBottom = Math.max(b.ymin, Math.min(0, b.ymax));
-  scene.series?.forEach((series, index) => {
-    const color = series.style?.color || PALETTE[index % PALETTE.length];
-    const alpha = series.style?.alpha ?? 1;
-    const xs = valuesOf(series, "x");
-    const ys = valuesOf(series, "y");
-    const count = Math.min(xs.length, ys.length);
-    if (!count) return;
+  const baseline = Math.max(b.ymin, Math.min(0, b.ymax));
+  for (const series of collected) {
     ctx.save();
-    ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
-    ctx.strokeStyle = color;
-    ctx.fillStyle = color;
-    if (series.kind === "bar") {
-      const zero = sy(clipBottom);
-      let width = Math.max(2, plotW / Math.max(1, count) * 0.66);
-      if (count > 1) {
-        const gap = Math.abs(sx(xs[1]) - sx(xs[0]));
-        width = Math.max(2, gap * 0.68);
+    ctx.globalAlpha = Math.max(0, Math.min(1, series.alpha));
+    ctx.strokeStyle = series.color;
+    ctx.fillStyle = series.color;
+    if (series.bars) {
+      const zero = sy(baseline);
+      for (const bar of series.bars) {
+        const x0 = sx(bar.x - bar.width / 2);
+        const x1 = sx(bar.x + bar.width / 2);
+        const y = sy(bar.y);
+        const left = Math.min(x0, x1);
+        const barWidth = Math.max(1, Math.abs(x1 - x0));
+        ctx.fillRect(left, Math.min(y, zero), barWidth, Math.abs(zero - y));
       }
-      for (let i = 0; i < count; i += 1) {
-        const x = sx(xs[i]) - width / 2;
-        const y = sy(ys[i]);
-        ctx.fillRect(x, Math.min(y, zero), width, Math.abs(zero - y));
+    } else if (series.points) {
+      if (series.kind === "scatter") {
+        const radius = Math.max(1.5, series.radius ?? 3);
+        const step = sampleStep(series.points.length, SCATTER_SAMPLE_LIMIT);
+        for (let index = 0; index < series.points.length; index += step) {
+          const point = series.points[index];
+          ctx.beginPath();
+          ctx.arc(sx(point.x), sy(point.y), radius, 0, TAU);
+          ctx.fill();
+        }
+      } else {
+        ctx.lineWidth = Math.max(0.1, series.width ?? 1.6);
+        const step = sampleStep(series.points.length, LINE_SAMPLE_LIMIT);
+        ctx.beginPath();
+        let started = false;
+        for (let index = 0; index < series.points.length; index += step) {
+          const point = series.points[index];
+          const x = sx(point.x), y = sy(point.y);
+          if (!started) { ctx.moveTo(x, y); started = true; } else ctx.lineTo(x, y);
+        }
+        if (started) ctx.stroke();
       }
-    } else if (series.kind === "scatter") {
-      const radius = Math.max(1.5, Number(series.style?.radius) || 3);
-      for (let i = 0; i < count; i += 1) {
-        ctx.beginPath(); ctx.arc(sx(xs[i]), sy(ys[i]), radius, 0, Math.PI * 2); ctx.fill();
-      }
-    } else {
-      ctx.lineWidth = Number(series.style?.width) || 1.6;
-      ctx.beginPath();
-      for (let i = 0; i < count; i += 1) {
-        const x = sx(xs[i]), y = sy(ys[i]);
-        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-      }
-      ctx.stroke();
     }
     ctx.restore();
-  });
+  }
 
   ctx.fillStyle = "#7e879b";
   ctx.textAlign = "right";
@@ -136,6 +229,154 @@ function drawChart(canvas, scene, ctx) {
   if (scene.ylabel) {
     ctx.save(); ctx.translate(16, margin.top + plotH / 2); ctx.rotate(-Math.PI / 2);
     ctx.textAlign = "center"; ctx.fillText(String(scene.ylabel), 0, 0); ctx.restore();
+  }
+  ctx.restore();
+}
+
+// The polar frame keeps room for theta labels outside the circle.  The layout
+// mirrors Plot.polar_layout in ui/plot.lua.
+function polarLayout(width, height) {
+  const left = 52, right = width - 52, top = 34, bottom = height - 30;
+  const plotW = Math.max(1, right - left);
+  const plotH = Math.max(1, bottom - top);
+  return {
+    cx: left + plotW / 2,
+    cy: top + plotH / 2,
+    radius: frameRadius(plotW, plotH),
+  };
+}
+
+function drawPolar(canvas, scene, ctx) {
+  const { width, height } = cssSize(canvas);
+  const resolved = resolvePolar(scene);
+  const polar = resolved.polar;
+  const rmax = resolved.rmax;
+  const thetaZero = resolved.thetaZero;
+  const direction = resolved.direction;
+  const { cx, cy, radius } = polarLayout(width, height);
+
+  ctx.save();
+  ctx.fillStyle = "#0c1019";
+  ctx.fillRect(0, 0, width, height);
+  ctx.font = "11px ui-sans-serif, system-ui, sans-serif";
+  ctx.textBaseline = "middle";
+
+  if (scene.grid !== false) {
+    const rings = polarRings(polar, rmax);
+    const spokes = polarSpokes(polar);
+    ctx.strokeStyle = "#1d2433";
+    ctx.lineWidth = 1;
+    for (const tick of rings) {
+      const ringRadius = radius * tick.value / rmax;
+      ctx.beginPath(); ctx.arc(cx, cy, ringRadius, 0, TAU); ctx.stroke();
+    }
+    for (const tick of spokes) {
+      const angle = thetaZero + direction * tick.value;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + radius * Math.cos(angle), cy - radius * Math.sin(angle));
+      ctx.stroke();
+    }
+
+    ctx.fillStyle = "#7e879b";
+    ctx.font = "10px ui-sans-serif, system-ui, sans-serif";
+    for (const tick of rings) {
+      const label = radiusLabel(tick);
+      if (label === null) continue;
+      const ringRadius = radius * tick.value / rmax;
+      const position = ringLabelPosition(cx, cy, ringRadius);
+      ctx.textAlign = "right";
+      ctx.fillText(label, position.x, position.y);
+    }
+    for (const tick of spokes) {
+      const label = thetaLabel(tick);
+      if (label === null) continue;
+      const angle = thetaZero + direction * tick.value;
+      const position = thetaLabelPosition(cx, cy, radius, angle);
+      ctx.textAlign = "center";
+      ctx.fillText(label, position.x, position.y);
+    }
+    ctx.font = "11px ui-sans-serif, system-ui, sans-serif";
+  }
+
+  ctx.strokeStyle = "#42506a";
+  ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.arc(cx, cy, radius, 0, TAU); ctx.stroke();
+
+  for (const series of resolved.series) {
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, Math.min(1, series.alpha));
+    if (series.points) {
+      if (series.kind === "line") {
+        ctx.strokeStyle = series.color;
+        ctx.lineWidth = 1.8;
+        const step = sampleStep(series.points.length, LINE_SAMPLE_LIMIT);
+        ctx.beginPath();
+        let started = false;
+        for (let index = 0; index < series.points.length; index += step) {
+          const point = series.points[index];
+          const projected = projectPolar(cx, cy, radius, rmax, thetaZero,
+            direction, point.theta, point.r);
+          if (!started) { ctx.moveTo(projected.x, projected.y); started = true; }
+          else ctx.lineTo(projected.x, projected.y);
+        }
+        if (started) ctx.stroke();
+      } else {
+        const step = sampleStep(series.points.length, SCATTER_SAMPLE_LIMIT);
+        for (let index = 0; index < series.points.length; index += step) {
+          const point = series.points[index];
+          const projected = projectPolar(cx, cy, radius, rmax, thetaZero,
+            direction, point.theta, point.r);
+          ctx.fillStyle = point.color || series.color;
+          ctx.beginPath();
+          ctx.arc(projected.x, projected.y, pointRadius(point), 0, TAU);
+          ctx.fill();
+        }
+      }
+    } else if (series.bars) {
+      const step = sampleStep(series.bars.length, BAR_SAMPLE_LIMIT);
+      for (let index = 0; index < series.bars.length; index += step) {
+        const bar = series.bars[index];
+        for (const sector of barSectors(bar, radius, rmax, thetaZero, direction)) {
+          ctx.fillStyle = sector.color || series.color;
+          ctx.beginPath();
+          if (sector.full) {
+            ctx.arc(cx, cy, sector.radius, 0, TAU);
+          } else {
+            ctx.moveTo(cx, cy);
+            const anticlockwise = sector.endAngle > sector.startAngle;
+            ctx.arc(cx, cy, sector.radius, -sector.startAngle,
+              -sector.endAngle, anticlockwise);
+          }
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+    }
+    ctx.restore();
+  }
+
+  ctx.fillStyle = "#dfe5f4";
+  ctx.font = "600 13px ui-sans-serif, system-ui, sans-serif";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+  if (scene.title) ctx.fillText(String(scene.title), 12, 12);
+
+  ctx.fillStyle = "#7e879b";
+  ctx.font = "11px ui-sans-serif, system-ui, sans-serif";
+  if (scene.xlabel) {
+    ctx.textAlign = "center";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillText(String(scene.xlabel), cx, height - 8);
+  }
+  if (scene.ylabel) {
+    ctx.save();
+    ctx.translate(14, cy);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(String(scene.ylabel), 0, 0);
+    ctx.restore();
   }
   ctx.restore();
 }
@@ -210,12 +451,12 @@ function drawPlaceholder(canvas, ctx, scene) {
   ctx.fillText("renderer not available for this scene type", width / 2, height / 2 + 16);
 }
 
-export function drawScene(canvas) {
-  const scene = scenes.get(canvas);
-  if (scene === undefined) return;
+// Paint any scene into a canvas.  Kept separate from renderScene so the
+// headless scene QA can draw deterministic canvases without the DOM shell.
+export function paintScene(canvas, scene) {
   const ctx = canvas.getContext("2d");
   const rect = canvas.getBoundingClientRect();
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const dpr = Math.min((typeof window !== "undefined" && window.devicePixelRatio) || 1, 2);
   canvas.width = Math.max(1, Math.round(rect.width * dpr));
   canvas.height = Math.max(1, Math.round(rect.height * dpr));
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -223,8 +464,20 @@ export function drawScene(canvas) {
   ctx.clearRect(0, 0, width, height);
   if (scene === "cube") return drawCube(canvas, ctx);
   if (scene === "grid") return drawGrid(canvas, ctx);
-  if (scene && typeof scene === "object" && scene.type === "luaplotlib") return drawChart(canvas, scene, ctx);
+  if (scene && typeof scene === "object") {
+    const polar = scene.orientation === "polar";
+    if (polar) return drawPolar(canvas, scene, ctx);
+    if (scene.type === "luaplotlib" || Array.isArray(scene.series)) {
+      return drawChart(canvas, scene, ctx);
+    }
+  }
   return drawPlaceholder(canvas, ctx, scene);
+}
+
+export function drawScene(canvas) {
+  const scene = scenes.get(canvas);
+  if (scene === undefined) return;
+  paintScene(canvas, scene);
 }
 
 export function renderScene(container, scene) {
@@ -234,13 +487,16 @@ export function renderScene(container, scene) {
   wrap.className = "scene-wrap";
   const canvas = document.createElement("canvas");
   canvas.className = "scene-canvas";
-  canvas.setAttribute("aria-label", "Scene output");
+  const polar = typeof scene === "object" && scene.orientation === "polar";
+  canvas.setAttribute("aria-label", polar ? "Polar scene output" : "Scene output");
   scenes.set(canvas, scene);
   wrap.appendChild(canvas);
   const caption = document.createElement("div");
   caption.className = "scene-caption";
   const type = typeof scene === "string" ? scene : scene.type || "scene";
-  caption.innerHTML = `<span>${escapeText(type)} · rendered locally</span><span>${typeof scene === "object" ? "luaplotlib" : "LÖVR scene"}</span>`;
+  const kind = polar ? "luaplotlib polar"
+    : typeof scene === "object" ? "luaplotlib" : "LÖVR scene";
+  caption.innerHTML = `<span>${escapeText(type)} · rendered locally</span><span>${kind}</span>`;
   wrap.appendChild(caption);
   container.appendChild(wrap);
   requestAnimationFrame(() => drawScene(canvas));

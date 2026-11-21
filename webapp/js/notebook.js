@@ -57,6 +57,34 @@ return { scene = {
       style = { color = "#ff9f6e", radius = 4, label = "samples" } },
   },
 } }`),
+    createCell("code", `local theta, r = {}, {}
+for i = 1, 96 do
+  local a = (i - 1) * 2 * math.pi / 96
+  theta[i] = a
+  r[i] = 1 + 0.8 * math.sin(4 * a)
+end
+return { scene = {
+  type = "luaplotlib", orientation = "polar", title = "polar rose",
+  polar = {
+    theta_zero = 0, theta_direction = "counterclockwise", rmax = 2,
+    theta_ticks = {
+      { value = 0, label = "0" },
+      { value = math.pi / 2, label = "90" },
+      { value = math.pi, label = "180" },
+      { value = 3 * math.pi / 2, label = "270" },
+    },
+    r_ticks = {
+      { value = 0.5, label = "0.5" }, { value = 1, label = "1" },
+      { value = 1.5, label = "1.5" }, { value = 2, label = "2" },
+    },
+    series = {
+      { kind = "line", theta = theta, r = r,
+        style = { color = "#8aa4ff", label = "rose" } },
+      { kind = "bar", theta = { math.pi / 4 }, r = { 1.5 },
+        widths = { 0.45 }, colors = { "#62d7a2" } },
+    },
+  },
+} }`),
     createCell("code", `widgets.slider({ label = "gain", min = 0, max = 10, value = 3,
   on_change = function(value) print("gain", value) end })
 widgets.button({ label = "Ping",
