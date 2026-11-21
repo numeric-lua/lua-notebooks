@@ -167,6 +167,8 @@ function UI.new(app)
     show_help = false,
     show_find = false,
     show_replace = false,
+    show_graph = false,
+    graph_rects = {},
     replace_find = "",
     replace_with = "",
     replace_phase = "find",
@@ -735,6 +737,7 @@ function UI:draw(pass, logical_width, logical_height)
   self:draw_extension_browser(pass, width, height)
   self:draw_replace(pass, width, height)
   self:draw_find(pass, width, height)
+  self:draw_graph(pass, width, height)
   self:draw_help(pass, width, height)
   self:draw_palette(pass, width, height)
   self:draw_nvim_inline(pass, width, height)
@@ -758,6 +761,7 @@ function UI:palette_commands()
     { id = "export-html", label = "Export notebook as HTML" },
     { id = "recover-autosave", label = "Recover autosaved notebook" },
     { id = "replace", label = "Replace in notebook  (Ctrl+H)" },
+    { id = "graph", label = "Link graph" },
     { id = "clear-recent", label = "Clear recent notebooks" },
     { id = "clear-session", label = "Clear restored session" },
     { id = "move-up", label = "Move selected cell up" },
@@ -845,6 +849,7 @@ function UI:run_palette_command(id)
   elseif id == "export-html" then self.app:export_html()
   elseif id == "recover-autosave" then self.app:recover_autosave()
   elseif id == "replace" then self:open_replace()
+  elseif id == "graph" then self:open_graph()
   elseif id == "clear-recent" then self.app:clear_recent()
   elseif id == "clear-session" then self.app:clear_session()
   elseif id == "move-up" then self.app:move_cell(-1)
@@ -951,6 +956,50 @@ function UI:draw_nvim_inline(pass, width, height)
     view.cell_height * scale
   -- The notebook renders the cell text itself. Neovim only supplies editing
   -- semantics, buffer contents, and the cursor position.
+end
+
+function UI:open_graph()
+  self.show_graph = true
+end
+
+function UI:graph_entries()
+  local notebook = self.app:notebook()
+  local links = Format.wiki_links(notebook.cells)
+  local backlinks = Format.backlinks(self.app.notebooks, notebook:title())
+  return links, backlinks
+end
+
+function UI:draw_graph(pass, width, height)
+  if not self.show_graph then return end
+  local links, backlinks = self:graph_entries()
+  local panel_w = math.min(620, width - 80)
+  local row_h = 24
+  local rows = #links + #backlinks + 2
+  local panel_h = 56 + rows * row_h
+  local x, y = (width - panel_w) / 2, math.max(70, (height - panel_h) / 2)
+  self.graph_rects = {}
+  box(pass, x, y, panel_w, panel_h, { 0.06, 0.07, 0.10, 0.98 })
+  text(pass, self.app.font, "Link graph — " .. self.app:notebook():title(),
+    x + 16, y + 14, { 0.9, 0.94, 1, 1 }, 0.82)
+  local row = 0
+  local function entry(label, title)
+    row = row + 1
+    local ry = y + 44 + (row - 1) * row_h
+    box(pass, x + 10, ry, panel_w - 20, row_h - 2, { 0.11, 0.13, 0.18, 1 })
+    text(pass, self.app.font, label, x + 18, ry + 4,
+      { 0.78, 0.86, 1, 1 }, 0.7)
+    if title then
+      self.graph_rects[#self.graph_rects + 1] = {
+        x = x + 10, y = ry, w = panel_w - 20, h = row_h - 2, title = title,
+      }
+    end
+  end
+  entry("Outgoing links (" .. #links .. ")", nil)
+  for _, title in ipairs(links) do entry("  → " .. title, title) end
+  entry("Backlinks (" .. #backlinks .. ")", nil)
+  for _, title in ipairs(backlinks) do entry("  ← " .. title, title) end
+  text(pass, self.app.font, "Click a notebook to open  ·  Esc closes",
+    x + 16, y + panel_h - 18, { 0.5, 0.58, 0.72, 1 }, 0.62)
 end
 
 function UI:open_replace()
@@ -1073,6 +1122,7 @@ function UI:draw_help(pass, width, height)
         { "o / O", "insert below / above and edit" },
         { "Ctrl+F", "find across notebook cells" },
         { "Ctrl+H", "replace in notebook" },
+        { "Ctrl+G", "link graph" },
         { "Ctrl+P", "command palette" },
         { "Ctrl+S", "save notebook" },
         { "Ctrl+Tab", "next / previous notebook" },
@@ -1865,6 +1915,10 @@ function UI:keypressed(key)
     end
     return
   end
+  if self.show_graph then
+    if key == "escape" then self.show_graph = false end
+    return
+  end
   if self.show_find then
     if key == "escape" then self.show_find = false
     elseif key == "backspace" then
@@ -1885,6 +1939,7 @@ function UI:keypressed(key)
   end
   if ctrl_down and key == "f" then self:open_find(); return end
   if ctrl_down and key == "h" then self:open_replace(); return end
+  if ctrl_down and key == "g" then self:open_graph(); return end
   if ctrl_down and key == "p" then
     self.show_palette = true
     self.palette_query = ""
@@ -2780,6 +2835,16 @@ function UI:mousepressed(x, y, button)
     for _, rect in ipairs(self.palette_rects) do
       if inside(x, y, rect) then
         self:run_palette_command(rect.id)
+        return
+      end
+    end
+    return
+  end
+  if self.show_graph then
+    for _, rect in ipairs(self.graph_rects) do
+      if inside(x, y, rect) then
+        self.show_graph = false
+        self.app:open_title(rect.title)
         return
       end
     end

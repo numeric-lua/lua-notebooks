@@ -531,3 +531,7 @@ Successfully opened paths are kept in `recent.json` (latest ten). They appear as
 ## HTML export
 
 Exports are self-contained HTML with a title, cell sections, styled outputs, and a closing backlinks list computed from `[[wiki links]]` across the open notebooks.
+
+## Link graph
+
+Press **Ctrl+G** for an overlay of the current notebook’s outgoing `[[wiki links]]` and incoming backlinks. Click a title to open it, or Esc to close.
