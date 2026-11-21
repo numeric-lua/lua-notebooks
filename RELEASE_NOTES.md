@@ -1,6 +1,6 @@
-# lua-notebooks 1.35.0
+# lua-notebooks 1.36.0
 
-- open one or more .luanb notebooks from the command line;
-- external notebooks load via io.open and save back to their path;
-- invalid external notebook files fail with a status instead of crashing;
-- regression test for explicit-path load/save.
+- crash-recovery autosaves every 20 seconds for dirty notebooks;
+- recover a backup as a new tab from the command palette;
+- successful F6 saves remove the recovery copy;
+- explicit-path CLI notebooks and fail-safe invalid loads retained.
