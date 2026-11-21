@@ -17,8 +17,11 @@
   yank/paste, undo, search, command line, literal/pattern substitution.
 - Inline and display math: symbols, fractions, radicals, simple matrices.
 - Collapsible markdown headings and heading outline.
-- Command palette, shortcut help, zip package, local install, desktop entry,
-  and LuaRocks package/launcher.
+- Command palette, tag-index overlay, optional per-cell execution timing,
+  shortcut help, zip package, local install, desktop entry, and LuaRocks
+  package/launcher.
+- Confirmed, undoable cell deletion when notebook-wide Neovim markers omit a
+  cell.
 - Pure test suite and GitHub Actions CI.
 - Manual physical-input and visual smoke scripts.
 

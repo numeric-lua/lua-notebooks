@@ -20,8 +20,9 @@
 5. Cell layout still computes every cell each frame; visible drawing is culled but
    heights are not cached.
 6. Markdown/text layout is not incrementally cached beyond display math.
-7. Obsidian-style navigation covers search, wiki links and palette backlinks;
-   graph view and tags are absent.
+7. Obsidian-style navigation covers search, wiki links, palette backlinks, a
+   tag-index overlay and a link-list graph overlay; a spatial graph view is
+   absent.
 8. OS extension sandboxing is Linux-specific; macOS/Windows use a Lua sandbox.
 9. LSP is local and partial; no full semantic index.
 10. Visual regression uses a tolerance for renderer variance.
@@ -31,7 +32,8 @@
 - Warm Neovim process is reused across cells; startup is paid once.
 - Windows Neovim transport (named pipes or TCP FFI definitions).
 - Cell-height cache and true virtualization; source/output/diagnostic caches landed.
-- Graph view and tag index on top of search/wiki links.
-- New marker blocks create cells; marker deletion remains fail-closed; reordering maps to the model.
+- Spatial graph view beyond the link-list overlay.
+- Marker deletion is confirmed explicitly (`Enter`/`y`) and stays undoable;
+  new marker blocks create cells and reordering maps to the model.
 - macOS/Windows OS sandbox backends.
 - Broader visual baselines with renderer pinning.

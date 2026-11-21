@@ -165,6 +165,8 @@ Controls:
 | `Ctrl+H` | show hover help for the trailing identifier |
 | `Ctrl+G` | jump to a local/function definition of the trailing identifier |
 | `Ctrl+Shift+R` | rename the trailing identifier across code cells |
+| `Ctrl+T` | open/close the tag index overlay |
+| `Ctrl+Shift+E` | show/hide per-cell execution timing |
 | `F1` | open/close the command palette |
 | `F2` | open the hierarchical notebook filetree |
 | `F3` | toggle Vim mode (on by default) |
@@ -342,7 +344,7 @@ remaining gaps.
 ## Tests
 
 `make test` runs the pure model, widget, engine, remote-supervisor,
-process-kernel, sandbox, and editor suite on LuaJIT. `make test-lua51
+process-kernel, sandbox, editor, and Neovim-buffer plan/apply suite on LuaJIT. `make test-lua51
 LUA=lua5.1` runs the Lua 5.1-compatible subset. `make test-remote` starts the
 WebSocket gateway and executes a cell with a real client. CI runs all three;
 graphics, input, and visual smokes are manual because they need a display and
@@ -426,6 +428,9 @@ LUANB_SMOKE_WIDGET=1 lovr . # run the widget cell, then quit
 LUANB_SMOKE_WIDGET_EVENT=1 lovr . # run the widget cell and change a slider
 LUANB_SMOKE_SAVE=1 lovr .   # save/load the active notebook, then quit
 LUANB_QA_CELL=6 lovr .      # run one cell and keep the window open for visual QA
+LUANB_QA_TAGS=1 LUANB_QA_SCREENSHOT=1 lovr . # tag-index overlay screenshot
+LUANB_QA_TIMING=1 LUANB_QA_CELL=6 LUANB_QA_SCREENSHOT=1 lovr . # timing label
+LUANB_QA_NVIM_DELETE=1 lovr . # confirm an omitted Neovim marker deletes safely
 LUANB_SMOKE_RELOAD=1 lovr . # reload the cube renderer module, then quit
 LUANB_SMOKE_WATCH=1 lovr .  # touch cube.lua and verify filesystem hot reload
 LUANB_SMOKE_INPUT=1 lovr .  # programmatic pointer drag on the cube surface
@@ -489,7 +494,10 @@ LÖVR. Press **Alt+E** or use the command palette action **Neovim cell editor**.
 - `F10` writes the buffer back to the current cell;
 - `F9` discards and closes;
 - the editor starts in insert mode;
-- `Escape` enters Vim normal mode for full Vim keybindings.
+- `Escape` enters Vim normal mode for full Vim keybindings;
+- in the notebook-wide buffer, a save that omits a `-- %% cell N` marker
+  pauses and asks before deleting that cell. `Enter`/`y` deletes the omitted
+  cell(s) as one undoable change; `Esc`/`n` cancels and keeps the buffer.
 
 Requirements: `nvim` on `PATH`. The bridge uses msgpack-RPC over a local TCP
 socket, not `luv` or `lua-mp`.
@@ -512,7 +520,11 @@ The Neovim process is kept warm after F10/F9/F5, so reopening a cell or switchin
 
 ## Tags
 
-Markdown `#tags` are indexed across open notebooks in the command palette; selecting one opens notebook-wide search for that tag.
+Markdown `#tags` are indexed across open notebooks in the command palette; selecting one opens notebook-wide search for that tag. Press **Ctrl+T** for a tag-index overlay that shows every tag with its total use count and the notebooks that contain it. Click a tag to switch to the current notebook (or the first notebook that has it) and run notebook-wide search for `#tag`; `Esc` closes the overlay.
+
+## Execution timing
+
+Every code-cell run records its kernel execution time. The timing stays hidden by default, so the cell layout and committed visual baselines do not change; press **Ctrl+Shift+E** or choose **Toggle execution timing** in the command palette to show a compact duration next to the cell index. Timings are live session data and are not persisted in `.luanb` files.
 
 Neovim completion uses external popupmenu events rendered over the grid. Held Backspace, Delete, arrow, Home/End, and PageUp/PageDown keys repeat. F10 applies changes to the notebook model; F6 writes the `.luanb` file.
 

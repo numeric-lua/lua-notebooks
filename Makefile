@@ -8,6 +8,7 @@ bench:
 
 test:
 	$(LUA) tests/run.lua
+	$(LUA) tests/nvim_buffer.lua
 	$(LUA) tests/runtime.lua
 	$(LUA) tests/engine.lua
 	$(LUA) tests/inline_supervisor.lua
@@ -46,6 +47,7 @@ test-webapp:
 
 test-lua51:
 	$(LUA) tests/run.lua
+	$(LUA) tests/nvim_buffer.lua
 	$(LUA) tests/runtime.lua
 	$(LUA) tests/engine.lua
 	$(LUA) tests/inline_supervisor.lua

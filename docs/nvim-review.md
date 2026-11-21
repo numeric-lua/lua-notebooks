@@ -8,8 +8,10 @@ Fixed after the static review:
 - EOF/errors are detected, requests stop instead of spinning for five seconds;
 - F10 fails closed and keeps the overlay open when the buffer cannot be read;
 - Neovim edits go through the notebook undo stack;
-- notebook markers are validated for duplicates, missing cells, bad indexes and
-  text before the first marker;
+- notebook markers are validated for duplicates, bad indexes and text before
+  the first marker;
+- missing markers do not silently delete cells: `F10` pauses, and only an
+  explicit `Enter`/`y` deletes the omitted cells as one undoable edit;
 - notebook-wide editing opens in normal mode on a body line, not on a marker;
 - mouse events are routed to Neovim instead of stale notebook hitboxes;
 - warm reloads go through a fresh scratch buffer and clear prior undo;
@@ -22,5 +24,6 @@ Remaining limits:
 
 - Windows uses the TCP transport; Unix sockets are POSIX-only.
 - External popup-menu events are enabled and rendered over the grid.
-- Marker reordering and new-cell creation are applied; marker deletion is rejected.
+- Marker reordering and new-cell creation are applied; marker deletion is
+  fail-closed until the user confirms the safe deletion prompt.
 - Held Backspace/Delete/arrows/Home/End/PageUp/PageDown repeat in the overlay.

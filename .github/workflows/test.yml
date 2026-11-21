@@ -66,6 +66,7 @@ jobs:
         run: |
           luajit -v
           luajit tests/run.lua
+          luajit tests/nvim_buffer.lua
           luajit tests/runtime.lua
           luajit tests/engine.lua
           luajit tests/inline_supervisor.lua

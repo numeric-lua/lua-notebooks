@@ -39,12 +39,17 @@ Working:
 - private Unix socket with a 0700 directory and server handshake;
 - optional full-screen notebook-wide buffer with `-- %% cell N` markers;
 - `F5` runs the cell containing the cursor from that buffer;
-- pure tests for codec, grid, RPC, and session.
+- omitted markers pause the save for explicit deletion confirmation instead of
+  silently dropping cells;
+- pure tests for codec, plan/apply marker reconciliation, grid, RPC, and
+  session.
 
 Known gaps:
 
 - font advance and cursor alignment are approximate;
 - no external `ext_cmdline`/`ext_messages` overlay;
 - Windows uses TCP transport;
-- new marker blocks create cells; deleting markers is rejected; reordering is supported;
+- new marker blocks create cells; deleting markers requires explicit
+  `Enter`/`y` confirmation (`Esc`/`n` keeps the buffer) and is undoable;
+  reordering is supported;
 - the headless process uses `--clean`, so user Neovim plugins are not loaded.
