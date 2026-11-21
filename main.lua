@@ -65,6 +65,7 @@ function App:new(notebooks)
   self._nvim_sync_at = 0
   self._nvim_pending_hide = false
   self._nvim_hidden_cell = nil
+  self.nvim_delete_prompt = nil
   self.autosave_at = 0
   self.recent_paths = {}
   local recent_ok, recent_text = pcall(lovr.filesystem.read, "recent.json")
@@ -706,6 +707,7 @@ function App:open_nvim()
   self._nvim_sync_at = 0
   self._nvim_pending_hide = false
   self._nvim_hidden_cell = nil
+  self.nvim_delete_prompt = nil
   if self.ui then
     self.ui.vim_scope = "cell"
     self.ui.vim_normal = true
@@ -793,8 +795,9 @@ function App:load_nvim_buffer(lines, filetype, insert, cursor_row)
   return true
 end
 
-function App:close_nvim(save, keep)
+function App:close_nvim(save, keep, options)
   if self.nvim_session == nil then return end
+  options = options or {}
   local was_inline = self.nvim_inline
   local original = self.nvim_inline_original
   local session = self.nvim_session
@@ -840,88 +843,39 @@ function App:close_nvim(save, keep)
   local applied = false
   if save and lines then
     if self.nvim_notebook then
-      local sources, order, decode_error, kinds = NvimBuffer.decode(lines)
       local notebook = self:notebook()
-      if decode_error then
-        self.status = "Neovim save failed: " .. decode_error
+      local plan, plan_error = NvimBuffer.plan(notebook.cells, lines)
+      if plan == nil then
+        self.status = "Neovim save failed: " .. tostring(plan_error)
         return false
       end
-      local all_editable = true
-      for _, cell in ipairs(notebook.cells) do
-        if cell.kind ~= "code" and cell.kind ~= "markdown" then
-          all_editable = false
-        end
+      if #plan.missing > 0 and not options.delete_missing then
+        self.nvim_delete_prompt = {
+          missing = plan.missing,
+          old_count = plan.old_count,
+        }
+        self.status = string.format(
+          "Neovim markers omit %d cell(s); Enter deletes, Esc cancels",
+          #plan.missing)
+        return false
       end
-      local old_count = #notebook.cells
-      local new_limit = all_editable and old_count + 100 or old_count
-      local seen = {}
-      for _, index in ipairs(order) do
-        if seen[index] or index < 1 or index > new_limit then
-          self.status = "Neovim save failed: bad cell marker " .. index
-          return false
-        end
-        seen[index] = true
+      local summary, apply_error = NvimBuffer.apply(notebook, plan, {
+        delete_missing = options.delete_missing,
+        label = "Neovim notebook edit",
+      })
+      if summary == nil then
+        self.status = "Neovim save failed: " .. tostring(apply_error)
+        return false
       end
-      for index, cell in ipairs(notebook.cells) do
-        if cell.kind == "code" or cell.kind == "markdown" then
-          if not seen[index] then
-            self.status = "Neovim save failed: missing marker for cell " .. index
-            return false
-          end
-        end
-      end
-      local changed = false
-      local added = 0
-      for index, source in pairs(sources) do
-        if index <= old_count then
-          local cell = notebook.cells[index]
-          if cell and cell.source ~= source then changed = true end
-        else
-          added = added + 1
-        end
-      end
-      local new_cells = {}
-      for _, index in ipairs(order) do
-        if index > old_count then
-          local kind = kinds[index] or "code"
-          if kind ~= "code" and kind ~= "markdown" then
-            self.status = "Neovim save failed: bad cell kind " .. kind
-            return false
-          end
-          new_cells[index] = notebook:new_cell(kind, sources[index] or "")
-        end
-      end
-      if changed or added > 0 then
-        notebook:push_undo("Neovim notebook edit")
-      end
-      for index, source in pairs(sources) do
-        if index <= old_count then
-          local cell = notebook.cells[index]
-          if cell then cell.source = source end
-        end
-      end
-      local reordered_flag = false
-      if #order >= old_count and (all_editable or #order == old_count) then
-        reordered_flag = true
-        local active_cell = notebook:selected()
-        local reordered = {}
-        for _, index in ipairs(order) do
-          if index <= old_count then
-            reordered[#reordered + 1] = notebook.cells[index]
-          else
-            reordered[#reordered + 1] = new_cells[index]
-          end
-        end
-        notebook.cells = reordered
-        for index, cell in ipairs(notebook.cells) do
-          if cell == active_cell then notebook.active = index end
-        end
-      end
-      notebook.dirty = changed or added > 0 or reordered_flag or notebook.dirty
+      self.nvim_delete_prompt = nil
       applied = true
-      if added > 0 then
-        self.status = "added " .. added .. " Neovim cell(s); F6 writes the file"
-      elseif changed then
+      if summary.deleted > 0 then
+        self.status = string.format(
+          "deleted %d Neovim cell(s); F6 writes the file", summary.deleted)
+      elseif summary.added > 0 then
+        self.status = "added " .. summary.added ..
+          " Neovim cell(s); F6 writes the file"
+      elseif summary.changed then
         self.status = "applied Neovim changes; F6 writes the file"
       else
         self.status = "no Neovim changes; F6 writes the file"
@@ -957,6 +911,7 @@ function App:close_nvim(save, keep)
   self.nvim_notebook = false
   self.nvim_inline = false
   self.nvim_inline_original = nil
+  self.nvim_delete_prompt = nil
   self._nvim_undo_started = false
   self._nvim_sync_at = 0
   self._nvim_pending_hide = false
@@ -976,8 +931,21 @@ function App:close_nvim(save, keep)
   return true
 end
 
-function App:hide_nvim(save)
-  return self:close_nvim(save, true)
+function App:hide_nvim(save, options)
+  return self:close_nvim(save, true, options)
+end
+
+function App:confirm_nvim_deletion()
+  if self.nvim_delete_prompt == nil then return false end
+  self.nvim_delete_prompt = nil
+  return self:hide_nvim(true, { delete_missing = true })
+end
+
+function App:cancel_nvim_deletion()
+  if self.nvim_delete_prompt == nil then return false end
+  self.nvim_delete_prompt = nil
+  self.status = "Neovim save cancelled; buffer kept"
+  return true
 end
 
 function App:notebook_cell_at_cursor()
@@ -1013,6 +981,7 @@ end
 
 function App:open_nvim_notebook()
   local notebook = self:notebook()
+  self.nvim_delete_prompt = nil
   local lines, rows = NvimBuffer.encode(notebook.cells)
   local cells = {}
   for _, entry in ipairs(rows) do cells[entry.index] = true end
@@ -1641,6 +1610,39 @@ function lovr.load()
       for _ = 1, 5 do app.nvim_session:update(); os.execute("sleep 0.01") end
       app.ui:keypressed("f5")
       print("NVIM_RUN active=" .. tostring(app:notebook().active))
+      io.stdout:flush()
+      lovr.event.quit()
+    end
+  end
+  if os.getenv("LUANB_QA_NVIM_DELETE") then
+    app:open_nvim_notebook()
+    if app.nvim_session then
+      local notebook = app:notebook()
+      local encoded = NvimBuffer.encode(notebook.cells)
+      local missing_rows = {}
+      for index, line in ipairs(encoded) do
+        if line ~= "-- %% cell 2 code" then
+          missing_rows[#missing_rows + 1] = line
+        end
+      end
+      app.nvim_session:set_lines(missing_rows, 1)
+      for _ = 1, 5 do
+        app.nvim_session:update(); os.execute("sleep 0.02")
+      end
+      local before = #notebook.cells
+      app.ui:keypressed("f10")
+      local prompted = app.nvim_delete_prompt ~= nil
+      local unchanged = #notebook.cells == before
+      app.ui:keypressed("escape")
+      local cancelled = app.nvim_delete_prompt == nil and
+        #notebook.cells == before
+      app.ui:keypressed("f10")
+      local reprompted = app.nvim_delete_prompt ~= nil
+      app.ui:keypressed("return")
+      print(string.format(
+        "NVIM_DELETE prompted=%s unchanged=%s cancelled=%s reprompted=%s " ..
+        "before=%d after=%d", tostring(prompted), tostring(unchanged),
+        tostring(cancelled), tostring(reprompted), before, #notebook.cells))
       io.stdout:flush()
       lovr.event.quit()
     end

@@ -242,6 +242,7 @@ function UI:draw(pass, logical_width, logical_height)
       app.ui_scale or 1)
     text(pass, app.font, "F10 save   F5 save+run   F9 discard",
       width - 12, 2, { 0.35, 0.38, 0.46, 1 }, 0.6, "right")
+    self:draw_nvim_delete_prompt(pass, width, height)
     return {}
   end
 
@@ -1000,6 +1001,38 @@ function UI:draw_graph(pass, width, height)
   for _, title in ipairs(backlinks) do entry("  ← " .. title, title) end
   text(pass, self.app.font, "Click a notebook to open  ·  Esc closes",
     x + 16, y + panel_h - 18, { 0.5, 0.58, 0.72, 1 }, 0.62)
+end
+
+function UI:draw_nvim_delete_prompt(pass, width, height)
+  local prompt = self.app.nvim_delete_prompt
+  if prompt == nil then return end
+  local panel_w = math.min(660, width - 60)
+  local panel_h = 154
+  local x = (width - panel_w) / 2
+  local y = math.max(60, (height - panel_h) / 2)
+  local missing = {}
+  for index = 1, math.min(#prompt.missing, 8) do
+    missing[#missing + 1] = tostring(prompt.missing[index])
+  end
+  local label = table.concat(missing, ", ")
+  if #prompt.missing > #missing then label = label .. ", …" end
+  box(pass, x + 5, y + 5, panel_w, panel_h, { 0, 0, 0, 0.4 })
+  box(pass, x, y, panel_w, panel_h, { 0.05, 0.06, 0.09, 0.99 })
+  box(pass, x, y, panel_w, 3, { 1, 0.72, 0.3, 1 })
+  text(pass, self.app.font, "Delete cells omitted from the Neovim buffer?",
+    x + 20, y + 18, { 0.98, 0.94, 0.86, 1 }, 0.82)
+  text(pass, self.app.font,
+    "No marker was found for cell(s) " .. label .. ".",
+    x + 20, y + 48, { 0.86, 0.89, 0.96, 1 }, 0.7)
+  text(pass, self.app.font,
+    "The save is paused. Confirming deletes those cells and keeps the",
+    x + 20, y + 72, { 0.65, 0.7, 0.8, 1 }, 0.64)
+  text(pass, self.app.font,
+    "other marker edits as one undoable change.",
+    x + 20, y + 92, { 0.65, 0.7, 0.8, 1 }, 0.64)
+  text(pass, self.app.font,
+    "Enter / y  delete cells     ·     Esc / n  keep buffer",
+    x + 20, y + 120, { 0.55, 0.8, 1, 1 }, 0.68)
 end
 
 function UI:open_replace()
@@ -1844,6 +1877,14 @@ end
 
 function UI:keypressed(key)
   if self.app.show_nvim then
+    if self.app.nvim_delete_prompt then
+      if key == "return" or key == "y" then
+        self.app:confirm_nvim_deletion()
+      elseif key == "escape" or key == "n" then
+        self.app:cancel_nvim_deletion()
+      end
+      return
+    end
     local alt = lovr.system and lovr.system.isKeyDown and
       (lovr.system.isKeyDown("lalt") or lovr.system.isKeyDown("ralt"))
     if alt and (key == "j" or key == "k") then
