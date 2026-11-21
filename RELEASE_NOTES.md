@@ -1,6 +1,5 @@
-# lua-notebooks 1.40.0
+# lua-notebooks 1.41.0
 
-- structured, styled HTML exports with output classes;
-- wiki-link and backlink helpers;
-- backlinks included in exported notebooks;
-- 1.39 recent/session/autosave retained.
+- Ctrl+G link graph overlay with outgoing links and backlinks;
+- click-through to linked notebooks;
+- 1.40 styled HTML export retained.
