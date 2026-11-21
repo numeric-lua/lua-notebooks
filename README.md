@@ -368,7 +368,7 @@ compositor and window stacking.
 ## LuaRocks
 
 ```sh
-luarocks make lua-notebooks-1.42.0-1.rockspec
+luarocks make lua-notebooks-1.43.0-1.rockspec
 lua-notebooks
 ```
 
@@ -377,7 +377,7 @@ The rockspec installs the app source under the LuaRocks share tree and a
 
 ```sh
 make rock
-luarocks install lua-notebooks-1.42.0-1.src.rock
+luarocks install lua-notebooks-1.43.0-1.src.rock
 ```
 
 Publishing to a remote rock server is intentionally not automated.
@@ -431,6 +431,7 @@ LUANB_QA_CELL=6 lovr .      # run one cell and keep the window open for visual Q
 LUANB_QA_TAGS=1 LUANB_QA_SCREENSHOT=1 lovr . # tag-index overlay screenshot
 LUANB_QA_TIMING=1 LUANB_QA_CELL=6 LUANB_QA_SCREENSHOT=1 lovr . # timing label
 LUANB_QA_NVIM_DELETE=1 lovr . # confirm an omitted Neovim marker deletes safely
+LUANB_QA_NVIM_DELETE=1 LUANB_QA_NVIM_DELETE_HOLD=1 LUANB_QA_SCREENSHOT=1 lovr . # deletion-prompt screenshot
 LUANB_SMOKE_RELOAD=1 lovr . # reload the cube renderer module, then quit
 LUANB_SMOKE_WATCH=1 lovr .  # touch cube.lua and verify filesystem hot reload
 LUANB_SMOKE_INPUT=1 lovr .  # programmatic pointer drag on the cube surface
@@ -549,7 +550,7 @@ Successfully opened paths are kept in `recent.json` (latest ten). They appear as
 
 Exports are self-contained HTML with no external assets. The document has viewport and description metadata, a dark-mode-aware stylesheet, a print stylesheet, a sticky table of contents with unique heading anchors, a figures section, per-cell permalinks, styled outputs and errors, and a closing backlinks list computed from `[[wiki links]]` across the open notebooks.
 
-Code-cell scene outputs become `<figure>` placeholders with a deterministic inline SVG preview (line, scatter, bar, histogram, `cube`, and `grid` are recognized), a caption with series/point counts, and a collapsible JSON scene dump. Interactive widgets are listed but not exported. The static preview is a sketch of the scene, not a raster of the live renderer.
+Code-cell scene outputs become `<figure>` placeholders with a deterministic inline SVG preview (line, scatter, bar, histogram, `cube`, and `grid` are recognized), a caption with series/point counts, and a collapsible JSON scene dump. Interactive widgets are listed but not exported. The static preview is a sketch of the scene, not a raster of the live renderer. See [docs/export.md](docs/export.md) for the document shape, Markdown subset, safety rules, and determinism guarantees.
 
 ## Link graph
 

@@ -378,10 +378,12 @@ local function inline_markdown(text)
   end)
   escaped = escaped:gsub("%[([^%]]+)%]%(([^%)]+)%)", function(label, url)
     local lower = url:lower()
-    if lower:match("^%s*javascript:") or lower:match("^%s*data:") then
+    local scheme = lower:match("^%s*([%a][%w+.-]*):")
+    if scheme ~= nil and scheme ~= "http" and scheme ~= "https" and
+       scheme ~= "mailto" then
       return label
     end
-    local rel = lower:match("^https?://") and
+    local rel = (scheme == "http" or scheme == "https") and
       ' rel="noopener noreferrer"' or ""
     return '<a href="' .. url .. '"' .. rel .. ">" .. label .. "</a>"
   end)

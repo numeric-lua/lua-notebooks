@@ -1048,7 +1048,7 @@ function UI:draw_nvim_delete_prompt(pass, width, height)
   text(pass, self.app.font, "Delete cells omitted from the Neovim buffer?",
     x + 20, y + 16, { 0.98, 0.94, 0.86, 1 }, 0.82)
   text(pass, self.app.font, string.format(
-    "No marker was found for %d cell(s). The save is paused; confirming",
+    "No marker was found for %d cell(s). The save is paused.",
     #previews), x + 20, y + 44, { 0.86, 0.89, 0.96, 1 }, 0.68)
   local list_y = y + 70
   for index = 1, shown do
@@ -1067,10 +1067,10 @@ function UI:draw_nvim_delete_prompt(pass, width, height)
   end
   local explain_y = list_y + list_rows * 22 + 8
   text(pass, self.app.font,
-    "deletes them and keeps the other marker edits as one undoable change.",
+    "Confirming deletes these cells and keeps the other marker edits",
     x + 20, explain_y, { 0.65, 0.7, 0.8, 1 }, 0.62)
   text(pass, self.app.font,
-    "The buffer stays open until you confirm.",
+    "as one undoable change. The buffer stays open until you confirm.",
     x + 20, explain_y + 18, { 0.65, 0.7, 0.8, 1 }, 0.62)
   text(pass, self.app.font,
     "Enter / y  delete cells     ·     Esc / n  keep buffer",

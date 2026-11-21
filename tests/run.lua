@@ -565,6 +565,9 @@ current = "html escaping"
 test("escapes scene metadata and limits scene JSON", function()
   local notebook = Notebook.new({ name = "escape.luanb", cells = {
     { kind = "code", source = "return scene" },
+    { kind = "markdown", source =
+      "[ok](https://example.com/a?b=1&c=2) " ..
+      "[bad](javascript:alert(1)) [mail](mailto:a@example.com)" },
   } })
   notebook.cells[1].scene = {
     type = "luaplotlib", title = '<script>alert("x")</script>', series = {},
@@ -572,6 +575,9 @@ test("escapes scene metadata and limits scene JSON", function()
   local html = Format.to_html(notebook)
   assert(html:find("<script>alert", 1, true) == nil)
   assert(html:find("&lt;script&gt;alert", 1, true))
+  assert(html:find('href="https://example.com/a?b=1&amp;c=2"', 1, true))
+  assert(html:find("javascript:", 1, true) == nil)
+  assert(html:find("mailto:a@example.com", 1, true))
   local text, truncated = Format.scene_json({ text = string.rep("a", 5000) },
     40)
   eq(truncated, true)

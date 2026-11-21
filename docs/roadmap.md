@@ -17,11 +17,14 @@
   yank/paste, undo, search, command line, literal/pattern substitution.
 - Inline and display math: symbols, fractions, radicals, simple matrices.
 - Collapsible markdown headings and heading outline.
-- Command palette, tag-index overlay, optional per-cell execution timing,
-  shortcut help, zip package, local install, desktop entry, and LuaRocks
-  package/launcher.
+- Command palette, tag-index overlay with per-notebook chips, optional
+  per-cell execution timing, shortcut help, zip package, local install,
+  desktop entry, and LuaRocks package/launcher.
 - Confirmed, undoable cell deletion when notebook-wide Neovim markers omit a
-  cell.
+  cell; the prompt previews every omitted cell.
+- Navigable static HTML export with metadata, heading anchors/table of
+  contents, a figures index, inline SVG scene previews, scene JSON, and
+  printable light/dark styling.
 - Pure test suite and GitHub Actions CI.
 - Manual physical-input and visual smoke scripts.
 
@@ -33,6 +36,8 @@
   the restricted Lua-environment fallback.
 - Full Vim semantics: undo tree, regex parity, text objects, macros.
 - Broader visual coverage beyond QA cells 4/6/7.
+- Static export cannot run widgets or reproduce animated/custom extension
+  surfaces; it emits placeholders and scene sketches.
 
 ## Verify
 
@@ -40,5 +45,5 @@
 make test
 ./scripts/input-smoke.sh   # needs a seat and /dev/uinput
 ./scripts/visual-smoke.sh  # needs a display
-luarocks make lua-notebooks-0.1.0-1.rockspec --tree=/tmp/luanb-rocks
+luarocks make lua-notebooks-1.43.0-1.rockspec --tree=/tmp/luanb-rocks
 ```

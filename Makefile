@@ -8,6 +8,8 @@ bench:
 
 test:
 	$(LUA) tests/run.lua
+	$(LUA) tests/markdown.lua
+	$(LUA) tests/types.lua
 	$(LUA) tests/nvim_buffer.lua
 	$(LUA) tests/runtime.lua
 	$(LUA) tests/engine.lua
@@ -47,6 +49,8 @@ test-webapp:
 
 test-lua51:
 	$(LUA) tests/run.lua
+	$(LUA) tests/markdown.lua
+	$(LUA) tests/types.lua
 	$(LUA) tests/nvim_buffer.lua
 	$(LUA) tests/runtime.lua
 	$(LUA) tests/engine.lua
@@ -78,8 +82,8 @@ install-desktop:
 	INSTALL_DESKTOP=1 ./scripts/install.sh
 
 rock:
-	luarocks lint lua-notebooks-1.42.0-1.rockspec
-	luarocks pack lua-notebooks-1.42.0-1.rockspec
+	luarocks lint lua-notebooks-1.43.0-1.rockspec
+	luarocks pack lua-notebooks-1.43.0-1.rockspec
 
 clean:
 	rm -rf .lovrshadercache dist *.src.rock

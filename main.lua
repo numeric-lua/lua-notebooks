@@ -1652,13 +1652,15 @@ function lovr.load()
         #notebook.cells == before
       app.ui:keypressed("f10")
       local reprompted = app.nvim_delete_prompt ~= nil
-      app.ui:keypressed("return")
+      local hold = os.getenv("LUANB_QA_NVIM_DELETE_HOLD") ~= nil
+      if not hold then app.ui:keypressed("return") end
       print(string.format(
         "NVIM_DELETE prompted=%s unchanged=%s cancelled=%s reprompted=%s " ..
-        "before=%d after=%d", tostring(prompted), tostring(unchanged),
-        tostring(cancelled), tostring(reprompted), before, #notebook.cells))
+        "hold=%s before=%d after=%d", tostring(prompted),
+        tostring(unchanged), tostring(cancelled), tostring(reprompted),
+        tostring(hold), before, #notebook.cells))
       io.stdout:flush()
-      lovr.event.quit()
+      if not hold then lovr.event.quit() end
     end
   end
   if os.getenv("LUANB_QA_NVIM_POPUP") then
