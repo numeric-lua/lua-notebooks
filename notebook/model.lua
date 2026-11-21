@@ -671,7 +671,7 @@ return { scene = {
       style = { color = "#ff7f0e", radius = 5, label = "samples" } },
   },
 } }]]),
-      cell("markdown", "## More plots\nThe renderer accepts line, scatter, bar, and histogram series. Each cell returns a plain Lua table, so scenes are testable without a GPU."),
+      cell("markdown", "## More plots\nThe renderer accepts Cartesian line, scatter, bar, and histogram series plus polar line, scatter, and bar scenes. Each cell returns a plain Lua table, so scenes are testable without a GPU."),
       cell("code", [[
 -- Bar chart.
 return { scene = {
@@ -720,6 +720,39 @@ return { scene = {
       style = { color = "#d62728", alpha = 1, label = "cos" } },
     { kind = "scatter", x = { 0, math.pi }, y = { 0, 0 },
       style = { color = "#ff7f0e", radius = 5 } },
+  },
+} }]]),
+      cell("code", [[
+-- Polar scene IR: the live viewport and the HTML export share the geometry.
+local theta, r = {}, {}
+for i = 1, 160 do
+  local angle = (i - 1) * 2 * math.pi / 160
+  theta[i] = angle
+  r[i] = 1.4 + 0.5 * math.sin(4 * angle)
+end
+return { scene = {
+  type = "luaplotlib", orientation = "polar",
+  title = "polar rose", width = 800, height = 320,
+  polar = {
+    theta_zero = 0, theta_direction = "counterclockwise", rmax = 2,
+    theta_ticks = {
+      { value = 0, label = "0" }, { value = math.pi / 2, label = "90" },
+      { value = math.pi, label = "180" },
+      { value = 3 * math.pi / 2, label = "270" },
+    },
+    r_ticks = {
+      { value = 0.5, label = "0.5" }, { value = 1, label = "1" },
+      { value = 1.5, label = "1.5" }, { value = 2, label = "2" },
+    },
+    series = {
+      { kind = "line", theta = theta, r = r,
+        style = { color = "#1f77b4", label = "rose" } },
+      { kind = "scatter", theta = { 0, math.pi / 2, math.pi },
+        r = { 1, 2, 1 },
+        style = { color = "#ff7f0e", radius = 5, label = "samples" } },
+      { kind = "bar", theta = { math.pi / 4 }, r = { 1.5 },
+        widths = { 0.45 }, colors = { "#2ca02c" } },
+    },
   },
 } }]]),
       cell("code", [[

@@ -78,10 +78,18 @@ test("loads and saves an explicit path", function()
 end)
 
 current = "model"
-test("demo has two notebooks", function()
+test("demo has two notebooks and a live polar cell", function()
   local notebooks = Notebook.demo()
   eq(#notebooks, 2)
-  eq(#notebooks[1].cells, 11)
+  eq(#notebooks[1].cells, 12)
+  local polar
+  for _, cell in ipairs(notebooks[1].cells) do
+    if cell.source:find('orientation = "polar"', 1, true) then
+      polar = cell
+      break
+    end
+  end
+  assert(polar ~= nil, "demo is missing a polar scene cell")
 end)
 test("inserts and deletes text at a cursor", function()
   local notebook = Notebook.new({ cells = { { kind = "code", source = "" } } })

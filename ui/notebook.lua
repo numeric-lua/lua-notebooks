@@ -391,7 +391,9 @@ function UI:draw(pass, logical_width, logical_height)
     end
     local scene_height = 0
     if type(cell.scene) == "table" and cell.scene.type == "luaplotlib" then
-      scene_height = 230
+      -- A polar frame is circular and needs the extra vertical room that a
+      -- wide Cartesian plot does not.
+      scene_height = cell.scene.orientation == "polar" and 300 or 230
     elseif cell.scene then
       scene_height = 170
     end

@@ -1830,7 +1830,8 @@ function lovr.load()
     notebook:selected().source = "os.exit(1)"
     app:run()
   elseif os.getenv("LUANB_SMOKE") or os.getenv("LUANB_SMOKE_SCENE") or
-     os.getenv("LUANB_SMOKE_PLOT") or os.getenv("LUANB_SMOKE_GRID") or
+     os.getenv("LUANB_SMOKE_PLOT") or os.getenv("LUANB_SMOKE_POLAR") or
+     os.getenv("LUANB_SMOKE_GRID") or
      os.getenv("LUANB_SMOKE_WIDGET") or
      os.getenv("LUANB_SMOKE_WIDGET_EVENT") or
      os.getenv("LUANB_SMOKE_INPUT") then
@@ -1840,6 +1841,8 @@ function lovr.load()
       app:notebook():select(3)
     elseif os.getenv("LUANB_SMOKE_PLOT") then
       app:notebook():select(4)
+    elseif os.getenv("LUANB_SMOKE_POLAR") then
+      app:notebook():select(9)
     elseif os.getenv("LUANB_SMOKE_GRID") then
       app:notebook():select(5)
     elseif os.getenv("LUANB_SMOKE_INPUT") then

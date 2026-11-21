@@ -2,10 +2,13 @@
 -- LÖVR renderer for renderer-agnostic luaplotlib scenes.
 --
 -- The scene table is produced by luaplotlib.scene.from_figure or by a kernel.
--- This renderer is intentionally dependency-free and draws in the notebook's
--- 2D pixel space; it does not need a graphics context inside the kernel.
+-- This pure-Lua renderer draws in the notebook's 2D pixel space; it does not
+-- need a graphics context inside the kernel.  Polar geometry is shared with
+-- the static HTML export through notebook/polar.lua so both backends agree on
+-- rmax, ticks, sampling, labels, and bar wedges.
 --
 local Theme = require("ui.theme")
+local Polar = require("notebook.polar")
 local Plot = {}
 
 local function color(hex, alpha)
@@ -49,6 +52,9 @@ end
 
 function Plot.draw(pass, font, scene, x, y, w, h)
   scene = scene or {}
+  if type(scene) == "table" and scene.orientation == "polar" then
+    return Plot.draw_polar(pass, font, scene, x, y, w, h)
+  end
   local light = Theme.mode == "light"
   local xmin, xmax = finite_range(scene.xlim and scene.xlim[1],
     scene.xlim and scene.xlim[2])
@@ -190,6 +196,160 @@ function Plot.draw(pass, font, scene, x, y, w, h)
   if scene.ylabel then
     text(pass, font, scene.ylabel, x + 12, top + plot_h / 2, 0.65,
       "center", "middle", { color = label_color })
+  end
+end
+
+-- The polar frame keeps a little room for theta labels, which sit outside the
+-- circle.  The radius formula is shared with the SVG preview.
+function Plot.polar_layout(x, y, w, h)
+  local left = x + 52
+  local right = x + w - 52
+  local top = y + 34
+  local bottom = y + h - 30
+  local plot_w = math.max(1, right - left)
+  local plot_h = math.max(1, bottom - top)
+  return left + plot_w / 2, top + plot_h / 2,
+    Polar.frame_radius(plot_w, plot_h)
+end
+
+-- Draw a luaplotlib polar scene.  The static export and this function consume
+-- the same resolved IR and the same projection helpers.
+function Plot.draw_polar(pass, font, scene, x, y, w, h)
+  scene = scene or {}
+  local light = Theme.mode == "light"
+  local resolved = Polar.resolve(scene)
+  local rmax = resolved.rmax
+  local theta_zero = resolved.theta_zero
+  local direction = resolved.direction
+  local cx, cy, radius = Plot.polar_layout(x, y, w, h)
+  local rings = Polar.rings(resolved.polar, rmax)
+  local spokes = Polar.spokes(resolved.polar)
+
+  local tick_color = light and "#5b6472" or "#7f879a"
+  local title_color = light and "#202630" or "#e8ecff"
+  local label_color = light and "#4a5260" or "#aeb6c8"
+
+  -- Background.  The export draws the circular frame directly on the scene
+  -- background, so the live renderer does the same.
+  if light then
+    pass:setColor(0.97, 0.975, 0.99, 1)
+  else
+    pass:setColor(0.025, 0.03, 0.05, 1)
+  end
+  pass:plane(x + w / 2, y + h / 2, 0, w, h)
+
+  if scene.grid ~= false then
+    if light then
+      pass:setColor(0.84, 0.86, 0.90, 1)
+    else
+      pass:setColor(0.15, 0.17, 0.23, 1)
+    end
+    for _, tick in ipairs(rings) do
+      pass:circle(cx, cy, 0, radius * tick.value / rmax, 0, 0, 1, 0, "line")
+    end
+    for _, tick in ipairs(spokes) do
+      local angle = theta_zero + direction * tick.value
+      pass:line(cx, cy, 0, cx + radius * math.cos(angle),
+        cy - radius * math.sin(angle), 0)
+    end
+  end
+
+  -- Frame.
+  if light then
+    pass:setColor(0.38, 0.42, 0.50, 1)
+  else
+    pass:setColor(0.45, 0.5, 0.62, 1)
+  end
+  pass:circle(cx, cy, 0, radius, 0, 0, 1, 0, "line")
+
+  -- Tick labels use the same short-label policy as the SVG preview.
+  if scene.grid ~= false then
+    for _, tick in ipairs(rings) do
+      local label = Polar.radius_label(tick)
+      if label ~= nil then
+        local ring_radius = radius * tick.value / rmax
+        local label_x, label_y = Polar.ring_label_position(cx, cy, ring_radius)
+        text(pass, font, label, label_x, label_y, 0.55, "right", "middle",
+          { color = tick_color })
+      end
+    end
+    for _, tick in ipairs(spokes) do
+      local label = Polar.theta_label(tick)
+      if label ~= nil then
+        local angle = theta_zero + direction * tick.value
+        local label_x, label_y = Polar.theta_label_position(cx, cy, radius,
+          angle)
+        text(pass, font, label, label_x, label_y, 0.55, "center", "middle",
+          { color = tick_color })
+      end
+    end
+  end
+
+  -- Series.
+  for _, series in ipairs(resolved.series) do
+    local base_style = { color = series.color, alpha = series.alpha }
+    if series.points ~= nil then
+      if series.kind == "line" then
+        set_color(pass, base_style)
+        local step = Polar.sample_step(#series.points,
+          Polar.LINE_SAMPLE_LIMIT)
+        local previous_x, previous_y
+        for index = 1, #series.points, step do
+          local point = series.points[index]
+          local point_x, point_y = Polar.project(cx, cy, radius, rmax,
+            theta_zero, direction, point.theta, point.r)
+          if previous_x ~= nil then
+            pass:line(previous_x, previous_y, 0, point_x, point_y, 0)
+          end
+          previous_x, previous_y = point_x, point_y
+        end
+      else
+        local step = Polar.sample_step(#series.points,
+          Polar.SCATTER_SAMPLE_LIMIT)
+        for index = 1, #series.points, step do
+          local point = series.points[index]
+          local point_x, point_y = Polar.project(cx, cy, radius, rmax,
+            theta_zero, direction, point.theta, point.r)
+          if point.color ~= nil then
+            set_color(pass, { color = point.color, alpha = series.alpha })
+          else
+            set_color(pass, base_style)
+          end
+          pass:circle(point_x, point_y, 0, Polar.point_radius(point))
+        end
+      end
+    elseif series.bars ~= nil then
+      local step = Polar.sample_step(#series.bars, Polar.BAR_SAMPLE_LIMIT)
+      for index = 1, #series.bars, step do
+        local bar = series.bars[index]
+        for _, sector in ipairs(Polar.bar_sectors(bar, radius, rmax,
+            theta_zero, direction)) do
+          set_color(pass, {
+            color = sector.color or series.color,
+            alpha = series.alpha,
+          })
+          if sector.full then
+            pass:circle(cx, cy, 0, sector.radius)
+          else
+            pass:polygon(Polar.sector_points(cx, cy, sector))
+          end
+        end
+      end
+    end
+  end
+
+  -- Labels.
+  if scene.title then
+    text(pass, font, scene.title, x + 10, y + 10, 0.82, "left", "top",
+      { color = title_color })
+  end
+  if scene.xlabel then
+    text(pass, font, scene.xlabel, cx, y + h - 14, 0.65, "center", "middle",
+      { color = label_color })
+  end
+  if scene.ylabel then
+    text(pass, font, scene.ylabel, x + 14, cy, 0.65, "center", "middle",
+      { color = label_color })
   end
 end
 

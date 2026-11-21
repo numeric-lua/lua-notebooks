@@ -21,6 +21,7 @@ test:
 	$(LUA) tests/sandbox.lua
 	$(LUA) tests/platform.lua
 	$(LUA) tests/display_list.lua
+	$(LUA) tests/polar.lua
 	$(LUA) tests/math_engine.lua
 	$(LUA) tests/editor.lua
 	$(LUA) tests/lsp_protocol.lua
@@ -61,6 +62,7 @@ test-lua51:
 	$(LUA) tests/sandbox.lua
 	$(LUA) tests/platform.lua
 	$(LUA) tests/display_list.lua
+	$(LUA) tests/polar.lua
 	$(LUA) tests/math_engine.lua
 	$(LUA) tests/editor.lua
 	$(LUA) tests/lsp_protocol.lua
@@ -82,8 +84,8 @@ install-desktop:
 	INSTALL_DESKTOP=1 ./scripts/install.sh
 
 rock:
-	luarocks lint lua-notebooks-1.44.0-1.rockspec
-	luarocks pack lua-notebooks-1.44.0-1.rockspec
+	luarocks lint lua-notebooks-1.45.0-1.rockspec
+	luarocks pack lua-notebooks-1.45.0-1.rockspec
 
 clean:
 	rm -rf .lovrshadercache dist *.src.rock

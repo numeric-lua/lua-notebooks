@@ -4,6 +4,7 @@
 --
 local json = require("notebook.json")
 local Notebook = require("notebook.model")
+local Polar = require("notebook.polar")
 
 local Format = {}
 
@@ -650,89 +651,6 @@ local function collect_plot_series(scene)
   return collected
 end
 
-local function polar_config(scene)
-  local polar = type(scene.polar) == "table" and scene.polar or {}
-  local rmax = finite_number(polar.rmax) and polar.rmax > 0 and polar.rmax or nil
-  local theta_zero = finite_number(polar.theta_zero) and polar.theta_zero or 0
-  local direction = polar.theta_direction == "clockwise" and -1 or 1
-  return polar, rmax, theta_zero, direction
-end
-
--- Map the polar scene IR into the small point/bar shapes the preview draws.
--- The observed maximum radius is returned for scenes that omit `polar.rmax`.
-local function collect_polar_series(scene)
-  local polar = type(scene.polar) == "table" and scene.polar or {}
-  local collected, observed, palette_index = {}, 0, 0
-  local function note(value)
-    if finite_number(value) then
-      local magnitude = math.abs(value)
-      if magnitude > observed then observed = magnitude end
-    end
-  end
-  for _, item in ipairs(polar.series or {}) do
-    if type(item) == "table" then
-      local color = type(item.style) == "table" and
-        valid_color(item.style.color) or nil
-      if color == nil then
-        palette_index = palette_index + 1
-        color = SCENE_PALETTE[(palette_index - 1) % #SCENE_PALETTE + 1]
-      end
-      local theta, r = item.theta, item.r
-      if type(theta) == "table" and type(r) == "table" then
-        local count = math.min(#theta, #r)
-        if item.kind == "bar" then
-          local widths = type(item.widths) == "table" and item.widths or nil
-          local colors = type(item.colors) == "table" and item.colors or nil
-          local bars = {}
-          for index = 1, count do
-            if finite_number(theta[index]) and finite_number(r[index]) then
-              note(r[index])
-              local width = widths and finite_number(widths[index]) and
-                math.max(0.001, widths[index]) or 0.2
-              local bar_color = colors and valid_color(colors[index]) or color
-              bars[#bars + 1] = {
-                theta = theta[index], r = r[index], width = width,
-                color = bar_color or color,
-              }
-            end
-          end
-          if #bars > 0 then
-            collected[#collected + 1] = {
-              kind = "bar", bars = bars, color = color,
-            }
-          end
-        else
-          local radii = type(item.radii) == "table" and item.radii or nil
-          local colors = type(item.colors) == "table" and item.colors or nil
-          local style_radius = type(item.style) == "table" and
-            item.style.radius or nil
-          local points = {}
-          for index = 1, count do
-            if finite_number(theta[index]) and finite_number(r[index]) then
-              note(r[index])
-              points[#points + 1] = {
-                theta = theta[index],
-                r = r[index],
-                radius = radii and finite_number(radii[index]) and
-                  radii[index] or style_radius,
-                color = colors and valid_color(colors[index]) or nil,
-              }
-            end
-          end
-          if #points > 0 then
-            collected[#collected + 1] = {
-              kind = item.kind == "scatter" and "scatter" or "line",
-              points = points,
-              color = color,
-            }
-          end
-        end
-      end
-    end
-  end
-  return collected, observed
-end
-
 local function plot_bounds(scene, collected)
   local xmin, xmax, ymin, ymax
   local function include(x, y)
@@ -848,17 +766,16 @@ function Format.scene_svg(scene, width, height)
       svg_number(cx), svg_number(cy + 22),
       svg_number(cx - 26), svg_number(cy))
   elseif summary.orientation == "polar" then
-    local collected, observed = collect_polar_series(scene)
-    local polar, rmax, theta_zero, direction = polar_config(scene)
-    rmax = rmax or (observed > 0 and observed or 1)
-    local radius = math.max(1, math.min(plot_w, plot_h) / 2 - 10)
+    local resolved = Polar.resolve(scene)
+    local polar = resolved.polar
+    local rmax = resolved.rmax
+    local theta_zero = resolved.theta_zero
+    local direction = resolved.direction
+    local radius = Polar.frame_radius(plot_w, plot_h)
     local cx, cy = left + plot_w / 2, top + plot_h / 2
     local function project(theta, value)
-      local angle = theta_zero + direction * theta
-      local ratio = value / rmax
-      if ratio > 1 then ratio = 1 elseif ratio < -1 then ratio = -1 end
-      return cx + radius * ratio * math.cos(angle),
-        cy - radius * ratio * math.sin(angle)
+      return Polar.project(cx, cy, radius, rmax, theta_zero, direction,
+        theta, value)
     end
     local direction_label = polar.theta_direction == "clockwise" and
       "clockwise" or "counterclockwise"
@@ -867,71 +784,45 @@ function Format.scene_svg(scene, width, height)
       svg_number(rmax), svg_number(theta_zero),
       escape_html(direction_label))
     if scene.grid ~= false then
-      local rings = {}
-      if type(polar.r_ticks) == "table" then
-        for _, tick in ipairs(polar.r_ticks) do
-          if type(tick) == "table" and finite_number(tick.value) and
-             tick.value > 0 and tick.value <= rmax * (1 + 1e-9) then
-            rings[#rings + 1] = tick
-          end
-        end
-      end
-      if #rings == 0 then
-        for index = 1, 4 do
-          rings[#rings + 1] = { value = rmax * index / 4 }
-        end
-      end
-      for _, tick in ipairs(rings) do
+      for _, tick in ipairs(Polar.rings(polar, rmax)) do
         local ring_radius = radius * tick.value / rmax
         out[#out + 1] = string.format(
           '<circle class="scene-polar-ring" cx="%s" cy="%s" r="%s"/>',
           svg_number(cx), svg_number(cy), svg_number(ring_radius))
-        if type(tick.label) == "string" and tick.label ~= "" and
-           #tick.label <= 12 then
+        local label = Polar.radius_label(tick)
+        if label ~= nil then
+          local label_x, label_y = Polar.ring_label_position(cx, cy,
+            ring_radius)
           out[#out + 1] = string.format(
             '<text class="scene-polar-label" text-anchor="end" x="%s" y="%s">%s</text>',
-            svg_number(cx + ring_radius - 3), svg_number(cy + 3),
-            escape_html(tick.label))
+            svg_number(label_x), svg_number(label_y), escape_html(label))
         end
       end
-      local spokes = {}
-      if type(polar.theta_ticks) == "table" then
-        for _, tick in ipairs(polar.theta_ticks) do
-          if type(tick) == "table" and finite_number(tick.value) then
-            spokes[#spokes + 1] = tick
-          end
-        end
-      end
-      if #spokes == 0 then
-        for index = 0, 11 do
-          spokes[#spokes + 1] = { value = index * math.pi / 6 }
-        end
-      end
-      for _, tick in ipairs(spokes) do
+      for _, tick in ipairs(Polar.spokes(polar)) do
         local angle = theta_zero + direction * tick.value
         local x2 = cx + radius * math.cos(angle)
         local y2 = cy - radius * math.sin(angle)
         out[#out + 1] = string.format(
           '<line class="scene-polar-spoke" x1="%s" y1="%s" x2="%s" y2="%s"/>',
           svg_number(cx), svg_number(cy), svg_number(x2), svg_number(y2))
-        if type(tick.label) == "string" and tick.label ~= "" and
-           #tick.label <= 18 then
-          local label_radius = radius + 12
+        local label = Polar.theta_label(tick)
+        if label ~= nil then
+          local label_x, label_y = Polar.theta_label_position(cx, cy,
+            radius, angle)
           out[#out + 1] = string.format(
             '<text class="scene-polar-label" text-anchor="middle" x="%s" y="%s">%s</text>',
-            svg_number(cx + label_radius * math.cos(angle)),
-            svg_number(cy - label_radius * math.sin(angle) + 3),
-            escape_html(tick.label))
+            svg_number(label_x), svg_number(label_y), escape_html(label))
         end
       end
     end
     out[#out + 1] = string.format(
       '<circle class="scene-polar-frame" cx="%s" cy="%s" r="%s"/>',
       svg_number(cx), svg_number(cy), svg_number(radius))
-    for _, series in ipairs(collected) do
+    for _, series in ipairs(resolved.series) do
       if series.points ~= nil then
         if series.kind == "line" then
-          local step = math.max(1, math.ceil(#series.points / 800))
+          local step = Polar.sample_step(#series.points,
+            Polar.LINE_SAMPLE_LIMIT)
           local points = {}
           for index = 1, #series.points, step do
             local point = series.points[index]
@@ -942,42 +833,45 @@ function Format.scene_svg(scene, width, height)
             '<polyline class="scene-series scene-polar-line" points="%s" stroke="%s"/>',
             table.concat(points, " "), series.color)
         else
-          local step = math.max(1, math.ceil(#series.points / 400))
+          local step = Polar.sample_step(#series.points,
+            Polar.SCATTER_SAMPLE_LIMIT)
           for index = 1, #series.points, step do
             local point = series.points[index]
             local x, y = project(point.theta, point.r)
-            local point_radius = finite_number(point.radius) and
-              math.max(1, math.min(8, point.radius)) or 2.6
             out[#out + 1] = string.format(
               '<circle class="scene-point scene-polar-point" cx="%s" cy="%s" r="%s" fill="%s"/>',
-              svg_number(x), svg_number(y), svg_number(point_radius),
+              svg_number(x), svg_number(y),
+              svg_number(Polar.point_radius(point)),
               point.color or series.color)
           end
         end
       elseif series.bars ~= nil then
-        local step = math.max(1, math.ceil(#series.bars / 400))
+        local step = Polar.sample_step(#series.bars, Polar.BAR_SAMPLE_LIMIT)
         for index = 1, #series.bars, step do
           local bar = series.bars[index]
-          local ratio = math.abs(bar.r / rmax)
-          if ratio > 1 then ratio = 1 end
-          if ratio > 0 then
-            local theta = bar.theta + (bar.r < 0 and math.pi or 0)
-            local half = math.min(math.pi, math.abs(bar.width) / 2)
-            local start_angle = theta_zero + direction * (theta - half)
-            local end_angle = theta_zero + direction * (theta + half)
-            local bar_radius = radius * ratio
-            local x0 = cx + bar_radius * math.cos(start_angle)
-            local y0 = cy - bar_radius * math.sin(start_angle)
-            local x1 = cx + bar_radius * math.cos(end_angle)
-            local y1 = cy - bar_radius * math.sin(end_angle)
-            local large = (half * 2 > math.pi) and 1 or 0
-            local sweep = direction < 0 and 1 or 0
-            out[#out + 1] = string.format(
-              '<path class="scene-polar-bar" d="M %s %s L %s %s A %s %s 0 %d %d %s %s Z" fill="%s"/>',
-              svg_number(cx), svg_number(cy), svg_number(x0),
-              svg_number(y0), svg_number(bar_radius),
-              svg_number(bar_radius), large, sweep, svg_number(x1),
-              svg_number(y1), bar.color)
+          for _, sector in ipairs(Polar.bar_sectors(bar, radius, rmax,
+              theta_zero, direction)) do
+            local fill = sector.color or series.color
+            if sector.full then
+              out[#out + 1] = string.format(
+                '<circle class="scene-polar-bar" cx="%s" cy="%s" r="%s" fill="%s"/>',
+                svg_number(cx), svg_number(cy), svg_number(sector.radius),
+                fill)
+            else
+              local start_angle, end_angle =
+                sector.start_angle, sector.end_angle
+              local x0 = cx + sector.radius * math.cos(start_angle)
+              local y0 = cy - sector.radius * math.sin(start_angle)
+              local x1 = cx + sector.radius * math.cos(end_angle)
+              local y1 = cy - sector.radius * math.sin(end_angle)
+              local large, sweep = Polar.arc_flags(sector)
+              out[#out + 1] = string.format(
+                '<path class="scene-polar-bar" d="M %s %s L %s %s A %s %s 0 %d %d %s %s Z" fill="%s"/>',
+                svg_number(cx), svg_number(cy), svg_number(x0),
+                svg_number(y0), svg_number(sector.radius),
+                svg_number(sector.radius), large, sweep, svg_number(x1),
+                svg_number(y1), fill)
+            end
           end
         end
       end
