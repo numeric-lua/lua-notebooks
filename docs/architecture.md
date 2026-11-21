@@ -95,8 +95,10 @@ that IR, not SVG strings:
 
 The notebook's `ui/plot.lua` currently implements the 2D line/scatter/bar/hist
 part of this IR. It maps data coordinates into the cell viewport, draws axes and
-ticks, and renders through the host pass. A future 3D backend can consume the
-same IR; a kernel can return it without touching graphics.
+ticks, and renders through the host pass. Polar scene IRs
+(`orientation = "polar"`, data under `polar.series`) are rendered by the static
+HTML export but not yet by the live viewport. A future 3D backend can consume
+the same IR; a kernel can return it without touching graphics.
 
 Do not make luaplotlib depend on LÖVR. The adapter belongs in a separate module
 or repository.

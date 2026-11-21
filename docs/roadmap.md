@@ -23,8 +23,9 @@
 - Confirmed, undoable cell deletion when notebook-wide Neovim markers omit a
   cell; the prompt previews every omitted cell.
 - Navigable static HTML export with metadata, heading anchors/table of
-  contents, a figures index, inline SVG scene previews, scene JSON, and
-  printable light/dark styling.
+  contents, a figures index, inline SVG scene previews (including polar
+  scenes), full-text search and a cell-kind filter, scene JSON, and printable
+  light/dark styling.
 - Pure test suite and GitHub Actions CI.
 - Manual physical-input and visual smoke scripts.
 

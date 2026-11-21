@@ -550,7 +550,11 @@ Successfully opened paths are kept in `recent.json` (latest ten). They appear as
 
 Exports are self-contained HTML with no external assets. The document has viewport and description metadata, a dark-mode-aware stylesheet, a print stylesheet, a sticky table of contents with unique heading anchors, a figures section, per-cell permalinks, styled outputs and errors, and a closing backlinks list computed from `[[wiki links]]` across the open notebooks.
 
-Code-cell scene outputs become `<figure>` placeholders with a deterministic inline SVG preview (line, scatter, bar, histogram, `cube`, and `grid` are recognized), a caption with series/point counts, and a collapsible JSON scene dump. Interactive widgets are listed but not exported. The static preview is a sketch of the scene, not a raster of the live renderer. See [docs/export.md](docs/export.md) for the document shape, Markdown subset, safety rules, and determinism guarantees.
+A small inline script adds reader-facing full-text search and a cell-kind filter. Search is case-insensitive, whitespace-separated terms are combined with AND, `/` focuses the box, Escape clears it, and the table of contents hides links to filtered-out cells. `?q=term` and `?kind=figures` prefill the controls for shareable filtered links. Without JavaScript the controls are hidden and the full document remains readable.
+
+Code-cell scene outputs become `<figure>` placeholders with a deterministic inline SVG preview (Cartesian line, scatter, bar, and histogram; polar line, scatter, and bar; plus `cube` and `grid`), a caption with series/point counts, and a collapsible JSON scene dump. Polar previews honour zero/direction/`rmax` and the supplied theta/r ticks. Interactive widgets are listed but not exported. The static preview is a sketch of the scene, not a raster of the live renderer. See [docs/export.md](docs/export.md) for the document shape, search semantics, Markdown subset, safety rules, and determinism guarantees.
+
+From a source checkout, `luajit tools/export.lua INPUT.luanb OUTPUT.html` exports without opening the app (use `-` for stdout and extra `.luanb` arguments for backlinks). `./scripts/export-qa.sh` builds a fixture, verifies `?q=`/`?kind=` filtering in headless Chromium, and captures light/dark/narrow screenshots under `/tmp`.
 
 ## Link graph
 
