@@ -156,6 +156,50 @@ function App:notebook()
   return self.notebooks[self.active]
 end
 
+function App:session_paths()
+  local paths, active_path = {}, nil
+  for index, notebook in ipairs(self.notebooks) do
+    if notebook._path then
+      paths[#paths + 1] = notebook._path
+      if index == self.active then active_path = notebook._path end
+    end
+  end
+  return paths, active_path
+end
+
+function App:save_session()
+  if not (lovr and lovr.filesystem) then return end
+  local paths, active_path = self:session_paths()
+  if #paths == 0 then
+    pcall(lovr.filesystem.remove, "session.json")
+    return
+  end
+  pcall(lovr.filesystem.write, "session.json",
+    Format.encode_session(paths, active_path))
+end
+
+function App:restore_session()
+  if not (lovr and lovr.filesystem) then return end
+  local text = lovr.filesystem.read("session.json")
+  if text == nil then return end
+  local paths, active_path = Format.decode_session(text)
+  if paths == nil then return end
+  for _, path in ipairs(paths) do self:open_path(path) end
+  if active_path then
+    for index, notebook in ipairs(self.notebooks) do
+      if notebook._path == active_path then self:set_tab(index); break end
+    end
+  end
+  if #paths > 0 then self.status = "restored session" end
+end
+
+function App:clear_session()
+  if lovr and lovr.filesystem then
+    pcall(lovr.filesystem.remove, "session.json")
+  end
+  self.status = "cleared session"
+end
+
 function App:set_tab(index)
   if index < 1 or index > #self.notebooks then return end
   self.active = index
@@ -301,6 +345,7 @@ function App:open_path(path)
   self.notebooks[#self.notebooks + 1] = notebook
   self.active = #self.notebooks
   self.supervisor:open("nb" .. self.active)
+  self:save_session()
   self.status = "opened " .. notebook.name
 end
 
@@ -1247,6 +1292,7 @@ function lovr.load()
   for _, target_path in ipairs(target_paths) do
     app:open_path(target_path)
   end
+  if #target_paths == 0 then app:restore_session() end
   if Runtime.has_native_filesystem() then lovr.filesystem.watch() end
   _G.app = app
   if os.getenv("LUANB_SMOKE_ZOOM") then
@@ -1994,6 +2040,7 @@ function lovr.threaderror(thread, message)
 end
 
 function lovr.quit()
+  if app and app.save_session then app:save_session() end
   if app and app.supervisor.close then app.supervisor:close() end
   if app and app.lsp_in then app.lsp_in:push("__quit") end
   if app and app.close_nvim then app:close_nvim(false) end

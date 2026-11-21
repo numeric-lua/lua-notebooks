@@ -109,6 +109,22 @@ function Format.remove_autosave(notebook)
   pcall(lovr.filesystem.remove, Format.autosave_path(notebook))
 end
 
+function Format.encode_session(paths, active_path)
+  return json.encode({ paths = paths or {}, active = active_path })
+end
+
+function Format.decode_session(text)
+  local ok, value = pcall(json.decode, text or "")
+  if not ok or type(value) ~= "table" or type(value.paths) ~= "table" then
+    return nil, "invalid session file"
+  end
+  local paths = {}
+  for _, path in ipairs(value.paths) do
+    if type(path) == "string" then paths[#paths + 1] = path end
+  end
+  return paths, type(value.active) == "string" and value.active or nil
+end
+
 function Format.tags(cells)
   local counts, order = {}, {}
   for _, cell in ipairs(cells or {}) do

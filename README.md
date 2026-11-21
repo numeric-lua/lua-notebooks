@@ -519,3 +519,7 @@ Neovim completion uses external popupmenu events rendered over the grid. Held Ba
 ## Autosave and recovery
 
 While a notebook is dirty, the app writes a crash-recovery copy every 20 seconds under the app save directory (`autosaves/`). The command palette action **Recover autosaved notebook** opens that copy as a new tab. A successful F6 save removes the recovery copy.
+
+## Session restore
+
+Notebook paths opened during a session are recorded in `session.json`. On the next launch, they are reopened automatically unless command-line paths were supplied. Use the command palette action **Clear restored session** to forget them.

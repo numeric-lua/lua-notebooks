@@ -503,6 +503,15 @@ test("autosave paths are safe and deterministic", function()
   eq(Format.autosave_path(notebook), "autosaves/my_notebook.luanb")
 end)
 
+current = "session"
+test("session files round-trip paths and active tab", function()
+  local text = Format.encode_session({ "a.luanb", "b.luanb" }, "b.luanb")
+  local paths, active = Format.decode_session(text)
+  eq(#paths, 2); eq(paths[1], "a.luanb"); eq(active, "b.luanb")
+  local bad = Format.decode_session("not json")
+  eq(bad, nil)
+end)
+
 io.write(string.format("\n\n%d tests, %d passed, %d failed\n", passed + failed,
   passed, failed))
 if failed > 0 then
