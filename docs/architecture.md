@@ -102,9 +102,11 @@ draws ticks, and renders through the host pass.
 Polar geometry lives in the dependency-free `notebook/polar.lua` module. The
 live viewport and the static HTML export share its rmax resolution, y-down
 projection, tick fallbacks, sample caps, label limits, and bar-wedge splitting.
-That keeps the two renderers close without giving the kernel or the exporter a
-graphics dependency. A future 3D backend can consume the same IR; a kernel can
-return it without touching graphics.
+`webapp/js/polar.js` is the JavaScript counterpart for the browser front-end,
+and `webapp/tests/fixtures/polar-parity.json` is read by both `tests/polar.lua`
+and the Node suite. That keeps the three renderers close without giving the
+kernel, exporter, or browser a shared graphics dependency. A future 3D backend
+can consume the same IR; a kernel can return it without touching graphics.
 
 Do not make luaplotlib depend on LÖVR. The adapter belongs in a separate module
 or repository.

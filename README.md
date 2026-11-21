@@ -95,9 +95,14 @@ luajit webapp/serve.lua --port 8010
 ```
 
 It connects to the same gateway over a native WebSocket and renders the
-notebook shell, widgets, and `luaplotlib`/scene outputs locally. See
-[webapp/README.md](webapp/README.md). This path is independent of the broken
-LÖVR 0.19 web runtime.
+notebook shell, widgets, and `luaplotlib`/scene outputs locally: Cartesian
+line/scatter/bar/hist with categorical ticks and explicit bar widths, polar
+line/scatter/bar on the shared circular frame, and the built-in `cube`/`grid`
+strings. `webapp/js/polar.js` mirrors `notebook/polar.lua`, and a shared
+fixture is checked by both `tests/polar.lua` and the Node suite so the browser,
+desktop, and export keep the same rmax, tick, label, projection, sampling, and
+bar-wedge behavior. See [webapp/README.md](webapp/README.md). This path is
+independent of the broken LÖVR 0.19 web runtime.
 
 See [docs/web.md](docs/web.md) for the LÖVR build steps and constraints.
 
@@ -348,9 +353,11 @@ remaining gaps.
 process-kernel, sandbox, editor, polar/export parity, and Neovim-buffer
 plan/apply suite on LuaJIT. `make test-lua51 LUA=lua5.1` runs the Lua
 5.1-compatible subset, including `tests/polar.lua`. `make test-remote` starts
-the WebSocket gateway and executes a cell with a real client. CI runs all three;
-graphics, input, and visual smokes are manual because they need a display and
-seat.
+the WebSocket gateway and executes a cell with a real client. `make test-webapp`
+runs the Node unit tests for the browser scene renderer and its notebook model;
+it needs only Node, no npm packages. CI runs these suites; graphics, input, and
+display-dependent visual smokes are manual unless the workflow provides Xvfb
+and LÖVR.
 
 ## Visual smoke
 
@@ -359,6 +366,7 @@ seat.
 ./scripts/visual-baseline.sh    # pixel baselines from the offscreen canvas
 ./scripts/visual-baseline.sh --update
 ./scripts/polar-qa.sh           # live polar capture and blank check
+./scripts/scene-qa.sh           # headless Chromium scene-pixel check
 ```
 
 `visual-baseline.sh` renders the notebook through an offscreen rgba8 canvas,
@@ -370,6 +378,11 @@ It is display-dependent and not part of `make test`.
 `/tmp/luanb-polar-qa.*`). It checks that the offscreen capture is non-blank and
 is useful for reviewing the live circular frame, ticks, and bar wedges without
 committing generated media.
+
+`scene-qa.sh` (also `make qa-webapp`) serves `webapp/` with the bundled Lua
+server, renders the browser fixture matrix in headless Chromium, and reads back
+Canvas pixels for every scene type. It fails on a blank frame or a missing
+series colour and keeps its DOM and logs under a scratch directory.
 
 The offscreen canvas is also what makes screenshots independent of the
 compositor and window stacking.

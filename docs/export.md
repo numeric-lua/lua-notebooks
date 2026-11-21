@@ -91,6 +91,13 @@ still deterministic and not a raster of the live renderer; animated or custom
 extension surfaces need the desktop app. Interactive widgets are not executed
 in the export; they are listed as static placeholders.
 
+The browser front-end described in [web.md](web.md) is the third consumer:
+`webapp/js/polar.js` mirrors `notebook/polar.lua`, and both
+`tests/polar.lua` and the Node suite read
+`webapp/tests/fixtures/polar-parity.json`. That fixture pins the resolved rmax,
+projection, ring/theta labels, and bar sector for a small scene, so a change to
+one renderer either updates the shared contract deliberately or fails a test.
+
 ## Markdown subset
 
 The export renders the Markdown subset the notebook previews and edits:
@@ -128,22 +135,27 @@ given input set.
 
 ```sh
 luajit tests/run.lua
-luajit tests/polar.lua    # shared geometry, live draw, export/live parity
+luajit tests/polar.lua    # shared geometry, live draw, export/live/browser parity
+make test-webapp          # Node browser-renderer tests
 ./scripts/export-qa.sh    # needs chromium; screenshots stay in /tmp
 ./scripts/polar-qa.sh     # live app polar capture; needs lovr
+./scripts/scene-qa.sh     # headless browser Canvas pixel check
 ```
 
 The unit tests exercise heading anchors and duplicate slugs,
 table-of-contents links, search-index normalization and escaping, figure
 summaries/SVGs, polar axes and series, escaping, JSON truncation, tag filtering,
 and timing sums. `tests/polar.lua` additionally checks the shared projection,
-tick/label filters, bar sectors, the live draw-call shape, and agreement between
-the live renderer and the exported SVG. `scripts/export-qa.sh` builds a small
-notebook, exports it with `tools/export.lua`, checks `?q=` and `?kind=` filtering
-through headless Chromium, and captures light, dark, narrow, and filtered
-screenshots under a scratch directory; it never commits them. `polar-qa.sh`
-runs a one-cell polar notebook in the app and keeps a live screenshot under
-another scratch directory.
+tick/label filters, bar sectors, the live draw-call shape, agreement between
+the live renderer and the exported SVG, and the shared browser parity fixture.
+`make test-webapp` checks the JavaScript counterpart and its draw calls.
+`scripts/export-qa.sh` builds a small notebook, exports it with
+`tools/export.lua`, checks `?q=` and `?kind=` filtering through headless
+Chromium, and captures light, dark, narrow, and filtered screenshots under a
+scratch directory; it never commits them. `polar-qa.sh` runs a one-cell polar
+notebook in the app and keeps a live screenshot under another scratch
+directory, while `scene-qa.sh` renders the browser scene matrix in Chromium and
+checks Canvas pixels.
 
 For a rendered check from the app, export the demo notebook and open the
 result:

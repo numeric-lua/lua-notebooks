@@ -26,6 +26,15 @@ Then open <http://127.0.0.1:8010/>. See [webapp/README.md](../webapp/README.md).
 The LÖVR web instructions below are retained for the eventual upstream
 graphics fix and for the validated transport bridge.
 
+The front-end renders scene outputs itself on Canvas 2D. Cartesian
+line/scatter/bar/hist scenes honour x/y limits, categorical ticks, explicit bar
+widths, and the export's 800/400-point sampling caps. Polar line/scatter/bar
+scenes use `webapp/js/polar.js`, a dependency-free JavaScript counterpart of
+`notebook/polar.lua`; both sides read the shared
+`webapp/tests/fixtures/polar-parity.json` fixture so rmax, projection, ticks,
+labels, and bar wedges stay aligned with the desktop viewport and HTML export.
+The built-in `cube` and `grid` strings still draw locally.
+
 ## Build LÖVR for the web
 
 Follow the [LÖVR web build guide](https://lovr.org/docs/v0.19.0/Compiling).
@@ -96,6 +105,13 @@ The pure tests are Lua 5.1-compatible:
 make test-lua51 LUA=lua5.1
 ```
 
-CI runs the same target with the distribution's `lua5.1` package. A real browser
-smoke test still needs a machine with `emsdk` and a headless browser; it is not
-part of the current CI.
+The webapp tests use Node's built-in test runner and need no npm packages:
+
+```sh
+make test-webapp   # scene geometry, draw calls, notebook model
+make qa-webapp     # headless Chromium Canvas pixel check
+```
+
+CI runs `make test-webapp`; `qa-webapp` needs a Chromium binary and is a local
+or dedicated-QA step. The Emscripten/LÖVR web build still needs `emsdk` and a
+headless browser, so that smoke test is separate from the Canvas front-end.

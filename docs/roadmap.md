@@ -7,6 +7,9 @@
 - Process CPU/memory limits and timeout recovery.
 - luaplotlib scene rendering, including live Cartesian and polar
   line/scatter/bar/hist scenes with shared export geometry.
+- Browser front-end with local Canvas rendering for Cartesian
+  line/scatter/bar/hist and polar line/scatter/bar scenes, a shared polar parity
+  fixture, and a headless Chromium pixel check.
 - Extension manifests, discovery, hot reload, browser, local user extensions,
   and a restricted Lua environment.
 - Kernel widgets, editable multiline text, callbacks, persistence, and live
@@ -37,7 +40,8 @@
 - OS sandboxing is available on Linux through bubblewrap; macOS/Windows use
   the restricted Lua-environment fallback.
 - Full Vim semantics: undo tree, regex parity, text objects, macros.
-- Broader visual coverage beyond QA cells 4/6/7 and the live polar QA fixture.
+- Broader live visual coverage beyond QA cells 4/6/7, the polar QA fixture, and
+  the browser scene matrix.
 - Static export cannot run widgets or reproduce animated/custom extension
   surfaces; it emits placeholders and scene sketches.
 
@@ -45,7 +49,9 @@
 
 ```sh
 make test
+make test-webapp           # Node scene/model tests, no packages
 ./scripts/input-smoke.sh   # needs a seat and /dev/uinput
 ./scripts/visual-smoke.sh  # needs a display
+./scripts/scene-qa.sh      # needs chromium
 luarocks make lua-notebooks-1.45.0-1.rockspec --tree=/tmp/luanb-rocks
 ```
