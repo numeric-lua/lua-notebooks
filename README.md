@@ -16,8 +16,9 @@ Working in this milestone:
   desktop and inline on the web
 - cell execution with captured `print`/`io.write`, errors, and return values
 - a **3D cube output** rendered by the host, never by the kernel
-- a **luaplotlib scene renderer**: line/scatter/bar/hist scenes, axes, grid,
-  title, labels, and category ticks
+- a **luaplotlib scene renderer**: Cartesian line/scatter/bar/hist and polar
+  line/scatter/bar scenes, axes, rings/spokes, grid, title, labels, and
+  category ticks, with polar geometry shared by the live and exported views
 - a **render-target extension platform**: manifest validation, filesystem
   discovery, local pointer/key routing, F8 reload, a filesystem watcher, and
   two built-in extensions (`cube`, `grid`)
@@ -179,9 +180,9 @@ Controls:
 | drag / wheel in 3D | orbit / zoom the focused extension |
 | tabs / **+ Cell** | switch notebook / add cell |
 
-The welcome notebook has runnable cells for hello, a loop, a 3D cube scene, a
-luaplotlib scene, a grid extension, and widgets. The second notebook has an independent kernel
-and global state.
+The welcome notebook has runnable cells for hello, a loop, a 3D cube scene,
+Cartesian and polar luaplotlib scenes, a grid extension, and widgets. The second
+notebook has an independent kernel and global state.
 
 ## File tree and Vim mode
 
@@ -344,9 +345,10 @@ remaining gaps.
 ## Tests
 
 `make test` runs the pure model, widget, engine, remote-supervisor,
-process-kernel, sandbox, editor, and Neovim-buffer plan/apply suite on LuaJIT. `make test-lua51
-LUA=lua5.1` runs the Lua 5.1-compatible subset. `make test-remote` starts the
-WebSocket gateway and executes a cell with a real client. CI runs all three;
+process-kernel, sandbox, editor, polar/export parity, and Neovim-buffer
+plan/apply suite on LuaJIT. `make test-lua51 LUA=lua5.1` runs the Lua
+5.1-compatible subset, including `tests/polar.lua`. `make test-remote` starts
+the WebSocket gateway and executes a cell with a real client. CI runs all three;
 graphics, input, and visual smokes are manual because they need a display and
 seat.
 
@@ -356,11 +358,18 @@ seat.
 ./scripts/visual-smoke.sh       # coarse live-window check
 ./scripts/visual-baseline.sh    # pixel baselines from the offscreen canvas
 ./scripts/visual-baseline.sh --update
+./scripts/polar-qa.sh           # live polar capture and blank check
 ```
 
 `visual-baseline.sh` renders the notebook through an offscreen rgba8 canvas,
 reads it back from the GPU, and compares 50%-scale PNGs for cells 4, 6, and 7.
 It is display-dependent and not part of `make test`.
+
+`polar-qa.sh` builds a one-cell notebook, runs it in the app, and writes
+`polar-live.png` under a scratch directory (default
+`/tmp/luanb-polar-qa.*`). It checks that the offscreen capture is non-blank and
+is useful for reviewing the live circular frame, ticks, and bar wedges without
+committing generated media.
 
 The offscreen canvas is also what makes screenshots independent of the
 compositor and window stacking.
@@ -368,7 +377,7 @@ compositor and window stacking.
 ## LuaRocks
 
 ```sh
-luarocks make lua-notebooks-1.44.0-1.rockspec
+luarocks make lua-notebooks-1.45.0-1.rockspec
 lua-notebooks
 ```
 
@@ -377,7 +386,7 @@ The rockspec installs the app source under the LuaRocks share tree and a
 
 ```sh
 make rock
-luarocks install lua-notebooks-1.44.0-1.src.rock
+luarocks install lua-notebooks-1.45.0-1.src.rock
 ```
 
 Publishing to a remote rock server is intentionally not automated.
@@ -423,6 +432,7 @@ make test                 # pure-Lua JSON/model tests
 LUANB_SMOKE=1 lovr .      # run first cell through a real kernel, then quit
 LUANB_SMOKE_SCENE=1 lovr . # run the 3D cell, draw the viewport, then quit
 LUANB_SMOKE_PLOT=1 lovr .  # run the luaplotlib scene cell, draw it, then quit
+LUANB_SMOKE_POLAR=1 lovr . # run the polar scene cell, draw it, then quit
 LUANB_SMOKE_GRID=1 lovr .   # run the grid extension cell, then quit
 LUANB_SMOKE_WIDGET=1 lovr . # run the widget cell, then quit
 LUANB_SMOKE_WIDGET_EVENT=1 lovr . # run the widget cell and change a slider
@@ -552,9 +562,9 @@ Exports are self-contained HTML with no external assets. The document has viewpo
 
 A small inline script adds reader-facing full-text search and a cell-kind filter. Search is case-insensitive, whitespace-separated terms are combined with AND, `/` focuses the box, Escape clears it, and the table of contents hides links to filtered-out cells. `?q=term` and `?kind=figures` prefill the controls for shareable filtered links. Without JavaScript the controls are hidden and the full document remains readable.
 
-Code-cell scene outputs become `<figure>` placeholders with a deterministic inline SVG preview (Cartesian line, scatter, bar, and histogram; polar line, scatter, and bar; plus `cube` and `grid`), a caption with series/point counts, and a collapsible JSON scene dump. Polar previews honour zero/direction/`rmax` and the supplied theta/r ticks. Interactive widgets are listed but not exported. The static preview is a sketch of the scene, not a raster of the live renderer. See [docs/export.md](docs/export.md) for the document shape, search semantics, Markdown subset, safety rules, and determinism guarantees.
+Code-cell scene outputs become `<figure>` placeholders with a deterministic inline SVG preview (Cartesian line, scatter, bar, and histogram; polar line, scatter, and bar; plus `cube` and `grid`), a caption with series/point counts, and a collapsible JSON scene dump. Polar previews honour zero/direction/`rmax` and the supplied theta/r ticks. The live viewport renders the same polar IR; both backends use `notebook/polar.lua` for rmax resolution, projection, tick fallbacks, sampling caps, label limits, and bar wedges. Interactive widgets are listed but not exported. The static preview is a sketch of the scene, not a raster of the live renderer. See [docs/export.md](docs/export.md) for the document shape, search semantics, Markdown subset, safety rules, and determinism guarantees.
 
-From a source checkout, `luajit tools/export.lua INPUT.luanb OUTPUT.html` exports without opening the app (use `-` for stdout and extra `.luanb` arguments for backlinks). `./scripts/export-qa.sh` builds a fixture, verifies `?q=`/`?kind=` filtering in headless Chromium, and captures light/dark/narrow screenshots under `/tmp`.
+From a source checkout, `luajit tools/export.lua INPUT.luanb OUTPUT.html` exports without opening the app (use `-` for stdout and extra `.luanb` arguments for backlinks). `./scripts/export-qa.sh` builds a fixture, verifies `?q=`/`?kind=` filtering in headless Chromium, and captures light/dark/narrow screenshots under `/tmp`. `./scripts/polar-qa.sh` does the corresponding live app check for a polar scene.
 
 ## Link graph
 

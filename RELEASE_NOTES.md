@@ -1,15 +1,18 @@
-# lua-notebooks 1.44.0
+# lua-notebooks 1.45.0
 
-- add reader-facing full-text search and an All/Code/Markdown/Figures filter to
-  the static HTML export, with `/` focus, Escape clearing, table-of-contents
-  filtering, `?q=`/`?kind=` link state, and a no-JavaScript fallback;
-- preview luaplotlib polar scenes in the export: circular frame, r rings,
-  theta spokes, line/scatter/bar series, `theta_zero`/`theta_direction`, and
-  clamped `rmax`, with escaped long-label handling;
-- add `tools/export.lua` for LÖVR-free HTML export in CI/QA and
-  `scripts/export-qa.sh` for headless Chromium search checks plus
-  light/dark/narrow screenshots;
-- extend tests and export docs for search, polar previews, and headless QA.
+- render luaplotlib polar scenes in the live notebook viewport: circular
+  frame, r rings, theta spokes, line/scatter/bar series,
+  `theta_zero`/`theta_direction`, clamped `rmax`, short tick labels, and a
+  theme-aware surface;
+- share polar geometry through `notebook/polar.lua` so the live renderer and
+  the static HTML export agree on rmax fallback, projection, tick filtering,
+  sampling caps, long-label omission, and wide/negative-radius bar wedges;
+- add a polar scene to the welcome notebook and give polar cells a taller
+  scene area;
+- add `tests/polar.lua` for shared geometry, live draw calls, and export/live
+  parity, `LUANB_SMOKE_POLAR=1` for a repeatable app smoke, and
+  `scripts/polar-qa.sh` for a live, non-blank screenshot check;
+- document the shared polar backend and parity contract.
 
-No new runtime dependencies. The inline Neovim path and the visual pixel
-baselines are unchanged.
+No new runtime dependencies. The inline Neovim path and the committed visual
+pixel baselines are unchanged.

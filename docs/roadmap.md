@@ -5,7 +5,8 @@
 - LÖVR notebook shell with tabs, scrolling, 3D viewports, save/load.
 - LuaJIT thread kernels and an experimental POSIX process-kernel backend.
 - Process CPU/memory limits and timeout recovery.
-- luaplotlib scene rendering.
+- luaplotlib scene rendering, including live Cartesian and polar
+  line/scatter/bar/hist scenes with shared export geometry.
 - Extension manifests, discovery, hot reload, browser, local user extensions,
   and a restricted Lua environment.
 - Kernel widgets, editable multiline text, callbacks, persistence, and live
@@ -36,7 +37,7 @@
 - OS sandboxing is available on Linux through bubblewrap; macOS/Windows use
   the restricted Lua-environment fallback.
 - Full Vim semantics: undo tree, regex parity, text objects, macros.
-- Broader visual coverage beyond QA cells 4/6/7.
+- Broader visual coverage beyond QA cells 4/6/7 and the live polar QA fixture.
 - Static export cannot run widgets or reproduce animated/custom extension
   surfaces; it emits placeholders and scene sketches.
 
@@ -46,5 +47,5 @@
 make test
 ./scripts/input-smoke.sh   # needs a seat and /dev/uinput
 ./scripts/visual-smoke.sh  # needs a display
-luarocks make lua-notebooks-1.44.0-1.rockspec --tree=/tmp/luanb-rocks
+luarocks make lua-notebooks-1.45.0-1.rockspec --tree=/tmp/luanb-rocks
 ```

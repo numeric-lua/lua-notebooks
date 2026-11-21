@@ -93,12 +93,18 @@ that IR, not SVG strings:
 }
 ```
 
-The notebook's `ui/plot.lua` currently implements the 2D line/scatter/bar/hist
-part of this IR. It maps data coordinates into the cell viewport, draws axes and
-ticks, and renders through the host pass. Polar scene IRs
-(`orientation = "polar"`, data under `polar.series`) are rendered by the static
-HTML export but not yet by the live viewport. A future 3D backend can consume
-the same IR; a kernel can return it without touching graphics.
+The notebook's `ui/plot.lua` implements the 2D Cartesian
+line/scatter/bar/hist part of this IR and the polar line/scatter/bar part
+(`orientation = "polar"`, data under `polar.series`). It maps data coordinates
+into the cell viewport, draws axes or a circular frame with rings/spokes,
+draws ticks, and renders through the host pass.
+
+Polar geometry lives in the dependency-free `notebook/polar.lua` module. The
+live viewport and the static HTML export share its rmax resolution, y-down
+projection, tick fallbacks, sample caps, label limits, and bar-wedge splitting.
+That keeps the two renderers close without giving the kernel or the exporter a
+graphics dependency. A future 3D backend can consume the same IR; a kernel can
+return it without touching graphics.
 
 Do not make luaplotlib depend on LÖVR. The adapter belongs in a separate module
 or repository.

@@ -81,12 +81,15 @@ rings and twelve spokes; a missing `rmax` uses the largest absolute radius in
 the data. Out-of-range radii clamp to the frame so the preview never overflows.
 Tick labels are escaped and long labels are omitted rather than clipped.
 
-Each figure has a caption with the scene title, series kinds, series count,
-and point count, plus a `<details>` block containing the JSON scene IR (capped
-at 4,000 bytes). The SVG is a deterministic sketch of the scene, not a raster
-of the live renderer; animated or custom extension surfaces need the desktop
-app. Interactive widgets are not executed in the export; they are listed as
-static placeholders.
+The live viewport consumes the same IR. `notebook/polar.lua` is the shared,
+LÖVR-free geometry module behind both renderers: it resolves rmax, projects
+y-down screen coordinates, filters tick sets, applies the 800/400 sample caps
+and short-label rules, and splits wide/negative-radius bars into wedge sectors.
+The live frame uses the same circular frame and tick placement, so the export
+is a faithful sketch rather than a separate implementation. The SVG itself is
+still deterministic and not a raster of the live renderer; animated or custom
+extension surfaces need the desktop app. Interactive widgets are not executed
+in the export; they are listed as static placeholders.
 
 ## Markdown subset
 
@@ -125,22 +128,28 @@ given input set.
 
 ```sh
 luajit tests/run.lua
-./scripts/export-qa.sh   # needs chromium; screenshots stay in /tmp
+luajit tests/polar.lua    # shared geometry, live draw, export/live parity
+./scripts/export-qa.sh    # needs chromium; screenshots stay in /tmp
+./scripts/polar-qa.sh     # live app polar capture; needs lovr
 ```
 
 The unit tests exercise heading anchors and duplicate slugs,
 table-of-contents links, search-index normalization and escaping, figure
 summaries/SVGs, polar axes and series, escaping, JSON truncation, tag filtering,
-and timing sums. `scripts/export-qa.sh` builds a small notebook, exports it with
-`tools/export.lua`, checks `?q=` and `?kind=` filtering through headless
-Chromium, and captures light, dark, narrow, and filtered screenshots under a
-scratch directory; it never commits them.
+and timing sums. `tests/polar.lua` additionally checks the shared projection,
+tick/label filters, bar sectors, the live draw-call shape, and agreement between
+the live renderer and the exported SVG. `scripts/export-qa.sh` builds a small
+notebook, exports it with `tools/export.lua`, checks `?q=` and `?kind=` filtering
+through headless Chromium, and captures light, dark, narrow, and filtered
+screenshots under a scratch directory; it never commits them. `polar-qa.sh`
+runs a one-cell polar notebook in the app and keeps a live screenshot under
+another scratch directory.
 
 For a rendered check from the app, export the demo notebook and open the
 result:
 
 ```sh
-LUANB_QA_CELL=4 lovr .       # run a scene cell, then export from the palette
+LUANB_QA_CELL=9 lovr .       # run the polar cell, then export from the palette
 chromium --headless --screenshot=/tmp/export.png file:///path/to/export.html
 ```
 
