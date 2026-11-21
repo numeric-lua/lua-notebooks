@@ -73,6 +73,7 @@ local function capture(fn)
 end
 
 local function execute(job)
+  local started = os.clock()
   local cell = job.cell or "cell"
   model:begin_cell(cell)
   local ok, result, output
@@ -106,6 +107,7 @@ local function execute(job)
     value = value,
     scene = scene,
     widgets = model:export(cell),
+    elapsed = math.max(0, os.clock() - started),
   }
 end
 

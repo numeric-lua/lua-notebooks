@@ -169,6 +169,7 @@ function UI.new(app)
     show_replace = false,
     show_graph = false,
     graph_rects = {},
+    show_timing = false,
     replace_find = "",
     replace_with = "",
     replace_phase = "find",
@@ -589,6 +590,14 @@ function UI:draw(pass, logical_width, logical_height)
       text(pass, app.font, tostring(index), label_x, source_y,
         cell.running and { 0.95, 0.75, 0.35, 1 } or
         (cell_scoped and { 0.30, 0.82, 1, 1 } or kind_color), 0.6)
+      if self.show_timing and cell.elapsed then
+        local timing = Format.duration(cell.elapsed)
+        if timing then
+          text(pass, app.font, timing, width - 30, y + 5,
+            light and { 0.38, 0.44, 0.52, 1 } or
+            { 0.45, 0.55, 0.68, 1 }, 0.6, "right")
+        end
+      end
 
       if selected and (cell.kind == "code" or cell.kind == "markdown") and
          (not app.vim_mode or self.vim_scope ~= "notebook") then
@@ -763,6 +772,7 @@ function UI:palette_commands()
     { id = "recover-autosave", label = "Recover autosaved notebook" },
     { id = "replace", label = "Replace in notebook  (Ctrl+H)" },
     { id = "graph", label = "Link graph" },
+    { id = "timing", label = "Toggle execution timing" },
     { id = "clear-recent", label = "Clear recent notebooks" },
     { id = "clear-session", label = "Clear restored session" },
     { id = "move-up", label = "Move selected cell up" },
@@ -851,6 +861,7 @@ function UI:run_palette_command(id)
   elseif id == "recover-autosave" then self.app:recover_autosave()
   elseif id == "replace" then self:open_replace()
   elseif id == "graph" then self:open_graph()
+  elseif id == "timing" then self:toggle_timing()
   elseif id == "clear-recent" then self.app:clear_recent()
   elseif id == "clear-session" then self.app:clear_session()
   elseif id == "move-up" then self.app:move_cell(-1)
@@ -1035,6 +1046,12 @@ function UI:draw_nvim_delete_prompt(pass, width, height)
     x + 20, y + 120, { 0.55, 0.8, 1, 1 }, 0.68)
 end
 
+function UI:toggle_timing()
+  self.show_timing = not self.show_timing
+  self.app.status = self.show_timing and "execution timing on" or
+    "execution timing off"
+end
+
 function UI:open_replace()
   self.show_replace = true
   self.replace_find = ""
@@ -1194,7 +1211,7 @@ function UI:draw_help(pass, width, height)
         { "F4", "Zen mode" },
         { "F10 / F11", "extensions / outline" },
         { "Ctrl+Shift+S", "screenshot" },
-        { "Ctrl+Shift+T", "light / dark theme" },
+        { "Ctrl+Shift+E / T", "timing / light-dark theme" },
         { "Ctrl+Shift+U", "history" },
       } },
       { title = "FILES & VIM", rows = {
@@ -1932,6 +1949,8 @@ function UI:keypressed(key)
   local notebook = self.app:notebook()
   local ctrl_down = lovr.system and lovr.system.isKeyDown and
     (lovr.system.isKeyDown("lctrl") or lovr.system.isKeyDown("rctrl"))
+  local shift_down = lovr.system and lovr.system.isKeyDown and
+    (lovr.system.isKeyDown("lshift") or lovr.system.isKeyDown("rshift"))
   if self.show_replace then
     if key == "escape" then
       self.show_replace = false
@@ -1981,6 +2000,9 @@ function UI:keypressed(key)
   if ctrl_down and key == "f" then self:open_find(); return end
   if ctrl_down and key == "h" then self:open_replace(); return end
   if ctrl_down and key == "g" then self:open_graph(); return end
+  if ctrl_down and key == "e" and shift_down then
+    self:toggle_timing(); return
+  end
   if ctrl_down and key == "p" then
     self.show_palette = true
     self.palette_query = ""

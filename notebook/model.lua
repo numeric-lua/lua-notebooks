@@ -61,7 +61,7 @@ function Notebook:snapshot()
       id = item.id, kind = item.kind, source = item.source, output = item.output,
       scene = item.scene, running = false, error = item.error,
       cursor = item.cursor, widgets = item.widgets,
-      collapsed = item.collapsed,
+      collapsed = item.collapsed, elapsed = item.elapsed,
     }
   end
   return { active = self.active, cells = cells }
@@ -616,6 +616,7 @@ function Notebook:set_result(cell_index, result)
   current.error = result.ok == false and result.value or nil
   current.scene = result.scene
   current.widgets = result.widgets or {}
+  current.elapsed = type(result.elapsed) == "number" and result.elapsed or nil
   if result.ok and result.value and result.value ~= "" and current.output == "" then
     current.output = tostring(result.value)
   end

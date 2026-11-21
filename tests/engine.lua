@@ -43,6 +43,13 @@ test("returns errors without escaping", function()
   eq(message.value:find("boom") ~= nil, true)
 end)
 
+test("reports execution elapsed seconds", function()
+  local engine = Engine.new()
+  local message = engine:run({ id = 1, code = "local x = 0; for i = 1, 1000 do x = x + i end" })
+  assert(type(message.elapsed) == "number", "missing elapsed")
+  assert(message.elapsed >= 0, "negative elapsed")
+end)
+
 test("extracts scenes", function()
   local engine = Engine.new()
   local message = engine:run({ id = 1,

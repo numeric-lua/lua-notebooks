@@ -407,6 +407,7 @@ function App:run()
   cell.output = ""
   cell.error = nil
   cell.scene = nil
+  cell.elapsed = nil
   local cell_token = self.active .. ":" .. index
   local request, err = self.supervisor:run("nb" .. self.active, cell.source,
     cell_token)
@@ -1261,6 +1262,7 @@ function lovr.load()
   end
   if os.getenv("LUANB_QA_PALETTE") then app.ui.show_palette = true end
   if os.getenv("LUANB_QA_OUTLINE") then app.ui.show_outline = true end
+  if os.getenv("LUANB_QA_TIMING") then app.ui.show_timing = true end
   if os.getenv("LUANB_QA_HISTORY") then
     local notebook = app:notebook()
     notebook.cells[notebook.active].source = ""

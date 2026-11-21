@@ -15,5 +15,7 @@ end
 assert(seen, "process kernel did not answer")
 assert(seen.ok, seen.value)
 assert(seen.output:find("process hello", 1, true), seen.output)
+assert(type(seen.elapsed) == "number" and seen.elapsed >= 0,
+  "process result has elapsed seconds")
 print("process kernel ok")
 supervisor:close()

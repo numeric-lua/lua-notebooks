@@ -154,6 +154,18 @@ function Format.tags(cells)
   return counts, order
 end
 
+-- Compact, deterministic duration text for the optional cell timing label.
+function Format.duration(seconds)
+  if type(seconds) ~= "number" then return nil end
+  if seconds < 0 then seconds = 0 end
+  if seconds < 0.001 then return "<1 ms" end
+  local milliseconds = seconds * 1000
+  if milliseconds < 10 then return string.format("%.1f ms", milliseconds) end
+  if milliseconds < 1000 then return string.format("%.0f ms", milliseconds) end
+  if seconds < 60 then return string.format("%.2f s", seconds) end
+  return string.format("%.1f min", seconds / 60)
+end
+
 function Format.to_markdown(notebook)
   local lines = { "# " .. notebook:title(), "" }
   for _, cell in ipairs(notebook.cells) do

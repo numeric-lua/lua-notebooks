@@ -120,6 +120,7 @@ function Engine:reset()
 end
 
 function Engine:run(job)
+  local started = os.clock()
   local cell = job.cell or "cell"
   self.model:begin_cell(cell)
 
@@ -159,6 +160,7 @@ function Engine:run(job)
     value = value,
     scene = scene,
     widgets = self.model:export(cell),
+    elapsed = math.max(0, os.clock() - started),
   }
 end
 
