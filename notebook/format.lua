@@ -125,6 +125,22 @@ function Format.decode_session(text)
   return paths, type(value.active) == "string" and value.active or nil
 end
 
+function Format.encode_recent(paths)
+  return json.encode({ paths = paths or {} })
+end
+
+function Format.decode_recent(text)
+  local ok, value = pcall(json.decode, text or "")
+  if not ok or type(value) ~= "table" or type(value.paths) ~= "table" then
+    return {}
+  end
+  local paths = {}
+  for _, path in ipairs(value.paths) do
+    if type(path) == "string" then paths[#paths + 1] = path end
+  end
+  return paths
+end
+
 function Format.tags(cells)
   local counts, order = {}, {}
   for _, cell in ipairs(cells or {}) do

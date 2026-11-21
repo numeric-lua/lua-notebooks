@@ -758,6 +758,7 @@ function UI:palette_commands()
     { id = "export-html", label = "Export notebook as HTML" },
     { id = "recover-autosave", label = "Recover autosaved notebook" },
     { id = "replace", label = "Replace in notebook  (Ctrl+H)" },
+    { id = "clear-recent", label = "Clear recent notebooks" },
     { id = "clear-session", label = "Clear restored session" },
     { id = "move-up", label = "Move selected cell up" },
     { id = "move-down", label = "Move selected cell down" },
@@ -800,6 +801,13 @@ function UI:palette_commands()
       label = "Tag #" .. tag .. " (" .. tags[tag] .. ")",
     }
   end
+  for index, path in ipairs(self.app.recent_paths or {}) do
+    local label = path:match("([^/\\]+)$") or path
+    commands[#commands + 1] = {
+      id = "recent:" .. index,
+      label = "Recent: " .. label,
+    }
+  end
   local current = self.app:notebook()
   local current_title = current:title()
   for index, notebook in ipairs(self.app.notebooks) do
@@ -837,6 +845,7 @@ function UI:run_palette_command(id)
   elseif id == "export-html" then self.app:export_html()
   elseif id == "recover-autosave" then self.app:recover_autosave()
   elseif id == "replace" then self:open_replace()
+  elseif id == "clear-recent" then self.app:clear_recent()
   elseif id == "clear-session" then self.app:clear_session()
   elseif id == "move-up" then self.app:move_cell(-1)
   elseif id == "move-down" then self.app:move_cell(1)
@@ -844,6 +853,9 @@ function UI:run_palette_command(id)
   elseif id == "save" then self.app:save()
   elseif id == "save-as" then self.app:save_as()
   elseif id == "open-dialog" then self.app:open_dialog()
+  elseif id:match("^recent:(%d+)$") then
+    local path = self.app.recent_paths[tonumber(id:match("%d+"))]
+    if path then self.app:open_path(path) end
   elseif id:match("^tag:(.+)$") then
     self:open_find()
     self.find_query = "#" .. id:match("^tag:(.+)$")

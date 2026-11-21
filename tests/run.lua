@@ -526,6 +526,14 @@ test("replace_all replaces literal text across cells", function()
   eq(select(1, notebook:replace_all("", "x")), 0)
 end)
 
+current = "recent"
+test("recent files round-trip and cap", function()
+  local text = Format.encode_recent({ "/a.luanb", "/b.luanb" })
+  local paths = Format.decode_recent(text)
+  eq(#paths, 2); eq(paths[2], "/b.luanb")
+  eq(#Format.decode_recent("bad"), 0)
+end)
+
 io.write(string.format("\n\n%d tests, %d passed, %d failed\n", passed + failed,
   passed, failed))
 if failed > 0 then

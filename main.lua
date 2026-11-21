@@ -66,6 +66,11 @@ function App:new(notebooks)
   self._nvim_pending_hide = false
   self._nvim_hidden_cell = nil
   self.autosave_at = 0
+  self.recent_paths = {}
+  local recent_ok, recent_text = pcall(lovr.filesystem.read, "recent.json")
+  if recent_ok and recent_text then
+    self.recent_paths = Format.decode_recent(recent_text)
+  end
   local scale_ok, scale_value = pcall(lovr.filesystem.read, "ui_scale.txt")
   if scale_ok and tonumber(scale_value) then
     self.ui_scale = math.max(0.7, math.min(2, tonumber(scale_value)))
@@ -328,6 +333,23 @@ function App:recover_autosave()
   self.status = "recovered autosave"
 end
 
+function App:remember_recent(path)
+  if type(path) ~= "string" or path == "" then return end
+  local updated = { path }
+  for _, value in ipairs(self.recent_paths) do
+    if value ~= path and #updated < 10 then updated[#updated + 1] = value end
+  end
+  self.recent_paths = updated
+  pcall(lovr.filesystem.write, "recent.json",
+    Format.encode_recent(self.recent_paths))
+end
+
+function App:clear_recent()
+  self.recent_paths = {}
+  pcall(lovr.filesystem.remove, "recent.json")
+  self.status = "cleared recent notebooks"
+end
+
 function App:open_path(path)
   local existing
   for index, notebook in ipairs(self.notebooks) do
@@ -346,6 +368,7 @@ function App:open_path(path)
   self.active = #self.notebooks
   self.supervisor:open("nb" .. self.active)
   self:save_session()
+  self:remember_recent(path)
   self.status = "opened " .. notebook.name
 end
 

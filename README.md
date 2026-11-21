@@ -523,3 +523,7 @@ While a notebook is dirty, the app writes a crash-recovery copy every 20 seconds
 ## Session restore
 
 Notebook paths opened during a session are recorded in `session.json`. On the next launch, they are reopened automatically unless command-line paths were supplied. Use the command palette action **Clear restored session** to forget them.
+
+## Recent notebooks
+
+Successfully opened paths are kept in `recent.json` (latest ten). They appear as **Recent:** entries in the command palette; **Clear recent notebooks** removes them.
