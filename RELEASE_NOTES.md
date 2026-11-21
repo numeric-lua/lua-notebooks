@@ -1,6 +1,6 @@
-# lua-notebooks 1.34.3
+# lua-notebooks 1.35.0
 
-- entering a cell with i/Enter swallows the opening keystroke;
-- cells always start in Neovim normal mode;
-- j/k/h/l navigate immediately; a second i enters insert;
-- opening-key regression test added.
+- open one or more .luanb notebooks from the command line;
+- external notebooks load via io.open and save back to their path;
+- invalid external notebook files fail with a status instead of crashing;
+- regression test for explicit-path load/save.
