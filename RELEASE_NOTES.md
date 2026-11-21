@@ -1,6 +1,6 @@
-# lua-notebooks 1.39.0
+# lua-notebooks 1.40.0
 
-- recent notebook paths in the command palette;
-- clear-recent action;
-- recent.json round-trip tests;
-- 1.38 replace/session/autosave retained.
+- structured, styled HTML exports with output classes;
+- wiki-link and backlink helpers;
+- backlinks included in exported notebooks;
+- 1.39 recent/session/autosave retained.
