@@ -87,8 +87,8 @@ install-desktop:
 	INSTALL_DESKTOP=1 ./scripts/install.sh
 
 rock:
-	luarocks lint lua-notebooks-1.46.0-1.rockspec
-	luarocks pack lua-notebooks-1.46.0-1.rockspec
+	luarocks lint lua-notebooks-1.47.0-1.rockspec
+	luarocks pack lua-notebooks-1.47.0-1.rockspec
 
 clean:
 	rm -rf .lovrshadercache dist *.src.rock
