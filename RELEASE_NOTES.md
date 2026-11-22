@@ -1,3 +1,31 @@
+# lua-notebooks 1.52.0
+
+- add case-sensitive and whole-word options to notebook find and replace
+  (`Alt+C` / `Alt+W`), show total occurrence counts separately from the
+  40-row result list, preview the replacement count, and share literal
+  matching through `notebook/search.lua`;
+- render Markdown task lists (`- [x]` / `- [ ]`) as font-safe `[x]`/`[ ]`
+  preview markers and as disabled HTML checkboxes in the static export and
+  browser front-end, with a checklist demo cell after the visual-baseline
+  cells;
+- give static HTML code cells and fenced blocks a language badge, CSS line
+  numbers, and a JavaScript **Copy** control that copies the source without
+  the numbers; the control is hidden when JavaScript is unavailable;
+- add a `Ctrl+Shift+I` notebook-statistics overlay and palette command showing
+  cells, source lines by kind, prose words, headings, wiki links, tags, text
+  outputs, figures, widgets, errors, timed execution, and kernel;
+- expand/collapse long text output with a line-count header, persisted
+  `output_expanded` cell flag, `Ctrl+Shift+O`, and a palette action; short
+  output and the committed visual-baseline cells keep their existing layout;
+- select smoke-test cells by demo markers instead of stale fixed indices, and
+  stabilize the existing Neovim RPC/session tests on current Neovim
+  (`noswapfile` and tight UI pumps); no Neovim product behavior changed;
+- document the search options, checklist preview/export behavior, code-copy
+  controls, statistics overlay, output expansion, and new smoke/QA flags.
+
+No new runtime dependencies. The Neovim path and committed visual pixel
+baselines are unchanged. This release is tagged `v1.52.0`.
+
 # lua-notebooks 1.51.0
 
 - clip luaplotlib polar streamplot polylines and mid-line arrow heads to the
