@@ -9,7 +9,8 @@
   line/scatter/bar/hist scenes, polar heatmaps with colourbars and bounded
   block sampling for large fields, polar contour isolines, polar quiver
   arrows with shared scale/pivot/decimation geometry, and polar streamplot
-  paths with mid-line arrow heads and export attributes.
+  paths with mid-line arrow heads, circular-frame clipping, dashed/dotted/`none`
+  strokes, and source/visible export attributes.
 - Browser front-end with local Canvas rendering for Cartesian
   line/scatter/bar/hist and polar
   line/scatter/bar/heatmap/contour/quiver/streamplot scenes, shared polar
@@ -57,5 +58,5 @@ make test-webapp           # Node scene/model tests, no packages
 ./scripts/input-smoke.sh   # needs a seat and /dev/uinput
 ./scripts/visual-smoke.sh  # needs a display
 ./scripts/scene-qa.sh      # needs chromium
-luarocks make lua-notebooks-1.50.0-1.rockspec --tree=/tmp/luanb-rocks
+luarocks make lua-notebooks-1.51.0-1.rockspec --tree=/tmp/luanb-rocks
 ```

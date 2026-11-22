@@ -34,12 +34,15 @@ dependency-free JavaScript counterpart of `notebook/polar.lua`; both sides read
 the shared `webapp/tests/fixtures/polar-parity.json` fixtures so rmax,
 projection, ticks, labels, bar wedges, heatmap cells, contour subdivision,
 colourbar geometry, quiver scaling/pivot/decimation, and streamplot
-polyline/arrow geometry stay aligned with the desktop viewport and HTML export.
-Quiver arrows and streamplot paths/heads are clipped to the circular frame in
-Canvas so rim glyphs do not escape the plot. Heatmap fields above 4096 matrix
-cells are sampled into covering blocks with the same strides in all three
-renderers; explicit `vmin`/`vmax` still describe the full field. The built-in
-`cube` and `grid` strings still draw locally.
+polyline/arrow clipping and line styles stay aligned with the desktop viewport
+and HTML export. Quiver arrows and streamplot paths/heads are clipped to the
+circular frame in Canvas so rim glyphs do not escape the plot, while the shared
+geometry has already cut streamplot centre lines and clipped rim arrow heads at
+the same circle. Streamplot paths honour solid, dashed, dotted, and `none`
+linestyles; `none` still paints the arrow heads. Heatmap fields above 4096
+matrix cells are sampled into covering blocks with the same strides in all
+three renderers; explicit `vmin`/`vmax` still describe the full field. The
+built-in `cube` and `grid` strings still draw locally.
 
 ## Build LÖVR for the web
 

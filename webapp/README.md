@@ -51,8 +51,9 @@ or with the settings button in the top bar.
   blocks with the shared viridis palette, bounded sampling for fields above
   4096 cells, a stepped vertical colourbar, subdivided contour isolines with
   optional level labels, clipped quiver shaft/head glyphs with shared scaling,
-  pivot, normalization, and arrow decimation, and clipped streamplot polylines
-  with mid-line arrow heads;
+  pivot, normalization, and arrow decimation, and streamplot polylines cut at
+  the frame with clipped mid-line arrow heads, dashed/dotted/`none` strokes,
+  and source/visible point/run/arrow counters;
 - `cube` and `grid` scene strings as local canvas drawings;
 - run all, kernel restart, auto-reconnect.
 
@@ -87,8 +88,8 @@ contract.
 `webapp/js/polar.js` mirrors the dependency-free `notebook/polar.lua` geometry
 used by the desktop viewport and the HTML export: rmax fallback, y-down
 projection, tick filtering and fallbacks, label limits, sample caps,
-point-radius clamps, bar sectors, quiver arrows, and streamplot polylines and
-arrow heads. The fixture at
+point-radius clamps, bar sectors, quiver arrows, and streamplot polyline/arrow
+clipping, dash patterns, and source/visible counters. The fixture at
 `webapp/tests/fixtures/polar-parity.json` is read by both `tests/polar.lua` and
 `webapp/tests/polar.test.mjs`, so a geometry drift on either side fails a
 suite.
@@ -103,8 +104,10 @@ are pinned across the Lua and JavaScript implementations. The
 first/last block geometry for a 65x65 field, the `quiver_scene` fixture pins
 explicit scale, pivot, projection, and per-arrow angle/tail/tip/neck geometry,
 the `streamplot_scene` fixture pins grid metadata, integrated line points, and
-mid-line arrow heads, and `large-polar-field`, `polar-quiver`, and
-`polar-streamplot` are part of the headless Chromium scene matrix. Rendering
+mid-line arrow heads, the `streamplot_clip_scene` fixture pins frame-clipped
+runs, rim arrow polygons, dashed style, and `arrow_fraction`, and
+`large-polar-field`, `polar-quiver`, `polar-streamplot`, and
+`polar-streamplot-clip` are part of the headless Chromium scene matrix. Rendering
 stays Canvas 2D; the browser never needs a GPU or a LÖVR build.
 
 ## Tested
@@ -127,8 +130,9 @@ Validated in Chromium against a local gateway:
 - `print(...); return 6*7` produced the captured output and `42`;
 - widgets created and a button click returned `pong`;
 - a `star_nest` shader widget rendered and animated in WebGL;
-- polar, large sampled polar field, polar quiver, polar streamplot, Cartesian,
-  histogram, categorical, cube, and grid canvases rendered;
+- polar, large sampled polar field, polar quiver, polar streamplot, clipped
+  dashed polar streamplot, Cartesian, histogram, categorical, cube, and grid
+  canvases rendered;
 - no page exceptions.
 
 

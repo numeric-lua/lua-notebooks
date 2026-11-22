@@ -20,8 +20,9 @@ Working in this milestone:
   line/scatter/bar, heatmap, contour, quiver, and streamplot scenes, axes,
   rings/spokes, grid, title, labels, polar colourbars, category ticks, bounded
   block sampling for large polar fields, shared quiver scale/pivot/decimation
-  geometry, and integrated streamplot polyline/arrow geometry across the live
-  and exported views
+  geometry, and frame-clipped streamplot polyline/arrow geometry with
+  solid/dashed/dotted/arrow-only styles across the live viewport, SVG export,
+  and browser
 - a **render-target extension platform**: manifest validation, filesystem
   discovery, local pointer/key routing, F8 reload, a filesystem watcher, and
   two built-in extensions (`cube`, `grid`)
@@ -105,7 +106,10 @@ optional colourbar on the shared circular frame, and the built-in
 `cube`/`grid` strings. Quiver arrows and streamplot paths/heads are clipped to
 the circle; quivers use the same scale, pivot, normalization, and decimation
 rules as the desktop and export renderers, and streamplots draw the integrated
-polylines and mid-line heads from the same luaplotlib IR.
+polylines and mid-line heads from the same luaplotlib IR. Streamplot paths are
+cut at the frame in the shared Lua and JavaScript geometry, support
+solid/dashed/dotted/`none` strokes, and report both source and visible
+point/run/arrow counts.
 Heatmap fields larger than 4096 matrix cells are sampled into covering blocks
 before painting, so the live frame, the SVG export, and the Canvas renderer stay
 bounded without leaving gaps in the annulus.
@@ -198,8 +202,8 @@ Controls:
 | tabs / **+ Cell** | switch notebook / add cell |
 
 The welcome notebook has runnable cells for hello, a loop, a 3D cube scene,
-Cartesian and polar luaplotlib scenes (including polar quiver and streamplot
-fields), a grid extension, and widgets. The second notebook has an independent
+Cartesian and polar luaplotlib scenes (including polar quiver, streamplot, and
+clipped dashed streamplot fields), a grid extension, and widgets. The second notebook has an independent
 kernel and global state.
 
 ## File tree and Vim mode
@@ -364,7 +368,7 @@ remaining gaps.
 
 `make test` runs the pure model, widget, engine, remote-supervisor,
 process-kernel, sandbox, editor, polar/heatmap/contour/quiver/streamplot/
-colourbar export parity, and Neovim-buffer plan/apply suite on LuaJIT. `make test-lua51
+colourbar/clipping export parity, and Neovim-buffer plan/apply suite on LuaJIT. `make test-lua51
 LUA=lua5.1` runs the Lua 5.1-compatible subset, including `tests/polar.lua`.
 `make test-remote` starts the WebSocket gateway and executes a cell with a real
 client. `make test-webapp` runs the Node unit tests for the browser scene
@@ -406,7 +410,7 @@ compositor and window stacking.
 ## LuaRocks
 
 ```sh
-luarocks make lua-notebooks-1.50.0-1.rockspec
+luarocks make lua-notebooks-1.51.0-1.rockspec
 lua-notebooks
 ```
 
@@ -415,7 +419,7 @@ The rockspec installs the app source under the LuaRocks share tree and a
 
 ```sh
 make rock
-luarocks install lua-notebooks-1.50.0-1.src.rock
+luarocks install lua-notebooks-1.51.0-1.src.rock
 ```
 
 Publishing to a remote rock server is intentionally not automated.

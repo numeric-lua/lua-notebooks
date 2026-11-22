@@ -108,9 +108,11 @@ projection, tick fallbacks, sample caps, label limits, bar-wedge splitting,
 viridis-like heatmap palette, annular-cell construction, large-field block
 sampling, contour subdivision and label placement, colourbar layout, compact
 tick text, and quiver projection/scale/pivot/decimation. Streamplots reuse the
-same projection for luaplotlib's integrated polylines and rebuild the mid-line
-arrow triangles from the exported screen-space angle. Heatmap fields above
-`HEATMAP_CELL_LIMIT` (4096) are
+same projection for luaplotlib's integrated polylines, cut visible runs at the
+circular frame, clip rim arrow-head polygons to the same circle, and rebuild
+the mid-line triangles from the exported screen-space angle; solid, dashed,
+dotted, and `none` styles are shared by all three consumers. Heatmap fields
+above `HEATMAP_CELL_LIMIT` (4096) are
 downsampled into blocks that cover the source rows and columns they replace, so
 the live frame, SVG export, and browser paint a bounded number of cells while
 still covering the whole annulus.

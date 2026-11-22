@@ -72,7 +72,7 @@ Scene outputs become `<figure class="scene" id="figure-N">` elements:
 | polar `heatmap` | SVG annular/pie blocks, sampled to at most 4096 cells |
 | polar `contour` | subdivided SVG isolines with optional level labels |
 | polar `quiver` | SVG shaft/head glyphs, decimated to `max_arrows` |
-| polar `streamplot` | SVG integrated polylines and mid-line arrow heads |
+| polar `streamplot` | SVG integrated polylines and mid-line arrow heads, cut to the circular frame |
 | polar colourbar | stepped vertical bar with compact tick labels and title |
 | `"cube"` | inline isometric cube glyph |
 | `"grid"` | inline perspective grid glyph |
@@ -83,8 +83,10 @@ Polar scenes use the luaplotlib IR shape
 `polar.rmax`, `polar.theta_zero`, `polar.theta_direction`,
 `polar.theta_ticks`, and `polar.r_ticks`. Missing ticks fall back to four
 rings and twelve spokes; a missing `rmax` uses the largest absolute radius in
-the data. Out-of-range radii clamp to the frame so the preview never overflows.
-Tick labels are escaped and long labels are omitted rather than clipped.
+the data. Line/scatter/bar radii clamp to the frame; streamplot geometry is
+cut at the circular frame instead so a crossing line is clipped rather than
+slid along the rim. Tick labels are escaped and long labels are omitted rather
+than clipped.
 
 Polar heatmaps map matrix rows from `rmin` to `rmax` and columns across
 `theta_min` to `theta_max`. Each cell becomes an annular sector (or a pie
@@ -138,16 +140,27 @@ so a full-turn field does not draw a chord. The exported group carries
 `data-cols`, `data-rows`, `data-lines`, `data-points`, `data-arrow-count`,
 `data-step`, `data-step-mode`, `data-density`, `data-max-steps`,
 `data-max-lines`, `data-max-points`, `data-arrows`, `data-head`,
-`data-periodic`, `data-truncated`, and `data-color`; each streamline group
-records `data-index`, `data-points`, and `data-arrows`. Captions count the
-integrated polyline points, not the value-grid cells.
+`data-periodic`, `data-truncated`, `data-linestyle`, `data-arrow-fraction`,
+`data-closed-lines`, `data-visible-lines`, `data-visible-points`,
+`data-visible-runs`, and `data-color`; each streamline group records
+`data-index`, `data-points`, `data-runs`, `data-arrows`, `data-closed`, and
+`data-clipped`, and is wrapped in a circular `clipPath` so stroke caps and
+joins cannot spill past the frame. Captions count the integrated polyline
+points, not the value-grid cells, while the visible counters describe what the
+preview actually drew. An integrated line that leaves the frame is cut at the
+circle (a line that leaves and re-enters becomes several paths); a mid-line
+arrow head that crosses the rim is clipped to the same circle, and a fully
+outside arrow is omitted. `style.linestyle` accepts `solid`, `dashed`,
+`dotted`, and `none`; the last still draws the arrow heads, matching
+luaplotlib.
 
 The live viewport consumes the same IR. `notebook/polar.lua` is the shared,
 LÖVR-free geometry module behind both renderers: it resolves rmax, projects
 y-down screen coordinates, filters tick sets, applies the 800/400 sample caps,
 the quiver arrow cap, and short-label rules, splits wide/negative-radius bars
 into wedge sectors, and projects integrated streamplot polylines and arrow
-heads.
+heads, cutting both at the circular frame and sharing dashed/dotted/none
+stroke styles with the export and browser.
 The live frame uses the same circular frame and tick placement, so the export
 is a faithful sketch rather than a separate implementation. The SVG itself is
 still deterministic and not a raster of the live renderer; animated or custom
@@ -165,8 +178,11 @@ reservation. The `large_field_scene` fixture pins the 65x65 sampling strides,
 block spans, sampled cell count, first/last block geometry, and extents. The
 `quiver_scene` fixture pins explicit scaling, pivot placement, projection, and
 per-arrow angle/tail/tip/neck geometry; the `streamplot_scene` fixture pins grid
-metadata, integrated polyline points, and mid-line arrow heads. A change to one
-renderer either updates the shared contract deliberately or fails a test.
+metadata, integrated polyline points, and mid-line arrow heads. The
+`streamplot_clip_scene` fixture adds a crossing line, a rim arrow head clipped
+to the frame, a fully outside arrow that is omitted, dashed style, and
+`arrow_fraction` metadata. A change to one renderer either updates the shared
+contract deliberately or fails a test.
 
 ## Markdown subset
 
@@ -219,22 +235,24 @@ and timing sums. `tests/polar.lua` additionally checks the shared projection,
 tick/label filters, bar sectors, heatmap-cell and contour geometry, large-field
 block sampling and export groups, colourbar layout, quiver collection,
 scale/pivot/normalization, deterministic arrow decimation, streamplot
-collection, step/periodicity metadata, line projection, arrow geometry, the
-live draw-call shape, agreement between the live renderer and the exported SVG,
-and the shared browser parity fixtures. `make test-webapp` checks the
-JavaScript counterpart and its draw calls, including the same 4096-cell
-sampling, quiver-arrow, and streamplot contracts.
+collection, step/periodicity metadata, line projection, frame clipping,
+dash/arrow-only styles, arrow geometry, the live draw-call shape, agreement
+between the live renderer and the exported SVG, and the shared browser parity
+fixtures. `make test-webapp` checks the JavaScript counterpart and its draw
+calls, including the same 4096-cell sampling, quiver-arrow, streamplot
+clipping, and line-style contracts.
 `scripts/export-qa.sh` builds a small notebook, exports it with
 `tools/export.lua`, checks `?q=` and `?kind=` filtering through headless
-Chromium, verifies the exported quiver arrow and streamplot path/arrow counts,
-and captures light, dark, narrow, and filtered screenshots under a scratch
-directory; it never commits them. `polar-qa.sh` runs a one-cell polar notebook
-with a 96x96 sampled field, a decimated quiver, and integrated streamlines in
-the app, checks that the live and exported block, arrow, and streamline counts
-agree, and keeps a live screenshot under another scratch directory, while
-`scene-qa.sh` renders the browser scene matrix (including
-`large-polar-field`, `polar-quiver`, and `polar-streamplot`) in Chromium and
-checks Canvas pixels.
+Chromium, verifies the exported quiver arrow and visible clipped
+streamline/run/arrow counts, and captures light, dark, narrow, and filtered
+screenshots under a scratch directory; it never commits them. `polar-qa.sh`
+runs a one-cell polar notebook with a 96x96 sampled field, a decimated quiver,
+and integrated streamlines (including a crossing dashed line and a clipped rim
+arrow) in the app, checks that the live and exported block, arrow, visible-run,
+and visible-point counts agree, and keeps a live screenshot under another
+scratch directory, while `scene-qa.sh` renders the browser scene matrix
+(including `large-polar-field`, `polar-quiver`, `polar-streamplot`, and
+`polar-streamplot-clip`) in Chromium and checks Canvas pixels.
 
 For a rendered check from the app, export the demo notebook and open the
 result:
