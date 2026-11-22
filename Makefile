@@ -22,6 +22,7 @@ test:
 	$(LUA) tests/platform.lua
 	$(LUA) tests/display_list.lua
 	$(LUA) tests/polar.lua
+	$(LUA) tests/visual_baseline.lua
 	$(LUA) tests/math_engine.lua
 	$(LUA) tests/editor.lua
 	$(LUA) tests/lsp_protocol.lua
@@ -66,6 +67,7 @@ test-lua51:
 	$(LUA) tests/platform.lua
 	$(LUA) tests/display_list.lua
 	$(LUA) tests/polar.lua
+	$(LUA) tests/visual_baseline.lua
 	$(LUA) tests/math_engine.lua
 	$(LUA) tests/editor.lua
 	$(LUA) tests/lsp_protocol.lua
