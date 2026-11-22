@@ -1,7 +1,7 @@
 import {
   BAR_SAMPLE_LIMIT, LINE_SAMPLE_LIMIT, PALETTE as SCENE_PALETTE,
   SCATTER_SAMPLE_LIMIT, barSectors, colorbarLayout, colorbarSteps,
-  colorbarTicks, contourLabel, contourSegmentPoints, finiteNumber,
+  colorbarTicks, contourLabel, contourSegmentPoints, dashPattern, finiteNumber,
   frameLayout, heatmapCells, pointRadius, polarRings, polarSpokes,
   projectPolar, quiverArrows, radiusLabel, resolvePolar, ringLabelPosition,
   sampleStep, streamLines, thetaLabel, thetaLabelPosition, validColor,
@@ -510,8 +510,8 @@ function drawPolar(canvas, scene, ctx) {
       const lines = streamLines(series, cx, cy, radius, rmax, thetaZero,
         direction);
       if (lines.length) {
-        // luaplotlib clips streamline paths and arrow heads to the polar
-        // circle; restore after this series so later series stay unclipped.
+        // The shared geometry is already cut to the frame; the Canvas clip
+        // also trims stroke caps and joins, matching the SVG clipPath.
         ctx.beginPath();
         ctx.arc(cx, cy, radius, 0, TAU);
         ctx.clip();
@@ -519,24 +519,33 @@ function drawPolar(canvas, scene, ctx) {
       ctx.strokeStyle = series.color;
       ctx.fillStyle = series.color;
       ctx.lineWidth = Math.max(0.1, series.linewidth);
+      const pattern = dashPattern(series.linestyle);
+      ctx.setLineDash(pattern === null ? [] : pattern);
       for (const line of lines) {
-        if (series.linewidth > 0 && line.points.length > 1) {
-          ctx.beginPath();
-          ctx.moveTo(line.points[0].x, line.points[0].y);
-          for (let index = 1; index < line.points.length; index += 1) {
-            ctx.lineTo(line.points[index].x, line.points[index].y);
+        if (series.linewidth > 0 && series.linestyle !== "none") {
+          for (const run of line.runs) {
+            if (run.length < 2) continue;
+            ctx.beginPath();
+            ctx.moveTo(run[0].x, run[0].y);
+            for (let index = 1; index < run.length; index += 1) {
+              ctx.lineTo(run[index].x, run[index].y);
+            }
+            ctx.stroke();
           }
-          ctx.stroke();
         }
         for (const arrow of line.arrows) {
+          const head = arrow.headPoints ?? [arrow.headX1, arrow.headY1,
+            arrow.headX2, arrow.headY2, arrow.headX3, arrow.headY3];
           ctx.beginPath();
-          ctx.moveTo(arrow.headX1, arrow.headY1);
-          ctx.lineTo(arrow.headX2, arrow.headY2);
-          ctx.lineTo(arrow.headX3, arrow.headY3);
+          ctx.moveTo(head[0], head[1]);
+          for (let index = 2; index < head.length; index += 2) {
+            ctx.lineTo(head[index], head[index + 1]);
+          }
           ctx.closePath();
           ctx.fill();
         }
       }
+      ctx.setLineDash([]);
     }
     ctx.restore();
   }

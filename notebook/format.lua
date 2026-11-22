@@ -839,6 +839,26 @@ function Format.scene_svg(scene, width, height)
     end
     local direction_label = polar.theta_direction == "clockwise" and
       "clockwise" or "counterclockwise"
+    local has_streamplot = false
+    for _, series in ipairs(resolved.series) do
+      if series.kind == "streamplot" then
+        has_streamplot = true
+        break
+      end
+    end
+    local stream_clip_id
+    if has_streamplot then
+      -- Clip the streamplot group as well as its centre lines: the browser
+      -- applies the same circular clip so stroke caps and joins never spill
+      -- past the frame.  The id is derived from the frame geometry, so two
+      -- identical frames may share it harmlessly.
+      stream_clip_id = string.format("scene-polar-clip-%s-%s-%s",
+        svg_number(cx), svg_number(cy), svg_number(radius))
+      stream_clip_id = stream_clip_id:gsub("[^%w_-]", "_")
+      out[#out + 1] = string.format(
+        '<defs><clipPath id="%s"><circle cx="%s" cy="%s" r="%s"/></clipPath></defs>',
+        stream_clip_id, svg_number(cx), svg_number(cy), svg_number(radius))
+    end
     out[#out + 1] = string.format(
       '<g class="scene-polar" data-polar="true" data-rmax="%s" data-theta-zero="%s" data-theta-direction="%s" data-has-colorbar="%s">',
       svg_number(rmax), svg_number(theta_zero),
@@ -1050,40 +1070,73 @@ function Format.scene_svg(scene, width, height)
           stroke_opacity = string.format(' stroke-opacity="%s"', alpha)
           fill_opacity = string.format(' fill-opacity="%s"', alpha)
         end
+        local dash = ""
+        if series.linestyle == "dashed" then
+          dash = ' stroke-dasharray="6 4"'
+        elseif series.linestyle == "dotted" then
+          dash = ' stroke-dasharray="1.5 3"'
+        end
+        local draw_paths = series.linewidth > 0 and series.linestyle ~= "none"
+        local drawn = Polar.stream_lines(series, cx, cy, radius, rmax,
+          theta_zero, direction)
+        local visible_lines, visible_points, visible_runs = 0, 0, 0
+        for _, line in ipairs(drawn) do
+          visible_lines = visible_lines + 1
+          visible_points = visible_points + #line.points
+          visible_runs = visible_runs + #line.runs
+        end
+        local clip_attr = stream_clip_id ~= nil and
+          string.format(' clip-path="url(#%s)"', stream_clip_id) or ""
         out[#out + 1] = string.format(
-          '<g class="scene-polar-streamplot" data-cols="%d" data-rows="%d" data-lines="%d" data-points="%d" data-arrow-count="%d" data-step="%s" data-step-mode="%s" data-density="%s" data-max-steps="%d" data-max-lines="%d" data-max-points="%d" data-arrows="%s" data-head="%s" data-periodic="%s" data-truncated="%s" data-color="%s">',
+          '<g class="scene-polar-streamplot" data-cols="%d" data-rows="%d" data-lines="%d" data-points="%d" data-arrow-count="%d" data-step="%s" data-step-mode="%s" data-density="%s" data-max-steps="%d" data-max-lines="%d" data-max-points="%d" data-arrows="%s" data-head="%s" data-linestyle="%s" data-arrow-fraction="%s" data-closed-lines="%d" data-visible-lines="%d" data-visible-points="%d" data-visible-runs="%d" data-periodic="%s" data-truncated="%s" data-color="%s"%s>',
           series.cols, series.rows, series.line_count, series.point_count,
           series.arrow_count, svg_number(series.step), series.step_mode,
           svg_number(series.density), series.max_steps, series.max_lines,
           series.max_points, series.arrows and "true" or "false",
-          svg_number(series.head), series.periodic and "true" or "false",
-          series.truncated and "true" or "false", series.color)
-        for _, line in ipairs(Polar.stream_lines(series, cx, cy, radius,
-            rmax, theta_zero, direction)) do
+          svg_number(series.head), series.linestyle,
+          svg_number(series.arrow_fraction), series.closed_lines or 0,
+          visible_lines, visible_points, visible_runs,
+          series.periodic and "true" or "false",
+          series.truncated and "true" or "false", series.color, clip_attr)
+        for _, line in ipairs(drawn) do
           out[#out + 1] = string.format(
-            '<g class="scene-polar-streamline" data-index="%d" data-points="%d" data-arrows="%d">',
-            line.index, #line.points, #line.arrows)
-          if series.linewidth > 0 then
-            local commands = {}
-            for point_index, point in ipairs(line.points) do
-              commands[point_index] = string.format("%s %s %s",
-                point_index == 1 and "M" or "L", svg_number(point.x),
-                svg_number(point.y))
+            '<g class="scene-polar-streamline" data-index="%d" data-points="%d" data-runs="%d" data-arrows="%d" data-closed="%s" data-clipped="%s">',
+            line.index, #line.points, #line.runs, #line.arrows,
+            line.closed and "true" or "false",
+            line.clipped and "true" or "false")
+          if draw_paths then
+            for _, run in ipairs(line.runs) do
+              local commands = {}
+              for point_index, point in ipairs(run) do
+                commands[point_index] = string.format("%s %s %s",
+                  point_index == 1 and "M" or "L", svg_number(point.x),
+                  svg_number(point.y))
+              end
+              out[#out + 1] = string.format(
+                '<path class="scene-polar-streamline-path" d="%s" fill="none" stroke="%s" stroke-width="%s" stroke-linecap="round" stroke-linejoin="round"%s%s/>',
+                table.concat(commands, " "), series.color,
+                svg_number(series.linewidth), dash, stroke_opacity)
             end
-            out[#out + 1] = string.format(
-              '<path class="scene-polar-streamline-path" d="%s" fill="none" stroke="%s" stroke-width="%s" stroke-linecap="round" stroke-linejoin="round"%s/>',
-              table.concat(commands, " "), series.color,
-              svg_number(series.linewidth), stroke_opacity)
           end
           for _, arrow in ipairs(line.arrows) do
+            local head_points = arrow.head_points
+            if type(head_points) ~= "table" or #head_points < 6 then
+              head_points = {
+                arrow.head_x1, arrow.head_y1, arrow.head_x2, arrow.head_y2,
+                arrow.head_x3, arrow.head_y3,
+              }
+            end
+            local polygon = {}
+            for point_index = 1, #head_points, 2 do
+              polygon[#polygon + 1] = string.format("%s,%s",
+                svg_number(head_points[point_index]),
+                svg_number(head_points[point_index + 1]))
+            end
             out[#out + 1] = string.format(
-              '<polygon class="scene-polar-stream-arrow" data-index="%d" data-theta="%s" data-r="%s" data-angle="%s" points="%s,%s %s,%s %s,%s" fill="%s"%s/>',
+              '<polygon class="scene-polar-stream-arrow" data-index="%d" data-theta="%s" data-r="%s" data-angle="%s" data-clipped="%s" points="%s" fill="%s"%s/>',
               arrow.index, svg_number(arrow.theta), svg_number(arrow.r),
-              svg_number(arrow.angle),
-              svg_number(arrow.head_x1), svg_number(arrow.head_y1),
-              svg_number(arrow.head_x2), svg_number(arrow.head_y2),
-              svg_number(arrow.head_x3), svg_number(arrow.head_y3),
-              series.color, fill_opacity)
+              svg_number(arrow.angle), arrow.clipped and "true" or "false",
+              table.concat(polygon, " "), series.color, fill_opacity)
           end
           out[#out + 1] = "</g>"
         end

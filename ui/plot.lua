@@ -465,26 +465,49 @@ function Plot.draw_polar(pass, font, scene, x, y, w, h)
         end
       end
     elseif series.lines ~= nil then
-      -- Streamlines arrive integrated from luaplotlib.  Draw each polyline as
-      -- connected segments, then its mid-line head triangle, in series order.
+      -- Streamlines arrive integrated from luaplotlib and are already cut to
+      -- the circular frame by notebook/polar.lua.  Draw each visible run as
+      -- connected segments (splitting it into dashes when needed), then its
+      -- mid-line head polygon, in series order.
       set_color(pass, base_style)
+      local dash_pattern = Polar.dash_pattern(series.linestyle)
+      local function draw_run(run)
+        local previous
+        for _, point in ipairs(run) do
+          if previous ~= nil then
+            pass:line(previous.x, previous.y, 0, point.x, point.y, 0)
+          end
+          previous = point
+        end
+      end
       for _, line in ipairs(Polar.stream_lines(series, cx, cy, radius,
           rmax, theta_zero, direction)) do
-        if series.linewidth > 0 then
-          local previous
-          for _, point in ipairs(line.points) do
-            if previous ~= nil then
-              pass:line(previous.x, previous.y, 0, point.x, point.y, 0)
+        if series.linewidth > 0 and series.linestyle ~= "none" then
+          for _, run in ipairs(line.runs) do
+            if dash_pattern ~= nil then
+              for _, dash in ipairs(Polar.dash_segments(run, dash_pattern)) do
+                draw_run(dash.points)
+              end
+            else
+              draw_run(run)
             end
-            previous = point
           end
         end
         for _, arrow in ipairs(line.arrows) do
-          pass:polygon({
-            arrow.head_x1, arrow.head_y1, 0,
-            arrow.head_x2, arrow.head_y2, 0,
-            arrow.head_x3, arrow.head_y3, 0,
-          })
+          local head_points = arrow.head_points
+          if type(head_points) ~= "table" or #head_points < 6 then
+            head_points = {
+              arrow.head_x1, arrow.head_y1, arrow.head_x2, arrow.head_y2,
+              arrow.head_x3, arrow.head_y3,
+            }
+          end
+          local polygon = {}
+          for index = 1, #head_points, 2 do
+            polygon[#polygon + 1] = head_points[index]
+            polygon[#polygon + 1] = head_points[index + 1]
+            polygon[#polygon + 1] = 0
+          end
+          pass:polygon(polygon)
         end
       end
     end

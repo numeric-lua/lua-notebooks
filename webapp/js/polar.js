@@ -159,6 +159,7 @@ export function collectPolar(scene) {
       const lines = [];
       let totalPoints = 0;
       let totalArrows = 0;
+      let closedLines = 0;
       const sourceLines = array(item.lines);
       for (let lineIndex = 0; lineIndex < sourceLines.length; lineIndex += 1) {
         const line = sourceLines[lineIndex];
@@ -185,10 +186,13 @@ export function collectPolar(scene) {
         if (linePoints.length >= 2) {
           totalPoints += linePoints.length;
           totalArrows += lineArrows.length;
+          const closed = line.closed === true;
+          if (closed) closedLines += 1;
           lines.push({
             index: Number.isInteger(line.index) ? line.index : lineIndex + 1,
             points: linePoints,
             arrows: lineArrows,
+            closed,
           });
         }
       }
@@ -215,6 +219,10 @@ export function collectPolar(scene) {
         ? Math.max(0, style.linewidth)
         : (finiteNumber(item.linewidth) ? Math.max(0, item.linewidth)
           : STREAM_DEFAULT_LINEWIDTH);
+      const linestyle = style.linestyle === "dashed" || style.linestyle === "dotted"
+        || style.linestyle === "none" ? style.linestyle : "solid";
+      const arrowFraction = finiteNumber(item.arrow_fraction)
+        ? Math.max(0, Math.min(1, item.arrow_fraction)) : 0.5;
       collected.push({
         kind: "streamplot",
         lines,
@@ -228,6 +236,9 @@ export function collectPolar(scene) {
         linewidth,
         head,
         arrows: item.arrows !== false,
+        linestyle,
+        arrowFraction,
+        closedLines,
         density,
         step,
         stepMode,
@@ -374,6 +385,208 @@ export function projectPolar(cx, cy, radius, rmax, thetaZero, direction, theta, 
   };
 }
 
+// Unclamped projection for geometry that is cut against the circular frame.
+// Clamping would slide an out-of-frame point along the rim; clipping cuts the
+// segment at the true circle intersection instead.
+export function projectPolarRaw(cx, cy, radius, rmax, thetaZero, direction, theta, value) {
+  const angle = thetaZero + direction * theta;
+  const ratio = value / rmax;
+  return {
+    x: cx + radius * ratio * Math.cos(angle),
+    y: cy - radius * ratio * Math.sin(angle),
+    angle,
+  };
+}
+
+export const CLIP_EPSILON = 1e-9;
+
+function pointInsideCircle(x, y, cx, cy, radius) {
+  const dx = x - cx;
+  const dy = y - cy;
+  return dx * dx + dy * dy <= radius * radius + CLIP_EPSILON;
+}
+
+// Parameter interval [t0, t1] of a segment inside a circle, or null when the
+// segment misses the disc.  Mirrors Polar.clip_segment_to_circle in Lua.
+export function clipSegmentToCircle(x0, y0, x1, y1, cx, cy, radius) {
+  if (![x0, y0, x1, y1, cx, cy, radius].every(finiteNumber)) return null;
+  radius = Math.max(0, radius);
+  const dx = x1 - x0;
+  const dy = y1 - y0;
+  const fx = x0 - cx;
+  const fy = y0 - cy;
+  const a = dx * dx + dy * dy;
+  const c = fx * fx + fy * fy - radius * radius;
+  if (a <= 1e-18) return c <= CLIP_EPSILON ? [0, 1] : null;
+  const b = 2 * (fx * dx + fy * dy);
+  const discriminant = b * b - 4 * a * c;
+  if (discriminant < 0) return null;
+  const root = Math.sqrt(Math.max(0, discriminant));
+  let t0 = (-b - root) / (2 * a);
+  let t1 = (-b + root) / (2 * a);
+  if (t0 > t1) [t0, t1] = [t1, t0];
+  if (t0 > 1 || t1 < 0) return null;
+  if (t0 < 0) t0 = 0;
+  if (t1 > 1) t1 = 1;
+  if (t1 - t0 <= 0) return null;
+  return [t0, t1];
+}
+
+function interpolatePoint(a, b, t) {
+  return {
+    x: a.x + (b.x - a.x) * t,
+    y: a.y + (b.y - a.y) * t,
+    theta: a.theta + (b.theta - a.theta) * t,
+    r: a.r + (b.r - a.r) * t,
+  };
+}
+
+function sameScreenPoint(a, b) {
+  return a !== null && b !== null && a !== undefined && b !== undefined
+    && Math.abs(a.x - b.x) <= CLIP_EPSILON
+    && Math.abs(a.y - b.y) <= CLIP_EPSILON;
+}
+
+// Cut one projected polyline into the runs visible inside the circular frame.
+export function clipPolylineToCircle(points, cx, cy, radius) {
+  const runs = [];
+  if (!Array.isArray(points) || points.length === 0) return runs;
+  // Fast path: an already-contained polyline keeps its exact source points.
+  const allInside = points.every((point) => point && typeof point === "object"
+    && pointInsideCircle(point.x, point.y, cx, cy, radius));
+  if (allInside) return [points];
+  let current = [];
+  const flush = () => {
+    if (current.length >= 2) runs.push(current);
+    current = [];
+  };
+  let previous = null;
+  for (const point of points) {
+    if (!point || typeof point !== "object") continue;
+    if (previous === null) {
+      if (pointInsideCircle(point.x, point.y, cx, cy, radius)) {
+        current = [{ x: point.x, y: point.y, theta: point.theta, r: point.r }];
+      }
+    } else {
+      const interval = clipSegmentToCircle(previous.x, previous.y, point.x,
+        point.y, cx, cy, radius);
+      if (interval === null) {
+        flush();
+      } else {
+        const [t0, t1] = interval;
+        const startPoint = t0 > CLIP_EPSILON
+          ? interpolatePoint(previous, point, t0) : previous;
+        const endPoint = t1 < 1 - CLIP_EPSILON
+          ? interpolatePoint(previous, point, t1) : point;
+        if (current.length === 0) {
+          current = [{
+            x: startPoint.x, y: startPoint.y,
+            theta: startPoint.theta, r: startPoint.r,
+          }];
+        } else if (!sameScreenPoint(current[current.length - 1], startPoint)) {
+          current.push({
+            x: startPoint.x, y: startPoint.y,
+            theta: startPoint.theta, r: startPoint.r,
+          });
+        }
+        if (!sameScreenPoint(current[current.length - 1], endPoint)) {
+          current.push({
+            x: endPoint.x, y: endPoint.y,
+            theta: endPoint.theta, r: endPoint.r,
+          });
+        }
+        if (t1 < 1 - CLIP_EPSILON) flush();
+      }
+    }
+    previous = point;
+  }
+  flush();
+  return runs;
+}
+
+function segmentIntersection(p1, p2, a, b) {
+  const d1x = p2.x - p1.x;
+  const d1y = p2.y - p1.y;
+  const d2x = b.x - a.x;
+  const d2y = b.y - a.y;
+  const denominator = d1x * d2y - d1y * d2x;
+  if (Math.abs(denominator) <= 1e-18) return { x: p1.x, y: p1.y };
+  const t = ((a.x - p1.x) * d2y - (a.y - p1.y) * d2x) / denominator;
+  return { x: p1.x + d1x * t, y: p1.y + d1y * t };
+}
+
+// Intersection of a convex polygon with the circular frame, approximated by a
+// regular polygon.  Streamplot arrow heads use this so the live, SVG, and
+// Canvas renderers agree on the clipped glyph shape.
+export function clipPolygonToCircle(vertices, cx, cy, radius, segments) {
+  let output = [];
+  if (!Array.isArray(vertices) || vertices.length < 3) return output;
+  segments = Number.isInteger(segments) && segments >= 3 ? segments : 48;
+  radius = finiteNumber(radius) ? Math.max(0, radius) : 0;
+  const clip = [];
+  for (let index = 0; index < segments; index += 1) {
+    const angle = (2 * Math.PI * index) / segments;
+    clip.push({
+      x: cx + radius * Math.cos(angle),
+      y: cy - radius * Math.sin(angle),
+    });
+  }
+  let area = 0;
+  for (let index = 0; index < clip.length; index += 1) {
+    const nextIndex = (index + 1) % clip.length;
+    area += clip[index].x * clip[nextIndex].y
+      - clip[nextIndex].x * clip[index].y;
+  }
+  const orientation = area >= 0 ? 1 : -1;
+  const inside = (point, a, b) => {
+    const cross = (b.x - a.x) * (point.y - a.y)
+      - (b.y - a.y) * (point.x - a.x);
+    return cross * orientation >= -CLIP_EPSILON;
+  };
+  output = vertices.map((vertex) => ({ x: vertex.x, y: vertex.y }));
+  for (let index = 0; index < clip.length; index += 1) {
+    const a = clip[index];
+    const b = clip[(index + 1) % clip.length];
+    const input = output;
+    output = [];
+    if (input.length === 0) break;
+    let previous = input[input.length - 1];
+    for (const current of input) {
+      const currentInside = inside(current, a, b);
+      const previousInside = inside(previous, a, b);
+      if (currentInside) {
+        if (!previousInside) {
+          output.push(segmentIntersection(previous, current, a, b));
+        }
+        output.push({ x: current.x, y: current.y });
+      } else if (previousInside) {
+        output.push(segmentIntersection(previous, current, a, b));
+      }
+      previous = current;
+    }
+  }
+  const cleaned = [];
+  for (const point of output) {
+    if (cleaned.length === 0
+      || !sameScreenPoint(cleaned[cleaned.length - 1], point)) {
+      cleaned.push(point);
+    }
+  }
+  if (cleaned.length > 1
+    && sameScreenPoint(cleaned[0], cleaned[cleaned.length - 1])) {
+    cleaned.pop();
+  }
+  return cleaned.length < 3 ? [] : cleaned;
+}
+
+// Dash pattern in Canvas/SVG user units.  Null means a solid stroke; `none`
+// is handled before drawing.
+export function dashPattern(linestyle) {
+  if (linestyle === "dashed") return [6, 4];
+  if (linestyle === "dotted") return [1.5, 3];
+  return null;
+}
+
 // Screen-space arrow geometry for one collected quiver series.  Mirrors
 // Polar.quiver_arrows in notebook/polar.lua: `u` points toward increasing data
 // theta, `v` outward along the radius, and glyph lengths are SVG user units.
@@ -456,48 +669,78 @@ export function streamLines(stream, cx, cy, radius, rmax, thetaZero, direction) 
   const half = head * 0.45;
   for (const line of array(stream.lines)) {
     if (!line || typeof line !== "object") continue;
-    const points = [];
+    const projected = [];
+    let outside = false;
     for (const point of array(line.points)) {
-      const projected = projectPolar(cx, cy, radius, rmax, thetaZero, direction,
+      const p = projectPolarRaw(cx, cy, radius, rmax, thetaZero, direction,
         point.theta, point.r);
-      points.push({
-        x: projected.x, y: projected.y, theta: point.theta, r: point.r,
-      });
+      if (!pointInsideCircle(p.x, p.y, cx, cy, radius)) outside = true;
+      projected.push({ x: p.x, y: p.y, theta: point.theta, r: point.r });
+    }
+    const runs = clipPolylineToCircle(projected, cx, cy, radius);
+    const points = [];
+    for (const run of runs) {
+      for (const point of run) points.push(point);
     }
     const arrows = [];
     if (drawArrows) {
       for (const arrow of array(line.arrows)) {
-        const projected = projectPolar(cx, cy, radius, rmax, thetaZero,
-          direction, arrow.theta, arrow.r);
+        const projectedArrow = projectPolarRaw(cx, cy, radius, rmax,
+          thetaZero, direction, arrow.theta, arrow.r);
         const radians = (arrow.angle * Math.PI) / 180;
         const ux = Math.cos(radians);
         const uy = Math.sin(radians);
         const px = -uy * half;
         const py = ux * half;
-        const tipX = projected.x + ux * head * 0.5;
-        const tipY = projected.y + uy * head * 0.5;
-        const neckX = projected.x - ux * head * 0.5;
-        const neckY = projected.y - uy * head * 0.5;
-        arrows.push({
-          index: arrow.index,
-          theta: arrow.theta,
-          r: arrow.r,
-          angle: arrow.angle,
-          x: projected.x,
-          y: projected.y,
-          tipX,
-          tipY,
-          headX1: tipX,
-          headY1: tipY,
-          headX2: neckX + px,
-          headY2: neckY + py,
-          headX3: neckX - px,
-          headY3: neckY - py,
-        });
+        const tipX = projectedArrow.x + ux * head * 0.5;
+        const tipY = projectedArrow.y + uy * head * 0.5;
+        const neckX = projectedArrow.x - ux * head * 0.5;
+        const neckY = projectedArrow.y - uy * head * 0.5;
+        let triangle = [
+          { x: tipX, y: tipY },
+          { x: neckX + px, y: neckY + py },
+          { x: neckX - px, y: neckY - py },
+        ];
+        const clipped = triangle.some((vertex) => !pointInsideCircle(
+          vertex.x, vertex.y, cx, cy, radius));
+        if (clipped) {
+          triangle = clipPolygonToCircle(triangle, cx, cy, radius);
+        }
+        if (triangle.length >= 3) {
+          const headPoints = [];
+          for (const vertex of triangle) {
+            headPoints.push(vertex.x, vertex.y);
+          }
+          arrows.push({
+            index: arrow.index,
+            theta: arrow.theta,
+            r: arrow.r,
+            angle: arrow.angle,
+            x: projectedArrow.x,
+            y: projectedArrow.y,
+            tipX,
+            tipY,
+            headX1: triangle[0].x,
+            headY1: triangle[0].y,
+            headX2: triangle[1].x,
+            headY2: triangle[1].y,
+            headX3: triangle[2].x,
+            headY3: triangle[2].y,
+            headPoints,
+            clipped,
+          });
+        }
       }
     }
-    if (points.length >= 2) {
-      lines.push({ index: line.index ?? lines.length + 1, points, arrows });
+    if (runs.length > 0) {
+      lines.push({
+        index: line.index ?? lines.length + 1,
+        points,
+        runs,
+        arrows,
+        clipped: outside || runs.length > 1,
+        closed: line.closed === true,
+      });
     }
   }
   return lines;

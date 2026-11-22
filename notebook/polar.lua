@@ -209,6 +209,7 @@ function Polar.collect(scene)
               Polar.STREAM_DEFAULT_HEAD)
           local draw_arrows = item.arrows ~= false and head > 0
           local exported, total_points, total_arrows = {}, 0, 0
+          local closed_lines = 0
           for line_index, line in ipairs(type(item.lines) == "table" and
               item.lines or {}) do
             if type(line) == "table" then
@@ -244,9 +245,11 @@ function Polar.collect(scene)
               if #line_points >= 2 then
                 total_points = total_points + #line_points
                 total_arrows = total_arrows + #line_arrows
+                local closed = line.closed == true
+                if closed then closed_lines = closed_lines + 1 end
                 exported[#exported + 1] = {
                   index = line_index, points = line_points,
-                  arrows = line_arrows,
+                  arrows = line_arrows, closed = closed,
                 }
               end
             end
@@ -283,6 +286,13 @@ function Polar.collect(scene)
             math.max(0, style.linewidth) or
             (finite_number(item.linewidth) and math.max(0, item.linewidth) or
               Polar.STREAM_DEFAULT_LINEWIDTH)
+          local linestyle = style.linestyle
+          if linestyle ~= "dashed" and linestyle ~= "dotted" and
+             linestyle ~= "none" then
+            linestyle = "solid"
+          end
+          local arrow_fraction = finite_number(item.arrow_fraction) and
+            math.max(0, math.min(1, item.arrow_fraction)) or 0.5
           collected[#collected + 1] = {
             kind = "streamplot",
             lines = exported,
@@ -295,6 +305,9 @@ function Polar.collect(scene)
             linewidth = linewidth,
             head = head,
             arrows = item.arrows ~= false,
+            linestyle = linestyle,
+            arrow_fraction = arrow_fraction,
+            closed_lines = closed_lines,
             density = density,
             step = step,
             step_mode = step_mode,
@@ -462,6 +475,301 @@ function Polar.project(cx, cy, radius, rmax, theta_zero, direction, theta, value
     cy - radius * ratio * math.sin(angle), angle
 end
 
+-- Unclamped projection for geometry that is clipped against the circular
+-- frame instead.  Clamping a point to the rim would slide it along the frame;
+-- clipping cuts the segment at the true circle intersection.
+function Polar.project_raw(cx, cy, radius, rmax, theta_zero, direction, theta,
+    value)
+  local angle = theta_zero + direction * theta
+  local ratio = value / rmax
+  return cx + radius * ratio * math.cos(angle),
+    cy - radius * ratio * math.sin(angle), angle
+end
+
+local CLIP_EPSILON = 1e-9
+
+local function point_inside_circle(x, y, cx, cy, radius)
+  local dx, dy = x - cx, y - cy
+  return dx * dx + dy * dy <= radius * radius + CLIP_EPSILON
+end
+
+-- Parameter interval [t0, t1] of a segment that lies inside a circle.
+-- Returns nil when the segment misses the disc entirely.  Callers project
+-- with `Polar.project_raw` and then cut at this interval.
+function Polar.clip_segment_to_circle(x0, y0, x1, y1, cx, cy, radius)
+  if not (finite_number(x0) and finite_number(y0) and finite_number(x1) and
+      finite_number(y1) and finite_number(cx) and finite_number(cy) and
+      finite_number(radius)) then
+    return nil
+  end
+  radius = math.max(0, radius)
+  local dx, dy = x1 - x0, y1 - y0
+  local fx, fy = x0 - cx, y0 - cy
+  local a = dx * dx + dy * dy
+  local c = fx * fx + fy * fy - radius * radius
+  if a <= 1e-18 then
+    if c <= CLIP_EPSILON then return 0, 1 end
+    return nil
+  end
+  local b = 2 * (fx * dx + fy * dy)
+  local discriminant = b * b - 4 * a * c
+  if discriminant < 0 then return nil end
+  local root = math.sqrt(math.max(0, discriminant))
+  local t0 = (-b - root) / (2 * a)
+  local t1 = (-b + root) / (2 * a)
+  if t0 > t1 then t0, t1 = t1, t0 end
+  if t0 > 1 or t1 < 0 then return nil end
+  if t0 < 0 then t0 = 0 end
+  if t1 > 1 then t1 = 1 end
+  if t1 - t0 <= 0 then return nil end
+  return t0, t1
+end
+
+local function interpolate_point(a, b, t)
+  return {
+    x = a.x + (b.x - a.x) * t,
+    y = a.y + (b.y - a.y) * t,
+    theta = a.theta + (b.theta - a.theta) * t,
+    r = a.r + (b.r - a.r) * t,
+  }
+end
+
+local function same_screen_point(a, b)
+  return a ~= nil and b ~= nil and
+    math.abs(a.x - b.x) <= CLIP_EPSILON and
+    math.abs(a.y - b.y) <= CLIP_EPSILON
+end
+
+-- Cut one projected polyline into the runs visible inside the circular frame.
+-- Each run keeps at least two points; an all-outside line returns an empty
+-- list.  Data theta/r are interpolated at each cut so arrow anchors and tests
+-- can still tell where the line left the frame.
+function Polar.clip_polyline_to_circle(points, cx, cy, radius)
+  local runs = {}
+  if type(points) ~= "table" or #points == 0 then return runs end
+  -- Fast path: an already-contained polyline keeps its exact source points,
+  -- including zero-length segments, so scenes inside the frame do not change.
+  local all_inside = true
+  for _, point in ipairs(points) do
+    if type(point) ~= "table" or
+       not point_inside_circle(point.x, point.y, cx, cy, radius) then
+      all_inside = false
+      break
+    end
+  end
+  if all_inside then return { points } end
+  local current = {}
+  local function flush()
+    if #current >= 2 then runs[#runs + 1] = current end
+    current = {}
+  end
+  local previous
+  for _, point in ipairs(points) do
+    if type(point) == "table" then
+      if previous == nil then
+        if point_inside_circle(point.x, point.y, cx, cy, radius) then
+          current[1] = {
+            x = point.x, y = point.y, theta = point.theta, r = point.r,
+          }
+        end
+      else
+        local t0, t1 = Polar.clip_segment_to_circle(previous.x, previous.y,
+          point.x, point.y, cx, cy, radius)
+        if t0 == nil then
+          flush()
+        else
+          local start_point = previous
+          local end_point = point
+          if t0 > CLIP_EPSILON then
+            start_point = interpolate_point(previous, point, t0)
+          end
+          if t1 < 1 - CLIP_EPSILON then
+            end_point = interpolate_point(previous, point, t1)
+          end
+          if #current == 0 then
+            current[1] = {
+              x = start_point.x, y = start_point.y,
+              theta = start_point.theta, r = start_point.r,
+            }
+          elseif not same_screen_point(current[#current], start_point) then
+            current[#current + 1] = {
+              x = start_point.x, y = start_point.y,
+              theta = start_point.theta, r = start_point.r,
+            }
+          end
+          if not same_screen_point(current[#current], end_point) then
+            current[#current + 1] = {
+              x = end_point.x, y = end_point.y,
+              theta = end_point.theta, r = end_point.r,
+            }
+          end
+          if t1 < 1 - CLIP_EPSILON then flush() end
+        end
+      end
+      previous = point
+    end
+  end
+  flush()
+  return runs
+end
+
+local function segment_intersection(p1, p2, a, b)
+  local d1x, d1y = p2.x - p1.x, p2.y - p1.y
+  local d2x, d2y = b.x - a.x, b.y - a.y
+  local denominator = d1x * d2y - d1y * d2x
+  if math.abs(denominator) <= 1e-18 then
+    return { x = p1.x, y = p1.y }
+  end
+  local t = ((a.x - p1.x) * d2y - (a.y - p1.y) * d2x) / denominator
+  return { x = p1.x + d1x * t, y = p1.y + d1y * t }
+end
+
+-- Intersection of a convex polygon with the circular frame, approximated by a
+-- regular `segments`-gon.  Used for streamplot arrow heads whose triangle
+-- crosses the rim.  The live viewport cannot clip a `Pass:polygon` to a circle
+-- on the GPU, so all three consumers share this one polygon result instead of
+-- relying on renderer-specific clipping for the head glyph itself.
+function Polar.clip_polygon_to_circle(vertices, cx, cy, radius, segments)
+  local output = {}
+  if type(vertices) ~= "table" or #vertices < 3 then return output end
+  segments = finite_integer(segments, 3) or 48
+  radius = finite_number(radius) and math.max(0, radius) or 0
+  local clip = {}
+  for index = 0, segments - 1 do
+    local angle = 2 * pi * index / segments
+    clip[#clip + 1] = {
+      x = cx + radius * math.cos(angle),
+      y = cy - radius * math.sin(angle),
+    }
+  end
+  local area = 0
+  for index = 1, #clip do
+    local next_index = index % #clip + 1
+    area = area + clip[index].x * clip[next_index].y -
+      clip[next_index].x * clip[index].y
+  end
+  local orientation = area >= 0 and 1 or -1
+  local function inside(point, a, b)
+    local cross = (b.x - a.x) * (point.y - a.y) -
+      (b.y - a.y) * (point.x - a.x)
+    return cross * orientation >= -CLIP_EPSILON
+  end
+  for index = 1, #vertices do
+    output[index] = { x = vertices[index].x, y = vertices[index].y }
+  end
+  for index = 1, #clip do
+    local a, b = clip[index], clip[index % #clip + 1]
+    local input = output
+    output = {}
+    if #input == 0 then break end
+    local previous = input[#input]
+    for _, current in ipairs(input) do
+      local current_inside = inside(current, a, b)
+      local previous_inside = inside(previous, a, b)
+      if current_inside then
+        if not previous_inside then
+          output[#output + 1] = segment_intersection(previous, current, a, b)
+        end
+        output[#output + 1] = { x = current.x, y = current.y }
+      elseif previous_inside then
+        output[#output + 1] =
+          segment_intersection(previous, current, a, b)
+      end
+      previous = current
+    end
+  end
+  local cleaned = {}
+  for _, point in ipairs(output) do
+    if #cleaned == 0 or not same_screen_point(cleaned[#cleaned], point) then
+      cleaned[#cleaned + 1] = point
+    end
+  end
+  if #cleaned > 1 and same_screen_point(cleaned[1], cleaned[#cleaned]) then
+    cleaned[#cleaned] = nil
+  end
+  if #cleaned < 3 then return {} end
+  return cleaned
+end
+
+-- Dash pattern in SVG user units, shared with the JavaScript mirror.  A
+-- `nil` result means a solid stroke; `none` is handled before drawing.
+function Polar.dash_pattern(linestyle)
+  if linestyle == "dashed" then return { 6, 4 } end
+  if linestyle == "dotted" then return { 1.5, 3 } end
+  return nil
+end
+
+local function point_at_distance(points, cumulative, distance)
+  local total = cumulative[#cumulative]
+  if distance <= 0 then
+    local p = points[1]
+    return { x = p.x, y = p.y, theta = p.theta, r = p.r }
+  end
+  if distance >= total then
+    local p = points[#points]
+    return { x = p.x, y = p.y, theta = p.theta, r = p.r }
+  end
+  local low, high = 1, #points
+  while low < high - 1 do
+    local middle = math.floor((low + high) / 2)
+    if cumulative[middle] <= distance then low = middle else high = middle end
+  end
+  local span = cumulative[low + 1] - cumulative[low]
+  if span <= 0 then
+    local p = points[low + 1]
+    return { x = p.x, y = p.y, theta = p.theta, r = p.r }
+  end
+  return interpolate_point(points[low], points[low + 1],
+    (distance - cumulative[low]) / span)
+end
+
+-- Split one projected polyline into dash runs so the live viewport can match
+-- the SVG `stroke-dasharray` and Canvas `setLineDash` output without relying
+-- on a graphics state the host does not expose for `Pass:line`.
+function Polar.dash_segments(points, pattern)
+  local runs = {}
+  if type(points) ~= "table" or #points < 2 or type(pattern) ~= "table" or
+     #pattern == 0 then
+    return runs
+  end
+  local cumulative = { 0 }
+  for index = 2, #points do
+    local dx = points[index].x - points[index - 1].x
+    local dy = points[index].y - points[index - 1].y
+    cumulative[index] = cumulative[index - 1] + math.sqrt(dx * dx + dy * dy)
+  end
+  local total = cumulative[#cumulative]
+  if total <= 0 then return runs end
+  local distance, pattern_index, on = 0, 1, true
+  local current
+  local function flush()
+    if current ~= nil and #current >= 2 then
+      runs[#runs + 1] = { points = current }
+    end
+    current = nil
+  end
+  while distance < total - CLIP_EPSILON do
+    local slot = pattern[pattern_index]
+    if not finite_number(slot) or slot <= 0 then slot = 1 end
+    local finish = math.min(total, distance + slot)
+    if on then
+      if current == nil then
+        current = { point_at_distance(points, cumulative, distance) }
+      end
+      local end_point = point_at_distance(points, cumulative, finish)
+      if not same_screen_point(current[#current], end_point) then
+        current[#current + 1] = end_point
+      end
+      flush()
+    end
+    distance = finish
+    pattern_index = pattern_index % #pattern + 1
+    on = not on
+  end
+  flush()
+  return runs
+end
+
 -- Screen-space arrow geometry for one collected quiver series.  `u` points
 -- toward increasing data theta and `v` outward along the radius; rotating that
 -- local orthonormal pair by the displayed angle reproduces luaplotlib's SVG
@@ -548,18 +856,26 @@ function Polar.stream_lines(stream, cx, cy, radius, rmax, theta_zero,
   local half = head * 0.45
   for line_index, line in ipairs(stream.lines or {}) do
     if type(line) == "table" then
-      local points = {}
+      local projected, outside = {}, false
       for _, point in ipairs(line.points or {}) do
-        local x, y = Polar.project(cx, cy, radius, rmax, theta_zero,
+        local x, y = Polar.project_raw(cx, cy, radius, rmax, theta_zero,
           direction, point.theta, point.r)
-        points[#points + 1] = {
+        if not point_inside_circle(x, y, cx, cy, radius) then outside = true end
+        projected[#projected + 1] = {
           x = x, y = y, theta = point.theta, r = point.r,
         }
+      end
+      local runs = Polar.clip_polyline_to_circle(projected, cx, cy, radius)
+      local points = {}
+      for _, run in ipairs(runs) do
+        for _, point in ipairs(run) do
+          points[#points + 1] = point
+        end
       end
       local arrows = {}
       if draw_arrows then
         for arrow_index, arrow in ipairs(line.arrows or {}) do
-          local x, y = Polar.project(cx, cy, radius, rmax, theta_zero,
+          local x, y = Polar.project_raw(cx, cy, radius, rmax, theta_zero,
             direction, arrow.theta, arrow.r)
           local radians = math.rad(arrow.angle)
           local ux, uy = math.cos(radians), math.sin(radians)
@@ -568,27 +884,53 @@ function Polar.stream_lines(stream, cx, cy, radius, rmax, theta_zero,
           local tip_y = y + uy * head * 0.5
           local neck_x = x - ux * head * 0.5
           local neck_y = y - uy * head * 0.5
-          arrows[#arrows + 1] = {
-            index = arrow_index,
-            theta = arrow.theta,
-            r = arrow.r,
-            angle = arrow.angle,
-            x = x,
-            y = y,
-            tip_x = tip_x,
-            tip_y = tip_y,
-            head_x1 = tip_x,
-            head_y1 = tip_y,
-            head_x2 = neck_x + px,
-            head_y2 = neck_y + py,
-            head_x3 = neck_x - px,
-            head_y3 = neck_y - py,
+          local triangle = {
+            { x = tip_x, y = tip_y },
+            { x = neck_x + px, y = neck_y + py },
+            { x = neck_x - px, y = neck_y - py },
           }
+          local clipped = false
+          for _, vertex in ipairs(triangle) do
+            if not point_inside_circle(vertex.x, vertex.y, cx, cy, radius) then
+              clipped = true
+              break
+            end
+          end
+          if clipped then
+            triangle = Polar.clip_polygon_to_circle(triangle, cx, cy, radius)
+          end
+          if #triangle >= 3 then
+            local head_points = {}
+            for _, vertex in ipairs(triangle) do
+              head_points[#head_points + 1] = vertex.x
+              head_points[#head_points + 1] = vertex.y
+            end
+            arrows[#arrows + 1] = {
+              index = arrow_index,
+              theta = arrow.theta,
+              r = arrow.r,
+              angle = arrow.angle,
+              x = x,
+              y = y,
+              tip_x = tip_x,
+              tip_y = tip_y,
+              head_x1 = triangle[1].x,
+              head_y1 = triangle[1].y,
+              head_x2 = triangle[2].x,
+              head_y2 = triangle[2].y,
+              head_x3 = triangle[3].x,
+              head_y3 = triangle[3].y,
+              head_points = head_points,
+              clipped = clipped,
+            }
+          end
         end
       end
-      if #points >= 2 then
+      if #runs > 0 then
         lines[#lines + 1] = {
-          index = line.index or line_index, points = points, arrows = arrows,
+          index = line.index or line_index, points = points, runs = runs,
+          arrows = arrows, clipped = outside or #runs > 1,
+          closed = line.closed == true,
         }
       end
     end
