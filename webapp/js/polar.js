@@ -285,6 +285,10 @@ export const FULL_TURN_PARTS = 48;
 export const CONTOUR_MAX_STEPS = 64;
 export const CONTOUR_LABEL_SCALE = 5.5;
 
+// A large field is painted as at most this many block cells.  Keep this bound
+// in sync with Polar.HEATMAP_CELL_LIMIT in notebook/polar.lua.
+export const HEATMAP_CELL_LIMIT = 4096;
+
 // Viridis-like anchors copied from luaplotlib's colour helper.  Channel
 // rounding must match notebook/polar.lua exactly.
 export const HEAT_ANCHORS = [
@@ -343,6 +347,50 @@ export function compactNumber(value) {
   return `${Number(mantissa)}e${Number(exponent)}`;
 }
 
+// Choose the row/column strides used to paint a heatmap.  A field at or below
+// `limit` keeps every cell.  Larger fields are sampled so the painted block
+// count stays at or below the limit; each painted block covers the source
+// cells it replaces.  This mirrors Polar.heatmap_sampling in Lua.
+export function heatmapSampling(rows, cols, limit = HEATMAP_CELL_LIMIT) {
+  limit = finiteInteger(limit, 1) ?? HEATMAP_CELL_LIMIT;
+  rows = finiteInteger(rows, 1) ?? 1;
+  cols = finiteInteger(cols, 1) ?? 1;
+  if (rows <= limit && cols <= Math.floor(limit / rows)) {
+    return {
+      rowStep: 1, colStep: 1,
+      sampledRows: rows, sampledCols: cols,
+      count: rows * cols, sampled: false,
+    };
+  }
+  let target = (limit * rows) / cols;
+  if (target > limit) target = limit;
+  if (target < 1) target = 1;
+  let rowTarget = Math.floor(Math.sqrt(target));
+  if (rowTarget < 1) rowTarget = 1;
+  if (rowTarget > rows) rowTarget = rows;
+  let colTarget = Math.floor(limit / rowTarget);
+  if (colTarget > cols) colTarget = cols;
+  if (colTarget < 1) colTarget = 1;
+  let rowStep = Math.ceil(rows / rowTarget);
+  let colStep = Math.ceil(cols / colTarget);
+  for (let pass = 0; pass < 3; pass += 1) {
+    const sampledRows = Math.ceil(rows / rowStep);
+    const maxCols = Math.max(1, Math.floor(limit / sampledRows));
+    const nextCols = Math.min(cols, maxCols);
+    colStep = Math.ceil(cols / nextCols);
+    const sampledCols = Math.ceil(cols / colStep);
+    const maxRows = Math.max(1, Math.floor(limit / sampledCols));
+    const nextRows = Math.min(rows, maxRows);
+    rowStep = Math.ceil(rows / nextRows);
+  }
+  const sampledRows = Math.ceil(rows / rowStep);
+  const sampledCols = Math.ceil(cols / colStep);
+  return {
+    rowStep, colStep, sampledRows, sampledCols,
+    count: sampledRows * sampledCols, sampled: true,
+  };
+}
+
 export function collectHeatmaps(polar) {
   const heatmaps = [];
   for (const item of array(polar && polar.heatmaps)) {
@@ -350,26 +398,54 @@ export function collectHeatmaps(polar) {
     const rows = finiteInteger(item.rows, 1);
     const cols = finiteInteger(item.cols, 1);
     if (!rows || !cols || !Array.isArray(item.values)) continue;
-    const cells = [];
+    const sampling = heatmapSampling(rows, cols);
+    const hasVmin = finiteNumber(item.vmin);
+    const hasVmax = finiteNumber(item.vmax);
     let minimum = null;
     let maximum = null;
-    for (let row = 0; row < rows; row += 1) {
-      const source = Array.isArray(item.values[row]) ? item.values[row] : [];
-      const copied = [];
-      for (let col = 0; col < cols; col += 1) {
-        let value = source[col];
-        if (finiteNumber(value)) {
-          if (minimum === null || value < minimum) minimum = value;
-          if (maximum === null || value > maximum) maximum = value;
-        } else {
-          value = null;
+    if (!(hasVmin && hasVmax)) {
+      for (let row = 0; row < rows; row += 1) {
+        const source = Array.isArray(item.values[row]) ? item.values[row] : [];
+        for (let col = 0; col < cols; col += 1) {
+          const value = source[col];
+          if (finiteNumber(value)) {
+            if (minimum === null || value < minimum) minimum = value;
+            if (maximum === null || value > maximum) maximum = value;
+          }
         }
-        copied.push(value);
       }
-      cells.push(copied);
     }
-    let vmin = finiteNumber(item.vmin) ? item.vmin : minimum;
-    let vmax = finiteNumber(item.vmax) ? item.vmax : maximum;
+    const cells = [];
+    if (sampling.sampled) {
+      for (let sampleRow = 0; sampleRow < sampling.sampledRows; sampleRow += 1) {
+        let sourceRow = sampleRow * sampling.rowStep
+          + Math.floor((sampling.rowStep - 1) / 2);
+        if (sourceRow >= rows) sourceRow = rows - 1;
+        const source = Array.isArray(item.values[sourceRow])
+          ? item.values[sourceRow] : [];
+        const copied = [];
+        for (let sampleCol = 0; sampleCol < sampling.sampledCols; sampleCol += 1) {
+          let sourceCol = sampleCol * sampling.colStep
+            + Math.floor((sampling.colStep - 1) / 2);
+          if (sourceCol >= cols) sourceCol = cols - 1;
+          const value = source[sourceCol];
+          copied.push(finiteNumber(value) ? value : null);
+        }
+        cells.push(copied);
+      }
+    } else {
+      for (let row = 0; row < rows; row += 1) {
+        const source = Array.isArray(item.values[row]) ? item.values[row] : [];
+        const copied = [];
+        for (let col = 0; col < cols; col += 1) {
+          const value = source[col];
+          copied.push(finiteNumber(value) ? value : null);
+        }
+        cells.push(copied);
+      }
+    }
+    let vmin = hasVmin ? item.vmin : minimum;
+    let vmax = hasVmax ? item.vmax : maximum;
     if (vmin === null) vmin = 0;
     if (vmax === null || vmax <= vmin) vmax = vmin + 1;
     const rmin = finiteNumber(item.rmin) ? Math.max(0, item.rmin) : 0;
@@ -386,6 +462,10 @@ export function collectHeatmaps(polar) {
       alpha: clamp01(item.alpha),
       label: typeof item.label === "string" ? item.label : null,
       colorbar: item.colorbar === true,
+      rowStep: sampling.rowStep,
+      colStep: sampling.colStep,
+      sampled: sampling.sampled,
+      sampledCells: sampling.count,
     });
   }
   return heatmaps;
@@ -525,27 +605,55 @@ export function colorbarSteps(colorbar, count = COLORBAR_STEPS) {
   return steps;
 }
 
+// Project every painted matrix block into an annular sector (or a full disc /
+// split ring).  Large fields are sampled into blocks by heatmapSampling; each
+// block spans the source rows/columns it replaces.  Cells keep source
+// row/column indices plus rowSpan/colSpan for parity with the export.
 export function heatmapCells(heatmap, cx, cy, radius, rmax, thetaZero, direction) {
   const cells = [];
   if (!heatmap || typeof heatmap !== "object") return cells;
   rmax = finiteNumber(rmax) && rmax > 0 ? rmax : 1;
+  const sampling = heatmapSampling(heatmap.rows, heatmap.cols);
+  const rowStep = Math.max(1, Math.min(
+    finiteInteger(heatmap.rowStep, 1) ?? sampling.rowStep, heatmap.rows));
+  const colStep = Math.max(1, Math.min(
+    finiteInteger(heatmap.colStep, 1) ?? sampling.colStep, heatmap.cols));
+  const sampledValues = heatmap.sampled === true;
   const outer = (radius * Math.min(heatmap.rmax, rmax)) / rmax;
   let inner = (radius * Math.max(0, heatmap.rmin)) / rmax;
   if (inner > outer) inner = outer;
   const span = heatmap.thetaMax - heatmap.thetaMin;
   const colSpan = span / heatmap.cols;
-  for (let row = 1; row <= heatmap.rows; row += 1) {
+  let rowIndex = 0;
+  for (let row = 1; row <= heatmap.rows; row += rowStep) {
+    rowIndex += 1;
+    const rowEnd = Math.min(heatmap.rows, row + rowStep - 1);
     const rowInner = inner + ((outer - inner) * (row - 1)) / heatmap.rows;
-    const rowOuter = inner + ((outer - inner) * row) / heatmap.rows;
-    for (let col = 1; col <= heatmap.cols; col += 1) {
-      let value = heatmap.values[row - 1]?.[col - 1];
+    const rowOuter = inner + ((outer - inner) * rowEnd) / heatmap.rows;
+    let colIndex = 0;
+    for (let col = 1; col <= heatmap.cols; col += colStep) {
+      colIndex += 1;
+      const colEnd = Math.min(heatmap.cols, col + colStep - 1);
+      let value;
+      if (sampledValues) {
+        value = heatmap.values[rowIndex - 1]?.[colIndex - 1];
+      } else {
+        const sampleRow = Math.min(rowEnd,
+          row + Math.floor((rowStep - 1) / 2));
+        const sampleCol = Math.min(colEnd,
+          col + Math.floor((colStep - 1) / 2));
+        value = heatmap.values[sampleRow - 1]?.[sampleCol - 1];
+      }
       if (!finiteNumber(value)) value = heatmap.vmin;
       const theta0 = heatmap.thetaMin + colSpan * (col - 1);
-      const theta1 = heatmap.thetaMin + colSpan * col;
+      const theta1 = heatmap.thetaMin + colSpan * colEnd;
       const startAngle = thetaZero + direction * theta0;
       const endAngle = thetaZero + direction * theta1;
       const cell = {
-        row, col, value,
+        row, col,
+        rowSpan: rowEnd - row + 1,
+        colSpan: colEnd - col + 1,
+        value,
         color: heatColor(value, heatmap.vmin, heatmap.vmax),
         alpha: heatmap.alpha,
         innerRadius: rowInner,

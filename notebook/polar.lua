@@ -360,6 +360,12 @@ Polar.FULL_TURN_PARTS = 48
 Polar.CONTOUR_MAX_STEPS = 64
 Polar.CONTOUR_LABEL_SCALE = 5.5
 
+-- A large field is painted as at most this many block cells.  The live
+-- viewport, the SVG export, and the browser renderer all use the same
+-- sampling, so even a 512x512 field paints a bounded number of cells and
+-- produces a bounded export.
+Polar.HEATMAP_CELL_LIMIT = 4096
+
 -- Viridis-like anchors copied from luaplotlib's colour helper.  The channel
 -- rounding must stay identical in Lua and JavaScript or the exported SVG, the
 -- live frame, and the browser Canvas would select different fills.
@@ -430,9 +436,66 @@ function Polar.compact_number(value)
   return tostring(tonumber(mantissa)) .. "e" .. tostring(tonumber(exponent))
 end
 
+-- Choose the row/column strides used to paint a heatmap.  A field at or below
+-- `limit` keeps every cell.  Larger fields are sampled so that the number of
+-- painted block cells stays at or below the limit; each painted block covers
+-- the source cells it replaces, so downsampling never leaves gaps in the
+-- annulus.  The stride is deterministic and shared by all three renderers.
+function Polar.heatmap_sampling(rows, cols, limit)
+  limit = finite_integer(limit, 1) or Polar.HEATMAP_CELL_LIMIT
+  rows = finite_integer(rows, 1) or 1
+  cols = finite_integer(cols, 1) or 1
+  if rows <= limit and cols <= math.floor(limit / rows) then
+    return {
+      row_step = 1, col_step = 1,
+      sampled_rows = rows, sampled_cols = cols,
+      count = rows * cols, sampled = false,
+    }
+  end
+  -- Start from proportional targets, then fill the cell budget while keeping
+  -- the block count under the limit.
+  local target = limit * rows / cols
+  if target > limit then target = limit end
+  if target < 1 then target = 1 end
+  local row_target = math.floor(math.sqrt(target))
+  if row_target < 1 then row_target = 1 end
+  if row_target > rows then row_target = rows end
+  local col_target = math.floor(limit / row_target)
+  if col_target > cols then col_target = cols end
+  if col_target < 1 then col_target = 1 end
+  local row_step = math.ceil(rows / row_target)
+  local col_step = math.ceil(cols / col_target)
+  for _ = 1, 3 do
+    local sampled_rows = math.ceil(rows / row_step)
+    local max_cols = math.floor(limit / sampled_rows)
+    if max_cols < 1 then max_cols = 1 end
+    local next_cols = math.min(cols, max_cols)
+    col_step = math.ceil(cols / next_cols)
+    local sampled_cols = math.ceil(cols / col_step)
+    local max_rows = math.floor(limit / sampled_cols)
+    if max_rows < 1 then max_rows = 1 end
+    local next_rows = math.min(rows, max_rows)
+    row_step = math.ceil(rows / next_rows)
+  end
+  local sampled_rows = math.ceil(rows / row_step)
+  local sampled_cols = math.ceil(cols / col_step)
+  return {
+    row_step = row_step,
+    col_step = col_step,
+    sampled_rows = sampled_rows,
+    sampled_cols = sampled_cols,
+    count = sampled_rows * sampled_cols,
+    sampled = true,
+  }
+end
+
 -- Copy one heatmap from the polar IR into the compact field shape used by the
 -- renderers.  Missing or non-finite metadata gets the same safe defaults as
 -- the rest of the module; non-finite matrix cells fall back to `vmin`.
+--
+-- When a field exceeds `Polar.HEATMAP_CELL_LIMIT` only the sampled block
+-- values are copied.  `vmin`/`vmax` still describe the full matrix: an
+-- explicit range is used as-is, otherwise every source cell is scanned once.
 function Polar.collect_heatmaps(polar)
   local heatmaps = {}
   for _, item in ipairs(type(polar) == "table" and polar.heatmaps or {}) do
@@ -441,25 +504,53 @@ function Polar.collect_heatmaps(polar)
       local cols = finite_integer(item.cols, 1)
       local values = type(item.values) == "table" and item.values or nil
       if rows and cols and values then
+        local sampling = Polar.heatmap_sampling(rows, cols)
+        local has_vmin = finite_number(item.vmin)
+        local has_vmax = finite_number(item.vmax)
         local minimum, maximum
-        local cells = {}
-        for row = 1, rows do
-          local source = type(values[row]) == "table" and values[row] or {}
-          local copied = {}
-          for col = 1, cols do
-            local value = source[col]
-            if finite_number(value) then
-              if minimum == nil or value < minimum then minimum = value end
-              if maximum == nil or value > maximum then maximum = value end
-            else
-              value = nil
+        if not (has_vmin and has_vmax) then
+          for row = 1, rows do
+            local source = type(values[row]) == "table" and values[row] or {}
+            for col = 1, cols do
+              local value = source[col]
+              if finite_number(value) then
+                if minimum == nil or value < minimum then minimum = value end
+                if maximum == nil or value > maximum then maximum = value end
+              end
             end
-            copied[col] = value
           end
-          cells[row] = copied
         end
-        local vmin = finite_number(item.vmin) and item.vmin or minimum
-        local vmax = finite_number(item.vmax) and item.vmax or maximum
+        local cells = {}
+        if sampling.sampled then
+          for sample_row = 1, sampling.sampled_rows do
+            local source_row = 1 + (sample_row - 1) * sampling.row_step +
+              math.floor((sampling.row_step - 1) / 2)
+            if source_row > rows then source_row = rows end
+            local source = type(values[source_row]) == "table" and
+              values[source_row] or {}
+            local copied = {}
+            for sample_col = 1, sampling.sampled_cols do
+              local source_col = 1 + (sample_col - 1) * sampling.col_step +
+                math.floor((sampling.col_step - 1) / 2)
+              if source_col > cols then source_col = cols end
+              local value = source[source_col]
+              if finite_number(value) then copied[sample_col] = value end
+            end
+            cells[sample_row] = copied
+          end
+        else
+          for row = 1, rows do
+            local source = type(values[row]) == "table" and values[row] or {}
+            local copied = {}
+            for col = 1, cols do
+              local value = source[col]
+              if finite_number(value) then copied[col] = value end
+            end
+            cells[row] = copied
+          end
+        end
+        local vmin = has_vmin and item.vmin or minimum
+        local vmax = has_vmax and item.vmax or maximum
         if vmin == nil then vmin = 0 end
         if vmax == nil or vmax <= vmin then vmax = vmin + 1 end
         local rmin = finite_number(item.rmin) and math.max(0, item.rmin) or 0
@@ -484,6 +575,10 @@ function Polar.collect_heatmaps(polar)
           alpha = clamp01(item.alpha),
           label = type(item.label) == "string" and item.label or nil,
           colorbar = item.colorbar == true,
+          row_step = sampling.row_step,
+          col_step = sampling.col_step,
+          sampled = sampling.sampled,
+          sampled_cells = sampling.count,
         }
       end
     end
@@ -660,32 +755,61 @@ function Polar.colorbar_steps(colorbar, count)
   return steps
 end
 
--- Project every matrix cell into an annular sector (or a full disc / split
--- ring) in y-down screen coordinates.  A full turn with an inner radius is
--- split into convex wedges so the LÖVR polygon path never needs a hole.
+-- Project every painted matrix block into an annular sector (or a full disc /
+-- split ring) in y-down screen coordinates.  A full turn with an inner radius
+-- is split into convex wedges so the LÖVR polygon path never needs a hole.
+-- Large fields are sampled into blocks by `heatmap_sampling`; each block spans
+-- the source rows/columns it replaces so the sampled field still covers the
+-- whole annulus.  Cells keep their source row/column indices plus `row_span`
+-- and `col_span` for the export and QA.
 function Polar.heatmap_cells(heatmap, cx, cy, radius, rmax, theta_zero,
     direction)
   local cells = {}
   if type(heatmap) ~= "table" then return cells end
   rmax = finite_number(rmax) and rmax > 0 and rmax or 1
+  local sampling = Polar.heatmap_sampling(heatmap.rows, heatmap.cols)
+  local row_step = finite_integer(heatmap.row_step, 1) or sampling.row_step
+  local col_step = finite_integer(heatmap.col_step, 1) or sampling.col_step
+  row_step = math.max(1, math.min(row_step, heatmap.rows))
+  col_step = math.max(1, math.min(col_step, heatmap.cols))
+  local sampled_values = heatmap.sampled == true
   local outer = radius * math.min(heatmap.rmax, rmax) / rmax
   local inner = radius * math.max(0, heatmap.rmin) / rmax
   if inner > outer then inner = outer end
   local span = heatmap.theta_max - heatmap.theta_min
   local col_span = span / heatmap.cols
-  for row = 1, heatmap.rows do
+  local row_index = 0
+  for row = 1, heatmap.rows, row_step do
+    row_index = row_index + 1
+    local row_end = math.min(heatmap.rows, row + row_step - 1)
     local row_inner = inner + (outer - inner) * (row - 1) / heatmap.rows
-    local row_outer = inner + (outer - inner) * row / heatmap.rows
-    for col = 1, heatmap.cols do
-      local value = heatmap.values[row] and heatmap.values[row][col]
+    local row_outer = inner + (outer - inner) * row_end / heatmap.rows
+    local col_index = 0
+    for col = 1, heatmap.cols, col_step do
+      col_index = col_index + 1
+      local col_end = math.min(heatmap.cols, col + col_step - 1)
+      local value
+      if sampled_values then
+        value = heatmap.values[row_index] and
+          heatmap.values[row_index][col_index]
+      else
+        local sample_row = math.min(row_end,
+          row + math.floor((row_step - 1) / 2))
+        local sample_col = math.min(col_end,
+          col + math.floor((col_step - 1) / 2))
+        value = heatmap.values[sample_row] and
+          heatmap.values[sample_row][sample_col]
+      end
       if not finite_number(value) then value = heatmap.vmin end
       local theta0 = heatmap.theta_min + col_span * (col - 1)
-      local theta1 = heatmap.theta_min + col_span * col
+      local theta1 = heatmap.theta_min + col_span * col_end
       local start_angle = theta_zero + direction * theta0
       local end_angle = theta_zero + direction * theta1
       local cell = {
         row = row,
         col = col,
+        row_span = row_end - row + 1,
+        col_span = col_end - col + 1,
         value = value,
         color = Polar.heat_color(value, heatmap.vmin, heatmap.vmax),
         alpha = heatmap.alpha,

@@ -865,15 +865,24 @@ function Format.scene_svg(scene, width, height)
       end
     end
 
-    -- Heatmaps and contours sit under the frame and the data series.
+    -- Heatmaps and contours sit under the frame and the data series.  Large
+    -- fields are sampled by the shared polar module; the group records the
+    -- source grid and strides so a reader can see that cells are blocks.
     for _, heatmap in ipairs(resolved.heatmaps) do
+      out[#out + 1] = string.format(
+        '<g class="scene-polar-heatmap" data-rows="%d" data-cols="%d" data-row-step="%d" data-col-step="%d" data-sampled="%s">',
+        heatmap.rows, heatmap.cols, heatmap.row_step or 1,
+        heatmap.col_step or 1, heatmap.sampled and "true" or "false")
       for _, cell in ipairs(Polar.heatmap_cells(heatmap, cx, cy, radius,
           rmax, theta_zero, direction)) do
         local opacity = cell.alpha < 1 and string.format(
           ' fill-opacity="%s"', svg_number(cell.alpha)) or ""
+        local spans = (cell.row_span > 1 or cell.col_span > 1) and
+          string.format(' data-row-span="%d" data-col-span="%d"',
+            cell.row_span, cell.col_span) or ""
         out[#out + 1] = string.format(
-          '<g class="scene-polar-heatmap-cell" data-row="%d" data-col="%d" fill="%s"%s>',
-          cell.row, cell.col, cell.color, opacity)
+          '<g class="scene-polar-heatmap-cell" data-row="%d" data-col="%d"%s fill="%s"%s>',
+          cell.row, cell.col, spans, cell.color, opacity)
         if cell.full_disc then
           out[#out + 1] = string.format(
             '<circle cx="%s" cy="%s" r="%s"/>', svg_number(cx),
@@ -886,6 +895,7 @@ function Format.scene_svg(scene, width, height)
         end
         out[#out + 1] = "</g>"
       end
+      out[#out + 1] = "</g>"
     end
     for _, contour in ipairs(resolved.contours) do
       local dash = ""
