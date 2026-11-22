@@ -20,7 +20,7 @@
 - Kernel widgets, editable multiline text, callbacks, persistence, and live
   shader widgets (Star Nest preset).
 - Syntax highlighting, static diagnostics, completion, hover, go-to-definition,
-  and workspace rename.
+  workspace rename, and case/whole-word notebook find and replace.
 - Hierarchical notebook filetree with create/delete/rename/folder actions.
 - Vim mode (default on): insert/normal, cell/character visual, registers,
   yank/paste, undo, search, command line, literal/pattern substitution.

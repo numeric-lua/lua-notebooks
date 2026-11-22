@@ -548,9 +548,18 @@ LÖVR. Press **Alt+E** or use the command palette action **Neovim cell editor**.
 Requirements: `nvim` on `PATH`. The bridge uses msgpack-RPC over a local TCP
 socket, not `luv` or `lua-mp`.
 
-## Search
+## Search and replace
 
-Press **Ctrl+F** to search every cell. Use Up/Down and Enter or click a result to select the matching cell and cursor position.
+Press **Ctrl+F** to search every cell. Results are case-insensitive and literal
+by default; **Alt+C** toggles case-sensitive matching and **Alt+W** requires a
+whole word (`foo` matches `foo` but not `food` or `foo_bar`). The overlay shows
+the total occurrence count and only the first 40 matching lines. Use Up/Down
+and Enter or click a result to select the matching cell and cursor position.
+
+**Ctrl+H** opens notebook-wide replace. It uses the same **Alt+C**/**Alt+W**
+options, previews the number of replacements before applying, and replaces
+every matching source occurrence as one undoable change. Output text is
+searchable but is never rewritten.
 
 ## Kernel commands
 

@@ -8,6 +8,7 @@ local Surface = require("ui.surface")
 local Widgets = require("ui.widgets")
 local Scroll = require("ui.scroll")
 local Math = require("notebook.math")
+local Search = require("notebook.search")
 local NotebookModel = require("notebook.model")
 local Theme = require("ui.theme")
 local Markdown = require("notebook.markdown")
@@ -182,9 +183,14 @@ function UI.new(app)
     replace_with = "",
     replace_phase = "find",
     replace_count = nil,
+    replace_case_sensitive = false,
+    replace_whole_word = false,
     find_query = "",
     find_results = {},
+    find_total = 0,
     find_selected = 1,
+    find_case_sensitive = false,
+    find_whole_word = false,
     find_rects = {},
     link_rects = {},
     show_palette = false,
@@ -1188,11 +1194,20 @@ function UI:draw_tags(pass, width, height)
     x + 18, y + panel_h - 22, { 0.5, 0.58, 0.72, 1 }, 0.62)
 end
 
+local function search_options(case_sensitive, whole_word, include_output)
+  return {
+    case_sensitive = case_sensitive == true,
+    whole_word = whole_word == true,
+    include_output = include_output ~= false,
+  }
+end
+
 function UI:open_replace()
   self.show_replace = true
   self.replace_find = ""
   self.replace_with = ""
   self.replace_phase = "find"
+  self.replace_count = 0
 end
 
 function UI:draw_replace(pass, width, height)
@@ -1200,8 +1215,16 @@ function UI:draw_replace(pass, width, height)
   local panel_w = math.min(680, width - 60)
   local x, y = (width - panel_w) / 2, 96
   box(pass, x, y, panel_w, 118, { 0.06, 0.07, 0.10, 0.98 })
+  self.replace_count = Search.count(self.app:notebook().cells,
+    self.replace_find, search_options(self.replace_case_sensitive,
+      self.replace_whole_word, false))
   text(pass, self.app.font, "Replace in notebook  (Tab switches field)",
     x + 14, y + 10, { 0.9, 0.94, 1, 1 }, 0.78)
+  text(pass, self.app.font, string.format("%s · %s · %d match%s",
+    self.replace_case_sensitive and "case" or "ignore case",
+    self.replace_whole_word and "whole word" or "substring",
+    self.replace_count, self.replace_count == 1 and "" or "es"),
+    x + panel_w - 14, y + 12, { 0.55, 0.65, 0.82, 1 }, 0.6, "right")
   local find_color = self.replace_phase == "find" and
     { 0.25, 0.35, 0.5, 1 } or { 0.11, 0.13, 0.18, 1 }
   local replace_color = self.replace_phase == "replace" and
@@ -1212,7 +1235,8 @@ function UI:draw_replace(pass, width, height)
   box(pass, x + 12, y + 70, panel_w - 24, 26, replace_color)
   text(pass, self.app.font, "replace: " .. self.replace_with .. "|",
     x + 20, y + 75, { 0.9, 0.94, 1, 1 }, 0.74)
-  text(pass, self.app.font, "Enter next field / apply  ·  Esc cancel  ·  Ctrl+H",
+  text(pass, self.app.font,
+    "Enter next field / apply  ·  Alt+C case  ·  Alt+W whole word  ·  Esc cancel",
     x + 14, y + 102, { 0.5, 0.58, 0.72, 1 }, 0.6)
 end
 
@@ -1221,38 +1245,16 @@ function UI:open_find()
   self.find_query = ""
   self.find_selected = 1
   self.find_results = {}
+  self.find_total = 0
 end
 
 function UI:update_find()
-  self.find_results = {}
   self.find_selected = 1
-  local query = self.find_query:lower()
-  if query == "" then return end
-  for cell_index, cell in ipairs(self.app:notebook().cells) do
-    local offset = 1
-    for line in ((cell.source or "") .. "\n"):gmatch("(.-)\n") do
-      local position = line:lower():find(query, 1, true)
-      if position then
-        self.find_results[#self.find_results + 1] = {
-          cell = cell_index, line = line,
-          cursor = offset + position - 1,
-        }
-        if #self.find_results >= 40 then return end
-      end
-      offset = offset + #line + 1
-    end
-    if cell.output and cell.output ~= "" then
-      for line in (cell.output .. "\n"):gmatch("(.-)\n") do
-        if line:lower():find(query, 1, true) then
-          self.find_results[#self.find_results + 1] = {
-            cell = cell_index, line = "out: " .. line,
-            cursor = #(cell.source or "") + 1,
-          }
-          if #self.find_results >= 40 then return end
-        end
-      end
-    end
-  end
+  local options = search_options(self.find_case_sensitive,
+    self.find_whole_word, true)
+  options.limit = 40
+  self.find_results, self.find_total = Search.collect(
+    self.app:notebook().cells, self.find_query, options)
 end
 
 function UI:draw_find(pass, width, height)
@@ -1266,6 +1268,11 @@ function UI:draw_find(pass, width, height)
   box(pass, x, y, panel_w, panel_h, { 0.06, 0.07, 0.10, 0.98 })
   text(pass, self.app.font, "Find in notebook  (Ctrl+F)", x + 14, y + 12,
     { 0.9, 0.94, 1, 1 }, 0.78)
+  text(pass, self.app.font, string.format("%s · %s · %d match%s",
+    self.find_case_sensitive and "case" or "ignore case",
+    self.find_whole_word and "whole word" or "substring",
+    self.find_total, self.find_total == 1 and "" or "es"),
+    x + panel_w - 14, y + 14, { 0.55, 0.65, 0.82, 1 }, 0.6, "right")
   box(pass, x + 12, y + 36, panel_w - 24, 26, { 0.11, 0.13, 0.18, 1 })
   text(pass, self.app.font, self.find_query .. "|", x + 20, y + 41,
     { 0.9, 0.94, 1, 1 }, 0.75)
@@ -1306,8 +1313,8 @@ function UI:draw_help(pass, width, height)
         { "Alt+X / dd", "delete focused cell" },
         { "Ctrl+1 / 2", "code / markdown" },
         { "o / O", "insert below / above and edit" },
-        { "Ctrl+F", "find across notebook cells" },
-        { "Ctrl+H", "replace in notebook" },
+        { "Ctrl+F", "find across notebook cells (Alt+C/Alt+W options)" },
+        { "Ctrl+H", "replace in notebook (Alt+C/Alt+W options)" },
         { "Ctrl+G / Ctrl+T", "link graph / tag index" },
         { "Ctrl+P", "command palette" },
         { "Ctrl+S", "save notebook" },
@@ -2087,6 +2094,8 @@ function UI:keypressed(key)
     (lovr.system.isKeyDown("lctrl") or lovr.system.isKeyDown("rctrl"))
   local shift_down = lovr.system and lovr.system.isKeyDown and
     (lovr.system.isKeyDown("lshift") or lovr.system.isKeyDown("rshift"))
+  local alt_down = lovr.system and lovr.system.isKeyDown and
+    (lovr.system.isKeyDown("lalt") or lovr.system.isKeyDown("ralt"))
   if self.show_replace then
     if key == "escape" then
       self.show_replace = false
@@ -2096,6 +2105,14 @@ function UI:keypressed(key)
       else
         self.replace_with = self.replace_with:sub(1, -2)
       end
+    elseif alt_down and key == "c" then
+      self.replace_case_sensitive = not self.replace_case_sensitive
+      self.app.status = self.replace_case_sensitive and
+        "replace: case sensitive" or "replace: ignore case"
+    elseif alt_down and key == "w" then
+      self.replace_whole_word = not self.replace_whole_word
+      self.app.status = self.replace_whole_word and
+        "replace: whole word" or "replace: substring"
     elseif key == "tab" then
       self.replace_phase = self.replace_phase == "find" and "replace" or "find"
     elseif key == "return" then
@@ -2103,7 +2120,8 @@ function UI:keypressed(key)
         self.replace_phase = "replace"
       else
         local count = self.app:notebook():replace_all(self.replace_find,
-          self.replace_with)
+          self.replace_with, search_options(self.replace_case_sensitive,
+            self.replace_whole_word, false))
         self.app.status = count > 0 and ("replaced " .. count .. " occurrence(s)") or
           "no matches"
         self.show_replace = false
@@ -2123,6 +2141,16 @@ function UI:keypressed(key)
   end
   if self.show_find then
     if key == "escape" then self.show_find = false
+    elseif alt_down and key == "c" then
+      self.find_case_sensitive = not self.find_case_sensitive
+      self:update_find()
+      self.app.status = self.find_case_sensitive and
+        "find: case sensitive" or "find: ignore case"
+    elseif alt_down and key == "w" then
+      self.find_whole_word = not self.find_whole_word
+      self:update_find()
+      self.app.status = self.find_whole_word and
+        "find: whole word" or "find: substring"
     elseif key == "backspace" then
       self.find_query = self.find_query:sub(1, -2); self:update_find()
     elseif key == "return" and self.find_results[self.find_selected] then
@@ -2182,8 +2210,6 @@ function UI:keypressed(key)
     else self.app:zoom_ui(0.1) end
     return
   end
-  local alt_down = lovr.system and lovr.system.isKeyDown and
-    (lovr.system.isKeyDown("lalt") or lovr.system.isKeyDown("ralt"))
   if alt_down and key == "b" then
     self.app:add_cell("code"); return
   elseif alt_down and key == "a" then

@@ -847,6 +847,62 @@ test("replace_all replaces literal text across cells", function()
   eq(select(1, notebook:replace_all("", "x")), 0)
 end)
 
+current = "search"
+test("finds literal text case-insensitively and on word boundaries", function()
+  local Search = require("notebook.search")
+  local text = "Foo foo food foo_bar"
+  eq(#Search.matches(text, "foo"), 4)
+  eq(#Search.matches(text, "foo", { case_sensitive = true }), 3)
+  eq(#Search.matches(text, "foo", { whole_word = true }), 2)
+  eq(#Search.matches(text, "foo", { case_sensitive = true,
+    whole_word = true }), 1)
+  eq(#Search.matches(text, ""), 0)
+  eq(Search.count_text(text, "FOO"), 4)
+end)
+test("collects source and output rows while counting every occurrence", function()
+  local Search = require("notebook.search")
+  local cells = {
+    { source = "foo = 1\nprint(foo)", output = "foo output\nno match" },
+    { source = "FOO", output = "" },
+  }
+  local rows, total = Search.collect(cells, "foo", { limit = 2 })
+  eq(total, 4)
+  eq(#rows, 2)
+  eq(rows[1].cell, 1)
+  eq(rows[1].count, 1)
+  eq(rows[1].cursor, 1)
+  local output_rows = Search.collect(cells, "output", { limit = 10 })
+  assert(output_rows[1].line:find("out: ", 1, true) == 1)
+end)
+test("replaces with case and whole-word options and clamps cursors", function()
+  local Search = require("notebook.search")
+  local replaced, count = Search.replace_text("Foo foo food foo_bar", "foo",
+    "x", { whole_word = true })
+  eq(count, 2)
+  eq(replaced, "x x food foo_bar")
+  local exact, exact_count = Search.replace_text("Foo foo", "foo", "x",
+    { case_sensitive = true })
+  eq(exact_count, 1)
+  eq(exact, "Foo x")
+  local cells = { { source = "foo foo", cursor = 7 } }
+  local total, changed = Search.replace_cells(cells, "foo", "baz")
+  eq(total, 2); eq(changed, true)
+  eq(cells[1].source, "baz baz")
+  eq(cells[1].cursor, 7)
+end)
+test("replace_all honours case-sensitive and whole-word options", function()
+  local notebook = Notebook.new({ cells = {
+    { kind = "code", source = "foo Foo food foo_bar" },
+  } })
+  local count = notebook:replace_all("foo", "x",
+    { case_sensitive = true, whole_word = true })
+  eq(count, 1)
+  eq(notebook.cells[1].source, "x Foo food foo_bar")
+  local all = notebook:replace_all("foo", "x", { whole_word = true })
+  eq(all, 1)
+  eq(notebook.cells[1].source, "x x food foo_bar")
+end)
+
 current = "recent"
 test("recent files round-trip and cap", function()
   local text = Format.encode_recent({ "/a.luanb", "/b.luanb" })
