@@ -2,13 +2,16 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
-  BAR_SAMPLE_LIMIT, DEFAULT_POINT_RADIUS, LINE_SAMPLE_LIMIT, PALETTE,
-  RADIUS_LABEL_LIMIT, SCATTER_SAMPLE_LIMIT, THETA_LABEL_LIMIT,
-  barSectors, finiteNumber, frameRadius, pointRadius, polarConfig,
+  BAR_SAMPLE_LIMIT, COLORBAR_STEPS, DEFAULT_POINT_RADIUS, FULL_TURN_PARTS,
+  LINE_SAMPLE_LIMIT, PALETTE, RADIUS_LABEL_LIMIT, SCATTER_SAMPLE_LIMIT,
+  THETA_LABEL_LIMIT, barSectors, colorbarLayout, colorbarSteps,
+  colorbarTicks, collectColorbar, collectContours, collectHeatmaps,
+  compactNumber, contourLabel, contourSegmentPoints, finiteNumber,
+  frameLayout, frameRadius, heatColor, heatmapCells, pointRadius, polarConfig,
   polarRings, polarSpokes, projectPolar, radiusLabel, resolvePolar,
   sampleStep, thetaLabel, validColor,
 } from "../js/polar.js";
-import { polarFallbackScene, polarScene } from "./fixtures.js";
+import { polarFallbackScene, polarFieldScene, polarScene } from "./fixtures.js";
 
 function near(actual, expected, tolerance = 1e-9, label = "value") {
   assert.ok(Math.abs(actual - expected) <= tolerance,
@@ -175,6 +178,143 @@ test("fallback scene resolves auto rmax and negative radii", () => {
   near(point.y, 0, 1e-9);
 });
 
+
+test("maps field values through the shared viridis palette", () => {
+  assert.equal(heatColor(0, 0, 5), "#440154");
+  assert.equal(heatColor(5, 0, 5), "#fde725");
+  assert.equal(heatColor(1, 0, 5), "#345382");
+  assert.equal(heatColor(-1, 0, 5), "#440154");
+  assert.equal(heatColor(9, 0, 5), "#fde725");
+  assert.equal(heatColor(0, 0, 0), "#440154");
+  assert.equal(compactNumber(0), "0");
+  assert.equal(compactNumber(2.5), "2.5");
+  assert.equal(compactNumber(1234), "1230");
+  assert.equal(compactNumber(0.0001), "0.0001");
+  assert.equal(compactNumber(0.00001), "1e-5");
+  assert.equal(compactNumber(1 / 0), null);
+
+  const heatmaps = collectHeatmaps({
+    heatmaps: [
+      { rows: 2, cols: 2, values: [[1, 2], [3, 4]] },
+      { rows: "bad", cols: 2, values: [] },
+    ],
+  });
+  assert.equal(heatmaps.length, 1);
+  assert.equal(heatmaps[0].vmin, 1);
+  assert.equal(heatmaps[0].vmax, 4);
+  assert.equal(heatmaps[0].rmin, 0);
+  assert.equal(heatmaps[0].rmax, 2);
+  assert.equal(heatmaps[0].thetaMax, 2 * Math.PI);
+  assert.equal(heatmaps[0].alpha, 1);
+  const contours = collectContours({
+    contours: [
+      {
+        levels: [{ level: 2, segments: [[0, 1, 1, 2], [1]] }],
+        labels: true, style: { color: "#112233" },
+      },
+      { levels: [] },
+    ],
+  });
+  assert.equal(contours.length, 1);
+  assert.equal(contours[0].levels[0].segments.length, 1);
+  assert.equal(contours[0].style.color, "#112233");
+  assert.equal(contours[0].style.linestyle, "solid");
+  assert.equal(collectColorbar({}, []), null);
+});
+
+test("derives and tolerates malformed field metadata", () => {
+  const derived = resolvePolar({
+    type: "luaplotlib", orientation: "polar",
+    polar: {
+      heatmaps: [{
+        rows: 1, cols: 1, values: [[0.5]], vmin: 0, vmax: 1,
+        colorbar: true,
+      }],
+    },
+  });
+  assert.ok(derived.colorbar);
+  assert.equal(derived.colorbar.ticks.length, 3);
+  assert.equal(colorbarTicks(derived.colorbar)[1].label, "0.5");
+
+  const scene = {
+    type: "luaplotlib", orientation: "polar",
+    polar: {
+      rmax: 2,
+      heatmaps: [{
+        rows: 2, cols: 2,
+        values: [[1 / 0, 2], [3, 0 / 0]],
+        vmin: 0, vmax: 0, alpha: 2,
+      }],
+      contours: [{
+        levels: [{ level: 1, segments: [[0, 0, 0 / 0, 1], [1, 2, 3, 4]] }],
+        labels: true,
+      }],
+      colorbar: { vmin: 0, vmax: 0 },
+    },
+  };
+  const resolved = resolvePolar(scene);
+  assert.equal(resolved.heatmaps.length, 1);
+  assert.equal(resolved.heatmaps[0].vmax, 1);
+  assert.equal(resolved.heatmaps[0].alpha, 1);
+  assert.equal(resolved.colorbar, null);
+  assert.equal(resolved.contours[0].levels[0].segments.length, 1);
+  const cells = heatmapCells(resolved.heatmaps[0], 100, 100, 50,
+    resolved.rmax, 0, 1);
+  assert.equal(cells.length, 4);
+  for (const cell of cells) assert.match(cell.color, /^#[0-9a-f]{6}$/);
+});
+
+test("projects heatmap cells, contour edges, and the colorbar", () => {
+  const heatmap = {
+    rows: 2, cols: 3, values: [[0, 1, 2], [3, 4, 5]],
+    vmin: 0, vmax: 5, rmin: 0.5, rmax: 2,
+    thetaMin: 0, thetaMax: Math.PI, alpha: 0.9,
+  };
+  const { cx, cy, radius } = frameLayout(52, 34, 548, 200, true);
+  near(cx, 272); near(cy, 117); near(radius, 73);
+  const cells = heatmapCells(heatmap, cx, cy, radius, 2, 0, 1);
+  assert.equal(cells.length, 6);
+  assert.equal(cells[0].color, "#440154");
+  assert.equal(cells[5].color, "#fde725");
+  near(cells[0].innerRadius, 18.25);
+  near(cells[0].outerRadius, 45.625);
+  near(cells[0].startAngle, 0);
+  near(cells[0].endAngle, Math.PI / 3);
+  near(cells[4].innerRadius, 45.625);
+  near(cells[4].outerRadius, 73);
+
+  const full = {
+    rows: 1, cols: 1, values: [[1]], vmin: 0, vmax: 1,
+    rmin: 0.5, rmax: 1, thetaMin: 0, thetaMax: 2 * Math.PI, alpha: 1,
+  };
+  const ring = heatmapCells(full, 100, 100, 50, 1, 0, 1);
+  assert.equal(ring.length, 1);
+  assert.equal(ring[0].parts.length, FULL_TURN_PARTS);
+  full.rmin = 0;
+  assert.equal(heatmapCells(full, 100, 100, 50, 1, 0, 1)[0].fullDisc, true);
+
+  const contour = { rmin: 0, rmax: 2 };
+  const points = contourSegmentPoints(contour, [0, 0.5, Math.PI / 2, 1.5],
+    cx, cy, radius, 2, 0, 1);
+  assert.equal(points.length, 25);
+  near(points[0].x, 290.25);
+  near(points[0].y, 117);
+  near(points[24].x, 272);
+  near(points[24].y, 62.25);
+
+  const bar = { vmin: 0, vmax: 5, ticks: [0, 2.5, 5] };
+  const geometry = colorbarLayout(cx, cy, radius);
+  near(geometry.x, 361); near(geometry.y, 54.95);
+  near(geometry.width, 16); near(geometry.height, 124.1);
+  const ticks = colorbarTicks(bar);
+  assert.deepEqual(ticks.map((tick) => tick.label), ["0", "2.5", "5"]);
+  near(ticks[2].fraction, 1);
+  const steps = colorbarSteps(bar);
+  assert.equal(steps.length, COLORBAR_STEPS);
+  assert.equal(steps[0].y0, 0);
+  assert.equal(steps[COLORBAR_STEPS - 1].y1, 1);
+});
+
 // tests/polar.lua reads the same fixture and asserts the same numbers with the
 // shared Lua module.  A change on either side that breaks renderer parity
 // fails one of the two suites.
@@ -213,3 +353,56 @@ test("matches the cross-renderer polar fixture", () => {
   near(sectors[0].endAngle, expected.bar_sector.end_angle, 1e-9, "sector end");
 });
 
+test("matches the cross-renderer polar field fixture", () => {
+  const fixture = JSON.parse(readFileSync(
+    new URL("./fixtures/polar-parity.json", import.meta.url), "utf8"));
+  const scene = fixture.field_scene;
+  assert.deepEqual(polarFieldScene(), scene);
+  const expected = fixture.field_expected;
+  const resolved = resolvePolar(scene);
+  assert.equal(resolved.rmax, expected.rmax);
+  assert.equal(resolved.observed, expected.observed);
+
+  const layout = fixture.field_layout;
+  const { cx, cy, radius } = frameLayout(52, 34, layout.width - 52,
+    layout.height - 30, layout.has_colorbar);
+  assert.equal(cx, layout.cx);
+  assert.equal(cy, layout.cy);
+  assert.equal(radius, layout.radius);
+
+  const cells = heatmapCells(resolved.heatmaps[0], cx, cy, radius,
+    resolved.rmax, resolved.thetaZero, resolved.direction);
+  assert.equal(cells.length, expected.heatmap_cells);
+  assert.deepEqual(cells.map((cell) => cell.color), expected.heat_colors);
+  near(cells[0].innerRadius, expected.first_cell.inner_radius);
+  near(cells[0].outerRadius, expected.first_cell.outer_radius);
+  near(cells[0].startAngle, expected.first_cell.start_angle);
+  near(cells[0].endAngle, expected.first_cell.end_angle);
+
+  const contour = resolved.contours[0];
+  contour.levels[0].segments.forEach((segment, index) => {
+    const points = contourSegmentPoints(contour, segment, cx, cy, radius,
+      resolved.rmax, resolved.thetaZero, resolved.direction);
+    assert.equal(points.length, expected.contour_point_counts[index]);
+    if (index === 0) {
+      near(points[0].x, expected.contour_first.x);
+      near(points[0].y, expected.contour_first.y);
+    } else {
+      near(points[points.length - 1].x, expected.contour_second_last.x);
+      near(points[points.length - 1].y, expected.contour_second_last.y);
+    }
+  });
+  const label = contourLabel(contour, contour.levels[0], cx, cy, radius,
+    resolved.rmax, resolved.thetaZero, resolved.direction);
+  assert.equal(label.text, expected.contour_label.text);
+  near(label.x, expected.contour_label.x, 1e-4);
+  near(label.y, expected.contour_label.y, 1e-4);
+
+  const geometry = colorbarLayout(cx, cy, radius);
+  near(geometry.x, expected.colorbar.x);
+  near(geometry.y, expected.colorbar.y);
+  near(geometry.width, expected.colorbar.width);
+  near(geometry.height, expected.colorbar.height);
+  assert.deepEqual(colorbarTicks(resolved.colorbar).map((tick) => tick.label),
+    expected.colorbar_labels);
+});

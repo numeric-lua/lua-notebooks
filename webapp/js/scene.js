@@ -1,8 +1,10 @@
 import {
   BAR_SAMPLE_LIMIT, LINE_SAMPLE_LIMIT, PALETTE as SCENE_PALETTE,
-  SCATTER_SAMPLE_LIMIT, barSectors, finiteNumber, frameRadius, pointRadius,
-  polarRings, polarSpokes, projectPolar, radiusLabel, resolvePolar,
-  ringLabelPosition, sampleStep, thetaLabel, thetaLabelPosition, validColor,
+  SCATTER_SAMPLE_LIMIT, barSectors, colorbarLayout, colorbarSteps,
+  colorbarTicks, contourLabel, contourSegmentPoints, finiteNumber,
+  frameLayout, heatmapCells, pointRadius, polarRings, polarSpokes,
+  projectPolar, radiusLabel, resolvePolar, ringLabelPosition, sampleStep,
+  thetaLabel, thetaLabelPosition, validColor,
 } from "./polar.js";
 
 const scenes = new WeakMap();
@@ -233,17 +235,133 @@ function drawChart(canvas, scene, ctx) {
   ctx.restore();
 }
 
-// The polar frame keeps room for theta labels outside the circle.  The layout
-// mirrors Plot.polar_layout in ui/plot.lua.
-function polarLayout(width, height) {
-  const left = 52, right = width - 52, top = 34, bottom = height - 30;
-  const plotW = Math.max(1, right - left);
-  const plotH = Math.max(1, bottom - top);
-  return {
-    cx: left + plotW / 2,
-    cy: top + plotH / 2,
-    radius: frameRadius(plotW, plotH),
-  };
+// The polar frame keeps room for theta labels outside the circle, and for the
+// colourbar column when the scene has one.  Mirrors Plot.polar_layout.
+function polarLayout(width, height, hasColorbar) {
+  return frameLayout(52, 34, width - 52, height - 30, hasColorbar);
+}
+
+// Trace one annular cell part in Canvas coordinates.  World angles are y-down,
+// so Canvas angles are negated; the outer arc runs start -> end and the inner
+// arc runs back end -> start.
+function tracePolarCell(ctx, cx, cy, cell, part) {
+  const start = part.startAngle;
+  const end = part.endAngle;
+  const outer = cell.outerRadius;
+  const inner = cell.innerRadius;
+  if (inner <= 0.0005) {
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, outer, -start, -end, end > start);
+    ctx.closePath();
+    return;
+  }
+  ctx.moveTo(cx + outer * Math.cos(start), cy - outer * Math.sin(start));
+  ctx.arc(cx, cy, outer, -start, -end, end > start);
+  ctx.lineTo(cx + inner * Math.cos(end), cy - inner * Math.sin(end));
+  ctx.arc(cx, cy, inner, -end, -start, end < start);
+  ctx.closePath();
+}
+
+function drawPolarFields(ctx, cx, cy, radius, resolved) {
+  for (const heatmap of resolved.heatmaps) {
+    for (const cell of heatmapCells(heatmap, cx, cy, radius, resolved.rmax,
+      resolved.thetaZero, resolved.direction)) {
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, Math.min(1, cell.alpha));
+      ctx.fillStyle = cell.color;
+      if (cell.fullDisc) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, cell.outerRadius, 0, TAU);
+        ctx.fill();
+      } else {
+        for (const part of cell.parts) {
+          ctx.beginPath();
+          tracePolarCell(ctx, cx, cy, cell, part);
+          ctx.fill();
+        }
+      }
+      ctx.restore();
+    }
+  }
+
+  for (const contour of resolved.contours) {
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, Math.min(1, contour.style.alpha));
+    ctx.strokeStyle = contour.style.color;
+    ctx.fillStyle = contour.style.color;
+    ctx.lineWidth = Math.max(0.1, contour.style.linewidth);
+    if (contour.style.linestyle === "dashed") ctx.setLineDash([6, 4]);
+    else if (contour.style.linestyle === "dotted") ctx.setLineDash([1.5, 3]);
+    else ctx.setLineDash([]);
+    for (const level of contour.levels) {
+      for (const segment of level.segments) {
+        const points = contourSegmentPoints(contour, segment, cx, cy, radius,
+          resolved.rmax, resolved.thetaZero, resolved.direction);
+        if (!points.length) continue;
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let index = 1; index < points.length; index += 1) {
+          ctx.lineTo(points[index].x, points[index].y);
+        }
+        ctx.stroke();
+      }
+    }
+    ctx.setLineDash([]);
+    for (const level of contour.levels) {
+      const label = contourLabel(contour, level, cx, cy, radius, resolved.rmax,
+        resolved.thetaZero, resolved.direction);
+      if (label === null) continue;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(label.text, label.x, label.y);
+    }
+    ctx.restore();
+  }
+}
+
+function drawPolarColorbar(ctx, colorbar, cx, cy, radius) {
+  const { x, y, width, height } = colorbarLayout(cx, cy, radius);
+  for (const step of colorbarSteps(colorbar)) {
+    const top = y + height * step.y0;
+    const bottom = y + height * step.y1;
+    ctx.fillStyle = step.color;
+    ctx.fillRect(x, top, width, Math.max(1, bottom - top));
+  }
+
+  ctx.strokeStyle = "#42506a";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(x, y); ctx.lineTo(x + width, y);
+  ctx.lineTo(x + width, y + height); ctx.lineTo(x, y + height);
+  ctx.closePath();
+  ctx.stroke();
+
+  ctx.fillStyle = "#7e879b";
+  ctx.font = "10px ui-sans-serif, system-ui, sans-serif";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  let maxLabel = 0;
+  for (const tick of colorbarTicks(colorbar)) {
+    const tickY = y + height * (1 - tick.fraction);
+    ctx.beginPath();
+    ctx.moveTo(x + width, tickY); ctx.lineTo(x + width + 4, tickY);
+    ctx.stroke();
+    if (tick.label !== null) {
+      ctx.fillText(tick.label, x + width + 8, tickY + 3.5);
+      maxLabel = Math.max(maxLabel, tick.label.length * 5.5);
+    }
+  }
+  if (colorbar.label !== null) {
+    const titleX = x + width + 8 + maxLabel + 14;
+    ctx.save();
+    ctx.translate(titleX, y + height / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(colorbar.label, 0, 0);
+    ctx.restore();
+  }
+  ctx.font = "11px ui-sans-serif, system-ui, sans-serif";
 }
 
 function drawPolar(canvas, scene, ctx) {
@@ -253,7 +371,8 @@ function drawPolar(canvas, scene, ctx) {
   const rmax = resolved.rmax;
   const thetaZero = resolved.thetaZero;
   const direction = resolved.direction;
-  const { cx, cy, radius } = polarLayout(width, height);
+  const { cx, cy, radius } = polarLayout(width, height,
+    resolved.colorbar !== null);
 
   ctx.save();
   ctx.fillStyle = "#0c1019";
@@ -277,7 +396,13 @@ function drawPolar(canvas, scene, ctx) {
       ctx.lineTo(cx + radius * Math.cos(angle), cy - radius * Math.sin(angle));
       ctx.stroke();
     }
+  }
 
+  drawPolarFields(ctx, cx, cy, radius, resolved);
+
+  if (scene.grid !== false) {
+    const rings = polarRings(polar, rmax);
+    const spokes = polarSpokes(polar);
     ctx.fillStyle = "#7e879b";
     ctx.font = "10px ui-sans-serif, system-ui, sans-serif";
     for (const tick of rings) {
@@ -354,6 +479,10 @@ function drawPolar(canvas, scene, ctx) {
       }
     }
     ctx.restore();
+  }
+
+  if (resolved.colorbar !== null) {
+    drawPolarColorbar(ctx, resolved.colorbar, cx, cy, radius);
   }
 
   ctx.fillStyle = "#dfe5f4";

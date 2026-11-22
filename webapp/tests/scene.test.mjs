@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { paintScene } from "../js/scene.js";
 import {
   cartesianScene, categoryScene, emptyPolarScene, histogramScene,
-  longSeriesScene, polarScene,
+  longSeriesScene, polarFieldScene, polarScene,
 } from "./fixtures.js";
 
 function fakeCanvas(width = 600, height = 230) {
@@ -16,7 +16,7 @@ function fakeCanvas(width = 600, height = 230) {
     moveTo: record("moveTo"), lineTo: record("lineTo"), arc: record("arc"),
     fill: record("fill"), stroke: record("stroke"), fillRect: record("fillRect"),
     fillText: record("fillText"), translate: record("translate"),
-    rotate: record("rotate"),
+    rotate: record("rotate"), setLineDash: record("setLineDash"),
   };
   const canvas = {
     width: 0,
@@ -197,5 +197,46 @@ test("does not call the renderer with non-finite Cartesian data", () => {
   scene.series.push({ kind: "bar", x: [1 / 0, 2], y: [1, 0 / 0] });
   const { canvas, calls } = fakeCanvas();
   paintScene(canvas, scene);
+  assertFiniteCalls(calls);
+});
+
+test("renders polar heatmap cells, contours, and a colorbar", () => {
+  const { canvas, calls } = fakeCanvas(600, 230);
+  paintScene(canvas, polarFieldScene());
+  assert.equal(named(calls, "fillRect").length, 1 + 40); // background + colorbar
+  const colorbar = named(calls, "fillRect")[1];
+  near(colorbar.args[0], 361);
+  near(colorbar.args[1], 54.95);
+  near(colorbar.args[2], 16);
+
+  const arcs = named(calls, "arc");
+  // Four rings, the frame, and two arcs per annular heatmap cell (six cells).
+  assert.equal(arcs.length, 5 + 12);
+  assert.ok(arcs.some((call) => Math.abs(call.args[2] - 73) < 1e-9));
+
+  const texts = textValues(calls);
+  for (const expected of ["polar field", "density", "2.5", "0.5", "90"]) {
+    assert.ok(texts.includes(expected), `missing label ${expected}`);
+  }
+  assert.ok(named(calls, "setLineDash").some((call) => call.args[0].length === 2));
+  assert.ok(named(calls, "stroke").length >= 2, "contours were not stroked");
+  assertFiniteCalls(calls);
+});
+
+test("splits a full-turn annular heatmap into convex parts", () => {
+  const scene = {
+    type: "luaplotlib", orientation: "polar",
+    polar: {
+      rmax: 1,
+      heatmaps: [{
+        rows: 1, cols: 1, values: [[1]], vmin: 0, vmax: 1,
+        rmin: 0.5, rmax: 1, theta_min: 0, theta_max: 2 * Math.PI,
+      }],
+    },
+  };
+  const { canvas, calls } = fakeCanvas(600, 230);
+  paintScene(canvas, scene);
+  const fills = named(calls, "fill");
+  assert.ok(fills.length >= 48, `expected 48 wedges, got ${fills.length}`);
   assertFiniteCalls(calls);
 });

@@ -110,10 +110,18 @@ export function collectPolar(scene) {
 // Resolve the axis options, effective rmax, and filtered series in one place.
 export function resolvePolar(scene) {
   const { polar, rmax, thetaZero, direction } = polarConfig(scene);
-  const { series, observed } = collectPolar(scene);
+  const { series, observed: seriesObserved } = collectPolar(scene);
+  const heatmaps = collectHeatmaps(polar);
+  const contours = collectContours(polar);
+  let observed = seriesObserved;
+  for (const heatmap of heatmaps) observed = Math.max(observed, heatmap.rmax);
+  for (const contour of contours) observed = Math.max(observed, contour.rmax);
   return {
     polar,
     series,
+    heatmaps,
+    contours,
+    colorbar: collectColorbar(polar, heatmaps),
     observed,
     rmax: rmax ?? (observed > 0 ? observed : 1),
     thetaZero,
@@ -262,4 +270,360 @@ export function barSectors(bar, radius, rmax, thetaZero, direction) {
     });
   }
   return sectors;
+}
+
+// ---------------------------------------------------------------------------
+// Polar fields: heatmaps, contours, and the colourbar.  These helpers mirror
+// notebook/polar.lua; webapp/tests/fixtures/polar-parity.json pins the shared
+// numbers so the Lua, SVG, and Canvas renderers cannot drift silently.
+
+export const COLORBAR_WIDTH = 16;
+export const COLORBAR_GAP = 16;
+export const COLORBAR_MARGIN = 56;
+export const COLORBAR_STEPS = 40;
+export const FULL_TURN_PARTS = 48;
+export const CONTOUR_MAX_STEPS = 64;
+export const CONTOUR_LABEL_SCALE = 5.5;
+
+// Viridis-like anchors copied from luaplotlib's colour helper.  Channel
+// rounding must match notebook/polar.lua exactly.
+export const HEAT_ANCHORS = [
+  [0.267, 0.005, 0.329],
+  [0.188, 0.407, 0.554],
+  [0.128, 0.567, 0.551],
+  [0.369, 0.789, 0.383],
+  [0.993, 0.906, 0.144],
+];
+
+function clamp(value, minimum, maximum) {
+  if (value < minimum) return minimum;
+  if (value > maximum) return maximum;
+  return value;
+}
+
+function clamp01(value) {
+  if (!finiteNumber(value)) return 1;
+  return clamp(value, 0, 1);
+}
+
+function finiteInteger(value, minimum) {
+  return finiteNumber(value) && value >= minimum && Number.isInteger(value)
+    ? value : null;
+}
+
+function hexChannel(value) {
+  return Math.round(value).toString(16).padStart(2, "0");
+}
+
+export function heatColor(value, vmin, vmax) {
+  if (!finiteNumber(value)) value = vmin;
+  if (!finiteNumber(vmin) || !finiteNumber(vmax) || vmax <= vmin) {
+    return "#440154";
+  }
+  const t = clamp((value - vmin) / (vmax - vmin), 0, 1);
+  const scaled = t * (HEAT_ANCHORS.length - 1);
+  let index = Math.floor(scaled);
+  if (index >= HEAT_ANCHORS.length - 1) index = HEAT_ANCHORS.length - 2;
+  const fraction = scaled - index;
+  const a = HEAT_ANCHORS[index];
+  const b = HEAT_ANCHORS[index + 1];
+  const channel = (left, right) => Math.floor((left + (right - left) * fraction) * 255 + 0.5);
+  return `#${hexChannel(channel(a[0], b[0]))}${hexChannel(channel(a[1], b[1]))}${hexChannel(channel(a[2], b[2]))}`;
+}
+
+// Compact colourbar labels.  Mirrors Polar.compact_number in Lua.
+export function compactNumber(value) {
+  if (!finiteNumber(value)) return null;
+  if (value === 0) return "0";
+  const magnitude = Math.abs(value);
+  if (magnitude >= 1e-4 && magnitude < 1e5) {
+    return String(Number(value.toPrecision(3)));
+  }
+  const [mantissa, exponent] = value.toExponential(2).split("e");
+  return `${Number(mantissa)}e${Number(exponent)}`;
+}
+
+export function collectHeatmaps(polar) {
+  const heatmaps = [];
+  for (const item of array(polar && polar.heatmaps)) {
+    if (!item || typeof item !== "object") continue;
+    const rows = finiteInteger(item.rows, 1);
+    const cols = finiteInteger(item.cols, 1);
+    if (!rows || !cols || !Array.isArray(item.values)) continue;
+    const cells = [];
+    let minimum = null;
+    let maximum = null;
+    for (let row = 0; row < rows; row += 1) {
+      const source = Array.isArray(item.values[row]) ? item.values[row] : [];
+      const copied = [];
+      for (let col = 0; col < cols; col += 1) {
+        let value = source[col];
+        if (finiteNumber(value)) {
+          if (minimum === null || value < minimum) minimum = value;
+          if (maximum === null || value > maximum) maximum = value;
+        } else {
+          value = null;
+        }
+        copied.push(value);
+      }
+      cells.push(copied);
+    }
+    let vmin = finiteNumber(item.vmin) ? item.vmin : minimum;
+    let vmax = finiteNumber(item.vmax) ? item.vmax : maximum;
+    if (vmin === null) vmin = 0;
+    if (vmax === null || vmax <= vmin) vmax = vmin + 1;
+    const rmin = finiteNumber(item.rmin) ? Math.max(0, item.rmin) : 0;
+    let rmax = finiteNumber(item.rmax) ? item.rmax : rows;
+    if (rmax <= rmin) rmax = rmin + 1;
+    const thetaMin = finiteNumber(item.theta_min) ? item.theta_min : 0;
+    let thetaMax = finiteNumber(item.theta_max) ? item.theta_max : thetaMin + TAU;
+    if (thetaMax <= thetaMin) thetaMax = thetaMin + TAU;
+    if (thetaMax - thetaMin > TAU) thetaMax = thetaMin + TAU;
+    heatmaps.push({
+      kind: "heatmap",
+      rows, cols, values: cells, vmin, vmax, rmin, rmax,
+      thetaMin, thetaMax,
+      alpha: clamp01(item.alpha),
+      label: typeof item.label === "string" ? item.label : null,
+      colorbar: item.colorbar === true,
+    });
+  }
+  return heatmaps;
+}
+
+export function collectContours(polar) {
+  const contours = [];
+  const source = array(polar && polar.contours);
+  for (let index = 0; index < source.length; index += 1) {
+    const item = source[index];
+    if (!item || typeof item !== "object" || !Array.isArray(item.levels)) continue;
+    const style = item.style && typeof item.style === "object" ? item.style : {};
+    const rmin = finiteNumber(item.rmin) ? Math.max(0, item.rmin) : 0;
+    let rmax = finiteNumber(item.rmax) ? item.rmax : rmin + 1;
+    if (rmax <= rmin) rmax = rmin + 1;
+    const thetaMin = finiteNumber(item.theta_min) ? item.theta_min : 0;
+    let thetaMax = finiteNumber(item.theta_max) ? item.theta_max : thetaMin + TAU;
+    if (thetaMax <= thetaMin) thetaMax = thetaMin + TAU;
+    if (thetaMax - thetaMin > TAU) thetaMax = thetaMin + TAU;
+    const levels = [];
+    for (const level of item.levels) {
+      if (!level || typeof level !== "object" || !finiteNumber(level.level)
+        || !Array.isArray(level.segments)) continue;
+      const segments = [];
+      for (const segment of level.segments) {
+        if (Array.isArray(segment) && segment.length >= 4
+          && segment.slice(0, 4).every(finiteNumber)) {
+          segments.push(segment.slice(0, 4));
+        }
+      }
+      if (segments.length) levels.push({ level: level.level, segments });
+    }
+    if (!levels.length) continue;
+    let linestyle = style.linestyle;
+    if (linestyle !== "dashed" && linestyle !== "dotted" && linestyle !== "none") {
+      linestyle = "solid";
+    }
+    let color = validColor(style.color);
+    if (color === null) color = PALETTE[index % PALETTE.length];
+    contours.push({
+      kind: "contour",
+      rows: finiteInteger(item.rows, 1),
+      cols: finiteInteger(item.cols, 1),
+      rmin, rmax, thetaMin, thetaMax, levels,
+      labels: item.labels === true,
+      style: {
+        color,
+        linewidth: finiteNumber(style.linewidth) ? Math.max(0, style.linewidth) : 1.5,
+        alpha: clamp01(style.alpha),
+        linestyle,
+        label: typeof style.label === "string" ? style.label : null,
+      },
+    });
+  }
+  return contours;
+}
+
+export function collectColorbar(polar, heatmaps) {
+  const item = polar && typeof polar === "object"
+    && polar.colorbar && typeof polar.colorbar === "object"
+    ? polar.colorbar : null;
+  let source = item;
+  if (source === null) {
+    for (const heatmap of heatmaps || []) {
+      if (heatmap.colorbar) { source = heatmap; break; }
+    }
+  }
+  if (source === null) return null;
+  const vmin = finiteNumber(source.vmin) ? source.vmin : null;
+  const vmax = finiteNumber(source.vmax) ? source.vmax : null;
+  if (vmin === null || vmax === null || vmax <= vmin) return null;
+  let ticks = [];
+  if (Array.isArray(source.ticks) && source.ticks.length >= 2) {
+    ticks = source.ticks.filter(finiteNumber);
+  }
+  if (ticks.length < 2) {
+    ticks = [];
+    for (let index = 0; index < 3; index += 1) {
+      ticks.push(vmin + ((vmax - vmin) * index) / 2);
+    }
+  }
+  return {
+    orientation: source.orientation === "horizontal" ? "horizontal" : "vertical",
+    vmin, vmax, ticks,
+    label: typeof source.label === "string" && source.label !== "" ? source.label : null,
+  };
+}
+
+export function frameLayout(left, top, right, bottom, hasColorbar) {
+  const plotW = Math.max(1, right - left);
+  const plotH = Math.max(1, bottom - top);
+  const fieldW = Math.max(1, plotW - (hasColorbar ? COLORBAR_MARGIN : 0));
+  return {
+    cx: left + fieldW / 2,
+    cy: top + plotH / 2,
+    radius: frameRadius(fieldW, plotH),
+  };
+}
+
+export function colorbarLayout(cx, cy, radius) {
+  const width = COLORBAR_WIDTH;
+  const height = radius * 1.7;
+  return { x: cx + radius + COLORBAR_GAP, y: cy - height / 2, width, height };
+}
+
+export function colorbarTicks(colorbar) {
+  const ticks = [];
+  if (!colorbar || typeof colorbar !== "object") return ticks;
+  const span = colorbar.vmax - colorbar.vmin;
+  if (span <= 0) return ticks;
+  for (const value of array(colorbar.ticks)) {
+    if (finiteNumber(value)) {
+      ticks.push({
+        value,
+        label: compactNumber(value),
+        fraction: clamp((value - colorbar.vmin) / span, 0, 1),
+      });
+    }
+  }
+  return ticks;
+}
+
+export function colorbarSteps(colorbar, count = COLORBAR_STEPS) {
+  const steps = [];
+  if (!colorbar || typeof colorbar !== "object") return steps;
+  const span = colorbar.vmax - colorbar.vmin;
+  if (span <= 0 || count <= 0) return steps;
+  for (let index = 1; index <= count; index += 1) {
+    const value = colorbar.vmax - span * ((index - 0.5) / count);
+    steps.push({
+      value,
+      color: heatColor(value, colorbar.vmin, colorbar.vmax),
+      y0: (index - 1) / count,
+      y1: index / count,
+    });
+  }
+  return steps;
+}
+
+export function heatmapCells(heatmap, cx, cy, radius, rmax, thetaZero, direction) {
+  const cells = [];
+  if (!heatmap || typeof heatmap !== "object") return cells;
+  rmax = finiteNumber(rmax) && rmax > 0 ? rmax : 1;
+  const outer = (radius * Math.min(heatmap.rmax, rmax)) / rmax;
+  let inner = (radius * Math.max(0, heatmap.rmin)) / rmax;
+  if (inner > outer) inner = outer;
+  const span = heatmap.thetaMax - heatmap.thetaMin;
+  const colSpan = span / heatmap.cols;
+  for (let row = 1; row <= heatmap.rows; row += 1) {
+    const rowInner = inner + ((outer - inner) * (row - 1)) / heatmap.rows;
+    const rowOuter = inner + ((outer - inner) * row) / heatmap.rows;
+    for (let col = 1; col <= heatmap.cols; col += 1) {
+      let value = heatmap.values[row - 1]?.[col - 1];
+      if (!finiteNumber(value)) value = heatmap.vmin;
+      const theta0 = heatmap.thetaMin + colSpan * (col - 1);
+      const theta1 = heatmap.thetaMin + colSpan * col;
+      const startAngle = thetaZero + direction * theta0;
+      const endAngle = thetaZero + direction * theta1;
+      const cell = {
+        row, col, value,
+        color: heatColor(value, heatmap.vmin, heatmap.vmax),
+        alpha: heatmap.alpha,
+        innerRadius: rowInner,
+        outerRadius: rowOuter,
+        startAngle,
+        endAngle,
+      };
+      const cellSpan = Math.abs(endAngle - startAngle);
+      if (cellSpan >= TAU - 1e-9) {
+        if (rowInner <= 0.0005) {
+          cell.fullDisc = true;
+          cell.parts = [];
+        } else {
+          cell.parts = [];
+          const step = (endAngle - startAngle) / FULL_TURN_PARTS;
+          for (let part = 1; part <= FULL_TURN_PARTS; part += 1) {
+            const partStart = startAngle + step * (part - 1);
+            cell.parts.push({ startAngle: partStart, endAngle: partStart + step });
+          }
+        }
+      } else {
+        cell.parts = [{ startAngle, endAngle }];
+      }
+      cells.push(cell);
+    }
+  }
+  return cells;
+}
+
+export function contourSegmentPoints(contour, segment, cx, cy, radius, rmax, thetaZero, direction) {
+  const points = [];
+  if (!Array.isArray(segment) || segment.length < 4 || !segment.slice(0, 4).every(finiteNumber)) {
+    return points;
+  }
+  rmax = finiteNumber(rmax) && rmax > 0 ? rmax : 1;
+  const [theta0, radius0, theta1, radius1] = segment;
+  const angular = Math.abs(theta1 - theta0);
+  const radial = Math.abs(radius1 - radius0) / rmax;
+  let steps = Math.max(2, Math.ceil(angular / (Math.PI / 48)),
+    Math.ceil((radial * radius) / 5));
+  if (steps > CONTOUR_MAX_STEPS) steps = CONTOUR_MAX_STEPS;
+  for (let step = 0; step <= steps; step += 1) {
+    const t = step / steps;
+    const theta = theta0 + (theta1 - theta0) * t;
+    const value = radius0 + (radius1 - radius0) * t;
+    const point = projectPolar(cx, cy, radius, rmax, thetaZero, direction, theta, value);
+    points.push({ x: point.x, y: point.y });
+  }
+  return points;
+}
+
+export function contourLabel(contour, level, cx, cy, radius, rmax, thetaZero, direction) {
+  if (!contour || contour.labels !== true) return null;
+  if (!level || !finiteNumber(level.level) || !Array.isArray(level.segments)) return null;
+  let best = null;
+  let bestRadius = -1;
+  for (const segment of level.segments) {
+    if (!Array.isArray(segment)) continue;
+    const midTheta = (segment[0] + segment[2]) / 2;
+    const midRadius = (segment[1] + segment[3]) / 2;
+    if (Math.abs(midRadius) > bestRadius) {
+      best = [midTheta, midRadius];
+      bestRadius = Math.abs(midRadius);
+    }
+  }
+  if (best === null) return null;
+  const text = compactNumber(level.level);
+  if (text === null) return null;
+  const projected = projectPolar(cx, cy, radius, rmax, thetaZero, direction, best[0], best[1]);
+  let { x, y } = projected;
+  const dx = x - cx;
+  const dy = y - cy;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  const margin = (text.length * CONTOUR_LABEL_SCALE) / 2 + 4;
+  const limit = radius - margin;
+  if (limit > 0 && distance > limit) {
+    x = cx + (dx / distance) * limit;
+    y = cy + (dy / distance) * limit;
+  }
+  return { x, y, text };
 }

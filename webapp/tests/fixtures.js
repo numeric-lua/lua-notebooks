@@ -68,6 +68,61 @@ export function emptyPolarScene() {
   return { type: "luaplotlib", orientation: "polar", polar: {} };
 }
 
+
+export function polarFieldScene() {
+  const PI = Math.PI;
+  return {
+    type: "luaplotlib",
+    orientation: "polar",
+    title: "polar field",
+    polar: {
+      theta_zero: 0,
+      theta_direction: "counterclockwise",
+      rmax: 2,
+      theta_ticks: [
+        { value: 0, label: "0" },
+        { value: PI / 2, label: "90" },
+      ],
+      r_ticks: [
+        { value: 0.5, label: "0.5" },
+        { value: 1, label: "1" },
+        { value: 1.5, label: "1.5" },
+        { value: 2, label: "2" },
+      ],
+      heatmaps: [{
+        rows: 2, cols: 3,
+        values: [[0, 1, 2], [3, 4, 5]],
+        vmin: 0, vmax: 5, rmin: 0.5, rmax: 2,
+        theta_min: 0, theta_max: PI, alpha: 0.9,
+        label: "field", colorbar: true,
+      }],
+      contours: [{
+        rows: 3, cols: 3,
+        levels: [{
+          level: 2.5,
+          segments: [
+            [0, 0.5, PI / 2, 1.5],
+            [PI, 1.0, (3 * PI) / 2, 2.0],
+          ],
+        }],
+        labels: true,
+        style: {
+          color: "#e45756", linewidth: 1.25, alpha: 0.8,
+          linestyle: "dashed", label: "isoline",
+        },
+      }],
+      colorbar: {
+        orientation: "vertical", vmin: 0, vmax: 5,
+        ticks: [0, 2.5, 5], label: "density",
+      },
+      series: [{
+        kind: "line", theta: [0, PI / 2], r: [1, 2],
+        style: { color: "#1f77b4", label: "overlay" },
+      }],
+    },
+  };
+}
+
 export function cartesianScene() {
   const xs = [], ys = [];
   for (let index = 1; index <= 80; index += 1) {
@@ -148,6 +203,7 @@ export const sceneMatrix = [
   { name: "polar", scene: polarScene, seriesColor: [31, 119, 180], minSeriesPixels: 30 },
   { name: "polar-fallback", scene: polarFallbackScene, seriesColor: [76, 120, 168], minSeriesPixels: 10 },
   { name: "polar-empty", scene: emptyPolarScene, seriesColor: [66, 80, 106], minSeriesPixels: 50 },
+  { name: "polar-field", scene: polarFieldScene, seriesColor: [31, 119, 180], minSeriesPixels: 20 },
   { name: "cartesian", scene: cartesianScene, seriesColor: [138, 164, 255], minSeriesPixels: 30 },
   { name: "histogram", scene: histogramScene, seriesColor: [84, 162, 75], minSeriesPixels: 30 },
   { name: "categories", scene: categoryScene, seriesColor: [178, 121, 162], minSeriesPixels: 30 },
