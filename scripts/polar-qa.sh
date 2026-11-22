@@ -40,7 +40,7 @@ for i = 1, 96 do
   theta[i] = a
   r[i] = 1 + 0.8 * math.sin(4 * a)
 end
-local rows, cols = 4, 8
+local rows, cols = 96, 96
 local values = {}
 for row = 1, rows do
   values[row] = {}
@@ -94,6 +94,25 @@ return { scene = {
   },
 } }
 ]]
+-- Check the cap before launching the app: the same source must resolve to a
+-- sampled field and the SVG must contain exactly that many block cells.
+do
+  local chunk = assert(loadstring(source))
+  setfenv(chunk, { math = math })
+  local result = chunk()
+  local Polar = require("notebook.polar")
+  local resolved = Polar.resolve(result.scene)
+  local heatmap = resolved.heatmaps[1]
+  assert(heatmap.sampled, "polar QA fixture was not sampled")
+  assert(heatmap.sampled_cells <= Polar.HEATMAP_CELL_LIMIT,
+    "polar QA fixture exceeded the heatmap cell cap")
+  local svg = Format.scene_svg(result.scene, 800, 320)
+  local exported = select(2, svg:gsub('class="scene%-polar%-heatmap%-cell"', ""))
+  assert(exported == heatmap.sampled_cells,
+    "live and exported block counts disagree")
+  print(string.format("polar-qa field: %dx%d -> %d blocks", heatmap.rows,
+    heatmap.cols, heatmap.sampled_cells))
+end
 local notebook = Notebook.new({ name = "polar-live.luanb", cells = {
   { kind = "code", source = source },
 } })

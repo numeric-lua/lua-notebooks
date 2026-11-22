@@ -123,6 +123,50 @@ export function polarFieldScene() {
   };
 }
 
+// Generate the deterministic matrix used by the large-field parity fixture:
+// rows run from the inner radius to the outer radius, values are (row-1)/(rows-1).
+export function largeFieldValues(rows = 65, cols = 65) {
+  const values = [];
+  for (let row = 1; row <= rows; row += 1) {
+    const line = [];
+    for (let col = 1; col <= cols; col += 1) {
+      line.push((row - 1) / (rows - 1));
+    }
+    values.push(line);
+  }
+  return values;
+}
+
+export function largePolarFieldScene(rows = 65, cols = 65) {
+  return {
+    type: "luaplotlib",
+    orientation: "polar",
+    title: "large polar field",
+    polar: {
+      rmax: 2,
+      theta_ticks: [{ value: 0, label: "0" }],
+      r_ticks: [
+        { value: 1, label: "1" },
+        { value: 2, label: "2" },
+      ],
+      heatmaps: [{
+        rows, cols,
+        values: largeFieldValues(rows, cols),
+        vmin: 0, vmax: 1, rmin: 0, rmax: 2,
+        theta_min: 0, theta_max: 2 * PI,
+        alpha: 1, label: "large", colorbar: true,
+      }],
+      colorbar: {
+        vmin: 0, vmax: 1, ticks: [0, 0.5, 1], label: "density",
+      },
+      series: [{
+        kind: "line", theta: [0, PI / 2], r: [1, 2],
+        style: { color: "#1f77b4", label: "overlay" },
+      }],
+    },
+  };
+}
+
 export function cartesianScene() {
   const xs = [], ys = [];
   for (let index = 1; index <= 80; index += 1) {
@@ -204,6 +248,7 @@ export const sceneMatrix = [
   { name: "polar-fallback", scene: polarFallbackScene, seriesColor: [76, 120, 168], minSeriesPixels: 10 },
   { name: "polar-empty", scene: emptyPolarScene, seriesColor: [66, 80, 106], minSeriesPixels: 50 },
   { name: "polar-field", scene: polarFieldScene, seriesColor: [31, 119, 180], minSeriesPixels: 20 },
+  { name: "large-polar-field", scene: () => largePolarFieldScene(96, 96), seriesColor: [31, 119, 180], minSeriesPixels: 20 },
   { name: "cartesian", scene: cartesianScene, seriesColor: [138, 164, 255], minSeriesPixels: 30 },
   { name: "histogram", scene: histogramScene, seriesColor: [84, 162, 75], minSeriesPixels: 30 },
   { name: "categories", scene: categoryScene, seriesColor: [178, 121, 162], minSeriesPixels: 30 },

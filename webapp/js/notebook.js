@@ -138,6 +138,40 @@ widgets.button({ label = "Ping",
 widgets.checkbox({ label = "enabled", value = true })`),
     createCell("code", `-- Scene strings work too: cube, grid.
 return { scene = "cube" }`),
+    createCell("code", `-- Large polar heatmaps are sampled into blocks before painting.
+local rows, cols = 96, 96
+local values = {}
+for row = 1, rows do
+  values[row] = {}
+  for col = 1, cols do
+    local radius = (row - 1) / (rows - 1)
+    local angle = (col - 1) * 2 * math.pi / cols
+    values[row][col] = 0.5 + 0.5 * math.sin(3 * angle) * radius
+  end
+end
+return { scene = {
+  type = "luaplotlib", orientation = "polar", title = "large polar heatmap",
+  polar = {
+    theta_zero = 0, theta_direction = "counterclockwise", rmax = 2,
+    theta_ticks = {
+      { value = 0, label = "0" }, { value = math.pi / 2, label = "90" },
+      { value = math.pi, label = "180" },
+      { value = 3 * math.pi / 2, label = "270" },
+    },
+    r_ticks = {
+      { value = 0.5, label = "0.5" }, { value = 1, label = "1" },
+      { value = 1.5, label = "1.5" }, { value = 2, label = "2" },
+    },
+    heatmaps = { {
+      rows = rows, cols = cols, values = values,
+      vmin = 0, vmax = 1, rmin = 0, rmax = 2,
+      theta_min = 0, theta_max = 2 * math.pi,
+      alpha = 1, label = "density", colorbar = true,
+    } },
+    colorbar = { orientation = "vertical", vmin = 0, vmax = 1,
+      ticks = { 0, 0.5, 1 }, label = "density" },
+  },
+} }`),
   ]);
 }
 

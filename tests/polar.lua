@@ -124,6 +124,35 @@ local function sample_scene()
   }
 end
 
+local function large_field_scene(rows, cols)
+  rows = rows or 65
+  cols = cols or 65
+  local values = {}
+  for row = 1, rows do
+    values[row] = {}
+    for col = 1, cols do
+      values[row][col] = (row - 1) / (rows - 1)
+    end
+  end
+  return {
+    type = "luaplotlib", orientation = "polar",
+    title = "large polar field",
+    polar = {
+      rmax = 2,
+      theta_ticks = { { value = 0, label = "0" } },
+      r_ticks = { { value = 1, label = "1" }, { value = 2, label = "2" } },
+      heatmaps = { {
+        rows = rows, cols = cols, values = values,
+        vmin = 0, vmax = 1, rmin = 0, rmax = 2,
+        theta_min = 0, theta_max = 2 * math.pi,
+        alpha = 1, label = "large", colorbar = true,
+      } },
+      colorbar = { vmin = 0, vmax = 1, ticks = { 0, 0.5, 1 },
+        label = "density" },
+    },
+  }
+end
+
 test("resolves config, palette, and observed rmax", function()
   local scene = sample_scene()
   local resolved = Polar.resolve(scene)
@@ -746,6 +775,138 @@ test("matches the cross-renderer polar field fixture", function()
   for index, tick in ipairs(ticks) do
     eq(tick.label, expected.colorbar_labels[index])
   end
+end)
+
+test("samples large heatmap fields into covering blocks", function()
+  local sampling = Polar.heatmap_sampling(65, 65)
+  eq(sampling.sampled, true)
+  eq(sampling.row_step, 2)
+  eq(sampling.col_step, 1)
+  eq(sampling.sampled_rows, 33)
+  eq(sampling.sampled_cols, 65)
+  eq(sampling.count, 2145)
+
+  local identity = Polar.heatmap_sampling(64, 64)
+  eq(identity.sampled, false)
+  eq(identity.row_step, 1)
+  eq(identity.col_step, 1)
+  eq(identity.count, Polar.HEATMAP_CELL_LIMIT)
+
+  for _, shape in ipairs({ { 1, 100000 }, { 100000, 1 }, { 3, 5000 },
+      { 128, 33 }, { 1024, 1024 } }) do
+    local result = Polar.heatmap_sampling(shape[1], shape[2])
+    assert(result.sampled, "expected sampling for a large field")
+    assert(result.count <= Polar.HEATMAP_CELL_LIMIT,
+      "sampled cell count exceeded the cap")
+  end
+
+  local scene = large_field_scene()
+  local resolved = Polar.resolve(scene)
+  local heatmap = resolved.heatmaps[1]
+  eq(heatmap.sampled, true)
+  eq(heatmap.row_step, 2)
+  eq(heatmap.col_step, 1)
+  eq(heatmap.sampled_cells, 2145)
+  eq(#heatmap.values, 33)
+  eq(#heatmap.values[1], 65)
+  eq(heatmap.vmin, 0)
+  eq(heatmap.vmax, 1)
+
+  local cells = Polar.heatmap_cells(heatmap, 272, 117, 73, 2, 0, 1)
+  eq(#cells, 2145)
+  eq(cells[1].row, 1)
+  eq(cells[1].col, 1)
+  eq(cells[1].row_span, 2)
+  eq(cells[1].col_span, 1)
+  near(cells[1].inner_radius, 0)
+  near(cells[1].outer_radius, 2.2461538461538462)
+  eq(cells[1].color, "#440154")
+  eq(cells[66].row, 3)
+  near(cells[66].inner_radius, cells[1].outer_radius)
+  local last = cells[#cells]
+  eq(last.row, 65)
+  eq(last.col, 65)
+  eq(last.row_span, 1)
+  near(last.inner_radius, 71.87692307692308)
+  near(last.outer_radius, 73)
+  near(last.end_angle, 2 * math.pi)
+  eq(last.color, "#fde725")
+
+  -- A missing range scans the full matrix before sampling, so normalization
+  -- does not depend on which block values were copied.
+  local implicit = large_field_scene()
+  implicit.polar.heatmaps[1].vmin = nil
+  implicit.polar.heatmaps[1].vmax = nil
+  implicit.polar.heatmaps[1].values[5][5] = 0 / 0
+  local implicit_resolved = Polar.resolve(implicit)
+  local implicit_heatmap = implicit_resolved.heatmaps[1]
+  eq(implicit_heatmap.sampled, true)
+  eq(implicit_heatmap.vmin, 0)
+  eq(implicit_heatmap.vmax, 1)
+  local implicit_cells = Polar.heatmap_cells(implicit_heatmap, 272, 117, 73,
+    2, 0, 1)
+  eq(#implicit_cells, 2145)
+  for _, cell in ipairs(implicit_cells) do
+    assert(cell.color:match("^#%x%x%x%x%x%x$") ~= nil)
+  end
+
+  -- The SVG export and the live viewport paint exactly the sampled blocks.
+  local svg = Format.scene_svg(scene, 600, 230)
+  eq(count_plain(svg, 'class="scene-polar-heatmap-cell"'), 2145)
+  contains(svg, 'class="scene-polar-heatmap"', "heatmap group")
+  contains(svg, 'data-sampled="true"', "sampled marker")
+  contains(svg, 'data-rows="65"', "source rows")
+  contains(svg, 'data-row-span="2"', "block row span")
+  local pass, calls = new_pass()
+  Plot.draw(pass, {}, scene, 0, 0, 600, 230)
+  eq(#named(calls, "polygon"), 2145)
+end)
+
+test("matches the cross-renderer large field fixture", function()
+  local fixture = read_polar_fixture()
+  local expected = fixture.large_field_expected
+  local scene = fixture.large_field_scene
+  scene.polar.heatmaps[1].values =
+    large_field_scene(expected.rows, expected.cols).polar.heatmaps[1].values
+  local resolved = Polar.resolve(scene)
+  local heatmap = resolved.heatmaps[1]
+  eq(heatmap.row_step, expected.row_step)
+  eq(heatmap.col_step, expected.col_step)
+  eq(heatmap.sampled_cells, expected.sampled_cells)
+  eq(#heatmap.values, expected.sampled_rows)
+  eq(#heatmap.values[1], expected.sampled_cols)
+
+  local layout = fixture.field_layout
+  local cx, cy, radius = Polar.frame_layout(52, 34, layout.width - 52,
+    layout.height - 30, layout.has_colorbar)
+  local cells = Polar.heatmap_cells(heatmap, cx, cy, radius, resolved.rmax,
+    resolved.theta_zero, resolved.direction)
+  eq(#cells, expected.sampled_cells)
+  local first, last = cells[1], cells[#cells]
+  local expected_first, expected_last = expected.first_cell, expected.last_cell
+  eq(first.row, expected_first.row)
+  eq(first.col, expected_first.col)
+  eq(first.row_span, expected_first.row_span)
+  eq(first.col_span, expected_first.col_span)
+  near(first.inner_radius, expected_first.inner_radius)
+  near(first.outer_radius, expected_first.outer_radius)
+  near(first.start_angle, expected_first.start_angle)
+  near(first.end_angle, expected_first.end_angle)
+  eq(first.color, expected_first.color)
+  eq(last.row, expected_last.row)
+  eq(last.col, expected_last.col)
+  eq(last.row_span, expected_last.row_span)
+  eq(last.col_span, expected_last.col_span)
+  near(last.inner_radius, expected_last.inner_radius)
+  near(last.outer_radius, expected_last.outer_radius)
+  near(last.start_angle, expected_last.start_angle)
+  near(last.end_angle, expected_last.end_angle)
+  eq(last.color, expected_last.color)
+
+  -- Captions keep describing the source field, not the painted blocks.
+  local summary = Format.scene_summary(scene)
+  eq(summary.count, 1)
+  eq(summary.points, expected.rows * expected.cols)
 end)
 
 print(string.format("\npolar tests: %d passed, %d failed", passed, failed))

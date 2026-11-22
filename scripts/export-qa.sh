@@ -27,13 +27,14 @@ local output = assert(arg[1], "missing fixture path")
 package.path = "./?.lua;./?/init.lua;" .. package.path
 local Notebook = require("notebook.model")
 local Format = require("notebook.format")
+local Polar = require("notebook.polar")
 local theta, r = {}, {}
 for index = 1, 96 do
   local angle = (index - 1) * 2 * math.pi / 96
   theta[index] = angle
   r[index] = math.abs(math.sin(4 * angle))
 end
-local rows, cols = 4, 8
+local rows, cols = 96, 96
 local values = {}
 for row = 1, rows do
   values[row] = {}
@@ -91,6 +92,14 @@ notebook.cells[2].scene = {
   },
 }
 notebook.cells[2].output = "scene returned"
+do
+  local resolved = Polar.resolve(notebook.cells[2].scene)
+  local heatmap = resolved.heatmaps[1]
+  assert(heatmap.sampled, "export QA field was not sampled")
+  assert(heatmap.sampled_cells <= Polar.HEATMAP_CELL_LIMIT,
+    "export QA field exceeded the heatmap cell cap")
+  print(string.format("export-qa field: %d blocks", heatmap.sampled_cells))
+end
 local handle = assert(io.open(output, "wb"))
 handle:write(Format.encode(notebook))
 handle:close()

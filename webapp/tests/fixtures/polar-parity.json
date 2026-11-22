@@ -303,5 +303,86 @@
       "count": 3,
       "points": 10
     }
+  },
+  "large_field_comment": "Third cross-renderer fixture: a field above Polar.HEATMAP_CELL_LIMIT. Values are generated as (row - 1) / (rows - 1); both tests/polar.lua and webapp/tests/polar.test.mjs build the same matrix, resolve it, and compare the sampled block grid and geometry against large_field_expected.",
+  "large_field_scene": {
+    "type": "luaplotlib",
+    "orientation": "polar",
+    "title": "large polar field",
+    "polar": {
+      "rmax": 2,
+      "theta_ticks": [
+        {
+          "value": 0,
+          "label": "0"
+        }
+      ],
+      "r_ticks": [
+        {
+          "value": 1,
+          "label": "1"
+        },
+        {
+          "value": 2,
+          "label": "2"
+        }
+      ],
+      "heatmaps": [
+        {
+          "rows": 65,
+          "cols": 65,
+          "vmin": 0,
+          "vmax": 1,
+          "rmin": 0,
+          "rmax": 2,
+          "theta_min": 0,
+          "theta_max": 6.283185307179586,
+          "alpha": 1,
+          "label": "large",
+          "colorbar": true
+        }
+      ],
+      "colorbar": {
+        "vmin": 0,
+        "vmax": 1,
+        "ticks": [
+          0,
+          0.5,
+          1
+        ],
+        "label": "density"
+      }
+    }
+  },
+  "large_field_expected": {
+    "rows": 65,
+    "cols": 65,
+    "row_step": 2,
+    "col_step": 1,
+    "sampled_rows": 33,
+    "sampled_cols": 65,
+    "sampled_cells": 2145,
+    "first_cell": {
+      "row": 1,
+      "col": 1,
+      "row_span": 2,
+      "col_span": 1,
+      "inner_radius": 0.0,
+      "outer_radius": 2.2461538461538462,
+      "start_angle": 0.0,
+      "end_angle": 0.0966643893412244,
+      "color": "#440154"
+    },
+    "last_cell": {
+      "row": 65,
+      "col": 65,
+      "row_span": 1,
+      "col_span": 1,
+      "inner_radius": 71.87692307692308,
+      "outer_radius": 73.0,
+      "start_angle": 6.186520917838362,
+      "end_angle": 6.283185307179586,
+      "color": "#fde725"
+    }
   }
 }

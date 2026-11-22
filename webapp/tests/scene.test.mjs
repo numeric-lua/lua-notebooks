@@ -1,9 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { paintScene } from "../js/scene.js";
+import { HEATMAP_CELL_LIMIT } from "../js/polar.js";
 import {
   cartesianScene, categoryScene, emptyPolarScene, histogramScene,
-  longSeriesScene, polarFieldScene, polarScene,
+  largePolarFieldScene, longSeriesScene, polarFieldScene, polarScene,
 } from "./fixtures.js";
 
 function fakeCanvas(width = 600, height = 230) {
@@ -220,6 +221,16 @@ test("renders polar heatmap cells, contours, and a colorbar", () => {
   }
   assert.ok(named(calls, "setLineDash").some((call) => call.args[0].length === 2));
   assert.ok(named(calls, "stroke").length >= 2, "contours were not stroked");
+  assertFiniteCalls(calls);
+});
+
+test("caps large polar heatmap draw calls", () => {
+  const { canvas, calls } = fakeCanvas(600, 230);
+  paintScene(canvas, largePolarFieldScene(96, 96));
+  const fills = named(calls, "fill").length;
+  assert.ok(fills <= HEATMAP_CELL_LIMIT,
+    `large field painted ${fills} cells, above the ${HEATMAP_CELL_LIMIT} cap`);
+  assert.ok(fills > 1000, "large field did not paint a sampled field");
   assertFiniteCalls(calls);
 });
 

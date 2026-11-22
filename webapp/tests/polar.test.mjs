@@ -3,15 +3,18 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   BAR_SAMPLE_LIMIT, COLORBAR_STEPS, DEFAULT_POINT_RADIUS, FULL_TURN_PARTS,
-  LINE_SAMPLE_LIMIT, PALETTE, RADIUS_LABEL_LIMIT, SCATTER_SAMPLE_LIMIT,
-  THETA_LABEL_LIMIT, barSectors, colorbarLayout, colorbarSteps,
-  colorbarTicks, collectColorbar, collectContours, collectHeatmaps,
-  compactNumber, contourLabel, contourSegmentPoints, finiteNumber,
-  frameLayout, frameRadius, heatColor, heatmapCells, pointRadius, polarConfig,
-  polarRings, polarSpokes, projectPolar, radiusLabel, resolvePolar,
-  sampleStep, thetaLabel, validColor,
+  HEATMAP_CELL_LIMIT, LINE_SAMPLE_LIMIT, PALETTE, RADIUS_LABEL_LIMIT,
+  SCATTER_SAMPLE_LIMIT, THETA_LABEL_LIMIT, barSectors, colorbarLayout,
+  colorbarSteps, colorbarTicks, collectColorbar, collectContours,
+  collectHeatmaps, compactNumber, contourLabel, contourSegmentPoints,
+  finiteNumber, frameLayout, frameRadius, heatColor, heatmapCells,
+  heatmapSampling, pointRadius, polarConfig, polarRings, polarSpokes,
+  projectPolar, radiusLabel, resolvePolar, sampleStep, thetaLabel, validColor,
 } from "../js/polar.js";
-import { polarFallbackScene, polarFieldScene, polarScene } from "./fixtures.js";
+import {
+  largeFieldValues, largePolarFieldScene, polarFallbackScene,
+  polarFieldScene, polarScene,
+} from "./fixtures.js";
 
 function near(actual, expected, tolerance = 1e-9, label = "value") {
   assert.ok(Math.abs(actual - expected) <= tolerance,
@@ -405,4 +408,118 @@ test("matches the cross-renderer polar field fixture", () => {
   near(geometry.height, expected.colorbar.height);
   assert.deepEqual(colorbarTicks(resolved.colorbar).map((tick) => tick.label),
     expected.colorbar_labels);
+});
+
+test("samples large heatmap fields into covering blocks", () => {
+  const sampling = heatmapSampling(65, 65);
+  assert.equal(sampling.sampled, true);
+  assert.equal(sampling.rowStep, 2);
+  assert.equal(sampling.colStep, 1);
+  assert.equal(sampling.sampledRows, 33);
+  assert.equal(sampling.sampledCols, 65);
+  assert.equal(sampling.count, 2145);
+
+  const identity = heatmapSampling(64, 64);
+  assert.equal(identity.sampled, false);
+  assert.equal(identity.rowStep, 1);
+  assert.equal(identity.colStep, 1);
+  assert.equal(identity.count, HEATMAP_CELL_LIMIT);
+
+  for (const [rows, cols] of [
+    [1, 100000], [100000, 1], [3, 5000], [128, 33], [1024, 1024],
+  ]) {
+    const result = heatmapSampling(rows, cols);
+    assert.equal(result.sampled, true);
+    assert.ok(result.count <= HEATMAP_CELL_LIMIT,
+      `sampled cell count ${result.count} exceeded the cap`);
+  }
+
+  const scene = largePolarFieldScene();
+  const resolved = resolvePolar(scene);
+  const heatmap = resolved.heatmaps[0];
+  assert.equal(heatmap.sampled, true);
+  assert.equal(heatmap.rowStep, 2);
+  assert.equal(heatmap.colStep, 1);
+  assert.equal(heatmap.sampledCells, 2145);
+  assert.equal(heatmap.values.length, 33);
+  assert.equal(heatmap.values[0].length, 65);
+
+  const cells = heatmapCells(heatmap, 272, 117, 73, 2, 0, 1);
+  assert.equal(cells.length, 2145);
+  assert.equal(cells[0].row, 1);
+  assert.equal(cells[0].col, 1);
+  assert.equal(cells[0].rowSpan, 2);
+  assert.equal(cells[0].colSpan, 1);
+  near(cells[0].innerRadius, 0);
+  near(cells[0].outerRadius, 2.2461538461538462);
+  assert.equal(cells[0].color, "#440154");
+  assert.equal(cells[65].row, 3);
+  near(cells[65].innerRadius, cells[0].outerRadius);
+  const last = cells[cells.length - 1];
+  assert.equal(last.row, 65);
+  assert.equal(last.col, 65);
+  assert.equal(last.rowSpan, 1);
+  near(last.innerRadius, 71.87692307692308);
+  near(last.outerRadius, 73);
+  near(last.endAngle, 2 * Math.PI);
+  assert.equal(last.color, "#fde725");
+
+  // A missing range scans the full matrix before sampling, so normalization
+  // does not depend on which block values were copied.
+  const implicit = largePolarFieldScene();
+  implicit.polar.heatmaps[0].vmin = undefined;
+  implicit.polar.heatmaps[0].vmax = undefined;
+  implicit.polar.heatmaps[0].values[4][4] = Number.NaN;
+  const implicitResolved = resolvePolar(implicit);
+  const implicitHeatmap = implicitResolved.heatmaps[0];
+  assert.equal(implicitHeatmap.sampled, true);
+  assert.equal(implicitHeatmap.vmin, 0);
+  assert.equal(implicitHeatmap.vmax, 1);
+  const implicitCells = heatmapCells(implicitHeatmap, 272, 117, 73, 2, 0, 1);
+  assert.equal(implicitCells.length, 2145);
+  for (const cell of implicitCells) assert.match(cell.color, /^#[0-9a-f]{6}$/);
+});
+
+test("matches the cross-renderer large field fixture", () => {
+  const fixture = JSON.parse(readFileSync(
+    new URL("./fixtures/polar-parity.json", import.meta.url), "utf8"));
+  const expected = fixture.large_field_expected;
+  const scene = fixture.large_field_scene;
+  scene.polar.heatmaps[0].values = largeFieldValues(expected.rows, expected.cols);
+  const resolved = resolvePolar(scene);
+  const heatmap = resolved.heatmaps[0];
+  assert.equal(heatmap.rowStep, expected.row_step);
+  assert.equal(heatmap.colStep, expected.col_step);
+  assert.equal(heatmap.sampledCells, expected.sampled_cells);
+  assert.equal(heatmap.values.length, expected.sampled_rows);
+  assert.equal(heatmap.values[0].length, expected.sampled_cols);
+
+  const layout = fixture.field_layout;
+  const { cx, cy, radius } = frameLayout(52, 34, layout.width - 52,
+    layout.height - 30, layout.has_colorbar);
+  const cells = heatmapCells(heatmap, cx, cy, radius, resolved.rmax,
+    resolved.thetaZero, resolved.direction);
+  assert.equal(cells.length, expected.sampled_cells);
+  const first = cells[0];
+  const last = cells[cells.length - 1];
+  const firstExpected = expected.first_cell;
+  const lastExpected = expected.last_cell;
+  assert.equal(first.row, firstExpected.row);
+  assert.equal(first.col, firstExpected.col);
+  assert.equal(first.rowSpan, firstExpected.row_span);
+  assert.equal(first.colSpan, firstExpected.col_span);
+  near(first.innerRadius, firstExpected.inner_radius);
+  near(first.outerRadius, firstExpected.outer_radius);
+  near(first.startAngle, firstExpected.start_angle);
+  near(first.endAngle, firstExpected.end_angle);
+  assert.equal(first.color, firstExpected.color);
+  assert.equal(last.row, lastExpected.row);
+  assert.equal(last.col, lastExpected.col);
+  assert.equal(last.rowSpan, lastExpected.row_span);
+  assert.equal(last.colSpan, lastExpected.col_span);
+  near(last.innerRadius, lastExpected.inner_radius);
+  near(last.outerRadius, lastExpected.outer_radius);
+  near(last.startAngle, lastExpected.start_angle);
+  near(last.endAngle, lastExpected.end_angle);
+  assert.equal(last.color, lastExpected.color);
 });
