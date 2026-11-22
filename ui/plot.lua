@@ -446,7 +446,7 @@ function Plot.draw_polar(pass, font, scene, x, y, w, h)
           end
         end
       end
-    elseif series.arrows ~= nil then
+    elseif series.arrows ~= nil and series.lines == nil then
       -- Quiver arrows are already decimated and sized by notebook/polar.lua.
       -- Draw the shaft first, then the filled head triangle, in series order.
       set_color(pass, base_style)
@@ -457,6 +457,29 @@ function Plot.draw_polar(pass, font, scene, x, y, w, h)
             arrow.neck_y, 0)
         end
         if arrow.headed then
+          pass:polygon({
+            arrow.head_x1, arrow.head_y1, 0,
+            arrow.head_x2, arrow.head_y2, 0,
+            arrow.head_x3, arrow.head_y3, 0,
+          })
+        end
+      end
+    elseif series.lines ~= nil then
+      -- Streamlines arrive integrated from luaplotlib.  Draw each polyline as
+      -- connected segments, then its mid-line head triangle, in series order.
+      set_color(pass, base_style)
+      for _, line in ipairs(Polar.stream_lines(series, cx, cy, radius,
+          rmax, theta_zero, direction)) do
+        if series.linewidth > 0 then
+          local previous
+          for _, point in ipairs(line.points) do
+            if previous ~= nil then
+              pass:line(previous.x, previous.y, 0, point.x, point.y, 0)
+            end
+            previous = point
+          end
+        end
+        for _, arrow in ipairs(line.arrows) do
           pass:polygon({
             arrow.head_x1, arrow.head_y1, 0,
             arrow.head_x2, arrow.head_y2, 0,

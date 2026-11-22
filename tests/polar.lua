@@ -182,6 +182,50 @@ local function quiver_scene(options)
   }
 end
 
+local function stream_scene(options)
+  options = options or {}
+  return {
+    type = "luaplotlib", orientation = "polar", title = "streamplot",
+    polar = {
+      theta_zero = options.theta_zero or 0,
+      theta_direction = options.theta_direction or "counterclockwise",
+      rmax = options.rmax or 2,
+      theta_ticks = { { value = 0, label = "0" } },
+      r_ticks = { { value = 1, label = "1" }, { value = 2, label = "2" } },
+      series = { {
+        kind = "streamplot",
+        theta = options.theta or
+          { 0, math.pi / 2, math.pi, 3 * math.pi / 2, 2 * math.pi },
+        r = options.r or { 0.5, 1, 1.5, 2 },
+        lines = options.lines or {
+          { theta = { 0, 0.5, 1 }, r = { 1, 1.2, 1.4 },
+            arrows = { { theta = 0.5, r = 1.2, angle = -30 } } },
+          { theta = { 2, 2.5, 3, 3.5 }, r = { 0.8, 0.9, 1, 1.1 },
+            arrows = { { theta = 3, r = 1, angle = 120 } } },
+        },
+        periodic = options.periodic,
+        density = options.density,
+        step = options.step,
+        resolved_step = options.resolved_step,
+        step_mode = options.step_mode,
+        max_steps = options.max_steps,
+        max_lines = options.max_lines,
+        max_points = options.max_points,
+        arrows = options.arrows,
+        head = options.head,
+        truncated = options.truncated,
+        style = {
+          color = options.color or "#2ca02c",
+          linewidth = options.linewidth == nil and 1.5 or options.linewidth,
+          head = options.style_head or 6,
+          alpha = options.alpha or 0.9,
+          label = "flow",
+        },
+      } },
+    },
+  }
+end
+
 test("resolves config, palette, and observed rmax", function()
   local scene = sample_scene()
   local resolved = Polar.resolve(scene)
@@ -1172,6 +1216,215 @@ test("matches the cross-renderer quiver fixture", function()
     near(arrow.neck_x, want.neck_x, 1e-9, "quiver neck x")
     near(arrow.neck_y, want.neck_y, 1e-9, "quiver neck y")
   end
+end)
+
+test("collects streamplot IR and projects streamline geometry", function()
+  local resolved = Polar.resolve(stream_scene({ step = 0.06 }))
+  local stream = resolved.series[1]
+  eq(stream.kind, "streamplot")
+  eq(stream.cols, 5)
+  eq(stream.rows, 4)
+  eq(stream.line_count, 2)
+  eq(stream.point_count, 7)
+  eq(stream.arrow_count, 2)
+  near(stream.step, 0.06)
+  eq(stream.step_mode, "explicit")
+  eq(stream.periodic, true)
+  eq(stream.truncated, false)
+  eq(stream.density, 1)
+  eq(stream.max_steps, 300)
+  eq(stream.max_lines, 64)
+  eq(stream.max_points, 8000)
+  eq(stream.arrows, true)
+  near(stream.head, 6)
+  near(stream.linewidth, 1.5)
+  near(stream.alpha, 0.9)
+
+  local lines = Polar.stream_lines(stream, 300, 117, 73, 2, 0, 1)
+  eq(#lines, 2)
+  local first = lines[1]
+  eq(#first.points, 3)
+  eq(#first.arrows, 1)
+  near(first.points[1].x, 336.5)
+  near(first.points[1].y, 117)
+  near(first.points[2].x, 338.43811621079834, 1e-9)
+  near(first.points[2].y, 96.0011614091359, 1e-9)
+  near(first.points[3].x, 327.60944782986195, 1e-9)
+  near(first.arrows[1].x, 338.43811621079834, 1e-9)
+  near(first.arrows[1].tip_x, 341.03619242215166, 1e-9)
+  near(first.arrows[1].head_y2, 99.83942999935388, 1e-9)
+  near(first.arrows[1].head_x3, 334.490039999445, 1e-9)
+  near(first.arrows[1].head_y3, 95.16289281891792, 1e-9)
+
+  -- Captions count integrated polyline points, not the value-grid cells.
+  eq(Format.scene_summary(stream_scene({ step = 0.06 })).points, 7)
+end)
+
+test("streamplot follows theta_zero and clockwise direction", function()
+  local scene = stream_scene({
+    theta_zero = math.pi / 2, theta_direction = "clockwise",
+    theta = { 0, 0 }, r = { 2, 2 },
+    lines = { { theta = { 0, 0 }, r = { 2, 2 },
+      arrows = { { theta = 0, r = 2, angle = 0 } } } },
+  })
+  local resolved = Polar.resolve(scene)
+  local lines = Polar.stream_lines(resolved.series[1], 300, 117, 73, 2,
+    resolved.theta_zero, resolved.direction)
+  eq(#lines, 1)
+  near(lines[1].points[1].x, 300)
+  near(lines[1].points[1].y, 44)
+  near(lines[1].points[2].x, 300)
+  near(lines[1].points[2].y, 44)
+  local arrow = lines[1].arrows[1]
+  near(arrow.x, 300)
+  near(arrow.y, 44)
+  near(arrow.head_x1, 303)
+  near(arrow.head_y1, 44)
+  near(arrow.head_y2, 46.7)
+  near(arrow.head_y3, 41.3)
+  contains(Format.scene_svg(scene, 600, 230),
+    'data-theta-direction="clockwise"', "clockwise streamplot export")
+end)
+
+test("streamplot derives auto step and tolerates malformed lines", function()
+  local auto = Polar.resolve(stream_scene({
+    theta = { 0, 2 * math.pi }, r = { 0, 2 },
+  })).series[1]
+  near(auto.step, 0.08)
+  eq(auto.step_mode, "auto")
+  eq(auto.periodic, true)
+  near(auto.head, 6)
+  near(auto.linewidth, 1.5)
+
+  local explicit = Polar.resolve(stream_scene({ step = 0.1 })).series[1]
+  near(explicit.step, 0.1)
+  eq(explicit.step_mode, "explicit")
+
+  local malformed = stream_scene({
+    head = -2,
+    lines = {
+      { theta = { 0, 0 / 0, 1 }, r = { 1, 1.5, 2 },
+        arrows = {
+          { theta = 0, r = 1, angle = 0 },
+          { theta = 0 / 0, r = 1, angle = 0 },
+        } },
+      { theta = { 0 }, r = { 1 } },
+      "not a line",
+    },
+  })
+  local resolved = Polar.resolve(malformed)
+  local stream = resolved.series[1]
+  eq(stream.line_count, 1)
+  eq(stream.point_count, 2)
+  eq(stream.arrow_count, 0)
+  eq(#stream.lines[1].arrows, 0)
+  local lines = Polar.stream_lines(stream, 300, 117, 73, 2, 0, 1)
+  eq(#lines, 1)
+  eq(#lines[1].points, 2)
+  eq(#lines[1].arrows, 0)
+
+  local svg = Format.scene_svg(malformed, 600, 230)
+  eq(count_plain(svg, 'class="scene-polar-streamline-path"'), 1)
+  eq(count_plain(svg, 'class="scene-polar-stream-arrow"'), 0)
+end)
+
+test("exports streamplot groups and draws the live geometry", function()
+  local scene = stream_scene({ step = 0.06 })
+  scene.grid = false
+  local svg = Format.scene_svg(scene, 600, 230)
+  eq(count_plain(svg, 'class="scene-polar-streamplot"'), 1)
+  eq(count_plain(svg, 'class="scene-polar-streamline"'), 2)
+  eq(count_plain(svg, 'class="scene-polar-streamline-path"'), 2)
+  eq(count_plain(svg, 'class="scene-polar-stream-arrow"'), 2)
+  contains(svg, 'data-cols="5"', "stream cols")
+  contains(svg, 'data-rows="4"', "stream rows")
+  contains(svg, 'data-lines="2"', "stream lines")
+  contains(svg, 'data-points="7"', "stream points")
+  contains(svg, 'data-arrow-count="2"', "stream arrows")
+  contains(svg, 'data-step="0.06"', "stream step")
+  contains(svg, 'data-step-mode="explicit"', "stream step mode")
+  contains(svg, 'data-density="1.00"', "stream density")
+  contains(svg, 'data-max-steps="300"', "stream max steps")
+  contains(svg, 'data-max-lines="64"', "stream max lines")
+  contains(svg, 'data-max-points="8000"', "stream max points")
+  contains(svg, 'data-arrows="true"', "stream arrows enabled")
+  contains(svg, 'data-head="6.00"', "stream head")
+  contains(svg, 'data-periodic="true"', "stream periodic")
+  contains(svg, 'data-truncated="false"', "stream truncation")
+  contains(svg, 'stroke-opacity="0.90"', "stream stroke alpha")
+  contains(svg, 'fill-opacity="0.90"', "stream fill alpha")
+
+  local pass, calls = new_pass()
+  Plot.draw(pass, {}, scene, 0, 0, 600, 230)
+  eq(#named(calls, "line"), 5)
+  eq(#named(calls, "polygon"), 2)
+end)
+
+test("matches the cross-renderer streamplot fixture", function()
+  local fixture = read_polar_fixture()
+  local expected = fixture.streamplot_expected
+  local scene = fixture.streamplot_scene
+  local resolved = Polar.resolve(scene)
+  local stream = resolved.series[1]
+  eq(stream.kind, "streamplot")
+  eq(stream.cols, expected.cols)
+  eq(stream.rows, expected.rows)
+  eq(stream.line_count, expected.lines)
+  eq(stream.point_count, expected.points)
+  eq(stream.arrow_count, expected.arrow_count)
+  near(stream.step, expected.step)
+  eq(stream.step_mode, expected.step_mode)
+  eq(stream.density, expected.density)
+  eq(stream.max_steps, expected.max_steps)
+  eq(stream.max_lines, expected.max_lines)
+  eq(stream.max_points, expected.max_points)
+  eq(stream.periodic, expected.periodic)
+  eq(stream.truncated, expected.truncated)
+  eq(stream.arrows, expected.arrows)
+  near(stream.head, expected.head)
+  near(stream.linewidth, expected.linewidth)
+  near(stream.alpha, expected.alpha)
+  eq(stream.color, expected.color)
+
+  local layout = fixture.layout
+  local cx, cy, radius = Polar.frame_layout(52, 34, layout.width - 52,
+    layout.height - 30, false)
+  eq(cx, layout.cx)
+  eq(cy, layout.cy)
+  eq(radius, layout.radius)
+  local lines = Polar.stream_lines(stream, cx, cy, radius, resolved.rmax,
+    resolved.theta_zero, resolved.direction)
+  eq(#lines, #expected.line_points)
+  for line_index, line in ipairs(lines) do
+    local want_line = expected.line_points[line_index]
+    eq(#line.points, #want_line)
+    for point_index, point in ipairs(line.points) do
+      local want = want_line[point_index]
+      near(point.x, want.x, 1e-9, "stream point x")
+      near(point.y, want.y, 1e-9, "stream point y")
+      near(point.theta, want.theta, 1e-9, "stream point theta")
+      near(point.r, want.r, 1e-9, "stream point r")
+    end
+  end
+  local arrow_index = 0
+  for _, line in ipairs(lines) do
+    for _, arrow in ipairs(line.arrows) do
+      arrow_index = arrow_index + 1
+      local want = expected.arrow_points[arrow_index]
+      near(arrow.x, want.x, 1e-9, "stream arrow x")
+      near(arrow.y, want.y, 1e-9, "stream arrow y")
+      near(arrow.theta, want.theta, 1e-9, "stream arrow theta")
+      near(arrow.r, want.r, 1e-9, "stream arrow r")
+      near(arrow.angle, want.angle, 1e-9, "stream arrow angle")
+      near(arrow.head_x1, want.head_x1, 1e-9, "stream arrow tip x")
+      near(arrow.head_y1, want.head_y1, 1e-9, "stream arrow tip y")
+      near(arrow.head_x2, want.head_x2, 1e-9, "stream arrow left x")
+      near(arrow.head_y2, want.head_y2, 1e-9, "stream arrow left y")
+      near(arrow.head_x3, want.head_x3, 1e-9, "stream arrow right x")
+      near(arrow.head_y3, want.head_y3, 1e-9, "stream arrow right y")
+    end
+  end
+  eq(arrow_index, #expected.arrow_points)
 end)
 
 print(string.format("\npolar tests: %d passed, %d failed", passed, failed))

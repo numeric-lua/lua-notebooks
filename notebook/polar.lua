@@ -32,6 +32,12 @@ Polar.QUIVER_MAX_ARROWS = 4096
 Polar.QUIVER_DEFAULT_HEAD = 5
 Polar.QUIVER_DEFAULT_LINEWIDTH = 1.2
 Polar.QUIVER_PIVOTS = { tail = 0, middle = 0.5, tip = 1 }
+Polar.STREAM_DEFAULT_HEAD = 6
+Polar.STREAM_DEFAULT_LINEWIDTH = 1.5
+Polar.STREAM_DEFAULT_DENSITY = 1
+Polar.STREAM_DEFAULT_MAX_STEPS = 300
+Polar.STREAM_DEFAULT_MAX_LINES = 64
+Polar.STREAM_DEFAULT_MAX_POINTS = 8000
 
 local pi = math.pi
 
@@ -190,6 +196,116 @@ function Polar.collect(scene)
             stride = stride,
             scale = scale,
             auto_scale = automatic,
+            label = type(style.label) == "string" and style.label or nil,
+          }
+        elseif item.kind == "streamplot" then
+          -- Streamlines are integrated by luaplotlib in the physical plane;
+          -- the scene IR carries the finished theta/r polylines and one
+          -- mid-line arrow per line.  Copy, filter, and project them here so
+          -- the live viewport, the SVG export, and the browser share one
+          -- geometry contract.
+          local head = finite_number(item.head) and math.max(0, item.head) or
+            (finite_number(style.head) and math.max(0, style.head) or
+              Polar.STREAM_DEFAULT_HEAD)
+          local draw_arrows = item.arrows ~= false and head > 0
+          local exported, total_points, total_arrows = {}, 0, 0
+          for line_index, line in ipairs(type(item.lines) == "table" and
+              item.lines or {}) do
+            if type(line) == "table" then
+              local line_theta = type(line.theta) == "table" and line.theta or
+                {}
+              local line_r = type(line.r) == "table" and line.r or {}
+              local line_points = {}
+              for point_index = 1, math.min(#line_theta, #line_r) do
+                local theta_value = line_theta[point_index]
+                local r_value = line_r[point_index]
+                if finite_number(theta_value) and finite_number(r_value) then
+                  note(r_value)
+                  line_points[#line_points + 1] = {
+                    theta = theta_value, r = r_value,
+                  }
+                end
+              end
+              local line_arrows = {}
+              if draw_arrows then
+                for _, arrow in ipairs(type(line.arrows) == "table" and
+                    line.arrows or {}) do
+                  if type(arrow) == "table" and
+                     finite_number(arrow.theta) and
+                     finite_number(arrow.r) and
+                     finite_number(arrow.angle) then
+                    line_arrows[#line_arrows + 1] = {
+                      theta = arrow.theta, r = arrow.r,
+                      angle = arrow.angle,
+                    }
+                  end
+                end
+              end
+              if #line_points >= 2 then
+                total_points = total_points + #line_points
+                total_arrows = total_arrows + #line_arrows
+                exported[#exported + 1] = {
+                  index = line_index, points = line_points,
+                  arrows = line_arrows,
+                }
+              end
+            end
+          end
+          -- A field can extend past the last streamline, so account for the
+          -- radial grid when a scene omits an explicit rmax.
+          for _, value in ipairs(r) do note(value) end
+          local density = finite_number(item.density) and
+            math.max(0.1, math.min(10, item.density)) or
+            Polar.STREAM_DEFAULT_DENSITY
+          local requested_step = finite_number(item.step) and item.step > 0 and
+            item.step or nil
+          local step = finite_number(item.resolved_step) and
+            item.resolved_step > 0 and item.resolved_step or requested_step
+          local step_mode
+          if item.step_mode == "auto" then
+            step_mode = "auto"
+          elseif item.step_mode == "explicit" then
+            step_mode = "explicit"
+          else
+            step_mode = requested_step == nil and "auto" or "explicit"
+          end
+          if step == nil then
+            local span = #r > 1 and (r[#r] - r[1]) or
+              (#r > 0 and r[#r] or 0)
+            step = span > 0 and span / 25 or 1
+          end
+          local periodic = item.periodic
+          if type(periodic) ~= "boolean" then
+            periodic = #theta >= 2 and theta[#theta] - theta[1] >=
+              2 * pi - 1e-9
+          end
+          local linewidth = finite_number(style.linewidth) and
+            math.max(0, style.linewidth) or
+            (finite_number(item.linewidth) and math.max(0, item.linewidth) or
+              Polar.STREAM_DEFAULT_LINEWIDTH)
+          collected[#collected + 1] = {
+            kind = "streamplot",
+            lines = exported,
+            cols = #theta, rows = #r,
+            line_count = #exported,
+            point_count = total_points,
+            arrow_count = total_arrows,
+            color = color,
+            alpha = alpha,
+            linewidth = linewidth,
+            head = head,
+            arrows = item.arrows ~= false,
+            density = density,
+            step = step,
+            step_mode = step_mode,
+            max_steps = finite_integer(item.max_steps, 10) or
+              Polar.STREAM_DEFAULT_MAX_STEPS,
+            max_lines = finite_integer(item.max_lines, 1) or
+              Polar.STREAM_DEFAULT_MAX_LINES,
+            max_points = finite_integer(item.max_points, 100) or
+              Polar.STREAM_DEFAULT_MAX_POINTS,
+            periodic = periodic,
+            truncated = item.truncated == true,
             label = type(style.label) == "string" and style.label or nil,
           }
         else
@@ -414,6 +530,70 @@ function Polar.quiver_arrows(quiver, cx, cy, radius, rmax, theta_zero,
     end
   end
   return arrows
+end
+
+-- Screen geometry for one collected streamplot series.  luaplotlib has
+-- already integrated the field and exported each polyline with continuous
+-- data theta, so this only projects the points and rebuilds the mid-line
+-- arrow polygons from the exported screen-space angle.  The result is shared
+-- by the live viewport, the SVG export, and (through its JavaScript mirror)
+-- the browser front-end.
+function Polar.stream_lines(stream, cx, cy, radius, rmax, theta_zero,
+    direction)
+  local lines = {}
+  if type(stream) ~= "table" then return lines end
+  rmax = finite_number(rmax) and rmax > 0 and rmax or 1
+  local head = finite_number(stream.head) and math.max(0, stream.head) or 0
+  local draw_arrows = stream.arrows ~= false and head > 0
+  local half = head * 0.45
+  for line_index, line in ipairs(stream.lines or {}) do
+    if type(line) == "table" then
+      local points = {}
+      for _, point in ipairs(line.points or {}) do
+        local x, y = Polar.project(cx, cy, radius, rmax, theta_zero,
+          direction, point.theta, point.r)
+        points[#points + 1] = {
+          x = x, y = y, theta = point.theta, r = point.r,
+        }
+      end
+      local arrows = {}
+      if draw_arrows then
+        for arrow_index, arrow in ipairs(line.arrows or {}) do
+          local x, y = Polar.project(cx, cy, radius, rmax, theta_zero,
+            direction, arrow.theta, arrow.r)
+          local radians = math.rad(arrow.angle)
+          local ux, uy = math.cos(radians), math.sin(radians)
+          local px, py = -uy * half, ux * half
+          local tip_x = x + ux * head * 0.5
+          local tip_y = y + uy * head * 0.5
+          local neck_x = x - ux * head * 0.5
+          local neck_y = y - uy * head * 0.5
+          arrows[#arrows + 1] = {
+            index = arrow_index,
+            theta = arrow.theta,
+            r = arrow.r,
+            angle = arrow.angle,
+            x = x,
+            y = y,
+            tip_x = tip_x,
+            tip_y = tip_y,
+            head_x1 = tip_x,
+            head_y1 = tip_y,
+            head_x2 = neck_x + px,
+            head_y2 = neck_y + py,
+            head_x3 = neck_x - px,
+            head_y3 = neck_y - py,
+          }
+        end
+      end
+      if #points >= 2 then
+        lines[#lines + 1] = {
+          index = line.index or line_index, points = points, arrows = arrows,
+        }
+      end
+    end
+  end
+  return lines
 end
 
 function Polar.ring_label_position(cx, cy, ring_radius)

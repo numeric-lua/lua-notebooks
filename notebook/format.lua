@@ -552,7 +552,18 @@ function Format.scene_summary(scene)
     for _, item in ipairs(polar.series or {}) do
       if type(item) == "table" then
         local count = 0
-        if type(item.theta) == "table" and type(item.r) == "table" then
+        if item.kind == "streamplot" then
+          -- Count the integrated polyline points, not the value-grid cells.
+          for _, line in ipairs(type(item.lines) == "table" and item.lines or
+              {}) do
+            if type(line) == "table" then
+              local line_theta = type(line.theta) == "table" and line.theta or
+                {}
+              local line_r = type(line.r) == "table" and line.r or {}
+              count = count + math.min(#line_theta, #line_r)
+            end
+          end
+        elseif type(item.theta) == "table" and type(item.r) == "table" then
           count = math.min(#item.theta, #item.r)
         end
         points = points + count
@@ -994,7 +1005,7 @@ function Format.scene_svg(scene, width, height)
             end
           end
         end
-      elseif series.arrows ~= nil then
+      elseif series.arrows ~= nil and series.lines == nil then
         local stroke_opacity, fill_opacity = "", ""
         if series.alpha < 1 then
           local alpha = svg_number(series.alpha)
@@ -1024,6 +1035,51 @@ function Format.scene_svg(scene, width, height)
           if arrow.headed then
             out[#out + 1] = string.format(
               '<polygon class="scene-polar-quiver-head" points="%s,%s %s,%s %s,%s" fill="%s"%s/>',
+              svg_number(arrow.head_x1), svg_number(arrow.head_y1),
+              svg_number(arrow.head_x2), svg_number(arrow.head_y2),
+              svg_number(arrow.head_x3), svg_number(arrow.head_y3),
+              series.color, fill_opacity)
+          end
+          out[#out + 1] = "</g>"
+        end
+        out[#out + 1] = "</g>"
+      elseif series.lines ~= nil then
+        local stroke_opacity, fill_opacity = "", ""
+        if series.alpha < 1 then
+          local alpha = svg_number(series.alpha)
+          stroke_opacity = string.format(' stroke-opacity="%s"', alpha)
+          fill_opacity = string.format(' fill-opacity="%s"', alpha)
+        end
+        out[#out + 1] = string.format(
+          '<g class="scene-polar-streamplot" data-cols="%d" data-rows="%d" data-lines="%d" data-points="%d" data-arrow-count="%d" data-step="%s" data-step-mode="%s" data-density="%s" data-max-steps="%d" data-max-lines="%d" data-max-points="%d" data-arrows="%s" data-head="%s" data-periodic="%s" data-truncated="%s" data-color="%s">',
+          series.cols, series.rows, series.line_count, series.point_count,
+          series.arrow_count, svg_number(series.step), series.step_mode,
+          svg_number(series.density), series.max_steps, series.max_lines,
+          series.max_points, series.arrows and "true" or "false",
+          svg_number(series.head), series.periodic and "true" or "false",
+          series.truncated and "true" or "false", series.color)
+        for _, line in ipairs(Polar.stream_lines(series, cx, cy, radius,
+            rmax, theta_zero, direction)) do
+          out[#out + 1] = string.format(
+            '<g class="scene-polar-streamline" data-index="%d" data-points="%d" data-arrows="%d">',
+            line.index, #line.points, #line.arrows)
+          if series.linewidth > 0 then
+            local commands = {}
+            for point_index, point in ipairs(line.points) do
+              commands[point_index] = string.format("%s %s %s",
+                point_index == 1 and "M" or "L", svg_number(point.x),
+                svg_number(point.y))
+            end
+            out[#out + 1] = string.format(
+              '<path class="scene-polar-streamline-path" d="%s" fill="none" stroke="%s" stroke-width="%s" stroke-linecap="round" stroke-linejoin="round"%s/>',
+              table.concat(commands, " "), series.color,
+              svg_number(series.linewidth), stroke_opacity)
+          end
+          for _, arrow in ipairs(line.arrows) do
+            out[#out + 1] = string.format(
+              '<polygon class="scene-polar-stream-arrow" data-index="%d" data-theta="%s" data-r="%s" data-angle="%s" points="%s,%s %s,%s %s,%s" fill="%s"%s/>',
+              arrow.index, svg_number(arrow.theta), svg_number(arrow.r),
+              svg_number(arrow.angle),
               svg_number(arrow.head_x1), svg_number(arrow.head_y1),
               svg_number(arrow.head_x2), svg_number(arrow.head_y2),
               svg_number(arrow.head_x3), svg_number(arrow.head_y3),
@@ -1400,6 +1456,8 @@ pre.scene-data{max-height:18rem;font-size:12px}
 .scene-polar-contour{fill:none;stroke-linecap:round;stroke-linejoin:round}
 .scene-polar-quiver-shaft{stroke-linecap:round}
 .scene-polar-quiver-head{stroke:none}
+.scene-polar-streamline-path{fill:none;stroke-linecap:round;stroke-linejoin:round}
+.scene-polar-stream-arrow{stroke:none}
 .scene-polar-colorbar-frame{fill:none;stroke:var(--muted);stroke-width:1}
 .scene-polar-colorbar-tick{stroke:var(--muted);stroke-width:1}
 .scene-polar-colorbar-label{fill:var(--muted);font:9px/1 system-ui,-apple-system,"Segoe UI",sans-serif}
