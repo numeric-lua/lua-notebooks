@@ -17,8 +17,7 @@ assert(line:find("local x", 1, true), "grid did not show buffer: " .. line)
 local lines = session:get_lines()
 assert(#lines == 2 and lines[2] == "print(x)", tostring(#lines))
 session:input("dd")
-session:update()
-for _ = 1, 20 do session:update(); os.execute("sleep 0.02") end
+for _ = 1, 200 do session:update() end
 lines = session:get_lines()
 assert(#lines == 1 and lines[1] == "print(x)", "dd did not delete: " ..
   table.concat(lines, "|"))
@@ -26,7 +25,7 @@ session:close()
 
 local dead = Session.new({ cols = 20, rows = 5 })
 pcall(function() dead:command("qall!") end)
-for _ = 1, 40 do dead:update(); os.execute("sleep 0.02") end
+for _ = 1, 400 do dead:update() end
 assert(dead.exited, "EOF was not detected")
 local dead_lines, dead_error = dead:get_lines()
 assert(dead_lines == nil and dead_error ~= nil, "get_lines after EOF")
@@ -34,13 +33,13 @@ dead:close()
 print("nvim dead peer ok")
 
 local modes = Session.new({ cols = 20, rows = 5 })
-for _ = 1, 20 do modes:update(); os.execute("sleep 0.02") end
+for _ = 1, 200 do modes:update() end
 assert(modes.grid.mode == "normal", tostring(modes.grid.mode))
 modes:input("i")
-for _ = 1, 20 do modes:update(); os.execute("sleep 0.02") end
+for _ = 1, 200 do modes:update() end
 assert(modes.grid.mode == "insert", tostring(modes.grid.mode))
 modes:input("<Esc>")
-for _ = 1, 20 do modes:update(); os.execute("sleep 0.02") end
+for _ = 1, 200 do modes:update() end
 assert(modes.grid.mode == "normal", tostring(modes.grid.mode))
 modes:close()
 print("nvim modes ok")
@@ -48,9 +47,9 @@ local popup = Session.new({ cols = 40, rows = 10 })
 popup:command("set completeopt=menu,menuone,noselect")
 popup:set_lines({ "print(1)", "pairs({})" }, 1)
 popup:input("<Esc>Gopr")
-for _ = 1, 30 do popup:update(); os.execute("sleep 0.02") end
+for _ = 1, 300 do popup:update() end
 popup:input("<C-n>")
-for _ = 1, 40 do popup:update(); os.execute("sleep 0.02") end
+for _ = 1, 400 do popup:update() end
 assert(popup.grid.popupmenu, "popupmenu did not arrive")
 assert(popup.grid.popupmenu.items[1][1] == "print",
   tostring(popup.grid.popupmenu.items[1][1]))

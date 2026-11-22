@@ -4,7 +4,8 @@ local Rpc = require("notebook.nvim.rpc")
 local Msgpack = require("notebook.nvim.msgpack")
 
 local port = 22000 + (os.time() % 20000)
-local handle = assert(io.popen("nvim --headless --clean --listen 127.0.0.1:" ..
+local handle = assert(io.popen("nvim --headless --clean " ..
+  "--cmd 'set noswapfile' --listen 127.0.0.1:" ..
   port .. " >/tmp/nvim-spike.log 2>&1 & echo $!"))
 local pid = handle:read("*l")
 handle:close()
