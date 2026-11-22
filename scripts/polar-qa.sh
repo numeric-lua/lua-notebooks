@@ -40,6 +40,14 @@ for i = 1, 96 do
   theta[i] = a
   r[i] = 1 + 0.8 * math.sin(4 * a)
 end
+local rows, cols = 4, 8
+local values = {}
+for row = 1, rows do
+  values[row] = {}
+  for col = 1, cols do
+    values[row][col] = (row - 1) / (rows - 1)
+  end
+end
 return { scene = {
   type = "luaplotlib", orientation = "polar", title = "polar QA",
   polar = {
@@ -54,6 +62,26 @@ return { scene = {
       { value = 0.5, label = "0.5" }, { value = 1, label = "1" },
       { value = 1.5, label = "1.5" }, { value = 2, label = "2" },
     },
+    heatmaps = { {
+      rows = rows, cols = cols, values = values,
+      vmin = 0, vmax = 1, rmin = 0, rmax = 2,
+      theta_min = 0, theta_max = 2 * math.pi,
+      alpha = 1, label = "density", colorbar = true,
+    } },
+    contours = { {
+      rows = rows, cols = cols,
+      levels = {
+        { level = 0.25, segments = {
+          { 0, 0.8, 1.2, 1.2 }, { 2.4, 0.8, 3.8, 1.2 } } },
+        { level = 0.75, segments = {
+          { 0.4, 1.2, 1.6, 1.6 }, { 2.8, 1.0, 4.2, 1.4 } } },
+      },
+      labels = true,
+      style = { color = "#ffd166", linewidth = 1.5, alpha = 0.95,
+        linestyle = "dashed", label = "isolines" },
+    } },
+    colorbar = { orientation = "vertical", vmin = 0, vmax = 1,
+      ticks = { 0, 0.5, 1 }, label = "density" },
     series = {
       { kind = "line", theta = theta, r = r,
         style = { color = "#1f77b4", label = "rose" } },
@@ -81,7 +109,7 @@ XDG_CONFIG_HOME="$QA_HOME/.config" \
 XDG_CACHE_HOME="$QA_HOME/.cache" \
 LUANB_QA_THEME=${LUANB_QA_THEME:-dark} \
 LUANB_QA_UI_SCALE=1 \
-LUANB_QA_SCROLL=0 \
+LUANB_QA_SCROLL=${LUANB_QA_SCROLL:-620} \
 LUANB_QA_CELL=1 \
 LUANB_QA_SCREENSHOT=1 \
 LUANB_QA_SCREENSHOT_AFTER=${LUANB_QA_SCREENSHOT_AFTER:-4} \

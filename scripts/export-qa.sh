@@ -33,6 +33,14 @@ for index = 1, 96 do
   theta[index] = angle
   r[index] = math.abs(math.sin(4 * angle))
 end
+local rows, cols = 4, 8
+local values = {}
+for row = 1, rows do
+  values[row] = {}
+  for col = 1, cols do
+    values[row][col] = (row - 1) / (rows - 1)
+  end
+end
 local notebook = Notebook.new({ name = "export-qa.luanb", cells = {
   { kind = "markdown", source =
     "# Export QA\n\nReader-facing search and a polar preview." },
@@ -56,6 +64,26 @@ notebook.cells[2].scene = {
       { value = 0.5, label = "0.5" }, { value = 1, label = "1" },
       { value = 1.5, label = "1.5" }, { value = 2, label = "2" },
     },
+    heatmaps = { {
+      rows = rows, cols = cols, values = values,
+      vmin = 0, vmax = 1, rmin = 0, rmax = 2,
+      theta_min = 0, theta_max = 2 * math.pi,
+      alpha = 1, label = "density", colorbar = true,
+    } },
+    contours = { {
+      rows = rows, cols = cols,
+      levels = {
+        { level = 0.25, segments = {
+          { 0, 0.8, 1.2, 1.2 }, { 2.4, 0.8, 3.8, 1.2 } } },
+        { level = 0.75, segments = {
+          { 0.4, 1.2, 1.6, 1.6 }, { 2.8, 1.0, 4.2, 1.4 } } },
+      },
+      labels = true,
+      style = { color = "#ffd166", linewidth = 1.5, alpha = 0.95,
+        linestyle = "dashed", label = "isolines" },
+    } },
+    colorbar = { orientation = "vertical", vmin = 0, vmax = 1,
+      ticks = { 0, 0.5, 1 }, label = "density" },
     series = {
       { kind = "line", theta = theta, r = r,
         style = { color = "#1f77b4", label = "rose" } },
