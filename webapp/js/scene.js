@@ -4,7 +4,7 @@ import {
   colorbarTicks, contourLabel, contourSegmentPoints, finiteNumber,
   frameLayout, heatmapCells, pointRadius, polarRings, polarSpokes,
   projectPolar, quiverArrows, radiusLabel, resolvePolar, ringLabelPosition,
-  sampleStep, thetaLabel, thetaLabelPosition, validColor,
+  sampleStep, streamLines, thetaLabel, thetaLabelPosition, validColor,
 } from "./polar.js";
 
 const scenes = new WeakMap();
@@ -477,7 +477,7 @@ function drawPolar(canvas, scene, ctx) {
           ctx.fill();
         }
       }
-    } else if (series.arrows) {
+    } else if (series.arrows && !series.lines) {
       const arrows = quiverArrows(series, cx, cy, radius, rmax, thetaZero,
         direction);
       if (arrows.length) {
@@ -498,6 +498,37 @@ function drawPolar(canvas, scene, ctx) {
           ctx.stroke();
         }
         if (arrow.headed) {
+          ctx.beginPath();
+          ctx.moveTo(arrow.headX1, arrow.headY1);
+          ctx.lineTo(arrow.headX2, arrow.headY2);
+          ctx.lineTo(arrow.headX3, arrow.headY3);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+    } else if (series.lines) {
+      const lines = streamLines(series, cx, cy, radius, rmax, thetaZero,
+        direction);
+      if (lines.length) {
+        // luaplotlib clips streamline paths and arrow heads to the polar
+        // circle; restore after this series so later series stay unclipped.
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0, TAU);
+        ctx.clip();
+      }
+      ctx.strokeStyle = series.color;
+      ctx.fillStyle = series.color;
+      ctx.lineWidth = Math.max(0.1, series.linewidth);
+      for (const line of lines) {
+        if (series.linewidth > 0 && line.points.length > 1) {
+          ctx.beginPath();
+          ctx.moveTo(line.points[0].x, line.points[0].y);
+          for (let index = 1; index < line.points.length; index += 1) {
+            ctx.lineTo(line.points[index].x, line.points[index].y);
+          }
+          ctx.stroke();
+        }
+        for (const arrow of line.arrows) {
           ctx.beginPath();
           ctx.moveTo(arrow.headX1, arrow.headY1);
           ctx.lineTo(arrow.headX2, arrow.headY2);

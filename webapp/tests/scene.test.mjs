@@ -278,3 +278,39 @@ test("draws polar quiver shafts and heads inside the circle", () => {
     && Math.abs(call.args[1] - 80.5) < 1e-9), "missing second shaft tail");
   assertFiniteCalls(calls);
 });
+
+test("draws polar streamlines and mid-line arrows inside the circle", () => {
+  const scene = {
+    type: "luaplotlib", orientation: "polar", grid: false,
+    polar: {
+      rmax: 2,
+      series: [{
+        kind: "streamplot",
+        theta: [0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2, 2 * Math.PI],
+        r: [0.5, 1, 1.5, 2],
+        head: 6,
+        style: { color: "#2ca02c", linewidth: 1.5, alpha: 0.9 },
+        lines: [
+          {
+            theta: [0, 0.5, 1], r: [1, 1.2, 1.4],
+            arrows: [{ theta: 0.5, r: 1.2, angle: -30 }],
+          },
+          {
+            theta: [2, 2.5, 3, 3.5], r: [0.8, 0.9, 1, 1.1],
+            arrows: [{ theta: 3, r: 1, angle: 120 }],
+          },
+        ],
+      }],
+    },
+  };
+  const { canvas, calls } = fakeCanvas(600, 230);
+  paintScene(canvas, scene);
+  assert.equal(named(calls, "clip").length, 1);
+  assert.equal(named(calls, "stroke").length, 3); // frame plus two lines
+  assert.equal(named(calls, "fill").length, 2); // two arrow heads
+  const moves = named(calls, "moveTo");
+  assert.ok(moves.some((call) => Math.abs(call.args[0] - 336.5) < 1e-9
+    && Math.abs(call.args[1] - 117) < 1e-9), "missing first line start");
+  assert.ok(named(calls, "lineTo").length >= 5, "streamlines were not drawn");
+  assertFiniteCalls(calls);
+});

@@ -22,6 +22,12 @@ export const QUIVER_DEFAULT_MAX_ARROWS = 512;
 export const QUIVER_MAX_ARROWS = 4096;
 export const QUIVER_DEFAULT_HEAD = 5;
 export const QUIVER_DEFAULT_LINEWIDTH = 1.2;
+export const STREAM_DEFAULT_HEAD = 6;
+export const STREAM_DEFAULT_LINEWIDTH = 1.5;
+export const STREAM_DEFAULT_DENSITY = 1;
+export const STREAM_DEFAULT_MAX_STEPS = 300;
+export const STREAM_DEFAULT_MAX_LINES = 64;
+export const STREAM_DEFAULT_MAX_POINTS = 8000;
 
 const TAU = Math.PI * 2;
 
@@ -141,6 +147,95 @@ export function collectPolar(scene) {
         stride,
         scale,
         autoScale,
+        label: typeof style.label === "string" ? style.label : null,
+      });
+    } else if (item.kind === "streamplot") {
+      // luaplotlib integrates the field and exports finished theta/r
+      // polylines with one mid-line arrow each.  Copy, filter, and project
+      // them here so the browser matches the Lua renderers.
+      const head = finiteNumber(item.head) ? Math.max(0, item.head)
+        : (finiteNumber(style.head) ? Math.max(0, style.head) : STREAM_DEFAULT_HEAD);
+      const drawArrows = item.arrows !== false && head > 0;
+      const lines = [];
+      let totalPoints = 0;
+      let totalArrows = 0;
+      const sourceLines = array(item.lines);
+      for (let lineIndex = 0; lineIndex < sourceLines.length; lineIndex += 1) {
+        const line = sourceLines[lineIndex];
+        if (!line || typeof line !== "object") continue;
+        const lineTheta = array(line.theta);
+        const lineR = array(line.r);
+        const linePoints = [];
+        const lineCount = Math.min(lineTheta.length, lineR.length);
+        for (let index = 0; index < lineCount; index += 1) {
+          if (!finiteNumber(lineTheta[index]) || !finiteNumber(lineR[index])) continue;
+          observed = Math.max(observed, Math.abs(lineR[index]));
+          linePoints.push({ theta: lineTheta[index], r: lineR[index] });
+        }
+        const lineArrows = [];
+        if (drawArrows) {
+          for (const arrow of array(line.arrows)) {
+            if (!arrow || !finiteNumber(arrow.theta) || !finiteNumber(arrow.r)
+              || !finiteNumber(arrow.angle)) continue;
+            lineArrows.push({
+              theta: arrow.theta, r: arrow.r, angle: arrow.angle,
+            });
+          }
+        }
+        if (linePoints.length >= 2) {
+          totalPoints += linePoints.length;
+          totalArrows += lineArrows.length;
+          lines.push({
+            index: Number.isInteger(line.index) ? line.index : lineIndex + 1,
+            points: linePoints,
+            arrows: lineArrows,
+          });
+        }
+      }
+      for (const value of array(r)) {
+        if (finiteNumber(value)) observed = Math.max(observed, Math.abs(value));
+      }
+      const density = finiteNumber(item.density)
+        ? Math.max(0.1, Math.min(10, item.density)) : STREAM_DEFAULT_DENSITY;
+      const requestedStep = finiteNumber(item.step) && item.step > 0
+        ? item.step : null;
+      let step = finiteNumber(item.resolved_step) && item.resolved_step > 0
+        ? item.resolved_step : requestedStep;
+      const stepMode = item.step_mode === "auto" ? "auto"
+        : item.step_mode === "explicit" ? "explicit"
+          : (requestedStep === null ? "auto" : "explicit");
+      if (step === null) {
+        const span = r.length > 1 ? r[r.length - 1] - r[0]
+          : (r.length > 0 ? r[r.length - 1] : 0);
+        step = span > 0 ? span / 25 : 1;
+      }
+      const periodic = typeof item.periodic === "boolean" ? item.periodic
+        : (theta.length >= 2 && theta[theta.length - 1] - theta[0] >= TAU - 1e-9);
+      const linewidth = finiteNumber(style.linewidth)
+        ? Math.max(0, style.linewidth)
+        : (finiteNumber(item.linewidth) ? Math.max(0, item.linewidth)
+          : STREAM_DEFAULT_LINEWIDTH);
+      collected.push({
+        kind: "streamplot",
+        lines,
+        cols: theta.length,
+        rows: r.length,
+        lineCount: lines.length,
+        pointCount: totalPoints,
+        arrowCount: totalArrows,
+        color,
+        alpha,
+        linewidth,
+        head,
+        arrows: item.arrows !== false,
+        density,
+        step,
+        stepMode,
+        maxSteps: finiteInteger(item.max_steps, 10) ?? STREAM_DEFAULT_MAX_STEPS,
+        maxLines: finiteInteger(item.max_lines, 1) ?? STREAM_DEFAULT_MAX_LINES,
+        maxPoints: finiteInteger(item.max_points, 100) ?? STREAM_DEFAULT_MAX_POINTS,
+        periodic,
+        truncated: item.truncated === true,
         label: typeof style.label === "string" ? style.label : null,
       });
     } else {
@@ -346,6 +441,66 @@ export function quiverArrows(quiver, cx, cy, radius, rmax, thetaZero, direction)
     });
   }
   return arrows;
+}
+
+// Screen geometry for one collected streamplot series.  Mirrors
+// Polar.stream_lines in notebook/polar.lua: project each integrated polyline
+// point and rebuild the mid-line arrow triangle from the exported
+// screen-space angle.
+export function streamLines(stream, cx, cy, radius, rmax, thetaZero, direction) {
+  const lines = [];
+  if (!stream || typeof stream !== "object") return lines;
+  rmax = finiteNumber(rmax) && rmax > 0 ? rmax : 1;
+  const head = finiteNumber(stream.head) ? Math.max(0, stream.head) : 0;
+  const drawArrows = stream.arrows !== false && head > 0;
+  const half = head * 0.45;
+  for (const line of array(stream.lines)) {
+    if (!line || typeof line !== "object") continue;
+    const points = [];
+    for (const point of array(line.points)) {
+      const projected = projectPolar(cx, cy, radius, rmax, thetaZero, direction,
+        point.theta, point.r);
+      points.push({
+        x: projected.x, y: projected.y, theta: point.theta, r: point.r,
+      });
+    }
+    const arrows = [];
+    if (drawArrows) {
+      for (const arrow of array(line.arrows)) {
+        const projected = projectPolar(cx, cy, radius, rmax, thetaZero,
+          direction, arrow.theta, arrow.r);
+        const radians = (arrow.angle * Math.PI) / 180;
+        const ux = Math.cos(radians);
+        const uy = Math.sin(radians);
+        const px = -uy * half;
+        const py = ux * half;
+        const tipX = projected.x + ux * head * 0.5;
+        const tipY = projected.y + uy * head * 0.5;
+        const neckX = projected.x - ux * head * 0.5;
+        const neckY = projected.y - uy * head * 0.5;
+        arrows.push({
+          index: arrow.index,
+          theta: arrow.theta,
+          r: arrow.r,
+          angle: arrow.angle,
+          x: projected.x,
+          y: projected.y,
+          tipX,
+          tipY,
+          headX1: tipX,
+          headY1: tipY,
+          headX2: neckX + px,
+          headY2: neckY + py,
+          headX3: neckX - px,
+          headY3: neckY - py,
+        });
+      }
+    }
+    if (points.length >= 2) {
+      lines.push({ index: line.index ?? lines.length + 1, points, arrows });
+    }
+  }
+  return lines;
 }
 
 export function ringLabelPosition(cx, cy, ringRadius) {

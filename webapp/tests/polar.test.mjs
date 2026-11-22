@@ -5,13 +5,14 @@ import {
   BAR_SAMPLE_LIMIT, COLORBAR_STEPS, DEFAULT_POINT_RADIUS, FULL_TURN_PARTS,
   HEATMAP_CELL_LIMIT, LINE_SAMPLE_LIMIT, PALETTE, QUIVER_AUTO_LENGTH,
   QUIVER_DEFAULT_MAX_ARROWS, QUIVER_MAX_ARROWS, RADIUS_LABEL_LIMIT,
-  SCATTER_SAMPLE_LIMIT, THETA_LABEL_LIMIT, barSectors, colorbarLayout,
+  SCATTER_SAMPLE_LIMIT, STREAM_DEFAULT_HEAD, STREAM_DEFAULT_LINEWIDTH,
+  THETA_LABEL_LIMIT, barSectors, colorbarLayout,
   colorbarSteps, colorbarTicks, collectColorbar, collectContours,
   collectHeatmaps, compactNumber, contourLabel, contourSegmentPoints,
   finiteNumber, frameLayout, frameRadius, heatColor, heatmapCells,
   heatmapSampling, pointRadius, polarConfig, polarRings, polarSpokes,
   projectPolar, quiverArrows, radiusLabel, resolvePolar, sampleStep,
-  thetaLabel, validColor,
+  streamLines, thetaLabel, validColor,
 } from "../js/polar.js";
 import {
   largeFieldValues, largePolarFieldScene, polarFallbackScene,
@@ -556,6 +557,53 @@ function quiverScene(options = {}) {
   };
 }
 
+
+function streamScene(options = {}) {
+  return {
+    type: "luaplotlib", orientation: "polar", title: "streamplot",
+    polar: {
+      theta_zero: options.theta_zero ?? 0,
+      theta_direction: options.theta_direction ?? "counterclockwise",
+      rmax: options.rmax ?? 2,
+      theta_ticks: [{ value: 0, label: "0" }],
+      r_ticks: [{ value: 1, label: "1" }, { value: 2, label: "2" }],
+      series: [{
+        kind: "streamplot",
+        theta: options.theta ?? [0, PI / 2, PI, (3 * PI) / 2, 2 * PI],
+        r: options.r ?? [0.5, 1, 1.5, 2],
+        lines: options.lines ?? [
+          {
+            theta: [0, 0.5, 1], r: [1, 1.2, 1.4],
+            arrows: [{ theta: 0.5, r: 1.2, angle: -30 }],
+          },
+          {
+            theta: [2, 2.5, 3, 3.5], r: [0.8, 0.9, 1, 1.1],
+            arrows: [{ theta: 3, r: 1, angle: 120 }],
+          },
+        ],
+        periodic: options.periodic,
+        density: options.density,
+        step: options.step,
+        resolved_step: options.resolved_step,
+        step_mode: options.step_mode,
+        max_steps: options.max_steps,
+        max_lines: options.max_lines,
+        max_points: options.max_points,
+        arrows: options.arrows,
+        head: options.head,
+        truncated: options.truncated,
+        style: {
+          color: options.color ?? "#2ca02c",
+          linewidth: options.linewidth ?? STREAM_DEFAULT_LINEWIDTH,
+          head: options.styleHead ?? STREAM_DEFAULT_HEAD,
+          alpha: options.alpha ?? 0.9,
+          label: "flow",
+        },
+      }],
+    },
+  };
+}
+
 test("collects quiver IR and projects local components", () => {
   const resolved = resolvePolar(quiverScene());
   const quiver = resolved.series[0];
@@ -710,4 +758,176 @@ test("matches the cross-renderer quiver fixture", () => {
     near(arrow.neckX, want.neck_x, 1e-9, "quiver neck x");
     near(arrow.neckY, want.neck_y, 1e-9, "quiver neck y");
   });
+});
+
+test("collects streamplot IR and projects streamline geometry", () => {
+  const resolved = resolvePolar(streamScene({ step: 0.06 }));
+  const stream = resolved.series[0];
+  assert.equal(stream.kind, "streamplot");
+  assert.equal(stream.cols, 5);
+  assert.equal(stream.rows, 4);
+  assert.equal(stream.lineCount, 2);
+  assert.equal(stream.pointCount, 7);
+  assert.equal(stream.arrowCount, 2);
+  near(stream.step, 0.06);
+  assert.equal(stream.stepMode, "explicit");
+  assert.equal(stream.periodic, true);
+  assert.equal(stream.truncated, false);
+  assert.equal(stream.density, 1);
+  assert.equal(stream.maxSteps, 300);
+  assert.equal(stream.maxLines, 64);
+  assert.equal(stream.maxPoints, 8000);
+  assert.equal(stream.arrows, true);
+  near(stream.head, STREAM_DEFAULT_HEAD);
+  near(stream.linewidth, STREAM_DEFAULT_LINEWIDTH);
+  near(stream.alpha, 0.9);
+
+  const lines = streamLines(stream, 300, 117, 73, 2, 0, 1);
+  assert.equal(lines.length, 2);
+  const first = lines[0];
+  assert.equal(first.points.length, 3);
+  assert.equal(first.arrows.length, 1);
+  near(first.points[0].x, 336.5);
+  near(first.points[0].y, 117);
+  near(first.points[1].x, 338.43811621079834);
+  near(first.points[1].y, 96.0011614091359);
+  near(first.points[2].x, 327.60944782986195);
+  near(first.arrows[0].x, 338.43811621079834);
+  near(first.arrows[0].tipX, 341.03619242215166);
+  near(first.arrows[0].headY2, 99.83942999935388);
+  near(first.arrows[0].headX3, 334.490039999445);
+  near(first.arrows[0].headY3, 95.16289281891792);
+});
+
+test("streamplot follows theta zero and clockwise direction", () => {
+  const scene = streamScene({
+    theta_zero: PI / 2, theta_direction: "clockwise",
+    theta: [0, 0], r: [2, 2],
+    lines: [{
+      theta: [0, 0], r: [2, 2],
+      arrows: [{ theta: 0, r: 2, angle: 0 }],
+    }],
+  });
+  const resolved = resolvePolar(scene);
+  const lines = streamLines(resolved.series[0], 300, 117, 73, 2,
+    resolved.thetaZero, resolved.direction);
+  assert.equal(lines.length, 1);
+  near(lines[0].points[0].x, 300);
+  near(lines[0].points[0].y, 44);
+  near(lines[0].points[1].x, 300);
+  near(lines[0].points[1].y, 44);
+  const arrow = lines[0].arrows[0];
+  near(arrow.x, 300);
+  near(arrow.y, 44);
+  near(arrow.headX1, 303);
+  near(arrow.headY1, 44);
+  near(arrow.headY2, 46.7);
+  near(arrow.headY3, 41.3);
+});
+
+test("streamplot derives auto step and tolerates malformed lines", () => {
+  const auto = resolvePolar(streamScene({
+    theta: [0, 2 * PI], r: [0, 2],
+  })).series[0];
+  near(auto.step, 0.08);
+  assert.equal(auto.stepMode, "auto");
+  assert.equal(auto.periodic, true);
+  near(auto.head, STREAM_DEFAULT_HEAD);
+  near(auto.linewidth, STREAM_DEFAULT_LINEWIDTH);
+
+  const explicit = resolvePolar(streamScene({ step: 0.1 })).series[0];
+  near(explicit.step, 0.1);
+  assert.equal(explicit.stepMode, "explicit");
+
+  const malformed = streamScene({
+    head: -2,
+    lines: [
+      {
+        theta: [0, 0 / 0, 1], r: [1, 1.5, 2],
+        arrows: [
+          { theta: 0, r: 1, angle: 0 },
+          { theta: 0 / 0, r: 1, angle: 0 },
+        ],
+      },
+      { theta: [0], r: [1] },
+      "not a line",
+    ],
+  });
+  const stream = resolvePolar(malformed).series[0];
+  assert.equal(stream.lineCount, 1);
+  assert.equal(stream.pointCount, 2);
+  assert.equal(stream.arrowCount, 0);
+  assert.equal(stream.lines[0].arrows.length, 0);
+  const lines = streamLines(stream, 300, 117, 73, 2, 0, 1);
+  assert.equal(lines.length, 1);
+  assert.equal(lines[0].points.length, 2);
+  assert.equal(lines[0].arrows.length, 0);
+});
+
+test("matches the cross-renderer streamplot fixture", () => {
+  const fixture = JSON.parse(readFileSync(
+    new URL("./fixtures/polar-parity.json", import.meta.url), "utf8"));
+  const scene = fixture.streamplot_scene;
+  const expected = fixture.streamplot_expected;
+  const resolved = resolvePolar(scene);
+  const stream = resolved.series[0];
+  assert.equal(stream.kind, "streamplot");
+  assert.equal(stream.cols, expected.cols);
+  assert.equal(stream.rows, expected.rows);
+  assert.equal(stream.lineCount, expected.lines);
+  assert.equal(stream.pointCount, expected.points);
+  assert.equal(stream.arrowCount, expected.arrow_count);
+  near(stream.step, expected.step);
+  assert.equal(stream.stepMode, expected.step_mode);
+  assert.equal(stream.density, expected.density);
+  assert.equal(stream.maxSteps, expected.max_steps);
+  assert.equal(stream.maxLines, expected.max_lines);
+  assert.equal(stream.maxPoints, expected.max_points);
+  assert.equal(stream.periodic, expected.periodic);
+  assert.equal(stream.truncated, expected.truncated);
+  assert.equal(stream.arrows, expected.arrows);
+  near(stream.head, expected.head);
+  near(stream.linewidth, expected.linewidth);
+  near(stream.alpha, expected.alpha);
+  assert.equal(stream.color, expected.color);
+
+  const layout = fixture.layout;
+  const { cx, cy, radius } = frameLayout(52, 34, layout.width - 52,
+    layout.height - 30, false);
+  assert.equal(cx, layout.cx);
+  assert.equal(cy, layout.cy);
+  assert.equal(radius, layout.radius);
+  const lines = streamLines(stream, cx, cy, radius, resolved.rmax,
+    resolved.thetaZero, resolved.direction);
+  assert.equal(lines.length, expected.line_points.length);
+  lines.forEach((line, lineIndex) => {
+    const wantLine = expected.line_points[lineIndex];
+    assert.equal(line.points.length, wantLine.length);
+    line.points.forEach((point, pointIndex) => {
+      const want = wantLine[pointIndex];
+      near(point.x, want.x, 1e-9, "stream point x");
+      near(point.y, want.y, 1e-9, "stream point y");
+      near(point.theta, want.theta, 1e-9, "stream point theta");
+      near(point.r, want.r, 1e-9, "stream point r");
+    });
+  });
+  let arrowIndex = 0;
+  for (const line of lines) {
+    for (const arrow of line.arrows) {
+      const want = expected.arrow_points[arrowIndex];
+      near(arrow.x, want.x, 1e-9, "stream arrow x");
+      near(arrow.y, want.y, 1e-9, "stream arrow y");
+      near(arrow.theta, want.theta, 1e-9, "stream arrow theta");
+      near(arrow.r, want.r, 1e-9, "stream arrow r");
+      near(arrow.angle, want.angle, 1e-9, "stream arrow angle");
+      near(arrow.headX1, want.head_x1, 1e-9, "stream arrow tip x");
+      near(arrow.headY1, want.head_y1, 1e-9, "stream arrow tip y");
+      near(arrow.headX2, want.head_x2, 1e-9, "stream arrow left x");
+      near(arrow.headY2, want.head_y2, 1e-9, "stream arrow left y");
+      near(arrow.headX3, want.head_x3, 1e-9, "stream arrow right x");
+      near(arrow.headY3, want.head_y3, 1e-9, "stream arrow right y");
+      arrowIndex += 1;
+    }
+  }
+  assert.equal(arrowIndex, expected.arrow_points.length);
 });
