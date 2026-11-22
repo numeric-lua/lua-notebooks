@@ -854,6 +854,38 @@ return { scene = {
       ticks = { 0, 0.5, 1 }, label = "density" },
   },
 } }]]),
+      cell("code", [[
+-- Polar quiver: local tangential/radial components, decimated for display.
+local theta, r, u, v = {}, {}, {}, {}
+for i = 1, 48 do
+  local angle = (i - 1) * 2 * math.pi / 48
+  theta[i] = angle
+  r[i] = 1.6
+  u[i] = math.cos(3 * angle)
+  v[i] = math.sin(3 * angle)
+end
+return { scene = {
+  type = "luaplotlib", orientation = "polar",
+  title = "polar quiver", width = 800, height = 320,
+  polar = {
+    theta_zero = 0, theta_direction = "counterclockwise", rmax = 2,
+    theta_ticks = {
+      { value = 0, label = "0" }, { value = math.pi / 2, label = "90" },
+      { value = math.pi, label = "180" },
+      { value = 3 * math.pi / 2, label = "270" },
+    },
+    r_ticks = {
+      { value = 0.5, label = "0.5" }, { value = 1, label = "1" },
+      { value = 1.5, label = "1.5" }, { value = 2, label = "2" },
+    },
+    series = {
+      { kind = "quiver", theta = theta, r = r, u = u, v = v,
+        scale = 14, pivot = "middle", max_arrows = 12,
+        style = { color = "#e45756", linewidth = 1.4, head = 5,
+          alpha = 0.95, label = "flow" } },
+    },
+  },
+} }]]),
     },
   })
   local second = Notebook.new({

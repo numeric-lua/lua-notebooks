@@ -48,6 +48,14 @@ for row = 1, rows do
     values[row][col] = (row - 1) / (rows - 1)
   end
 end
+local quiver_theta, quiver_r, quiver_u, quiver_v = {}, {}, {}, {}
+for i = 1, 24 do
+  local a = (i - 1) * 2 * math.pi / 24
+  quiver_theta[i] = a
+  quiver_r[i] = 1.6
+  quiver_u[i] = math.cos(3 * a)
+  quiver_v[i] = math.sin(3 * a)
+end
 return { scene = {
   type = "luaplotlib", orientation = "polar", title = "polar QA",
   polar = {
@@ -90,6 +98,11 @@ return { scene = {
         style = { color = "#ff7f0e", radius = 5 } },
       { kind = "bar", theta = { math.pi / 4 }, r = { 1.5 },
         widths = { 0.45 }, colors = { "#2ca02c" } },
+      { kind = "quiver", theta = quiver_theta, r = quiver_r,
+        u = quiver_u, v = quiver_v, scale = 12, pivot = "middle",
+        max_arrows = 12,
+        style = { color = "#e45756", linewidth = 1.4, head = 4,
+          alpha = 0.95, label = "flow" } },
     },
   },
 } }
@@ -106,12 +119,26 @@ do
   assert(heatmap.sampled, "polar QA fixture was not sampled")
   assert(heatmap.sampled_cells <= Polar.HEATMAP_CELL_LIMIT,
     "polar QA fixture exceeded the heatmap cell cap")
+  local quiver
+  for _, series in ipairs(resolved.series) do
+    if series.kind == "quiver" then quiver = series end
+  end
+  assert(quiver ~= nil and quiver.drawn > 0,
+    "polar QA fixture has no quiver arrows")
+  assert(quiver.stride == 2 and quiver.drawn == 12,
+    "polar QA quiver was not decimated to twelve arrows")
   local svg = Format.scene_svg(result.scene, 800, 320)
   local exported = select(2, svg:gsub('class="scene%-polar%-heatmap%-cell"', ""))
   assert(exported == heatmap.sampled_cells,
     "live and exported block counts disagree")
+  local exported_quiver = select(2,
+    svg:gsub('class="scene%-polar%-quiver%-arrow"', ""))
+  assert(exported_quiver == quiver.drawn,
+    "live and exported quiver arrow counts disagree")
   print(string.format("polar-qa field: %dx%d -> %d blocks", heatmap.rows,
     heatmap.cols, heatmap.sampled_cells))
+  print(string.format("polar-qa quiver: %d arrows -> %d drawn", quiver.count,
+    quiver.drawn))
 end
 local notebook = Notebook.new({ name = "polar-live.luanb", cells = {
   { kind = "code", source = source },

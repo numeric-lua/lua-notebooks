@@ -42,6 +42,14 @@ for row = 1, rows do
     values[row][col] = (row - 1) / (rows - 1)
   end
 end
+local qtheta, qr, qu, qv = {}, {}, {}, {}
+for index = 1, 12 do
+  local angle = (index - 1) * 2 * math.pi / 12
+  qtheta[index] = angle
+  qr[index] = 1.5
+  qu[index] = math.cos(2 * angle)
+  qv[index] = math.sin(2 * angle)
+end
 local notebook = Notebook.new({ name = "export-qa.luanb", cells = {
   { kind = "markdown", source =
     "# Export QA\n\nReader-facing search and a polar preview." },
@@ -88,6 +96,10 @@ notebook.cells[2].scene = {
     series = {
       { kind = "line", theta = theta, r = r,
         style = { color = "#1f77b4", label = "rose" } },
+      { kind = "quiver", theta = qtheta, r = qr, u = qu, v = qv,
+        scale = 14, pivot = "middle", max_arrows = 12,
+        style = { color = "#e45756", linewidth = 1.3, head = 5,
+          alpha = 0.9, label = "flow" } },
     },
   },
 }
@@ -98,7 +110,17 @@ do
   assert(heatmap.sampled, "export QA field was not sampled")
   assert(heatmap.sampled_cells <= Polar.HEATMAP_CELL_LIMIT,
     "export QA field exceeded the heatmap cell cap")
-  print(string.format("export-qa field: %d blocks", heatmap.sampled_cells))
+  local quiver
+  for _, series in ipairs(resolved.series) do
+    if series.kind == "quiver" then quiver = series end
+  end
+  assert(quiver ~= nil and quiver.drawn == 12,
+    "export QA quiver does not draw twelve arrows")
+  local svg = Format.scene_svg(notebook.cells[2].scene, 800, 320)
+  assert(select(2, svg:gsub('class="scene%-polar%-quiver%-arrow"', "")) ==
+    quiver.drawn, "export QA quiver arrow count disagrees")
+  print(string.format("export-qa field: %d blocks, quiver: %d arrows",
+    heatmap.sampled_cells, quiver.drawn))
 end
 local handle = assert(io.open(output, "wb"))
 handle:write(Format.encode(notebook))

@@ -81,8 +81,8 @@ current = "model"
 test("demo has two notebooks and a live polar cell", function()
   local notebooks = Notebook.demo()
   eq(#notebooks, 2)
-  eq(#notebooks[1].cells, 14)
-  local polar, field, large
+  eq(#notebooks[1].cells, 15)
+  local polar, field, large, quiver
   for _, cell in ipairs(notebooks[1].cells) do
     if cell.source:find('orientation = "polar"', 1, true) then
       polar = polar or cell
@@ -93,10 +93,14 @@ test("demo has two notebooks and a live polar cell", function()
     if cell.source:find("large polar heatmap", 1, true) then
       large = cell
     end
+    if cell.source:find('kind = "quiver"', 1, true) then
+      quiver = cell
+    end
   end
   assert(polar ~= nil, "demo is missing a polar scene cell")
   assert(field ~= nil, "demo is missing a polar field scene cell")
   assert(large ~= nil, "demo is missing a large polar heatmap cell")
+  assert(quiver ~= nil, "demo is missing a polar quiver cell")
 end)
 test("inserts and deletes text at a cursor", function()
   local notebook = Notebook.new({ cells = { { kind = "code", source = "" } } })

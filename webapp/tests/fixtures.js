@@ -123,6 +123,45 @@ export function polarFieldScene() {
   };
 }
 
+export function polarQuiverScene() {
+  return {
+    type: "luaplotlib",
+    orientation: "polar",
+    title: "polar quiver",
+    polar: {
+      theta_zero: 0,
+      theta_direction: "counterclockwise",
+      rmax: 6,
+      theta_ticks: [
+        { value: 0, label: "0" },
+        { value: PI / 2, label: "90" },
+        { value: PI, label: "180" },
+        { value: (3 * PI) / 2, label: "270" },
+      ],
+      r_ticks: [
+        { value: 2, label: "2" },
+        { value: 4, label: "4" },
+        { value: 6, label: "6" },
+      ],
+      series: [{
+        kind: "quiver",
+        theta: [0, PI / 2, PI, (3 * PI) / 2],
+        r: [3, 3, 3, 3],
+        u: [1, 1, 1, 1],
+        v: [0.5, 0.5, 0.5, 0.5],
+        scale: 16,
+        pivot: "middle",
+        max_arrows: 64,
+        normalize: false,
+        style: {
+          color: "#ff7f0e", linewidth: 1.5, head: 6, alpha: 1,
+          label: "flow",
+        },
+      }],
+    },
+  };
+}
+
 // Generate the deterministic matrix used by the large-field parity fixture:
 // rows run from the inner radius to the outer radius, values are (row-1)/(rows-1).
 export function largeFieldValues(rows = 65, cols = 65) {
@@ -249,6 +288,7 @@ export const sceneMatrix = [
   { name: "polar-empty", scene: emptyPolarScene, seriesColor: [66, 80, 106], minSeriesPixels: 50 },
   { name: "polar-field", scene: polarFieldScene, seriesColor: [31, 119, 180], minSeriesPixels: 20 },
   { name: "large-polar-field", scene: () => largePolarFieldScene(96, 96), seriesColor: [31, 119, 180], minSeriesPixels: 20 },
+  { name: "polar-quiver", scene: polarQuiverScene, seriesColor: [255, 127, 14], minSeriesPixels: 10 },
   { name: "cartesian", scene: cartesianScene, seriesColor: [138, 164, 255], minSeriesPixels: 30 },
   { name: "histogram", scene: histogramScene, seriesColor: [84, 162, 75], minSeriesPixels: 30 },
   { name: "categories", scene: categoryScene, seriesColor: [178, 121, 162], minSeriesPixels: 30 },
