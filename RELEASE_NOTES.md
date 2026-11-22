@@ -1,3 +1,30 @@
+# lua-notebooks 1.49.0
+
+- render luaplotlib polar quiver scenes in the live viewport, the static HTML
+  export, and the browser front end, with shared projection of the local
+  tangential (`u`) and radial (`v`) components through
+  `theta_zero`/`theta_direction`;
+- resolve explicit or automatic glyph scaling, `pivot` (tail/middle/tip),
+  `normalize`, `head`, `linewidth`, alpha, and deterministic `max_arrows`
+  decimation in `notebook/polar.lua`, so a kernel-built scene and an exported
+  luaplotlib scene draw the same arrows;
+- export `scene-polar-quiver` groups with count/drawn/stride/scale/pivot data
+  attributes and `scene-polar-quiver-arrow` groups carrying index, magnitude,
+  theta, r, and angle, with shaft and head children in the series order;
+- add the `quiver_scene` cross-renderer fixture read by `tests/polar.lua` and
+  the Node suite, a `polar-quiver` case in the headless Chromium scene matrix,
+  and quiver count checks in the live `polar-qa.sh` and static `export-qa.sh`
+  paths;
+- add polar quiver demo cells to the desktop and browser welcome notebooks
+  after the existing cells, leaving the visual-baseline cells 4/6/7 unchanged;
+- document the quiver IR, export attributes, Canvas clipping, scale/pivot
+  rules, decimation, and parity fixtures in the README, `docs/export.md`,
+  `docs/web.md`, `docs/architecture.md`, `docs/roadmap.md`, and
+  `webapp/README.md`.
+
+No new runtime dependencies. The Neovim path and committed visual pixel
+baselines are unchanged.
+
 # lua-notebooks 1.48.0
 
 - sample polar heatmap fields above 4096 matrix cells into covering blocks in
