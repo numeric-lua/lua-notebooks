@@ -84,8 +84,18 @@ for index = 1, 12 do
 end
 stream_lines[3] = clip_line
 local notebook = Notebook.new({ name = "export-qa.luanb", cells = {
-  { kind = "markdown", source =
-    "# Export QA\n\nReader-facing search and a polar preview." },
+  { kind = "markdown", source = table.concat({
+    "# Export QA",
+    "",
+    "Reader-facing search, a checklist, and a polar preview.",
+    "",
+    "- [x] render task lists",
+    "- [ ] copy source",
+    "",
+    "```lua",
+    "print('snippet')",
+    "```",
+  }, "\n") },
   { kind = "code", source = "return { scene = polar_plot }" },
   { kind = "markdown", source =
     "## Search target\n\nThe word *needle* only appears here." },
@@ -222,6 +232,21 @@ shoot export-dark 1280,1500 "$URL" --force-dark-mode
 shoot export-narrow 420,1500 "$URL"
 shoot export-filtered 1280,900 "$URL?q=needle"
 
+"$CHROME" --headless=new --no-sandbox --disable-gpu --user-data-dir="$OUT/profile-dom-full" \
+  --virtual-time-budget=2000 --dump-dom "$URL" \
+  >"$OUT/full.dom.html" 2>"$OUT/full-dom.log"
+for needle in 'class="task-list"' 'class="task-list-item done"' \
+    'class="copy-code"' 'class="code-line"' 'data-line="1"' \
+    'language-lua'; do
+  grep -Fq "$needle" "$OUT/full.dom.html" || {
+    echo "export-qa: missing $needle in rendered DOM" >&2
+    exit 1
+  }
+done
+grep -Fq "Copy" "$OUT/full.dom.html" || {
+  echo "export-qa: copy control missing" >&2
+  exit 1
+}
 "$CHROME" --headless=new --no-sandbox --disable-gpu --user-data-dir="$OUT/profile-dom" \
   --virtual-time-budget=2000 --dump-dom "$URL?q=needle" \
   >"$OUT/filtered.dom.html" 2>"$OUT/filtered-dom.log"
