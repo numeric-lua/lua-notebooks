@@ -603,7 +603,7 @@ Successfully opened paths are kept in `recent.json` (latest ten). They appear as
 
 ## HTML export
 
-Exports are self-contained HTML with no external assets. The document has viewport and description metadata, a dark-mode-aware stylesheet, a print stylesheet, a sticky table of contents with unique heading anchors, a figures section, per-cell permalinks, styled outputs and errors, and a closing backlinks list computed from `[[wiki links]]` across the open notebooks.
+Exports are self-contained HTML with no external assets. The document has viewport and description metadata, a dark-mode-aware stylesheet, a print stylesheet, a sticky table of contents with unique heading anchors, a figures section, per-cell permalinks, styled outputs and errors, and a closing backlinks list computed from `[[wiki links]]` across the open notebooks. Code cells and fenced Markdown blocks render with a language badge, CSS line numbers, and a **Copy** button that copies the source without the numbers; without JavaScript the button is hidden and every block stays readable.
 
 A small inline script adds reader-facing full-text search and a cell-kind filter. Search is case-insensitive, whitespace-separated terms are combined with AND, `/` focuses the box, Escape clears it, and the table of contents hides links to filtered-out cells. `?q=term` and `?kind=figures` prefill the controls for shareable filtered links. Without JavaScript the controls are hidden and the full document remains readable.
 

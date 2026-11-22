@@ -601,6 +601,33 @@ test("renders Markdown checklists as disabled task items", function()
   eq(select(2, html:gsub('class="task%-list%-item', "")), 2)
 end)
 
+current = "html code blocks"
+test("renders labeled, numbered code blocks with copy controls", function()
+  local notebook = Notebook.new({ name = "code.luanb", cells = {
+    { kind = "markdown", source = table.concat({
+      "```lua",
+      "print('<tag>')",
+      "return 1",
+      "```",
+    }, "\n") },
+    { kind = "code", source = "local a = 1\nreturn a" },
+  } })
+  local html = Format.to_html(notebook)
+  assert(html:find('<div class="code-block">', 1, true))
+  assert(html:find('<span class="code-lang">lua</span>', 1, true))
+  assert(html:find('class="copy-code"', 1, true))
+  assert(html:find(
+    '<span class="code-line" data-line="1">print(&#39;&lt;tag&gt;&#39;)</span>',
+    1, true))
+  assert(html:find("&lt;tag&gt;", 1, true))
+  assert(html:find("&amp;lt;tag&amp;gt;", 1, true) == nil)
+  assert(html:find(
+    '<span class="code-line" data-line="1">local a = 1</span>' ..
+    '<span class="code-line" data-line="2">return a</span>', 1, true))
+  assert(html:find("textFor", 1, true))
+  eq(select(2, html:gsub('class="code%-block"', "")), 2)
+end)
+
 current = "html figures"
 test("renders scene and widget placeholders", function()
   local notebook = Notebook.new({ name = "fig.luanb", cells = {

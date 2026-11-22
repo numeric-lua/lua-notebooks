@@ -26,7 +26,11 @@ dumped:
 - a figures index that links to each exported scene;
 - one `<section class="cell" id="cell-N">` per cell with a permalink and a
   normalized `data-search` projection;
-- styled source, output, and error blocks;
+- styled source, output, and error blocks. Source and fenced Markdown code use
+  `<div class="code-block">` with a language badge, CSS line numbers on each
+  `<span class="code-line">`, and a `Copy` control wired by the inline script.
+  Copying reads the line spans and joins them with newlines, so the numbers are
+  never copied;
 - a backlinks list computed from `[[wiki links]]` across the open notebooks;
 - a footer with cell, heading, and tag counts.
 
@@ -187,7 +191,8 @@ contract deliberately or fails a test.
 ## Markdown subset
 
 The export renders the Markdown subset the notebook previews and edits:
-ATX headings, fenced code blocks, unordered and ordered lists, blockquotes,
+ATX headings, fenced code blocks (language badge, line numbers, and copy
+control), unordered and ordered lists, blockquotes,
 bold, inline code, `[label](url)` links (only `http`, `https`, `mailto`, and
 relative links are emitted; `javascript:`/`data:` links degrade to text), and
 wiki links as styled text with a `data-target` attribute. Checklist items

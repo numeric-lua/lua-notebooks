@@ -393,6 +393,34 @@ local function inline_markdown(text)
   return escaped
 end
 
+local function safe_language(language)
+  local label = tostring(language or ""):gsub("[^%w_+%-]", "")
+  if label == "" then return "text" end
+  return label
+end
+
+-- A self-contained code block with a language badge, CSS line numbers, and a
+-- copy control that the inline script wires up when JavaScript is available.
+local function code_block_html(source, language)
+  local label = safe_language(language)
+  local lines, count = {}, 0
+  for line in ((source or "") .. "\n"):gmatch("(.-)\n") do
+    count = count + 1
+    lines[#lines + 1] = string.format(
+      '<span class="code-line" data-line="%d">%s</span>',
+      count, escape_html(line))
+  end
+  if count == 0 then
+    lines[1] = '<span class="code-line" data-line="1"></span>'
+  end
+  return '<div class="code-block">' ..
+    '<div class="code-head"><span class="code-lang">' .. escape_html(label) ..
+    '</span><button type="button" class="copy-code" aria-label="Copy ' ..
+    escape_html(label) .. ' code">Copy</button></div>' ..
+    '<pre class="source"><code class="language-' .. label .. '">' ..
+    table.concat(lines) .. "</code></pre></div>"
+end
+
 -- Small, readable Markdown renderer for static exports.  It intentionally
 -- covers the subset the editor previews: headings, lists, quotes, fenced code,
 -- emphasis, inline code, links, and wiki links.
@@ -423,12 +451,8 @@ local function markdown_html(source, headings)
 
   local function flush_fence()
     if fence ~= nil then
-      local class = ""
-      if fence_language ~= nil and fence_language ~= "" then
-        class = ' class="language-' .. escape_html(fence_language) .. '"'
-      end
-      out[#out + 1] = '<pre class="source"><code' .. class .. ">" ..
-        table.concat(fence_lines, "\n") .. "</code></pre>"
+      out[#out + 1] = code_block_html(table.concat(fence_lines, "\n"),
+        fence_language)
       fence, fence_language, fence_lines = nil, nil, {}
     end
   end
@@ -441,7 +465,7 @@ local function markdown_html(source, headings)
          #marker >= #fence then
         flush_fence()
       else
-        fence_lines[#fence_lines + 1] = escape_html(line)
+        fence_lines[#fence_lines + 1] = line
       end
     elseif marker ~= nil then
       flush_paragraph(); flush_list()
@@ -1483,6 +1507,15 @@ main{min-width:0}
 .permalink{color:var(--muted);text-decoration:none}
 .permalink:hover{color:var(--accent)}
 pre{margin:.6rem 0;background:var(--code);border-radius:8px;padding:.85rem 1rem;overflow:auto;font:13px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.code-block{margin:.6rem 0}
+.code-block pre{margin:0;border-top-left-radius:0;border-top-right-radius:0}
+.code-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.3rem .65rem;background:var(--code);border:1px solid var(--border);border-bottom:0;border-radius:8px 8px 0 0;font:11px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--muted)}
+.code-lang{letter-spacing:.08em;text-transform:uppercase}
+.copy-code{display:none;border:1px solid var(--border);border-radius:5px;background:var(--card);color:var(--fg);font:inherit;padding:.16rem .45rem;cursor:pointer}
+.copy-code:hover{border-color:var(--accent);color:var(--accent)}
+.js .copy-code{display:inline-flex}
+.code-line{display:block;position:relative;min-height:1.55em;padding-left:2.8rem}
+.code-line::before{content:attr(data-line);position:absolute;left:0;width:2rem;text-align:right;color:var(--muted);opacity:.62;user-select:none}
 pre.output{background:var(--output);border-left:4px solid #4d9b6a}
 pre.error{background:var(--error);border-left:4px solid #c94b4b;color:#b42323}
 @media (prefers-color-scheme:dark){pre.error{color:#ff9c9c}}
@@ -1534,7 +1567,56 @@ pre.scene-data{max-height:18rem;font-size:12px}
 .scene-polar-colorbar-label{fill:var(--muted);font:9px/1 system-ui,-apple-system,"Segoe UI",sans-serif}
 .scene-polar-colorbar-title{fill:var(--muted);font:10px/1 system-ui,-apple-system,"Segoe UI",sans-serif}
 @media (max-width:760px){.layout{display:block;padding-top:0}.toc{position:static;max-height:none;margin-bottom:1.4rem}h1{font-size:1.7rem}.search input[type=search]{flex-basis:100%}}
-@media print{:root{--bg:#fff;--fg:#000;--muted:#444;--card:#fff;--code:#f4f4f4;--output:#f4f4f4;--border:#ccc;--figure:#fff}.toc,.skip,.permalink,.search,.search-status{display:none!important}.layout{display:block;max-width:none;padding:0}.document-header{padding:0 0 1rem}.cell{box-shadow:none;break-inside:avoid;page-break-inside:avoid}a{color:#000;text-decoration:none}.scene details{display:none}}
+@media print{:root{--bg:#fff;--fg:#000;--muted:#444;--card:#fff;--code:#f4f4f4;--output:#f4f4f4;--border:#ccc;--figure:#fff}.toc,.skip,.permalink,.search,.search-status,.copy-code{display:none!important}.layout{display:block;max-width:none;padding:0}.document-header{padding:0 0 1rem}.cell{box-shadow:none;break-inside:avoid;page-break-inside:avoid}a{color:#000;text-decoration:none}.scene details{display:none}}
+]==]
+
+local HTML_CODE_SCRIPT = [==[
+(function(){
+  var buttons = document.querySelectorAll('.copy-code');
+  if (!buttons.length) return;
+  function textFor(block) {
+    var lines = block.querySelectorAll('code .code-line');
+    if (lines.length) {
+      var parts = [];
+      for (var index = 0; index < lines.length; index++) {
+        parts.push(lines[index].textContent);
+      }
+      return parts.join('\n');
+    }
+    var code = block.querySelector('code');
+    return code ? code.textContent : '';
+  }
+  function flash(button) {
+    var label = button.textContent;
+    button.textContent = 'Copied';
+    window.setTimeout(function(){ button.textContent = label; }, 1200);
+  }
+  function fallback(text, button) {
+    var area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.select();
+    try { document.execCommand('copy'); flash(button); } catch (error) {}
+    document.body.removeChild(area);
+  }
+  for (var index = 0; index < buttons.length; index++) {
+    buttons[index].addEventListener('click', function(){
+      var block = this.closest('.code-block');
+      if (!block) return;
+      var text = textFor(block);
+      var button = this;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function(){ flash(button); },
+          function(){ fallback(text, button); });
+      } else {
+        fallback(text, button);
+      }
+    });
+  }
+})();
 ]==]
 
 local HTML_SEARCH_SCRIPT = [==[
@@ -1756,8 +1838,7 @@ function Format.to_html(notebook, backlinks, options)
     if cell.kind == "markdown" then
       out[#out + 1] = markdown_html(cell.source, by_cell[index])
     else
-      out[#out + 1] = '<pre class="source"><code class="language-lua">' ..
-        escape_html(cell.source or "") .. "</code></pre>"
+      out[#out + 1] = code_block_html(cell.source or "", "lua")
       if cell.scene ~= nil then
         figure_number = figure_number + 1
         local figure = render_scene(cell.scene, figure_number)
@@ -1791,6 +1872,7 @@ function Format.to_html(notebook, backlinks, options)
   out[#out + 1] = '<footer class="footer">Static export from ' ..
     "lua-notebooks · " .. stats.cells .. " cells · " .. #headings ..
     " heading(s) · " .. stats.tags .. " tag(s)</footer>"
+  out[#out + 1] = "<script>" .. HTML_CODE_SCRIPT .. "</script>"
   out[#out + 1] = "<script>" .. HTML_SEARCH_SCRIPT .. "</script>"
   out[#out + 1] = "</body></html>"
   return table.concat(out, "\n")
