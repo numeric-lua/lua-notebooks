@@ -47,9 +47,9 @@ or with the settings button in the top bar.
 - polar `luaplotlib` line, scatter, bar, heatmap, and contour scenes on the
   shared circular frame: r rings, theta spokes, `theta_zero`/`theta_direction`,
   an explicit or observed `rmax`, clamped radii, short tick labels, wide or
-  negative-radius bar wedges, annular heatmap cells with the shared viridis
-  palette, a stepped vertical colourbar, and subdivided contour isolines with
-  optional level labels;
+  negative-radius bar wedges, annular heatmap blocks with the shared viridis
+  palette, bounded sampling for fields above 4096 cells, a stepped vertical
+  colourbar, and subdivided contour isolines with optional level labels;
 - `cube` and `grid` scene strings as local canvas drawings;
 - run all, kernel restart, auto-reconnect.
 
@@ -94,8 +94,11 @@ histogram extents in the data bounds, and its 800/400 sampling caps. Polar
 heatmaps, contours, and colourbars use the same `field_scene` fixture in
 `webapp/tests/fixtures/polar-parity.json`, so cell colours, projected cell
 radii, contour subdivision, labels, colourbar geometry, and compact tick text
-are pinned across the Lua and JavaScript implementations. Rendering stays
-Canvas 2D; the browser never needs a GPU or a LÖVR build.
+are pinned across the Lua and JavaScript implementations. The
+`large_field_scene` fixture pins the 4096-cell sampling cap, block spans, and
+first/last block geometry for a 65x65 field, and `large-polar-field` is part of
+the headless Chromium scene matrix. Rendering stays Canvas 2D; the browser
+never needs a GPU or a LÖVR build.
 
 ## Tested
 
@@ -117,7 +120,8 @@ Validated in Chromium against a local gateway:
 - `print(...); return 6*7` produced the captured output and `42`;
 - widgets created and a button click returned `pong`;
 - a `star_nest` shader widget rendered and animated in WebGL;
-- polar, Cartesian, histogram, categorical, cube, and grid canvases rendered;
+- polar, large sampled polar field, Cartesian, histogram, categorical, cube,
+  and grid canvases rendered;
 - no page exceptions.
 
 

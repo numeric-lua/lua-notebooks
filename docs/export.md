@@ -69,7 +69,7 @@ Scene outputs become `<figure class="scene" id="figure-N">` elements:
 | `luaplotlib` `hist` | SVG rectangles from edges/counts |
 | polar `line`/`scatter` | SVG polyline/circles on a circular frame |
 | polar `bar` | SVG wedge paths on the same frame |
-| polar `heatmap` | SVG annular/pie cells with the shared viridis-like palette |
+| polar `heatmap` | SVG annular/pie blocks, sampled to at most 4096 cells |
 | polar `contour` | subdivided SVG isolines with optional level labels |
 | polar colourbar | stepped vertical bar with compact tick labels and title |
 | `"cube"` | inline isometric cube glyph |
@@ -92,6 +92,16 @@ mapped through the same viridis-like anchors in the export, the live viewport,
 and the browser, and non-finite cells fall back to `vmin`. A heatmap that sets
 `colorbar = true` reserves a column outside the circular frame for a stepped
 vertical bar, its compact numeric ticks, and an optional rotated title.
+
+Fields with more than 4096 matrix cells are sampled into block cells by
+`notebook/polar.lua`. Each painted block covers the source rows and columns it
+replaces, so a sampled field still tiles the complete annulus instead of
+leaving gaps. `vmin` and `vmax` still describe the full matrix: an explicit
+range is used unchanged, and a missing range scans every source cell before
+sampling. The exported heatmap group records `data-rows`, `data-cols`,
+`data-row-step`, `data-col-step`, and `data-sampled`; sampled block cells add
+`data-row-span`/`data-col-span`. Captions keep counting source matrix values,
+not painted blocks.
 
 Polar contours consume the data-space `(theta, r)` segments emitted by
 luaplotlib. Each marching-squares edge is subdivided in angular and radial
@@ -116,8 +126,10 @@ The browser front-end described in [web.md](web.md) is the third consumer:
 rmax, projection, ring/theta labels, and bar sector for a small scene; the
 `field_scene` fixture pins heatmap cell colours and radii, contour subdivision
 and labels, colourbar geometry and compact tick text, and the field dimension
-reservation. A change to one renderer either updates the shared contract
-deliberately or fails a test.
+reservation. The `large_field_scene` fixture pins the 65x65 sampling strides,
+block spans, sampled cell count, first/last block geometry, and extents. A
+change to one renderer either updates the shared contract deliberately or
+fails a test.
 
 ## Markdown subset
 
@@ -167,17 +179,20 @@ The unit tests exercise heading anchors and duplicate slugs,
 table-of-contents links, search-index normalization and escaping, figure
 summaries/SVGs, polar axes and series, escaping, JSON truncation, tag filtering,
 and timing sums. `tests/polar.lua` additionally checks the shared projection,
-tick/label filters, bar sectors, heatmap-cell and contour geometry, colourbar
-layout, the live draw-call shape, agreement between the live renderer and the
-exported SVG, and the shared browser parity fixtures. `make test-webapp` checks
-the JavaScript counterpart and its draw calls.
+tick/label filters, bar sectors, heatmap-cell and contour geometry, large-field
+block sampling and export groups, colourbar layout, the live draw-call shape,
+agreement between the live renderer and the exported SVG, and the shared
+browser parity fixtures. `make test-webapp` checks
+the JavaScript counterpart and its draw calls, including the same 4096-cell
+sampling contract.
 `scripts/export-qa.sh` builds a small notebook, exports it with
 `tools/export.lua`, checks `?q=` and `?kind=` filtering through headless
 Chromium, and captures light, dark, narrow, and filtered screenshots under a
 scratch directory; it never commits them. `polar-qa.sh` runs a one-cell polar
-notebook in the app and keeps a live screenshot under another scratch
-directory, while `scene-qa.sh` renders the browser scene matrix in Chromium and
-checks Canvas pixels.
+notebook with a 96x96 sampled field in the app, checks that the live and
+exported block counts agree, and keeps a live screenshot under another scratch
+directory, while `scene-qa.sh` renders the browser scene matrix (including
+`large-polar-field`) in Chromium and checks Canvas pixels.
 
 For a rendered check from the app, export the demo notebook and open the
 result:

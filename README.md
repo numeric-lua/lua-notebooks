@@ -18,8 +18,9 @@ Working in this milestone:
 - a **3D cube output** rendered by the host, never by the kernel
 - a **luaplotlib scene renderer**: Cartesian line/scatter/bar/hist and polar
   line/scatter/bar, heatmap, and contour scenes, axes, rings/spokes, grid,
-  title, labels, polar colourbars, and category ticks, with polar geometry
-  shared by the live and exported views
+  title, labels, polar colourbars, category ticks, and bounded block sampling
+  for large polar fields, with polar geometry shared by the live and exported
+  views
 - a **render-target extension platform**: manifest validation, filesystem
   discovery, local pointer/key routing, F8 reload, a filesystem watcher, and
   two built-in extensions (`cube`, `grid`)
@@ -99,11 +100,14 @@ It connects to the same gateway over a native WebSocket and renders the
 notebook shell, widgets, and `luaplotlib`/scene outputs locally: Cartesian
 line/scatter/bar/hist with categorical ticks and explicit bar widths, polar
 line/scatter/bar, heatmap, and contour scenes with an optional colourbar on the
-shared circular frame, and the built-in `cube`/`grid` strings.
+shared circular frame, and the built-in `cube`/`grid` strings. Heatmap fields
+larger than 4096 matrix cells are sampled into covering blocks before painting,
+so the live frame, the SVG export, and the Canvas renderer stay bounded without
+leaving gaps in the annulus.
 `webapp/js/polar.js` mirrors `notebook/polar.lua`, and shared fixtures are
 checked by both `tests/polar.lua` and the Node suite so the browser, desktop,
 and export keep the same rmax, tick, label, projection, sampling, bar-wedge,
-heatmap-cell, contour, and colourbar behavior. See [webapp/README.md](webapp/README.md). This path is
+heatmap-cell, contour, colourbar, and large-field behavior. See [webapp/README.md](webapp/README.md). This path is
 independent of the broken LÖVR 0.19 web runtime.
 
 See [docs/web.md](docs/web.md) for the LÖVR build steps and constraints.
@@ -375,12 +379,12 @@ and LÖVR.
 reads it back from the GPU, and compares 50%-scale PNGs for cells 4, 6, and 7.
 It is display-dependent and not part of `make test`.
 
-`polar-qa.sh` builds a one-cell notebook with polar series, a heatmap, contour
-isolines, and a colourbar, runs it in the app, and writes `polar-live.png` under
-a scratch directory (default `/tmp/luanb-polar-qa.*`). It checks that the
-offscreen capture is non-blank and is useful for reviewing the live circular
-frame, ticks, bar wedges, field cells, and colourbar without committing
-generated media.
+`polar-qa.sh` builds a one-cell notebook with polar series, a 96x96 sampled
+heatmap, contour isolines, and a colourbar, checks the live/export block count,
+runs it in the app, and writes `polar-live.png` under a scratch directory
+(default `/tmp/luanb-polar-qa.*`). It checks that the offscreen capture is
+non-blank and is useful for reviewing the live circular frame, ticks, bar
+wedges, field cells, and colourbar without committing generated media.
 
 `scene-qa.sh` (also `make qa-webapp`) serves `webapp/` with the bundled Lua
 server, renders the browser fixture matrix in headless Chromium, and reads back
@@ -393,7 +397,7 @@ compositor and window stacking.
 ## LuaRocks
 
 ```sh
-luarocks make lua-notebooks-1.47.0-1.rockspec
+luarocks make lua-notebooks-1.48.0-1.rockspec
 lua-notebooks
 ```
 
@@ -402,7 +406,7 @@ The rockspec installs the app source under the LuaRocks share tree and a
 
 ```sh
 make rock
-luarocks install lua-notebooks-1.47.0-1.src.rock
+luarocks install lua-notebooks-1.48.0-1.src.rock
 ```
 
 Publishing to a remote rock server is intentionally not automated.

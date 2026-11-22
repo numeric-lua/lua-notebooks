@@ -105,8 +105,12 @@ pass.
 Polar geometry lives in the dependency-free `notebook/polar.lua` module. The
 live viewport and the static HTML export share its rmax resolution, y-down
 projection, tick fallbacks, sample caps, label limits, bar-wedge splitting,
-viridis-like heatmap palette, annular-cell construction, contour subdivision
-and label placement, colourbar layout, and compact tick text.
+viridis-like heatmap palette, annular-cell construction, large-field block
+sampling, contour subdivision and label placement, colourbar layout, and
+compact tick text. Heatmap fields above `HEATMAP_CELL_LIMIT` (4096) are
+downsampled into blocks that cover the source rows and columns they replace, so
+the live frame, SVG export, and browser paint a bounded number of cells while
+still covering the whole annulus.
 `webapp/js/polar.js` is the JavaScript counterpart for the browser front-end,
 and `webapp/tests/fixtures/polar-parity.json` is read by both `tests/polar.lua`
 and the Node suite. That keeps the three renderers close without giving the

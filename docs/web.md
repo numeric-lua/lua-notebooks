@@ -33,8 +33,10 @@ heatmap, and contour scenes use `webapp/js/polar.js`, a dependency-free
 JavaScript counterpart of `notebook/polar.lua`; both sides read the shared
 `webapp/tests/fixtures/polar-parity.json` fixtures so rmax, projection, ticks,
 labels, bar wedges, heatmap cells, contour subdivision, and colourbar geometry
-stay aligned with the desktop viewport and HTML export. The built-in `cube` and
-`grid` strings still draw locally.
+stay aligned with the desktop viewport and HTML export. Heatmap fields above
+4096 matrix cells are sampled into covering blocks with the same strides in
+all three renderers; explicit `vmin`/`vmax` still describe the full field. The
+built-in `cube` and `grid` strings still draw locally.
 
 ## Build LÖVR for the web
 
