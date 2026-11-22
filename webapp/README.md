@@ -44,10 +44,12 @@ or with the settings button in the top bar.
 - `luaplotlib` Cartesian line, scatter, bar, and histogram scenes with axes,
   grid, titles/labels, categorical ticks, explicit bar widths, and the same
   800/400-point line/scatter sampling caps as the static export;
-- polar `luaplotlib` line, scatter, and bar scenes on the shared circular
-  frame: r rings, theta spokes, `theta_zero`/`theta_direction`, an explicit or
-  observed `rmax`, clamped radii, short tick labels, and wide or
-  negative-radius bar wedges;
+- polar `luaplotlib` line, scatter, bar, heatmap, and contour scenes on the
+  shared circular frame: r rings, theta spokes, `theta_zero`/`theta_direction`,
+  an explicit or observed `rmax`, clamped radii, short tick labels, wide or
+  negative-radius bar wedges, annular heatmap cells with the shared viridis
+  palette, a stepped vertical colourbar, and subdivided contour isolines with
+  optional level labels;
 - `cube` and `grid` scene strings as local canvas drawings;
 - run all, kernel restart, auto-reconnect.
 
@@ -88,8 +90,12 @@ point-radius clamps, and bar sectors. The fixture at
 suite.
 
 Cartesian scenes also use the export's palette, explicit bar widths, bar and
-histogram extents in the data bounds, and its 800/400 sampling caps. Rendering
-stays Canvas 2D; the browser never needs a GPU or a LÖVR build.
+histogram extents in the data bounds, and its 800/400 sampling caps. Polar
+heatmaps, contours, and colourbars use the same `field_scene` fixture in
+`webapp/tests/fixtures/polar-parity.json`, so cell colours, projected cell
+radii, contour subdivision, labels, colourbar geometry, and compact tick text
+are pinned across the Lua and JavaScript implementations. Rendering stays
+Canvas 2D; the browser never needs a GPU or a LÖVR build.
 
 ## Tested
 

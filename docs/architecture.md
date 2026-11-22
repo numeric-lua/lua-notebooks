@@ -94,14 +94,19 @@ that IR, not SVG strings:
 ```
 
 The notebook's `ui/plot.lua` implements the 2D Cartesian
-line/scatter/bar/hist part of this IR and the polar line/scatter/bar part
-(`orientation = "polar"`, data under `polar.series`). It maps data coordinates
-into the cell viewport, draws axes or a circular frame with rings/spokes,
-draws ticks, and renders through the host pass.
+line/scatter/bar/hist part of this IR and the polar line/scatter/bar,
+heatmap, and contour parts (`orientation = "polar"`, data under
+`polar.series`, `polar.heatmaps`, `polar.contours`, and `polar.colorbar`). It
+maps data coordinates into the cell viewport, draws axes or a circular frame
+with rings/spokes, paints field cells and isolines beneath the series, draws a
+stepped colourbar when the scene requests one, and renders through the host
+pass.
 
 Polar geometry lives in the dependency-free `notebook/polar.lua` module. The
 live viewport and the static HTML export share its rmax resolution, y-down
-projection, tick fallbacks, sample caps, label limits, and bar-wedge splitting.
+projection, tick fallbacks, sample caps, label limits, bar-wedge splitting,
+viridis-like heatmap palette, annular-cell construction, contour subdivision
+and label placement, colourbar layout, and compact tick text.
 `webapp/js/polar.js` is the JavaScript counterpart for the browser front-end,
 and `webapp/tests/fixtures/polar-parity.json` is read by both `tests/polar.lua`
 and the Node suite. That keeps the three renderers close without giving the

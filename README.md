@@ -17,8 +17,9 @@ Working in this milestone:
 - cell execution with captured `print`/`io.write`, errors, and return values
 - a **3D cube output** rendered by the host, never by the kernel
 - a **luaplotlib scene renderer**: Cartesian line/scatter/bar/hist and polar
-  line/scatter/bar scenes, axes, rings/spokes, grid, title, labels, and
-  category ticks, with polar geometry shared by the live and exported views
+  line/scatter/bar, heatmap, and contour scenes, axes, rings/spokes, grid,
+  title, labels, polar colourbars, and category ticks, with polar geometry
+  shared by the live and exported views
 - a **render-target extension platform**: manifest validation, filesystem
   discovery, local pointer/key routing, F8 reload, a filesystem watcher, and
   two built-in extensions (`cube`, `grid`)
@@ -97,11 +98,12 @@ luajit webapp/serve.lua --port 8010
 It connects to the same gateway over a native WebSocket and renders the
 notebook shell, widgets, and `luaplotlib`/scene outputs locally: Cartesian
 line/scatter/bar/hist with categorical ticks and explicit bar widths, polar
-line/scatter/bar on the shared circular frame, and the built-in `cube`/`grid`
-strings. `webapp/js/polar.js` mirrors `notebook/polar.lua`, and a shared
-fixture is checked by both `tests/polar.lua` and the Node suite so the browser,
-desktop, and export keep the same rmax, tick, label, projection, sampling, and
-bar-wedge behavior. See [webapp/README.md](webapp/README.md). This path is
+line/scatter/bar, heatmap, and contour scenes with an optional colourbar on the
+shared circular frame, and the built-in `cube`/`grid` strings.
+`webapp/js/polar.js` mirrors `notebook/polar.lua`, and shared fixtures are
+checked by both `tests/polar.lua` and the Node suite so the browser, desktop,
+and export keep the same rmax, tick, label, projection, sampling, bar-wedge,
+heatmap-cell, contour, and colourbar behavior. See [webapp/README.md](webapp/README.md). This path is
 independent of the broken LÖVR 0.19 web runtime.
 
 See [docs/web.md](docs/web.md) for the LÖVR build steps and constraints.
@@ -350,8 +352,8 @@ remaining gaps.
 ## Tests
 
 `make test` runs the pure model, widget, engine, remote-supervisor,
-process-kernel, sandbox, editor, polar/export parity, and Neovim-buffer
-plan/apply suite on LuaJIT. `make test-lua51 LUA=lua5.1` runs the Lua
+process-kernel, sandbox, editor, polar/heatmap/contour/colourbar export parity,
+and Neovim-buffer plan/apply suite on LuaJIT. `make test-lua51 LUA=lua5.1` runs the Lua
 5.1-compatible subset, including `tests/polar.lua`. `make test-remote` starts
 the WebSocket gateway and executes a cell with a real client. `make test-webapp`
 runs the Node unit tests for the browser scene renderer and its notebook model;
@@ -373,11 +375,12 @@ and LÖVR.
 reads it back from the GPU, and compares 50%-scale PNGs for cells 4, 6, and 7.
 It is display-dependent and not part of `make test`.
 
-`polar-qa.sh` builds a one-cell notebook, runs it in the app, and writes
-`polar-live.png` under a scratch directory (default
-`/tmp/luanb-polar-qa.*`). It checks that the offscreen capture is non-blank and
-is useful for reviewing the live circular frame, ticks, and bar wedges without
-committing generated media.
+`polar-qa.sh` builds a one-cell notebook with polar series, a heatmap, contour
+isolines, and a colourbar, runs it in the app, and writes `polar-live.png` under
+a scratch directory (default `/tmp/luanb-polar-qa.*`). It checks that the
+offscreen capture is non-blank and is useful for reviewing the live circular
+frame, ticks, bar wedges, field cells, and colourbar without committing
+generated media.
 
 `scene-qa.sh` (also `make qa-webapp`) serves `webapp/` with the bundled Lua
 server, renders the browser fixture matrix in headless Chromium, and reads back
@@ -390,7 +393,7 @@ compositor and window stacking.
 ## LuaRocks
 
 ```sh
-luarocks make lua-notebooks-1.46.0-1.rockspec
+luarocks make lua-notebooks-1.47.0-1.rockspec
 lua-notebooks
 ```
 
@@ -399,7 +402,7 @@ The rockspec installs the app source under the LuaRocks share tree and a
 
 ```sh
 make rock
-luarocks install lua-notebooks-1.46.0-1.src.rock
+luarocks install lua-notebooks-1.47.0-1.src.rock
 ```
 
 Publishing to a remote rock server is intentionally not automated.

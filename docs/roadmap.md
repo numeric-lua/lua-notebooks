@@ -6,10 +6,11 @@
 - LuaJIT thread kernels and an experimental POSIX process-kernel backend.
 - Process CPU/memory limits and timeout recovery.
 - luaplotlib scene rendering, including live Cartesian and polar
-  line/scatter/bar/hist scenes with shared export geometry.
+  line/scatter/bar/hist scenes, polar heatmaps with colourbars, and polar
+  contour isolines with shared export geometry.
 - Browser front-end with local Canvas rendering for Cartesian
-  line/scatter/bar/hist and polar line/scatter/bar scenes, a shared polar parity
-  fixture, and a headless Chromium pixel check.
+  line/scatter/bar/hist and polar line/scatter/bar/heatmap/contour scenes,
+  shared polar parity fixtures, and a headless Chromium pixel check.
 - Extension manifests, discovery, hot reload, browser, local user extensions,
   and a restricted Lua environment.
 - Kernel widgets, editable multiline text, callbacks, persistence, and live
@@ -53,5 +54,5 @@ make test-webapp           # Node scene/model tests, no packages
 ./scripts/input-smoke.sh   # needs a seat and /dev/uinput
 ./scripts/visual-smoke.sh  # needs a display
 ./scripts/scene-qa.sh      # needs chromium
-luarocks make lua-notebooks-1.46.0-1.rockspec --tree=/tmp/luanb-rocks
+luarocks make lua-notebooks-1.47.0-1.rockspec --tree=/tmp/luanb-rocks
 ```

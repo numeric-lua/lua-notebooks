@@ -28,12 +28,13 @@ graphics fix and for the validated transport bridge.
 
 The front-end renders scene outputs itself on Canvas 2D. Cartesian
 line/scatter/bar/hist scenes honour x/y limits, categorical ticks, explicit bar
-widths, and the export's 800/400-point sampling caps. Polar line/scatter/bar
-scenes use `webapp/js/polar.js`, a dependency-free JavaScript counterpart of
-`notebook/polar.lua`; both sides read the shared
-`webapp/tests/fixtures/polar-parity.json` fixture so rmax, projection, ticks,
-labels, and bar wedges stay aligned with the desktop viewport and HTML export.
-The built-in `cube` and `grid` strings still draw locally.
+widths, and the export's 800/400-point sampling caps. Polar line/scatter/bar,
+heatmap, and contour scenes use `webapp/js/polar.js`, a dependency-free
+JavaScript counterpart of `notebook/polar.lua`; both sides read the shared
+`webapp/tests/fixtures/polar-parity.json` fixtures so rmax, projection, ticks,
+labels, bar wedges, heatmap cells, contour subdivision, and colourbar geometry
+stay aligned with the desktop viewport and HTML export. The built-in `cube` and
+`grid` strings still draw locally.
 
 ## Build LÖVR for the web
 

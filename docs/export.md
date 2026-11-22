@@ -69,6 +69,9 @@ Scene outputs become `<figure class="scene" id="figure-N">` elements:
 | `luaplotlib` `hist` | SVG rectangles from edges/counts |
 | polar `line`/`scatter` | SVG polyline/circles on a circular frame |
 | polar `bar` | SVG wedge paths on the same frame |
+| polar `heatmap` | SVG annular/pie cells with the shared viridis-like palette |
+| polar `contour` | subdivided SVG isolines with optional level labels |
+| polar colourbar | stepped vertical bar with compact tick labels and title |
 | `"cube"` | inline isometric cube glyph |
 | `"grid"` | inline perspective grid glyph |
 | other table/extension scene | generic framed glyph |
@@ -80,6 +83,21 @@ Polar scenes use the luaplotlib IR shape
 rings and twelve spokes; a missing `rmax` uses the largest absolute radius in
 the data. Out-of-range radii clamp to the frame so the preview never overflows.
 Tick labels are escaped and long labels are omitted rather than clipped.
+
+Polar heatmaps map matrix rows from `rmin` to `rmax` and columns across
+`theta_min` to `theta_max`. Each cell becomes an annular sector (or a pie
+sector when `rmin` is zero); a full-turn ring is split into convex wedges so
+the same geometry works in SVG and in LÖVR's polygon path. Matrix values are
+mapped through the same viridis-like anchors in the export, the live viewport,
+and the browser, and non-finite cells fall back to `vmin`. A heatmap that sets
+`colorbar = true` reserves a column outside the circular frame for a stepped
+vertical bar, its compact numeric ticks, and an optional rotated title.
+
+Polar contours consume the data-space `(theta, r)` segments emitted by
+luaplotlib. Each marching-squares edge is subdivided in angular and radial
+space before projection, so long isolines read as spirals rather than chords.
+`labels = true` places at most one compact level label per contour level on the
+segment farthest from the origin and clamps it inside the frame.
 
 The live viewport consumes the same IR. `notebook/polar.lua` is the shared,
 LÖVR-free geometry module behind both renderers: it resolves rmax, projects
@@ -94,9 +112,12 @@ in the export; they are listed as static placeholders.
 The browser front-end described in [web.md](web.md) is the third consumer:
 `webapp/js/polar.js` mirrors `notebook/polar.lua`, and both
 `tests/polar.lua` and the Node suite read
-`webapp/tests/fixtures/polar-parity.json`. That fixture pins the resolved rmax,
-projection, ring/theta labels, and bar sector for a small scene, so a change to
-one renderer either updates the shared contract deliberately or fails a test.
+`webapp/tests/fixtures/polar-parity.json`. The base fixture pins the resolved
+rmax, projection, ring/theta labels, and bar sector for a small scene; the
+`field_scene` fixture pins heatmap cell colours and radii, contour subdivision
+and labels, colourbar geometry and compact tick text, and the field dimension
+reservation. A change to one renderer either updates the shared contract
+deliberately or fails a test.
 
 ## Markdown subset
 
@@ -146,9 +167,10 @@ The unit tests exercise heading anchors and duplicate slugs,
 table-of-contents links, search-index normalization and escaping, figure
 summaries/SVGs, polar axes and series, escaping, JSON truncation, tag filtering,
 and timing sums. `tests/polar.lua` additionally checks the shared projection,
-tick/label filters, bar sectors, the live draw-call shape, agreement between
-the live renderer and the exported SVG, and the shared browser parity fixture.
-`make test-webapp` checks the JavaScript counterpart and its draw calls.
+tick/label filters, bar sectors, heatmap-cell and contour geometry, colourbar
+layout, the live draw-call shape, agreement between the live renderer and the
+exported SVG, and the shared browser parity fixtures. `make test-webapp` checks
+the JavaScript counterpart and its draw calls.
 `scripts/export-qa.sh` builds a small notebook, exports it with
 `tools/export.lua`, checks `?q=` and `?kind=` filtering through headless
 Chromium, and captures light, dark, narrow, and filtered screenshots under a
