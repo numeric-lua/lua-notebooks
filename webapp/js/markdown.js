@@ -45,10 +45,17 @@ export function renderMarkdown(source) {
     }
   };
   const flushList = () => {
-    if (list) {
+    if (!list) return;
+    if (list.type === "task") {
+      const items = list.items.map((item) =>
+        `<li class="task-list-item${item.checked ? " done" : ""}">` +
+        `<input type="checkbox" disabled${item.checked ? " checked" : ""}> ` +
+        `${inline(item.text)}</li>`).join("");
+      out.push(`<ul class="task-list">${items}</ul>`);
+    } else {
       out.push(`<${list.type}>${list.items.map((item) => `<li>${inline(item)}</li>`).join("")}</${list.type}>`);
-      list = null;
     }
+    list = null;
   };
   const flushQuote = () => {
     if (quote.length) {
@@ -101,6 +108,14 @@ export function renderMarkdown(source) {
     if (/^\s*([-*_])\s*\1\s*\1[\s\-*_]*$/.test(raw)) {
       flushAll();
       out.push("<hr>");
+      continue;
+    }
+    const task = raw.match(/^\s*[-*+]\s+\[([ xX])\]\s+(.*)$/);
+    if (task) {
+      flushParagraph();
+      flushQuote();
+      if (!list || list.type !== "task") { flushList(); list = { type: "task", items: [] }; }
+      list.items.push({ checked: task[1].toLowerCase() === "x", text: task[2] });
       continue;
     }
     const bullet = raw.match(/^\s*[-*+]\s+(.*)$/);

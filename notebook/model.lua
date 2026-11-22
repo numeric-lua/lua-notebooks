@@ -970,6 +970,7 @@ return { scene = {
     },
   },
 } }]]),
+      cell("markdown", "# Markdown checklist\n\n- [x] render inline math and **emphasis**\n- [x] preview links such as [[Second kernel]]\n- [ ] add `docs` for your own notebook\n\nChecklists preview as boxes and export as disabled HTML checkboxes."),
     },
   })
   local second = Notebook.new({

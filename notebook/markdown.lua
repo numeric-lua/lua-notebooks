@@ -6,7 +6,12 @@ local Markdown = {}
 
 function Markdown.preview(line)
   line = line:gsub("^%s*#+%s*", "")
-  line = line:gsub("^%s*[-*+]%s+", "• ")
+  local checked, task = line:match("^%s*[-*+]%s+%[([ xX])%]%s+(.*)$")
+  if checked ~= nil then
+    line = (checked:lower() == "x" and "☑ " or "☐ ") .. task
+  else
+    line = line:gsub("^%s*[-*+]%s+", "• ")
+  end
   line = line:gsub("%*%*(.-)%*%*", "%1")
   line = line:gsub("__(.-)__", "%1")
   line = line:gsub("%*(.-)%*", "%1")

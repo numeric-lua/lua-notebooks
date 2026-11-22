@@ -190,8 +190,10 @@ The export renders the Markdown subset the notebook previews and edits:
 ATX headings, fenced code blocks, unordered and ordered lists, blockquotes,
 bold, inline code, `[label](url)` links (only `http`, `https`, `mailto`, and
 relative links are emitted; `javascript:`/`data:` links degrade to text), and
-wiki links as styled text with a `data-target` attribute. Raw HTML in Markdown
-is escaped.
+wiki links as styled text with a `data-target` attribute. Checklist items
+(`- [x]`/`- [ ]`) become `<ul class="task-list">` entries with disabled
+checkboxes and a `done` class on completed items; they are read-only in the
+static export. Raw HTML in Markdown is escaped.
 
 ## Determinism
 

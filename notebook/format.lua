@@ -410,7 +410,11 @@ local function markdown_html(source, headings)
   end
 
   local function flush_list()
-    if list_kind ~= nil then
+    if list_kind == "task" then
+      out[#out + 1] = '<ul class="task-list">' ..
+        table.concat(list_items) .. "</ul>"
+      list_kind, list_items = nil, {}
+    elseif list_kind ~= nil then
       out[#out + 1] = "<" .. list_kind .. ">" ..
         table.concat(list_items) .. "</" .. list_kind .. ">"
       list_kind, list_items = nil, {}
@@ -451,6 +455,16 @@ local function markdown_html(source, headings)
         local id = heading and (' id="' .. escape_html(heading.id) .. '"') or ""
         out[#out + 1] = "<h" .. #hashes .. id .. ">" ..
           inline_markdown(raw:gsub("%s+#+%s*$", "")) .. "</h" .. #hashes .. ">"
+      elseif line:match("^%s*[-*+]%s+%[[ xX]%]%s+") then
+        local checked, task = line:match("^%s*[-*+]%s+%[([ xX])%]%s+(.*)$")
+        local done = checked:lower() == "x"
+        flush_paragraph()
+        if list_kind ~= "task" then flush_list(); list_kind = "task" end
+        list_items[#list_items + 1] = '<li class="task-list-item' ..
+          (done and " done" or "") .. '">' ..
+          '<input type="checkbox" disabled' ..
+          (done and " checked" or "") .. "> " ..
+          inline_markdown(task) .. "</li>"
       elseif line:match("^%s*[-*+]%s+") then
         flush_paragraph()
         if list_kind ~= "ul" then flush_list(); list_kind = "ul" end
@@ -1478,6 +1492,10 @@ pre.error{background:var(--error);border-left:4px solid #c94b4b;color:#b42323}
 .cell h2{font-size:1.3rem}
 .cell h3{font-size:1.12rem}
 .cell ul,.cell ol{margin:.5rem 0 .8rem;padding-left:1.4rem}
+.task-list{list-style:none;padding-left:.2rem}
+.task-list-item{display:flex;gap:.5rem;align-items:baseline}
+.task-list-item input{margin:0;accent-color:var(--accent)}
+.task-list-item.done{color:var(--muted)}
 .scene{margin:1rem 0 0;padding:0}
 .scene-svg{display:block;width:100%;height:auto;border:1px solid var(--border);border-radius:10px;background:var(--figure)}
 .scene figcaption{color:var(--muted);font-size:.86rem;padding:.55rem .15rem 0;display:flex;flex-wrap:wrap;gap:.35rem .6rem;align-items:baseline}

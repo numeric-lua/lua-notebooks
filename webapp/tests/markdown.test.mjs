@@ -31,3 +31,11 @@ test("renders lists and blockquotes", () => {
   assert.match(html, /<ul><li>one<\/li><li>two<\/li><\/ul>/);
   assert.match(html, /<blockquote><p>quoted<\/p><\/blockquote>/);
 });
+
+test("renders Markdown task lists as disabled checkboxes", () => {
+  const html = renderMarkdown("- [x] done **now**\n- [ ] later");
+  assert.match(html, /<ul class="task-list">/);
+  assert.match(html, /<li class="task-list-item done"><input type="checkbox" disabled checked> done <strong>now<\/strong><\/li>/);
+  assert.match(html, /<li class="task-list-item"><input type="checkbox" disabled> later<\/li>/);
+  assert.doesNotMatch(html, /<input type="checkbox" disabled checked> later/);
+});

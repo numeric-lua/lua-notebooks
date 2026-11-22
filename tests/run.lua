@@ -81,7 +81,7 @@ current = "model"
 test("demo has two notebooks and a live polar cell", function()
   local notebooks = Notebook.demo()
   eq(#notebooks, 2)
-  eq(#notebooks[1].cells, 17)
+  eq(#notebooks[1].cells, 18)
   local polar, field, large, quiver, stream
   for _, cell in ipairs(notebooks[1].cells) do
     if cell.source:find('orientation = "polar"', 1, true) then
@@ -580,6 +580,25 @@ test("escapes search attributes and flags figure cells", function()
     'data-search="print(&quot;a &amp; b &lt;tag&gt;&quot;)', 1, true))
   assert(html:find('data-has-scene="true"', 1, true))
   assert(html:find("extension scene · cube", 1, true))
+end)
+
+current = "html task lists"
+test("renders Markdown checklists as disabled task items", function()
+  local notebook = Notebook.new({ name = "tasks.luanb", cells = {
+    { kind = "markdown", source = table.concat({
+      "## Checklist",
+      "",
+      "- [x] shipped **export**",
+      "- [ ] write `docs`",
+      "- plain item",
+    }, "\n") },
+  } })
+  local html = Format.to_html(notebook)
+  assert(html:find('<ul class="task-list">', 1, true))
+  assert(html:find('<li class="task-list-item done"><input type="checkbox" disabled checked> shipped <strong>export</strong></li>', 1, true))
+  assert(html:find('<li class="task-list-item"><input type="checkbox" disabled> write <code>docs</code></li>', 1, true))
+  assert(html:find('<li>plain item</li>', 1, true))
+  eq(select(2, html:gsub('class="task%-list%-item', "")), 2)
 end)
 
 current = "html figures"

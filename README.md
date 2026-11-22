@@ -272,7 +272,10 @@ movement, and Vim operations share the code-cell editing path.
 
 Markdown cells show formatted text when unfocused: heading markers, emphasis,
 inline code, links, and list markers are removed for display. Selecting the cell
-returns to editable source. Display math renders in both states.
+returns to editable source. Display math renders in both states. Checklist
+items (`- [x] done`, `- [ ] todo`) preview as `☑`/`☐` boxes and export as
+disabled HTML checkboxes in the desktop preview, static HTML, and browser
+front-end.
 
 ## Notebook title
 
