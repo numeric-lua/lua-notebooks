@@ -1,3 +1,34 @@
+# lua-notebooks 1.50.0
+
+- render luaplotlib polar streamplot scenes in the live viewport, the static
+  HTML export, and the browser front end, projecting the integrated
+  `(theta, r)` polylines and rebuilding the mid-line arrow heads from the
+  exported screen-space angle;
+- collect the streamplot IR in `notebook/polar.lua` with grid dimensions,
+  resolved and automatic `step` metadata, `density`, `max_steps`/`max_lines`/
+  `max_points`, `periodic`, `truncated`, `arrows`, `head`, `linewidth`, alpha,
+  and polyline/arrow counters, filtering malformed points and lines
+  consistently across renderers;
+- export `scene-polar-streamplot` groups with grid, step, cap, periodicity, and
+  arrow data attributes, plus `scene-polar-streamline` groups carrying
+  `scene-polar-streamline-path` polylines and `scene-polar-stream-arrow`
+  polygons in series order; captions count integrated polyline points rather
+  than value-grid cells;
+- add the `streamplot_scene` cross-renderer fixture read by `tests/polar.lua`
+  and the Node suite, a `polar-streamplot` case in the headless Chromium scene
+  matrix, and streamline/path count checks in the live `polar-qa.sh` and static
+  `export-qa.sh` paths;
+- add polar streamplot demo cells to the desktop and browser welcome notebooks
+  after the existing cells, leaving the visual-baseline cells 4/6/7 unchanged;
+- document the streamplot IR, export attributes, Canvas clipping, step and
+  periodicity metadata, parity fixture, and QA coverage in the README,
+  `docs/export.md`, `docs/web.md`, `docs/architecture.md`, `docs/roadmap.md`,
+  and `webapp/README.md`.
+
+No new runtime dependencies. The Neovim path and committed visual pixel
+baselines are unchanged. No tag or package publish is part of this release
+preparation.
+
 # lua-notebooks 1.49.0
 
 - render luaplotlib polar quiver scenes in the live viewport, the static HTML
