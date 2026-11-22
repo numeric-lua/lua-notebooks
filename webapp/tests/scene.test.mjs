@@ -15,6 +15,7 @@ function fakeCanvas(width = 600, height = 230) {
     setTransform: record("setTransform"), clearRect: record("clearRect"),
     beginPath: record("beginPath"), closePath: record("closePath"),
     moveTo: record("moveTo"), lineTo: record("lineTo"), arc: record("arc"),
+    clip: record("clip"),
     fill: record("fill"), stroke: record("stroke"), fillRect: record("fillRect"),
     fillText: record("fillText"), translate: record("translate"),
     rotate: record("rotate"), setLineDash: record("setLineDash"),
@@ -249,5 +250,31 @@ test("splits a full-turn annular heatmap into convex parts", () => {
   paintScene(canvas, scene);
   const fills = named(calls, "fill");
   assert.ok(fills.length >= 48, `expected 48 wedges, got ${fills.length}`);
+  assertFiniteCalls(calls);
+});
+
+test("draws polar quiver shafts and heads inside the circle", () => {
+  const scene = {
+    type: "luaplotlib", orientation: "polar", grid: false,
+    polar: {
+      rmax: 6,
+      series: [{
+        kind: "quiver",
+        theta: [0, Math.PI / 2], r: [3, 3],
+        u: [1, 1], v: [0, 0], scale: 20, pivot: "tail",
+        style: { color: "#1f77b4", linewidth: 1.2, head: 5 },
+      }],
+    },
+  };
+  const { canvas, calls } = fakeCanvas(600, 230);
+  paintScene(canvas, scene);
+  assert.equal(named(calls, "clip").length, 1);
+  assert.equal(named(calls, "stroke").length, 3); // frame plus two shafts
+  assert.equal(named(calls, "fill").length, 2); // two arrow heads
+  const moves = named(calls, "moveTo");
+  assert.ok(moves.some((call) => Math.abs(call.args[0] - 336.5) < 1e-9
+    && Math.abs(call.args[1] - 117) < 1e-9), "missing first shaft tail");
+  assert.ok(moves.some((call) => Math.abs(call.args[0] - 300) < 1e-9
+    && Math.abs(call.args[1] - 80.5) < 1e-9), "missing second shaft tail");
   assertFiniteCalls(calls);
 });

@@ -3,8 +3,8 @@ import {
   SCATTER_SAMPLE_LIMIT, barSectors, colorbarLayout, colorbarSteps,
   colorbarTicks, contourLabel, contourSegmentPoints, finiteNumber,
   frameLayout, heatmapCells, pointRadius, polarRings, polarSpokes,
-  projectPolar, radiusLabel, resolvePolar, ringLabelPosition, sampleStep,
-  thetaLabel, thetaLabelPosition, validColor,
+  projectPolar, quiverArrows, radiusLabel, resolvePolar, ringLabelPosition,
+  sampleStep, thetaLabel, thetaLabelPosition, validColor,
 } from "./polar.js";
 
 const scenes = new WeakMap();
@@ -473,6 +473,35 @@ function drawPolar(canvas, scene, ctx) {
             ctx.arc(cx, cy, sector.radius, -sector.startAngle,
               -sector.endAngle, anticlockwise);
           }
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+    } else if (series.arrows) {
+      const arrows = quiverArrows(series, cx, cy, radius, rmax, thetaZero,
+        direction);
+      if (arrows.length) {
+        // luaplotlib clips arrow glyphs to the polar circle; Canvas gets the
+        // same boundary without clipping the other series.
+        ctx.beginPath();
+        ctx.arc(cx, cy, radius, 0, TAU);
+        ctx.clip();
+      }
+      ctx.strokeStyle = series.color;
+      ctx.fillStyle = series.color;
+      ctx.lineWidth = Math.max(0.1, series.linewidth);
+      for (const arrow of arrows) {
+        if (arrow.shaft) {
+          ctx.beginPath();
+          ctx.moveTo(arrow.tailX, arrow.tailY);
+          ctx.lineTo(arrow.neckX, arrow.neckY);
+          ctx.stroke();
+        }
+        if (arrow.headed) {
+          ctx.beginPath();
+          ctx.moveTo(arrow.headX1, arrow.headY1);
+          ctx.lineTo(arrow.headX2, arrow.headY2);
+          ctx.lineTo(arrow.headX3, arrow.headY3);
           ctx.closePath();
           ctx.fill();
         }

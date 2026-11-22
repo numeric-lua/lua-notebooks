@@ -3,13 +3,15 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   BAR_SAMPLE_LIMIT, COLORBAR_STEPS, DEFAULT_POINT_RADIUS, FULL_TURN_PARTS,
-  HEATMAP_CELL_LIMIT, LINE_SAMPLE_LIMIT, PALETTE, RADIUS_LABEL_LIMIT,
+  HEATMAP_CELL_LIMIT, LINE_SAMPLE_LIMIT, PALETTE, QUIVER_AUTO_LENGTH,
+  QUIVER_DEFAULT_MAX_ARROWS, QUIVER_MAX_ARROWS, RADIUS_LABEL_LIMIT,
   SCATTER_SAMPLE_LIMIT, THETA_LABEL_LIMIT, barSectors, colorbarLayout,
   colorbarSteps, colorbarTicks, collectColorbar, collectContours,
   collectHeatmaps, compactNumber, contourLabel, contourSegmentPoints,
   finiteNumber, frameLayout, frameRadius, heatColor, heatmapCells,
   heatmapSampling, pointRadius, polarConfig, polarRings, polarSpokes,
-  projectPolar, radiusLabel, resolvePolar, sampleStep, thetaLabel, validColor,
+  projectPolar, quiverArrows, radiusLabel, resolvePolar, sampleStep,
+  thetaLabel, validColor,
 } from "../js/polar.js";
 import {
   largeFieldValues, largePolarFieldScene, polarFallbackScene,
@@ -522,4 +524,190 @@ test("matches the cross-renderer large field fixture", () => {
   near(last.startAngle, lastExpected.start_angle);
   near(last.endAngle, lastExpected.end_angle);
   assert.equal(last.color, lastExpected.color);
+});
+
+const PI = Math.PI;
+
+function quiverScene(options = {}) {
+  return {
+    type: "luaplotlib", orientation: "polar", title: "quiver",
+    polar: {
+      theta_zero: options.theta_zero ?? 0,
+      theta_direction: options.theta_direction ?? "counterclockwise",
+      rmax: 6,
+      theta_ticks: [{ value: 0, label: "0" }],
+      r_ticks: [{ value: 3, label: "3" }],
+      series: [{
+        kind: "quiver",
+        theta: options.theta ?? [0, PI / 2, 0, 0],
+        r: options.r ?? [3, 3, 3, 3],
+        u: options.u ?? [1, 1, 0, 0],
+        v: options.v ?? [0, 0, 1, 1],
+        scale: options.scale === undefined ? 20 : options.scale,
+        pivot: options.pivot ?? "tail",
+        max_arrows: options.max_arrows,
+        normalize: options.normalize,
+        style: {
+          color: "#1f77b4", linewidth: 1.2, head: 5,
+          alpha: options.alpha ?? 1,
+        },
+      }],
+    },
+  };
+}
+
+test("collects quiver IR and projects local components", () => {
+  const resolved = resolvePolar(quiverScene());
+  const quiver = resolved.series[0];
+  assert.equal(quiver.kind, "quiver");
+  assert.equal(quiver.count, 4);
+  assert.equal(quiver.drawn, 4);
+  assert.equal(quiver.stride, 1);
+  assert.equal(quiver.maxArrows, QUIVER_DEFAULT_MAX_ARROWS);
+  assert.equal(quiver.scale, 20);
+  assert.equal(quiver.autoScale, false);
+  assert.equal(quiver.pivot, "tail");
+  assert.equal(quiver.normalize, false);
+  assert.equal(quiver.color, "#1f77b4");
+  near(quiver.linewidth, 1.2);
+  near(quiver.head, 5);
+
+  const arrows = quiverArrows(quiver, 300, 117, 73, 6, 0, 1);
+  assert.equal(arrows.length, 4);
+  const first = arrows[0];
+  near(first.x, 336.5); near(first.y, 117);
+  near(first.tailX, 336.5); near(first.tailY, 117);
+  near(first.tipX, 336.5); near(first.tipY, 97);
+  near(first.neckX, 336.5); near(first.neckY, 102);
+  near(first.angle, -90);
+  near(first.length, 20);
+  near(first.headX2, 338.75); near(first.headY2, 102);
+  near(first.headX3, 334.25); near(first.headY3, 102);
+  assert.equal(first.shaft, true);
+  assert.equal(first.headed, true);
+  near(arrows[1].angle, -180);
+  near(arrows[2].angle, 0);
+  near(arrows[3].angle, 0);
+});
+
+test("quiver follows theta zero and clockwise direction", () => {
+  const resolved = resolvePolar(quiverScene({
+    theta_zero: PI / 2, theta_direction: "clockwise",
+    theta: [0, 0], r: [3, 3], u: [1, 0], v: [0, 1],
+  }));
+  const arrows = quiverArrows(resolved.series[0], 300, 117, 73, 6,
+    resolved.thetaZero, resolved.direction);
+  assert.equal(arrows.length, 2);
+  near(arrows[0].angle, 0);
+  near(arrows[0].tipX, 320);
+  near(arrows[0].tipY, 80.5);
+  near(arrows[1].angle, -90);
+  near(arrows[1].tipX, 300);
+  near(arrows[1].tipY, 60.5);
+});
+
+test("quiver automatic scale, normalization, and decimation", () => {
+  const auto = resolvePolar(quiverScene({
+    theta: [0, 0], r: [2, 2], u: [1, 0], v: [0, 2.5], scale: null,
+  }));
+  const quiver = auto.series[0];
+  assert.equal(quiver.autoScale, true);
+  near(quiver.scale, QUIVER_AUTO_LENGTH / 2.5);
+  const arrows = quiverArrows(quiver, 300, 117, 73, 6, 0, 1);
+  near(arrows[0].magnitude, 1);
+  near(arrows[0].length, 7.2);
+  near(arrows[1].magnitude, 2.5);
+  near(arrows[1].length, 18);
+
+  const normalized = resolvePolar(quiverScene({
+    theta: [0, 0], r: [2, 2], u: [1, 0], v: [0, 2.5], scale: null,
+    normalize: true,
+  }));
+  near(normalized.series[0].scale, 18);
+  const normalizedArrows = quiverArrows(normalized.series[0], 300, 117, 73,
+    6, 0, 1);
+  near(normalizedArrows[0].length, 18);
+  near(normalizedArrows[1].length, 18);
+
+  const theta = [], u = [], v = [];
+  for (let index = 0; index < 10; index += 1) {
+    theta.push(0); u.push(1); v.push(0);
+  }
+  u[4] = 0;
+  const decimated = resolvePolar(quiverScene({
+    theta, r: [3, 3, 3, 3, 3, 3, 3, 3, 3, 3], u, v, max_arrows: 3,
+  }));
+  const decimatedQuiver = decimated.series[0];
+  assert.equal(decimatedQuiver.count, 10);
+  assert.equal(decimatedQuiver.maxArrows, 3);
+  assert.equal(decimatedQuiver.stride, 4);
+  assert.equal(decimatedQuiver.drawn, 2);
+  const decimatedArrows = quiverArrows(decimatedQuiver, 300, 117, 73, 6, 0, 1);
+  assert.deepEqual(decimatedArrows.map((arrow) => arrow.index), [1, 9]);
+});
+
+test("clamps quiver options and tolerates malformed data", () => {
+  const scene = {
+    type: "luaplotlib", orientation: "polar",
+    polar: {
+      rmax: 6,
+      series: [
+        {
+          kind: "quiver", theta: [0 / 0, 0], r: [3, 4],
+          u: [1, 1], v: [0, 0], max_arrows: 100000,
+          style: { linewidth: -1, head: -2, color: "#ff7f0e" },
+        },
+        { kind: "quiver", theta: [0], r: [2] },
+      ],
+    },
+  };
+  const resolved = resolvePolar(scene);
+  assert.equal(resolved.series.length, 2);
+  const first = resolved.series[0];
+  assert.equal(first.maxArrows, QUIVER_MAX_ARROWS);
+  assert.equal(first.stride, 1);
+  assert.equal(first.drawn, 1);
+  assert.equal(first.linewidth, 0);
+  assert.equal(first.head, 0);
+  assert.equal(resolved.series[1].drawn, 0);
+  assert.equal(resolved.series[1].count, 1);
+});
+
+test("matches the cross-renderer quiver fixture", () => {
+  const fixture = JSON.parse(readFileSync(
+    new URL("./fixtures/polar-parity.json", import.meta.url), "utf8"));
+  const scene = fixture.quiver_scene;
+  const expected = fixture.quiver_expected;
+  const resolved = resolvePolar(scene);
+  const quiver = resolved.series[0];
+  assert.equal(quiver.kind, "quiver");
+  assert.equal(quiver.count, expected.count);
+  assert.equal(quiver.drawn, expected.drawn);
+  assert.equal(quiver.stride, expected.stride);
+  assert.equal(quiver.maxArrows, expected.max_arrows);
+  near(quiver.scale, expected.scale);
+  assert.equal(quiver.autoScale, expected.scale_mode === "auto");
+  assert.equal(quiver.pivot, expected.pivot);
+
+  const layout = fixture.layout;
+  const { cx, cy, radius } = frameLayout(52, 34, layout.width - 52,
+    layout.height - 30, false);
+  assert.equal(cx, layout.cx);
+  assert.equal(cy, layout.cy);
+  assert.equal(radius, layout.radius);
+  const arrows = quiverArrows(quiver, cx, cy, radius, resolved.rmax,
+    resolved.thetaZero, resolved.direction);
+  assert.equal(arrows.length, expected.arrows.length);
+  arrows.forEach((arrow, index) => {
+    const want = expected.arrows[index];
+    assert.equal(arrow.index, want.index);
+    near(arrow.angle, want.angle, 1e-9, "quiver angle");
+    near(arrow.magnitude, want.magnitude, 1e-9, "quiver magnitude");
+    near(arrow.tailX, want.tail_x, 1e-9, "quiver tail x");
+    near(arrow.tailY, want.tail_y, 1e-9, "quiver tail y");
+    near(arrow.tipX, want.tip_x, 1e-9, "quiver tip x");
+    near(arrow.tipY, want.tip_y, 1e-9, "quiver tip y");
+    near(arrow.neckX, want.neck_x, 1e-9, "quiver neck x");
+    near(arrow.neckY, want.neck_y, 1e-9, "quiver neck y");
+  });
 });

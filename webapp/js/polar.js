@@ -17,6 +17,11 @@ export const DEFAULT_BAR_WIDTH = 0.2;
 export const DEFAULT_POINT_RADIUS = 2.6;
 export const MAX_POINT_RADIUS = 8;
 export const MIN_POINT_RADIUS = 1;
+export const QUIVER_AUTO_LENGTH = 18;
+export const QUIVER_DEFAULT_MAX_ARROWS = 512;
+export const QUIVER_MAX_ARROWS = 4096;
+export const QUIVER_DEFAULT_HEAD = 5;
+export const QUIVER_DEFAULT_LINEWIDTH = 1.2;
 
 const TAU = Math.PI * 2;
 
@@ -81,6 +86,63 @@ export function collectPolar(scene) {
         bars.push({ theta: theta[index], r: r[index], width, color: barColor || color });
       }
       if (bars.length) collected.push({ kind: "bar", bars, color, alpha });
+    } else if (item.kind === "quiver") {
+      const u = Array.isArray(item.u) ? item.u : null;
+      const v = Array.isArray(item.v) ? item.v : null;
+      const normalize = item.normalize === true;
+      const requested = Number.isInteger(item.max_arrows) && item.max_arrows >= 1
+        ? item.max_arrows : QUIVER_DEFAULT_MAX_ARROWS;
+      const maxArrows = Math.max(1, Math.min(QUIVER_MAX_ARROWS, requested));
+      // luaplotlib decimates with ceil(count / max_arrows) over the source
+      // arrays, so trust the source count rather than the exported hints.
+      const stride = Math.max(1, Math.ceil(count / maxArrows));
+      const arrows = [];
+      let maximum = 0;
+      for (let index = 0; index < count; index += 1) {
+        if (!finiteNumber(theta[index]) || !finiteNumber(r[index])) continue;
+        observed = Math.max(observed, Math.abs(r[index]));
+        if (u === null || v === null) continue;
+        const uValue = u[index];
+        const vValue = v[index];
+        if (!finiteNumber(uValue) || !finiteNumber(vValue)) continue;
+        const raw = Math.sqrt(uValue * uValue + vValue * vValue);
+        const magnitude = normalize && raw > 0 ? 1 : raw;
+        maximum = Math.max(maximum, magnitude);
+        if (raw > 1e-12 && index % stride === 0) {
+          arrows.push({
+            index: index + 1, theta: theta[index], r: r[index],
+            u: uValue, v: vValue, raw, magnitude,
+          });
+        }
+      }
+      let scale = finiteNumber(item.scale) && item.scale > 0 ? item.scale : null;
+      const autoScale = scale === null;
+      if (scale === null && finiteNumber(item.resolved_scale)
+        && item.resolved_scale > 0) {
+        scale = item.resolved_scale;
+      }
+      if (scale === null) scale = maximum > 0 ? QUIVER_AUTO_LENGTH / maximum : 1;
+      const pivot = item.pivot === "middle" || item.pivot === "tip"
+        ? item.pivot : "tail";
+      collected.push({
+        kind: "quiver",
+        arrows,
+        count,
+        drawn: arrows.length,
+        color,
+        alpha,
+        linewidth: finiteNumber(style.linewidth)
+          ? Math.max(0, style.linewidth) : QUIVER_DEFAULT_LINEWIDTH,
+        head: finiteNumber(style.head) ? Math.max(0, style.head)
+          : QUIVER_DEFAULT_HEAD,
+        pivot,
+        normalize,
+        maxArrows,
+        stride,
+        scale,
+        autoScale,
+        label: typeof style.label === "string" ? style.label : null,
+      });
     } else {
       const radii = array(item.radii);
       const colors = array(item.colors);
@@ -215,6 +277,75 @@ export function projectPolar(cx, cy, radius, rmax, thetaZero, direction, theta, 
     y: cy - radius * ratio * Math.sin(angle),
     angle,
   };
+}
+
+// Screen-space arrow geometry for one collected quiver series.  Mirrors
+// Polar.quiver_arrows in notebook/polar.lua: `u` points toward increasing data
+// theta, `v` outward along the radius, and glyph lengths are SVG user units.
+export function quiverArrows(quiver, cx, cy, radius, rmax, thetaZero, direction) {
+  const arrows = [];
+  if (!quiver || typeof quiver !== "object") return arrows;
+  const safeRmax = finiteNumber(rmax) && rmax > 0 ? rmax : 1;
+  const pivot = quiver.pivot === "middle" ? 0.5
+    : quiver.pivot === "tip" ? 1 : 0;
+  const scale = finiteNumber(quiver.scale) ? quiver.scale : 1;
+  const head = finiteNumber(quiver.head) ? quiver.head : 0;
+  for (const arrow of array(quiver.arrows)) {
+    const raw = finiteNumber(arrow.raw)
+      ? arrow.raw : Math.sqrt(arrow.u * arrow.u + arrow.v * arrow.v);
+    if (!(raw > 1e-12)) continue;
+    const magnitude = quiver.normalize ? 1 : raw;
+    const display = thetaZero + direction * arrow.theta;
+    const cosine = Math.cos(display);
+    const sine = Math.sin(display);
+    const dx = arrow.v * cosine - direction * arrow.u * sine;
+    const dy = -arrow.v * sine - direction * arrow.u * cosine;
+    const ux = dx / raw;
+    const uy = dy / raw;
+    const length = magnitude * scale;
+    const point = projectPolar(cx, cy, radius, safeRmax, thetaZero,
+      direction, arrow.theta, arrow.r);
+    const tailX = point.x - ux * length * pivot;
+    const tailY = point.y - uy * length * pivot;
+    const tipX = tailX + ux * length;
+    const tipY = tailY + uy * length;
+    const arrowHead = Math.min(head, length);
+    const neckX = tipX - ux * arrowHead;
+    const neckY = tipY - uy * arrowHead;
+    const half = arrowHead * 0.45;
+    const px = -uy * half;
+    const py = ux * half;
+    let angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+    if (angle === 0) angle = 0;
+    arrows.push({
+      index: arrow.index,
+      theta: arrow.theta,
+      r: arrow.r,
+      u: arrow.u,
+      v: arrow.v,
+      raw,
+      magnitude,
+      angle,
+      length,
+      x: point.x,
+      y: point.y,
+      tailX,
+      tailY,
+      tipX,
+      tipY,
+      neckX,
+      neckY,
+      headX1: tipX,
+      headY1: tipY,
+      headX2: neckX + px,
+      headY2: neckY + py,
+      headX3: neckX - px,
+      headY3: neckY - py,
+      shaft: quiver.linewidth > 0 && length - arrowHead > 1e-9,
+      headed: arrowHead > 1e-9,
+    });
+  }
+  return arrows;
 }
 
 export function ringLabelPosition(cx, cy, ringRadius) {
