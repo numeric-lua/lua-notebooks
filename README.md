@@ -275,9 +275,8 @@ movement, and Vim operations share the code-cell editing path.
 Markdown cells show formatted text when unfocused: heading markers, emphasis,
 inline code, links, and list markers are removed for display. Selecting the cell
 returns to editable source. Display math renders in both states. Checklist
-items (`- [x] done`, `- [ ] todo`) preview as `☑`/`☐` boxes and export as
-disabled HTML checkboxes in the desktop preview, static HTML, and browser
-front-end.
+items (`- [x] done`, `- [ ] todo`) preview as `[x]`/`[ ]` markers and export
+as disabled HTML checkboxes in the static HTML and browser front-end.
 
 ## Notebook title
 
@@ -475,8 +474,12 @@ LUANB_SMOKE_GRID=1 lovr .   # run the grid extension cell, then quit
 LUANB_SMOKE_WIDGET=1 lovr . # run the widget cell, then quit
 LUANB_SMOKE_WIDGET_EVENT=1 lovr . # run the widget cell and change a slider
 LUANB_SMOKE_SAVE=1 lovr .   # save/load the active notebook, then quit
+LUANB_SMOKE_STATS=1 lovr .  # open/close notebook statistics, then quit
+LUANB_SMOKE_OUTPUT=1 lovr . # expand a 12-line output, then quit
 LUANB_QA_CELL=6 lovr .      # run one cell and keep the window open for visual QA
 LUANB_QA_TAGS=1 LUANB_QA_SCREENSHOT=1 lovr . # tag-index overlay screenshot
+LUANB_QA_STATS=1 LUANB_QA_SCREENSHOT=1 lovr . # statistics overlay screenshot
+LUANB_QA_OUTPUT=expanded LUANB_QA_SCREENSHOT=1 lovr . # expanded-output screenshot
 LUANB_QA_TIMING=1 LUANB_QA_CELL=6 LUANB_QA_SCREENSHOT=1 lovr . # timing label
 LUANB_QA_NVIM_DELETE=1 lovr . # confirm an omitted Neovim marker deletes safely
 LUANB_QA_NVIM_DELETE=1 LUANB_QA_NVIM_DELETE_HOLD=1 LUANB_QA_SCREENSHOT=1 lovr . # deletion-prompt screenshot

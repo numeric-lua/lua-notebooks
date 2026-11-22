@@ -8,7 +8,7 @@ function Markdown.preview(line)
   line = line:gsub("^%s*#+%s*", "")
   local checked, task = line:match("^%s*[-*+]%s+%[([ xX])%]%s+(.*)$")
   if checked ~= nil then
-    line = (checked:lower() == "x" and "☑ " or "☐ ") .. task
+    line = (checked:lower() == "x" and "[x] " or "[ ] ") .. task
   else
     line = line:gsub("^%s*[-*+]%s+", "• ")
   end

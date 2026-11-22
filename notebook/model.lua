@@ -1003,7 +1003,7 @@ return { scene = {
     },
   },
 } }]]),
-      cell("markdown", "# Markdown checklist\n\n- [x] render inline math and **emphasis**\n- [x] preview links such as [[Second kernel]]\n- [ ] add `docs` for your own notebook\n\nChecklists preview as boxes and export as disabled HTML checkboxes."),
+      cell("markdown", "# Markdown checklist\n\n- [x] render inline math and **emphasis**\n- [x] preview links such as [[Second kernel]]\n- [ ] add `docs` for your own notebook\n\nChecklists preview as [x]/[ ] markers and export as disabled HTML checkboxes."),
       cell("code", [[
 -- Long output stays compact until you expand it.
 for line = 1, 12 do

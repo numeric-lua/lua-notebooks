@@ -1277,7 +1277,9 @@ function lovr.load()
   if os.getenv("LUANB_QA_TIMING") then app.ui.show_timing = true end
   if os.getenv("LUANB_QA_STATS") then app.ui:open_stats() end
   if os.getenv("LUANB_QA_OUTPUT") then
-    local cell = app:notebook():selected()
+    local target = tonumber(os.getenv("LUANB_QA_CELL") or "") or
+      app:notebook().active
+    local cell = app:notebook().cells[target] or app:notebook():selected()
     local lines = {}
     for index = 1, 12 do
       lines[index] = string.format("QA output line %02d", index)
