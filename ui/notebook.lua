@@ -155,6 +155,7 @@ function UI.new(app)
     scene_rects = {},
     widget_rects = {},
     output_rects = {},
+    output_toggle_rects = {},
     focused_output_cell = nil,
     widget_drag = nil,
     drag = nil,
@@ -274,6 +275,7 @@ function UI:draw(pass, logical_width, logical_height)
   self.scene_rects = {}
   self.widget_rects = {}
   self.output_rects = {}
+  self.output_toggle_rects = {}
   if not self.zen_mode then
   box(pass, 0, 0, width, 40,
     light and { 0, 0, 0, alpha } or { 0.08, 0.09, 0.12, alpha })
@@ -393,9 +395,12 @@ function UI:draw(pass, logical_width, logical_height)
         if #self.output_lines_cache > 512 then self.output_lines_cache = {} end
       end
     end
+    local shown_lines, total_lines = NotebookModel.output_lines_shown(cell)
+    local output_has_toggle = total_lines > 6
     local output_height = 0
-    if #output_lines > 0 then
-      output_height = math.min(#output_lines, 6) * 19 + 14
+    if total_lines > 0 then
+      output_height = shown_lines * 19 + 14 +
+        (output_has_toggle and 20 or 0)
     end
     local scene_height = 0
     if type(cell.scene) == "table" and cell.scene.type == "luaplotlib" then
@@ -672,7 +677,7 @@ function UI:draw(pass, logical_width, logical_height)
         self.widget_rects[index] = controls
       end
       local output_y = source_y + source_height + widget_height + 6
-      if #output_lines > 0 then
+      if total_lines > 0 then
         self.output_rects[index] = { x = 34, y = output_y - 3,
           w = width - 68, h = output_height }
         if light then
@@ -682,16 +687,29 @@ function UI:draw(pass, logical_width, logical_height)
           box(pass, 34, output_y - 3, width - 68, output_height,
             { 0.04, 0.05, 0.07, 1 })
         end
+        local output_text_y = output_y
+        if output_has_toggle then
+          self.output_toggle_rects[index] = { x = 34, y = output_y - 3,
+            w = width - 68, h = 20 }
+          text(pass, app.font,
+            string.format("%d output lines", total_lines), 42, output_y + 1,
+            { 0.55, 0.63, 0.76, 1 }, 0.6)
+          text(pass, app.font,
+            cell.output_expanded and "collapse ▴" or "show all ▾",
+            width - 42, output_y + 1,
+            { 0.38, 0.72, 0.95, 1 }, 0.6, "right")
+          output_text_y = output_y + 20
+        end
         local output_color = cell.error and
           (light and { 0.65, 0.10, 0.12, 1 } or { 1, 0.45, 0.45, 1 }) or
           (light and { 0.10, 0.40, 0.22, 1 } or { 0.55, 0.9, 0.65, 1 })
-        for line_index = 1, math.min(#output_lines, 6) do
+        for line_index = 1, shown_lines do
           if light then
             text_raw(pass, app.font, output_lines[line_index], 42,
-              output_y + (line_index - 1) * 19, output_color, 0.78)
+              output_text_y + (line_index - 1) * 19, output_color, 0.78)
           else
             text(pass, app.font, output_lines[line_index], 42,
-              output_y + (line_index - 1) * 19, output_color, 0.78)
+              output_text_y + (line_index - 1) * 19, output_color, 0.78)
           end
         end
         output_y = output_y + output_height + 4
@@ -794,6 +812,7 @@ function UI:palette_commands()
     { id = "graph", label = "Link graph" },
     { id = "tags", label = "Tag index  (Ctrl+T)" },
     { id = "timing", label = "Toggle execution timing" },
+    { id = "output", label = "Toggle long cell output  (Ctrl+Shift+O)" },
     { id = "clear-recent", label = "Clear recent notebooks" },
     { id = "clear-session", label = "Clear restored session" },
     { id = "move-up", label = "Move selected cell up" },
@@ -885,6 +904,10 @@ function UI:run_palette_command(id)
   elseif id == "graph" then self:open_graph()
   elseif id == "tags" then self:open_tags()
   elseif id == "timing" then self:toggle_timing()
+  elseif id == "output" then
+    local notebook = self.app:notebook()
+    local expanded = notebook:toggle_output(notebook.active)
+    self.app.status = expanded and "expanded output" or "collapsed output"
   elseif id == "clear-recent" then self.app:clear_recent()
   elseif id == "clear-session" then self.app:clear_session()
   elseif id == "move-up" then self.app:move_cell(-1)
@@ -1362,6 +1385,7 @@ function UI:draw_help(pass, width, height)
         { "Ctrl+Shift+E / T", "timing / light-dark theme" },
         { "Ctrl+Shift+U", "history" },
         { "Ctrl+Shift+I", "notebook statistics" },
+        { "Ctrl+Shift+O", "expand / collapse long output" },
       } },
       { title = "FILES & VIM", rows = {
         { "F5 / p", "run selected cell" },
@@ -2243,6 +2267,12 @@ function UI:keypressed(key)
   end
   if ctrl_down and key == "i" and shift_down then
     self:open_stats(); return
+  end
+  if ctrl_down and key == "o" and shift_down then
+    local notebook = self.app:notebook()
+    local expanded = notebook:toggle_output(notebook.active)
+    self.app.status = expanded and "expanded output" or "collapsed output"
+    return
   end
   if ctrl_down and key == "p" then
     self.show_palette = true
@@ -3241,6 +3271,15 @@ function UI:mousepressed(x, y, button)
   if self.buttons.add and inside(x, y, self.buttons.add) then
     self.app:add_cell()
     return
+  end
+  for index, rect in pairs(self.output_toggle_rects) do
+    if inside(x, y, rect) then
+      local notebook = self.app:notebook()
+      notebook:select(index)
+      local expanded = notebook:toggle_output(index)
+      self.app.status = expanded and "expanded output" or "collapsed output"
+      return
+    end
   end
   for index, rect in pairs(self.output_rects) do
     if inside(x, y, rect) then

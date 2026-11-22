@@ -81,7 +81,7 @@ current = "model"
 test("demo has two notebooks and a live polar cell", function()
   local notebooks = Notebook.demo()
   eq(#notebooks, 2)
-  eq(#notebooks[1].cells, 18)
+  eq(#notebooks[1].cells, 19)
   local polar, field, large, quiver, stream
   for _, cell in ipairs(notebooks[1].cells) do
     if cell.source:find('orientation = "polar"', 1, true) then
@@ -865,6 +865,35 @@ test("counts cells, source lines, prose, structure, and output", function()
   eq(stats.words, 6)
   local html = Format.to_html(notebook)
   assert(html:find("— 3 cells, 2 code, 1 markdown", 1, true))
+end)
+
+current = "output expansion"
+test("previews six long-output lines and persists expansion", function()
+  local lines = {}
+  for index = 1, 12 do lines[index] = "line " .. index end
+  local notebook = Notebook.new({ cells = {
+    { kind = "code", source = "print()", output = table.concat(lines, "\n") },
+  } })
+  local shown, total = Notebook.output_lines_shown(notebook.cells[1])
+  eq(shown, 6)
+  eq(total, 12)
+  eq(notebook:toggle_output(1), true)
+  shown, total = Notebook.output_lines_shown(notebook.cells[1])
+  eq(shown, 12)
+  eq(total, 12)
+  local decoded = Format.decode(Format.encode(notebook))
+  eq(decoded.cells[1].output_expanded, true)
+  eq(Notebook.output_lines_shown(decoded.cells[1]), 12)
+  eq(notebook:toggle_output(1), false)
+  eq(select(1, Notebook.output_lines_shown(notebook.cells[1])), 6)
+end)
+test("leaves short output unchanged and ignores missing cells", function()
+  local notebook = Notebook.new({ cells = {
+    { kind = "code", source = "print()", output = "one\ntwo" },
+  } })
+  eq(select(1, Notebook.output_lines_shown(notebook.cells[1])), 2)
+  eq(Notebook.output_lines_shown(nil), 0)
+  eq(notebook:toggle_output(99), false)
 end)
 
 current = "execution timing"

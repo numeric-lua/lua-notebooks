@@ -1276,6 +1276,15 @@ function lovr.load()
   if os.getenv("LUANB_QA_TAGS") then app.ui.show_tags = true end
   if os.getenv("LUANB_QA_TIMING") then app.ui.show_timing = true end
   if os.getenv("LUANB_QA_STATS") then app.ui:open_stats() end
+  if os.getenv("LUANB_QA_OUTPUT") then
+    local cell = app:notebook():selected()
+    local lines = {}
+    for index = 1, 12 do
+      lines[index] = string.format("QA output line %02d", index)
+    end
+    cell.output = table.concat(lines, "\n")
+    cell.output_expanded = os.getenv("LUANB_QA_OUTPUT") == "expanded"
+  end
   if os.getenv("LUANB_QA_HISTORY") then
     local notebook = app:notebook()
     notebook.cells[notebook.active].source = ""
@@ -1367,6 +1376,17 @@ function lovr.load()
     app.ui:keypressed("escape")
     print("SMOKE_STATS=" .. values.cells .. ":" .. values.lines .. ":" ..
       tostring(app.ui.show_stats))
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_OUTPUT") then
+    local cell = app:notebook():selected()
+    local lines = {}
+    for index = 1, 12 do lines[index] = "line " .. index end
+    cell.output = table.concat(lines, "\n")
+    local shown, total = Notebook.output_lines_shown(cell)
+    local expanded = app:notebook():toggle_output(app:notebook().active)
+    local expanded_shown = Notebook.output_lines_shown(cell)
+    print("SMOKE_OUTPUT=" .. shown .. ":" .. total .. ":" ..
+      tostring(expanded) .. ":" .. expanded_shown)
     lovr.event.quit()
   elseif os.getenv("LUANB_SMOKE_FKEYS") then
     app.ui:keypressed("f1")

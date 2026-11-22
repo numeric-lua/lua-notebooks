@@ -24,6 +24,7 @@ local function cell(kind, source, id)
     cursor = #(source or "") + 1,
     widgets = {},
     collapsed = false,
+    output_expanded = false,
   }
 end
 
@@ -63,7 +64,8 @@ function Notebook:snapshot()
       id = item.id, kind = item.kind, source = item.source, output = item.output,
       scene = item.scene, running = false, error = item.error,
       cursor = item.cursor, widgets = item.widgets,
-      collapsed = item.collapsed, elapsed = item.elapsed,
+      collapsed = item.collapsed, output_expanded = item.output_expanded,
+      elapsed = item.elapsed,
     }
   end
   return { active = self.active, cells = cells }
@@ -605,6 +607,37 @@ function Notebook:toggle_collapsed(index)
   return cell.collapsed
 end
 
+local OUTPUT_PREVIEW_LINES = 6
+
+function Notebook.output_line_count(cell)
+  if type(cell) ~= "table" or type(cell.output) ~= "string" or
+     cell.output == "" then
+    return 0
+  end
+  local count = 1
+  for _ in cell.output:gmatch("\n") do count = count + 1 end
+  return count
+end
+
+function Notebook.output_lines_shown(cell)
+  local total = Notebook.output_line_count(cell)
+  if total == 0 then return 0, 0 end
+  if cell.output_expanded then return total, total end
+  return math.min(total, OUTPUT_PREVIEW_LINES), total
+end
+
+function Notebook:toggle_output(index, expanded)
+  local cell = self.cells[index]
+  if cell == nil then return false end
+  if expanded == nil then expanded = not cell.output_expanded end
+  if Notebook.output_line_count(cell) > OUTPUT_PREVIEW_LINES then
+    self:push_undo("toggle output")
+  end
+  cell.output_expanded = expanded and true or false
+  self.dirty = true
+  return cell.output_expanded
+end
+
 function Notebook:newline()
   self:push_undo("newline")
   self:insert("\n")
@@ -971,6 +1004,11 @@ return { scene = {
   },
 } }]]),
       cell("markdown", "# Markdown checklist\n\n- [x] render inline math and **emphasis**\n- [x] preview links such as [[Second kernel]]\n- [ ] add `docs` for your own notebook\n\nChecklists preview as boxes and export as disabled HTML checkboxes."),
+      cell("code", [[
+-- Long output stays compact until you expand it.
+for line = 1, 12 do
+  print(string.format("output line %02d", line))
+end]]),
     },
   })
   local second = Notebook.new({

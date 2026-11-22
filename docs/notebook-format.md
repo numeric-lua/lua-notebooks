@@ -21,6 +21,10 @@ Version 1 uses JSON:
 }
 ```
 
+Optional cell fields include `collapsed` for a Markdown heading and
+`output_expanded` for a long text output; both default to `false` when absent.
+They are view state stored with the document, not executable content.
+
 Rules:
 
 - `kind` is `code` or `markdown`.

@@ -17,8 +17,8 @@
   parity fixtures, and a headless Chromium pixel check.
 - Extension manifests, discovery, hot reload, browser, local user extensions,
   and a restricted Lua environment.
-- Kernel widgets, editable multiline text, callbacks, persistence, and live
-  shader widgets (Star Nest preset).
+- Kernel widgets, editable multiline text, callbacks, persistence, live
+  shader widgets (Star Nest preset), and expandable long text output.
 - Syntax highlighting, static diagnostics, completion, hover, go-to-definition,
   workspace rename, and case/whole-word notebook find and replace.
 - Hierarchical notebook filetree with create/delete/rename/folder actions.
