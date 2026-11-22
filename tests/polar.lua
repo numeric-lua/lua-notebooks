@@ -59,6 +59,14 @@ local function count_plain(value, needle)
   end
 end
 
+local function read_polar_fixture()
+  local path = root .. "/webapp/tests/fixtures/polar-parity.json"
+  local handle = assert(io.open(path, "rb"))
+  local text = handle:read("*a")
+  handle:close()
+  return assert(json.decode(text))
+end
+
 local function new_pass()
   local calls = {}
   local pass = setmetatable({}, {
@@ -491,6 +499,253 @@ test("matches the cross-renderer browser fixture", function()
   near(sectors[1].radius, expected.bar_sector.radius)
   near(sectors[1].start_angle, expected.bar_sector.start_angle)
   near(sectors[1].end_angle, expected.bar_sector.end_angle)
+end)
+
+
+test("maps field values through the shared viridis palette", function()
+  eq(Polar.heat_color(0, 0, 5), "#440154")
+  eq(Polar.heat_color(5, 0, 5), "#fde725")
+  eq(Polar.heat_color(1, 0, 5), "#345382")
+  eq(Polar.heat_color(-1, 0, 5), "#440154")
+  eq(Polar.heat_color(9, 0, 5), "#fde725")
+  eq(Polar.heat_color(0, 0, 0), "#440154")
+  eq(Polar.compact_number(0), "0")
+  eq(Polar.compact_number(2.5), "2.5")
+  eq(Polar.compact_number(1234), "1230")
+  eq(Polar.compact_number(0.0001), "0.0001")
+  eq(Polar.compact_number(0.00001), "1e-5")
+  eq(Polar.compact_number(1 / 0), nil)
+
+  local heatmaps = Polar.collect_heatmaps({
+    heatmaps = {
+      { rows = 2, cols = 2, values = { { 1, 2 }, { 3, 4 } } },
+      { rows = "bad", cols = 2, values = {} },
+    },
+  })
+  eq(#heatmaps, 1)
+  eq(heatmaps[1].vmin, 1)
+  eq(heatmaps[1].vmax, 4)
+  eq(heatmaps[1].rmin, 0)
+  eq(heatmaps[1].rmax, 2)
+  eq(heatmaps[1].theta_max, 2 * math.pi)
+  eq(heatmaps[1].alpha, 1)
+  local contours = Polar.collect_contours({
+    contours = {
+      { levels = { { level = 2, segments = { { 0, 1, 1, 2 }, { 1 } } } },
+        labels = true, style = { color = "#112233" } },
+      { levels = {} },
+    },
+  })
+  eq(#contours, 1)
+  eq(#contours[1].levels[1].segments, 1)
+  eq(contours[1].style.color, "#112233")
+  eq(contours[1].style.linestyle, "solid")
+end)
+
+test("derives and tolerates malformed field metadata", function()
+  local derived = Polar.resolve({
+    type = "luaplotlib", orientation = "polar",
+    polar = {
+      heatmaps = { {
+        rows = 1, cols = 1, values = { { 0.5 } },
+        vmin = 0, vmax = 1, colorbar = true,
+      } },
+    },
+  })
+  assert(derived.colorbar ~= nil, "heatmap colorbar flag was ignored")
+  eq(#derived.colorbar.ticks, 3)
+  eq(Polar.colorbar_ticks(derived.colorbar)[2].label, "0.5")
+
+  local scene = {
+    type = "luaplotlib", orientation = "polar",
+    polar = {
+      rmax = 2,
+      heatmaps = { {
+        rows = 2, cols = 2,
+        values = { { 1 / 0, 2 }, { 3, 0 / 0 } },
+        vmin = 0, vmax = 0, alpha = 2,
+      } },
+      contours = { {
+        levels = { { level = 1, segments = {
+          { 0, 0, 0 / 0, 1 }, { 1, 2, 3, 4 },
+        } } },
+        labels = true,
+      } },
+      colorbar = { vmin = 0, vmax = 0 },
+    },
+  }
+  local resolved = Polar.resolve(scene)
+  eq(#resolved.heatmaps, 1)
+  eq(resolved.heatmaps[1].vmax, 1)
+  eq(resolved.heatmaps[1].alpha, 1)
+  eq(resolved.colorbar, nil)
+  eq(#resolved.contours[1].levels[1].segments, 1)
+  local cells = Polar.heatmap_cells(resolved.heatmaps[1], 100, 100, 50,
+    resolved.rmax, 0, 1)
+  eq(#cells, 4)
+  for _, cell in ipairs(cells) do
+    assert(cell.color:match("^#%x%x%x%x%x%x$") ~= nil)
+  end
+  local svg = Format.scene_svg(scene, 480, 240)
+  assert(svg:find("nan", 1, true) == nil)
+  assert(svg:find("inf", 1, true) == nil)
+  local pass = new_pass()
+  Plot.draw(pass, {}, scene, 0, 0, 480, 240)
+end)
+
+test("projects heatmap cells, contour edges, and the colorbar", function()
+  local heatmap = {
+    rows = 2, cols = 3, values = { { 0, 1, 2 }, { 3, 4, 5 } },
+    vmin = 0, vmax = 5, rmin = 0.5, rmax = 2,
+    theta_min = 0, theta_max = math.pi, alpha = 0.9,
+  }
+  local cx, cy, radius = Polar.frame_layout(52, 34, 548, 200, true)
+  near(cx, 272); near(cy, 117); near(radius, 73)
+  local cells = Polar.heatmap_cells(heatmap, cx, cy, radius, 2, 0, 1)
+  eq(#cells, 6)
+  eq(cells[1].row, 1); eq(cells[1].col, 1)
+  eq(cells[1].color, "#440154")
+  eq(cells[6].color, "#fde725")
+  near(cells[1].inner_radius, 18.25)
+  near(cells[1].outer_radius, 45.625)
+  near(cells[1].start_angle, 0)
+  near(cells[1].end_angle, math.pi / 3)
+  near(cells[5].inner_radius, 45.625)
+  near(cells[5].outer_radius, 73)
+
+  local full = {
+    rows = 1, cols = 1, values = { { 1 } },
+    vmin = 0, vmax = 1, rmin = 0.5, rmax = 1,
+    theta_min = 0, theta_max = 2 * math.pi, alpha = 1,
+  }
+  local ring = Polar.heatmap_cells(full, 100, 100, 50, 1, 0, 1)
+  eq(#ring, 1)
+  eq(#ring[1].parts, Polar.FULL_TURN_PARTS)
+  local disc = Polar.heatmap_cells({
+    rows = 1, cols = 1, values = { { 1 } }, vmin = 0, vmax = 1,
+    rmin = 0, rmax = 1, theta_min = 0, theta_max = 2 * math.pi,
+  }, 100, 100, 50, 1, 0, 1)
+  eq(disc[1].full_disc, true)
+
+  local contour = { rmin = 0, rmax = 2 }
+  local segment = { 0, 0.5, math.pi / 2, 1.5 }
+  local points = Polar.contour_segment_points(contour, segment, cx, cy, radius,
+    2, 0, 1)
+  eq(#points, 25)
+  near(points[1][1], 290.25)
+  near(points[1][2], 117)
+  near(points[#points][1], 272)
+  near(points[#points][2], 62.25)
+
+  local bar = { vmin = 0, vmax = 5, ticks = { 0, 2.5, 5 } }
+  local bx, by, bw, bh = Polar.colorbar_layout(cx, cy, radius)
+  near(bx, 361); near(by, 54.95); near(bw, 16); near(bh, 124.1)
+  local ticks = Polar.colorbar_ticks(bar)
+  eq(#ticks, 3)
+  eq(ticks[1].label, "0"); eq(ticks[2].label, "2.5")
+  eq(ticks[3].fraction, 1)
+  local steps = Polar.colorbar_steps(bar)
+  eq(#steps, Polar.COLORBAR_STEPS)
+  eq(steps[1].y0, 0)
+  eq(steps[#steps].y1, 1)
+end)
+
+test("draws polar fields and a colorbar in the live viewport", function()
+  local fixture = read_polar_fixture()
+  local pass, calls = new_pass()
+  Plot.draw(pass, {}, fixture.field_scene, 0, 0, 600, 230)
+  local cx, cy, radius = Plot.polar_layout(0, 0, 600, 230, true)
+  near(cx, 272); near(cy, 117); near(radius, 73)
+
+  eq(#named(calls, "polygon"), 6) -- six annular heatmap cells
+  eq(#named(calls, "plane"), 1 + Polar.COLORBAR_STEPS)
+  local circles = named(calls, "circle")
+  eq(#circles, 5) -- four rings and the frame
+  local lines = named(calls, "line")
+  eq(#lines, 2 + 24 + 24 + 1 + 4 + 3)
+  local values = text_values(calls)
+  local seen = {}
+  for _, value in ipairs(values) do seen[value] = true end
+  assert(seen["polar field"] and seen["density"] and seen["2.5"])
+  assert(seen["0.5"] and seen["1.5"] and seen["90"])
+end)
+
+test("exports polar fields and the colorbar in the SVG preview", function()
+  local fixture = read_polar_fixture()
+  local svg = Format.scene_svg(fixture.field_scene, 600, 230)
+  contains(svg, 'data-has-colorbar="true"', "colorbar flag")
+  eq(count_plain(svg, 'class="scene-polar-heatmap-cell"'), 6)
+  eq(count_plain(svg, 'class="scene-polar-contour"'), 2)
+  eq(count_plain(svg, 'class="scene-polar-colorbar-step"'),
+    Polar.COLORBAR_STEPS)
+  contains(svg, "scene-polar-contour-label", "contour label")
+  contains(svg, "scene-polar-colorbar-title", "colorbar title")
+  contains(svg, ">density<", "colorbar label")
+  contains(svg, ">2.5<", "contour label")
+  assert(svg:find("nan", 1, true) == nil)
+  assert(svg:find("inf", 1, true) == nil)
+  local summary = Format.scene_summary(fixture.field_scene)
+  eq(summary.count, fixture.field_expected.summary.count)
+  eq(summary.points, fixture.field_expected.summary.points)
+end)
+
+test("matches the cross-renderer polar field fixture", function()
+  local fixture = read_polar_fixture()
+  local expected = fixture.field_expected
+  local scene = fixture.field_scene
+  local resolved = Polar.resolve(scene)
+  eq(resolved.rmax, expected.rmax)
+  eq(resolved.observed, expected.observed)
+
+  local layout = fixture.field_layout
+  local cx, cy, radius = Polar.frame_layout(52, 34, layout.width - 52,
+    layout.height - 30, layout.has_colorbar)
+  near(cx, layout.cx)
+  near(cy, layout.cy)
+  near(radius, layout.radius)
+
+  local cells = Polar.heatmap_cells(resolved.heatmaps[1], cx, cy, radius,
+    resolved.rmax, resolved.theta_zero, resolved.direction)
+  eq(#cells, expected.heatmap_cells)
+  for index, color in ipairs(expected.heat_colors) do
+    eq(cells[index].color, color)
+  end
+  local first = expected.first_cell
+  eq(cells[1].row, first.row)
+  eq(cells[1].col, first.col)
+  near(cells[1].inner_radius, first.inner_radius)
+  near(cells[1].outer_radius, first.outer_radius)
+  near(cells[1].start_angle, first.start_angle)
+  near(cells[1].end_angle, first.end_angle)
+
+  local contour = resolved.contours[1]
+  for index, segment in ipairs(contour.levels[1].segments) do
+    local points = Polar.contour_segment_points(contour, segment, cx, cy,
+      radius, resolved.rmax, resolved.theta_zero, resolved.direction)
+    eq(#points, expected.contour_point_counts[index])
+    if index == 1 then
+      near(points[1][1], expected.contour_first.x)
+      near(points[1][2], expected.contour_first.y)
+    else
+      near(points[#points][1], expected.contour_second_last.x)
+      near(points[#points][2], expected.contour_second_last.y)
+    end
+  end
+  local label = Polar.contour_label(contour, contour.levels[1], cx, cy,
+    radius, resolved.rmax, resolved.theta_zero, resolved.direction)
+  eq(label.text, expected.contour_label.text)
+  near(label.x, expected.contour_label.x, 1e-4)
+  near(label.y, expected.contour_label.y, 1e-4)
+
+  local bx, by, bw, bh = Polar.colorbar_layout(cx, cy, radius)
+  near(bx, expected.colorbar.x)
+  near(by, expected.colorbar.y)
+  near(bw, expected.colorbar.width)
+  near(bh, expected.colorbar.height)
+  local ticks = Polar.colorbar_ticks(resolved.colorbar)
+  for index, tick in ipairs(ticks) do
+    eq(tick.label, expected.colorbar_labels[index])
+  end
 end)
 
 print(string.format("\npolar tests: %d passed, %d failed", passed, failed))

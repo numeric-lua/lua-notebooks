@@ -147,10 +147,21 @@ end
 function Polar.resolve(scene)
   local polar, rmax, theta_zero, direction = Polar.config(scene)
   local collected, observed = Polar.collect(scene)
+  local heatmaps = Polar.collect_heatmaps(polar)
+  local contours = Polar.collect_contours(polar)
+  for _, heatmap in ipairs(heatmaps) do
+    if heatmap.rmax > observed then observed = heatmap.rmax end
+  end
+  for _, contour in ipairs(contours) do
+    if contour.rmax > observed then observed = contour.rmax end
+  end
   rmax = rmax or (observed > 0 and observed or 1)
   return {
     polar = polar,
     series = collected,
+    heatmaps = heatmaps,
+    contours = contours,
+    colorbar = Polar.collect_colorbar(polar, heatmaps),
     observed = observed,
     rmax = rmax,
     theta_zero = theta_zero,
@@ -334,6 +345,448 @@ function Polar.arc_flags(sector)
   local large = span > pi and 1 or 0
   local sweep = sector.end_angle < sector.start_angle and 1 or 0
   return large, sweep
+end
+
+-- ---------------------------------------------------------------------------
+-- Polar fields: heatmaps, contours, and the colourbar.  These helpers are the
+-- single source of truth for the live viewport, the static export, and the
+-- browser front-end.  See webapp/js/polar.js for the JavaScript counterpart.
+
+Polar.COLORBAR_WIDTH = 16
+Polar.COLORBAR_GAP = 16
+Polar.COLORBAR_MARGIN = 56
+Polar.COLORBAR_STEPS = 40
+Polar.FULL_TURN_PARTS = 48
+Polar.CONTOUR_MAX_STEPS = 64
+Polar.CONTOUR_LABEL_SCALE = 5.5
+
+-- Viridis-like anchors copied from luaplotlib's colour helper.  The channel
+-- rounding must stay identical in Lua and JavaScript or the exported SVG, the
+-- live frame, and the browser Canvas would select different fills.
+Polar.HEAT_ANCHORS = {
+  { 0.267, 0.005, 0.329 },
+  { 0.188, 0.407, 0.554 },
+  { 0.128, 0.567, 0.551 },
+  { 0.369, 0.789, 0.383 },
+  { 0.993, 0.906, 0.144 },
+}
+
+local function clamp(value, minimum, maximum)
+  if value < minimum then return minimum end
+  if value > maximum then return maximum end
+  return value
+end
+
+local function finite_integer(value, minimum)
+  if not finite_number(value) or value < minimum then return nil end
+  if math.floor(value) ~= value then return nil end
+  return value
+end
+
+local function clamp01(value)
+  if not finite_number(value) then return 1 end
+  return clamp(value, 0, 1)
+end
+
+-- Map a field value to the compact viridis-like palette.  Values outside
+-- [vmin, vmax] clamp exactly like luaplotlib's renderer.
+function Polar.heat_color(value, vmin, vmax)
+  if not finite_number(value) then value = vmin end
+  if not finite_number(vmin) or not finite_number(vmax) or vmax <= vmin then
+    return "#440154"
+  end
+  local t = clamp((value - vmin) / (vmax - vmin), 0, 1)
+  local scaled = t * (#Polar.HEAT_ANCHORS - 1)
+  local index = math.floor(scaled) + 1
+  if index >= #Polar.HEAT_ANCHORS then
+    index = #Polar.HEAT_ANCHORS - 1
+  end
+  local fraction = scaled - (index - 1)
+  local a = Polar.HEAT_ANCHORS[index]
+  local b = Polar.HEAT_ANCHORS[index + 1]
+  local function channel(left, right)
+    return math.floor((left + (right - left) * fraction) * 255 + 0.5)
+  end
+  return string.format("#%02x%02x%02x", channel(a[1], b[1]),
+    channel(a[2], b[2]), channel(a[3], b[3]))
+end
+
+-- Compact colourbar labels.  The result is deterministic in Lua and JS:
+-- three significant digits in plain notation for everyday ranges, and a
+-- short exponent form outside it.  The suffix of `tostring` is stable on
+-- LuaJIT and PUC Lua 5.1 for the ranges used by scene IR.
+function Polar.compact_number(value)
+  if not finite_number(value) then return nil end
+  if value == 0 then return "0" end
+  local magnitude = math.abs(value)
+  if magnitude >= 1e-4 and magnitude < 1e5 then
+    local rounded = tonumber(string.format("%.3g", value))
+    if rounded == nil then return string.format("%.3g", value) end
+    return tostring(rounded)
+  end
+  local text = string.format("%.2e", value)
+  local mantissa, exponent = text:match("^(.-)e([+-]?%d+)$")
+  if mantissa == nil then return text end
+  return tostring(tonumber(mantissa)) .. "e" .. tostring(tonumber(exponent))
+end
+
+-- Copy one heatmap from the polar IR into the compact field shape used by the
+-- renderers.  Missing or non-finite metadata gets the same safe defaults as
+-- the rest of the module; non-finite matrix cells fall back to `vmin`.
+function Polar.collect_heatmaps(polar)
+  local heatmaps = {}
+  for _, item in ipairs(type(polar) == "table" and polar.heatmaps or {}) do
+    if type(item) == "table" then
+      local rows = finite_integer(item.rows, 1)
+      local cols = finite_integer(item.cols, 1)
+      local values = type(item.values) == "table" and item.values or nil
+      if rows and cols and values then
+        local minimum, maximum
+        local cells = {}
+        for row = 1, rows do
+          local source = type(values[row]) == "table" and values[row] or {}
+          local copied = {}
+          for col = 1, cols do
+            local value = source[col]
+            if finite_number(value) then
+              if minimum == nil or value < minimum then minimum = value end
+              if maximum == nil or value > maximum then maximum = value end
+            else
+              value = nil
+            end
+            copied[col] = value
+          end
+          cells[row] = copied
+        end
+        local vmin = finite_number(item.vmin) and item.vmin or minimum
+        local vmax = finite_number(item.vmax) and item.vmax or maximum
+        if vmin == nil then vmin = 0 end
+        if vmax == nil or vmax <= vmin then vmax = vmin + 1 end
+        local rmin = finite_number(item.rmin) and math.max(0, item.rmin) or 0
+        local rmax = finite_number(item.rmax) and item.rmax or rows
+        if rmax <= rmin then rmax = rmin + 1 end
+        local theta_min = finite_number(item.theta_min) and item.theta_min or 0
+        local theta_max = finite_number(item.theta_max) and item.theta_max or
+          theta_min + 2 * pi
+        if theta_max <= theta_min then theta_max = theta_min + 2 * pi end
+        if theta_max - theta_min > 2 * pi then theta_max = theta_min + 2 * pi end
+        heatmaps[#heatmaps + 1] = {
+          kind = "heatmap",
+          rows = rows,
+          cols = cols,
+          values = cells,
+          vmin = vmin,
+          vmax = vmax,
+          rmin = rmin,
+          rmax = rmax,
+          theta_min = theta_min,
+          theta_max = theta_max,
+          alpha = clamp01(item.alpha),
+          label = type(item.label) == "string" and item.label or nil,
+          colorbar = item.colorbar == true,
+        }
+      end
+    end
+  end
+  return heatmaps
+end
+
+-- Copy contour levels from the polar IR.  The exported segments are already
+-- data-space (theta, r) quadruples, so all three renderers only need the
+-- shared projection and subdivision helpers.
+function Polar.collect_contours(polar)
+  local contours = {}
+  for index, item in ipairs(type(polar) == "table" and polar.contours or {}) do
+    if type(item) == "table" and type(item.levels) == "table" then
+      local style = type(item.style) == "table" and item.style or {}
+      local rmin = finite_number(item.rmin) and math.max(0, item.rmin) or 0
+      local rmax = finite_number(item.rmax) and item.rmax or rmin + 1
+      if rmax <= rmin then rmax = rmin + 1 end
+      local theta_min = finite_number(item.theta_min) and item.theta_min or 0
+      local theta_max = finite_number(item.theta_max) and item.theta_max or
+        theta_min + 2 * pi
+      if theta_max <= theta_min then theta_max = theta_min + 2 * pi end
+      if theta_max - theta_min > 2 * pi then
+        theta_max = theta_min + 2 * pi
+      end
+      local levels = {}
+      for _, level in ipairs(item.levels) do
+        if type(level) == "table" and finite_number(level.level) and
+           type(level.segments) == "table" then
+          local segments = {}
+          for _, segment in ipairs(level.segments) do
+            if type(segment) == "table" and finite_number(segment[1]) and
+               finite_number(segment[2]) and finite_number(segment[3]) and
+               finite_number(segment[4]) then
+              segments[#segments + 1] = {
+                segment[1], segment[2], segment[3], segment[4],
+              }
+            end
+          end
+          if #segments > 0 then
+            levels[#levels + 1] = { level = level.level, segments = segments }
+          end
+        end
+      end
+      if #levels > 0 then
+        local linestyle = style.linestyle
+        if linestyle ~= "dashed" and linestyle ~= "dotted" and
+           linestyle ~= "none" then
+          linestyle = "solid"
+        end
+        local color = valid_color(style.color)
+        if color == nil then
+          color = Polar.PALETTE[(index - 1) % #Polar.PALETTE + 1]
+        end
+        contours[#contours + 1] = {
+          kind = "contour",
+          rows = finite_integer(item.rows, 1),
+          cols = finite_integer(item.cols, 1),
+          rmin = rmin,
+          rmax = rmax,
+          theta_min = theta_min,
+          theta_max = theta_max,
+          levels = levels,
+          labels = item.labels == true,
+          style = {
+            color = color,
+            linewidth = finite_number(style.linewidth) and
+              math.max(0, style.linewidth) or 1.5,
+            alpha = clamp01(style.alpha),
+            linestyle = linestyle,
+            label = type(style.label) == "string" and style.label or nil,
+          },
+        }
+      end
+    end
+  end
+  return contours
+end
+
+-- Resolve the vertical colourbar metadata.  A scene normally supplies
+-- `polar.colorbar`; if only the heatmap carries `colorbar = true`, derive the
+-- same three-tick bar from the first such heatmap.
+function Polar.collect_colorbar(polar, heatmaps)
+  local item = type(polar) == "table" and type(polar.colorbar) == "table" and
+    polar.colorbar or nil
+  local source
+  if item ~= nil then
+    source = item
+  else
+    for _, heatmap in ipairs(heatmaps or {}) do
+      if heatmap.colorbar then source = heatmap break end
+    end
+  end
+  if source == nil then return nil end
+  local vmin = finite_number(source.vmin) and source.vmin or nil
+  local vmax = finite_number(source.vmax) and source.vmax or nil
+  if vmin == nil or vmax == nil or vmax <= vmin then return nil end
+  local ticks = {}
+  if type(source.ticks) == "table" and #source.ticks >= 2 then
+    for _, value in ipairs(source.ticks) do
+      if finite_number(value) then ticks[#ticks + 1] = value end
+    end
+  end
+  if #ticks < 2 then
+    ticks = {}
+    for index = 1, 3 do
+      ticks[index] = vmin + (vmax - vmin) * (index - 1) / 2
+    end
+  end
+  return {
+    orientation = source.orientation == "horizontal" and "horizontal" or
+      "vertical",
+    vmin = vmin,
+    vmax = vmax,
+    ticks = ticks,
+    label = type(source.label) == "string" and source.label ~= "" and
+      source.label or nil,
+  }
+end
+
+-- Reserve a column for the colourbar before fitting the circle.  Without a
+-- bar this is exactly `frame_radius(plot_w, plot_h)` and the historical
+-- centre, so existing scenes keep their pixels.
+function Polar.frame_layout(left, top, right, bottom, has_colorbar)
+  local plot_w = math.max(1, right - left)
+  local plot_h = math.max(1, bottom - top)
+  local field_w = math.max(1, plot_w -
+    (has_colorbar and Polar.COLORBAR_MARGIN or 0))
+  return left + field_w / 2, top + plot_h / 2,
+    Polar.frame_radius(field_w, plot_h)
+end
+
+function Polar.colorbar_layout(cx, cy, radius)
+  local width = Polar.COLORBAR_WIDTH
+  local height = radius * 1.7
+  return cx + radius + Polar.COLORBAR_GAP, cy - height / 2, width, height
+end
+
+function Polar.colorbar_ticks(colorbar)
+  local ticks = {}
+  if type(colorbar) ~= "table" then return ticks end
+  local span = colorbar.vmax - colorbar.vmin
+  if span <= 0 then return ticks end
+  for _, value in ipairs(colorbar.ticks or {}) do
+    if finite_number(value) then
+      local fraction = clamp((value - colorbar.vmin) / span, 0, 1)
+      ticks[#ticks + 1] = {
+        value = value,
+        label = Polar.compact_number(value),
+        fraction = fraction,
+      }
+    end
+  end
+  return ticks
+end
+
+-- Return the evenly stepped colourbar fills (first step at the top, matching
+-- luaplotlib's vertical bar).
+function Polar.colorbar_steps(colorbar, count)
+  local steps = {}
+  if type(colorbar) ~= "table" then return steps end
+  count = count or Polar.COLORBAR_STEPS
+  local span = colorbar.vmax - colorbar.vmin
+  if span <= 0 or count <= 0 then return steps end
+  for index = 1, count do
+    local value = colorbar.vmax - span * ((index - 0.5) / count)
+    steps[#steps + 1] = {
+      value = value,
+      color = Polar.heat_color(value, colorbar.vmin, colorbar.vmax),
+      y0 = (index - 1) / count,
+      y1 = index / count,
+    }
+  end
+  return steps
+end
+
+-- Project every matrix cell into an annular sector (or a full disc / split
+-- ring) in y-down screen coordinates.  A full turn with an inner radius is
+-- split into convex wedges so the LÖVR polygon path never needs a hole.
+function Polar.heatmap_cells(heatmap, cx, cy, radius, rmax, theta_zero,
+    direction)
+  local cells = {}
+  if type(heatmap) ~= "table" then return cells end
+  rmax = finite_number(rmax) and rmax > 0 and rmax or 1
+  local outer = radius * math.min(heatmap.rmax, rmax) / rmax
+  local inner = radius * math.max(0, heatmap.rmin) / rmax
+  if inner > outer then inner = outer end
+  local span = heatmap.theta_max - heatmap.theta_min
+  local col_span = span / heatmap.cols
+  for row = 1, heatmap.rows do
+    local row_inner = inner + (outer - inner) * (row - 1) / heatmap.rows
+    local row_outer = inner + (outer - inner) * row / heatmap.rows
+    for col = 1, heatmap.cols do
+      local value = heatmap.values[row] and heatmap.values[row][col]
+      if not finite_number(value) then value = heatmap.vmin end
+      local theta0 = heatmap.theta_min + col_span * (col - 1)
+      local theta1 = heatmap.theta_min + col_span * col
+      local start_angle = theta_zero + direction * theta0
+      local end_angle = theta_zero + direction * theta1
+      local cell = {
+        row = row,
+        col = col,
+        value = value,
+        color = Polar.heat_color(value, heatmap.vmin, heatmap.vmax),
+        alpha = heatmap.alpha,
+        inner_radius = row_inner,
+        outer_radius = row_outer,
+        start_angle = start_angle,
+        end_angle = end_angle,
+      }
+      local cell_span = math.abs(end_angle - start_angle)
+      if cell_span >= 2 * pi - 1e-9 then
+        if row_inner <= 0.0005 then
+          cell.full_disc = true
+          cell.parts = {}
+        else
+          cell.parts = {}
+          local step = (end_angle - start_angle) / Polar.FULL_TURN_PARTS
+          for part = 1, Polar.FULL_TURN_PARTS do
+            local part_start = start_angle + step * (part - 1)
+            cell.parts[part] = {
+              start_angle = part_start,
+              end_angle = part_start + step,
+            }
+          end
+        end
+      else
+        cell.parts = { { start_angle = start_angle, end_angle = end_angle } }
+      end
+      cells[#cells + 1] = cell
+    end
+  end
+  return cells
+end
+
+-- Subdivide one marching-squares contour edge in (theta, r) space so a long
+-- contour stays a spiral instead of a coarse chord.  The limits match the
+-- luaplotlib renderer.
+function Polar.contour_segment_points(contour, segment, cx, cy, radius, rmax,
+    theta_zero, direction)
+  local points = {}
+  if type(segment) ~= "table" or not finite_number(segment[1]) or
+     not finite_number(segment[2]) or not finite_number(segment[3]) or
+     not finite_number(segment[4]) then
+    return points
+  end
+  rmax = finite_number(rmax) and rmax > 0 and rmax or 1
+  local theta0, radius0 = segment[1], segment[2]
+  local theta1, radius1 = segment[3], segment[4]
+  local angular = math.abs(theta1 - theta0)
+  local radial = math.abs(radius1 - radius0) / rmax
+  local steps = math.max(2, math.ceil(angular / (pi / 48)),
+    math.ceil(radial * radius / 5))
+  if steps > Polar.CONTOUR_MAX_STEPS then
+    steps = Polar.CONTOUR_MAX_STEPS
+  end
+  for step = 0, steps do
+    local t = step / steps
+    local theta = theta0 + (theta1 - theta0) * t
+    local value = radius0 + (radius1 - radius0) * t
+    local x, y = Polar.project(cx, cy, radius, rmax, theta_zero, direction,
+      theta, value)
+    points[#points + 1] = { x, y }
+  end
+  return points
+end
+
+-- Place at most one label per contour level on the segment farthest from the
+-- origin, clamped inside the circular frame.  All three renderers consume
+-- this helper so labels cannot drift between them.
+function Polar.contour_label(contour, level, cx, cy, radius, rmax, theta_zero,
+    direction)
+  if type(contour) ~= "table" or contour.labels ~= true then return nil end
+  if type(level) ~= "table" or not finite_number(level.level) or
+     type(level.segments) ~= "table" then
+    return nil
+  end
+  local best, best_radius
+  for _, segment in ipairs(level.segments) do
+    if type(segment) == "table" then
+      local mid_theta = (segment[1] + segment[3]) / 2
+      local mid_radius = (segment[2] + segment[4]) / 2
+      local magnitude = math.abs(mid_radius)
+      if best_radius == nil or magnitude > best_radius then
+        best = { mid_theta, mid_radius }
+        best_radius = magnitude
+      end
+    end
+  end
+  if best == nil then return nil end
+  local text = Polar.compact_number(level.level)
+  if text == nil then return nil end
+  local x, y = Polar.project(cx, cy, radius, rmax, theta_zero, direction,
+    best[1], best[2])
+  local dx, dy = x - cx, y - cy
+  local distance = math.sqrt(dx * dx + dy * dy)
+  local margin = #text * Polar.CONTOUR_LABEL_SCALE / 2 + 4
+  local limit = radius - margin
+  if limit > 0 and distance > limit then
+    x = cx + dx / distance * limit
+    y = cy + dy / distance * limit
+  end
+  return { x = x, y = y, text = text }
 end
 
 return Polar

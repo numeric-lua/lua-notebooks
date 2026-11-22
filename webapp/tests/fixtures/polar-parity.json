@@ -16,28 +16,62 @@
       "theta_direction": "counterclockwise",
       "rmax": 2,
       "theta_ticks": [
-        { "value": 0, "label": "0" },
-        { "value": 1.5707963267948966, "label": "90" }
+        {
+          "value": 0,
+          "label": "0"
+        },
+        {
+          "value": 1.5707963267948966,
+          "label": "90"
+        }
       ],
       "r_ticks": [
-        { "value": 0.5, "label": "0.5" },
-        { "value": 1, "label": "1" },
-        { "value": 1.5, "label": "1.5" },
-        { "value": 2, "label": "2" }
+        {
+          "value": 0.5,
+          "label": "0.5"
+        },
+        {
+          "value": 1,
+          "label": "1"
+        },
+        {
+          "value": 1.5,
+          "label": "1.5"
+        },
+        {
+          "value": 2,
+          "label": "2"
+        }
       ],
       "series": [
         {
           "kind": "line",
-          "theta": [0, 1.5707963267948966],
-          "r": [1, 2],
-          "style": { "color": "#1f77b4" }
+          "theta": [
+            0,
+            1.5707963267948966
+          ],
+          "r": [
+            1,
+            2
+          ],
+          "style": {
+            "color": "#1f77b4"
+          }
         },
         {
           "kind": "bar",
-          "theta": [0.7853981633974483],
-          "r": [1.5],
-          "widths": [0.45],
-          "colors": ["#2ca02c"]
+          "theta": [
+            0.7853981633974483
+          ],
+          "r": [
+            1.5
+          ],
+          "widths": [
+            0.45
+          ],
+          "colors": [
+            "#2ca02c"
+          ]
         }
       ]
     }
@@ -46,17 +80,228 @@
     "rmax": 2,
     "observed": 2,
     "direction": 1,
-    "series_kinds": ["line", "bar"],
-    "radius_labels": ["0.5", "1", "1.5", "2"],
-    "theta_labels": ["0", "90"],
+    "series_kinds": [
+      "line",
+      "bar"
+    ],
+    "radius_labels": [
+      "0.5",
+      "1",
+      "1.5",
+      "2"
+    ],
+    "theta_labels": [
+      "0",
+      "90"
+    ],
     "projection": [
-      { "theta": 0, "r": 1, "x": 336.5, "y": 117, "angle": 0 },
-      { "theta": 1.5707963267948966, "r": 2, "x": 300, "y": 44, "angle": 1.5707963267948966 }
+      {
+        "theta": 0,
+        "r": 1,
+        "x": 336.5,
+        "y": 117,
+        "angle": 0
+      },
+      {
+        "theta": 1.5707963267948966,
+        "r": 2,
+        "x": 300,
+        "y": 44,
+        "angle": 1.5707963267948966
+      }
     ],
     "bar_sector": {
       "radius": 54.75,
       "start_angle": 0.5603981633974483,
-      "end_angle": 1.0103981633974483
+      "end_angle": 1.0103981633974484
+    }
+  },
+  "field_comment": "Second cross-renderer fixture: polar heatmap, contour, and colorbar. Both tests/polar.lua and webapp/tests/polar.test.mjs resolve this scene and compare against field_expected.",
+  "field_layout": {
+    "width": 600,
+    "height": 230,
+    "has_colorbar": true,
+    "cx": 272,
+    "cy": 117,
+    "radius": 73
+  },
+  "field_scene": {
+    "type": "luaplotlib",
+    "orientation": "polar",
+    "title": "polar field",
+    "polar": {
+      "theta_zero": 0,
+      "theta_direction": "counterclockwise",
+      "rmax": 2,
+      "theta_ticks": [
+        {
+          "value": 0,
+          "label": "0"
+        },
+        {
+          "value": 1.5707963267948966,
+          "label": "90"
+        }
+      ],
+      "r_ticks": [
+        {
+          "value": 0.5,
+          "label": "0.5"
+        },
+        {
+          "value": 1,
+          "label": "1"
+        },
+        {
+          "value": 1.5,
+          "label": "1.5"
+        },
+        {
+          "value": 2,
+          "label": "2"
+        }
+      ],
+      "heatmaps": [
+        {
+          "rows": 2,
+          "cols": 3,
+          "values": [
+            [
+              0,
+              1,
+              2
+            ],
+            [
+              3,
+              4,
+              5
+            ]
+          ],
+          "vmin": 0,
+          "vmax": 5,
+          "rmin": 0.5,
+          "rmax": 2,
+          "theta_min": 0,
+          "theta_max": 3.141592653589793,
+          "alpha": 0.9,
+          "label": "field",
+          "colorbar": true
+        }
+      ],
+      "contours": [
+        {
+          "rows": 3,
+          "cols": 3,
+          "levels": [
+            {
+              "level": 2.5,
+              "segments": [
+                [
+                  0,
+                  0.5,
+                  1.5707963267948966,
+                  1.5
+                ],
+                [
+                  3.141592653589793,
+                  1.0,
+                  4.71238898038469,
+                  2.0
+                ]
+              ]
+            }
+          ],
+          "labels": true,
+          "style": {
+            "color": "#e45756",
+            "linewidth": 1.25,
+            "alpha": 0.8,
+            "linestyle": "dashed",
+            "label": "isoline"
+          }
+        }
+      ],
+      "colorbar": {
+        "orientation": "vertical",
+        "vmin": 0,
+        "vmax": 5,
+        "ticks": [
+          0,
+          2.5,
+          5
+        ],
+        "label": "density"
+      },
+      "series": [
+        {
+          "kind": "line",
+          "theta": [
+            0,
+            1.5707963267948966
+          ],
+          "r": [
+            1,
+            2
+          ],
+          "style": {
+            "color": "#1f77b4",
+            "label": "overlay"
+          }
+        }
+      ]
+    }
+  },
+  "field_expected": {
+    "rmax": 2,
+    "observed": 2,
+    "heatmap_cells": 6,
+    "heat_colors": [
+      "#440154",
+      "#345382",
+      "#27808d",
+      "#39a77b",
+      "#7ecf55",
+      "#fde725"
+    ],
+    "first_cell": {
+      "row": 1,
+      "col": 1,
+      "inner_radius": 18.25,
+      "outer_radius": 45.625,
+      "start_angle": 0.0,
+      "end_angle": 1.0471975511965976
+    },
+    "contour_point_counts": [
+      25,
+      25
+    ],
+    "contour_first": {
+      "x": 290.25,
+      "y": 117.0
+    },
+    "contour_second_last": {
+      "x": 272.0,
+      "y": 190.0
+    },
+    "contour_label": {
+      "text": "2.5",
+      "x": 233.285904,
+      "y": 155.714096
+    },
+    "colorbar": {
+      "x": 361.0,
+      "y": 54.95,
+      "width": 16.0,
+      "height": 124.1
+    },
+    "colorbar_labels": [
+      "0",
+      "2.5",
+      "5"
+    ],
+    "summary": {
+      "count": 3,
+      "points": 10
     }
   }
 }

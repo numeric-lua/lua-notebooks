@@ -530,6 +530,25 @@ function Format.scene_summary(scene)
   if scene.orientation == "polar" then
     local polar = type(scene.polar) == "table" and scene.polar or {}
     local series, points = {}, 0
+    -- Fields are painted first, then the data series; keep the summary in the
+    -- same order so the caption and search index describe the drawing.
+    for _, heatmap in ipairs(Polar.collect_heatmaps(polar)) do
+      local count = heatmap.rows * heatmap.cols
+      points = points + count
+      series[#series + 1] = {
+        kind = "heatmap", count = count, label = heatmap.label,
+      }
+    end
+    for _, contour in ipairs(Polar.collect_contours(polar)) do
+      local count = 0
+      for _, level in ipairs(contour.levels) do
+        count = count + #level.segments
+      end
+      points = points + count
+      series[#series + 1] = {
+        kind = "contour", count = count, label = contour.style.label,
+      }
+    end
     for _, item in ipairs(polar.series or {}) do
       if type(item) == "table" then
         local count = 0
@@ -771,18 +790,48 @@ function Format.scene_svg(scene, width, height)
     local rmax = resolved.rmax
     local theta_zero = resolved.theta_zero
     local direction = resolved.direction
-    local radius = Polar.frame_radius(plot_w, plot_h)
-    local cx, cy = left + plot_w / 2, top + plot_h / 2
+    local has_colorbar = resolved.colorbar ~= nil
+    local cx, cy, radius = Polar.frame_layout(left, top, right, bottom,
+      has_colorbar)
     local function project(theta, value)
       return Polar.project(cx, cy, radius, rmax, theta_zero, direction,
         theta, value)
     end
+    local function annular_path(cell, part)
+      local start_angle, end_angle = part.start_angle, part.end_angle
+      local span = math.abs(end_angle - start_angle)
+      local large = span > math.pi and 1 or 0
+      local sweep = end_angle < start_angle and 1 or 0
+      local ox0 = cx + cell.outer_radius * math.cos(start_angle)
+      local oy0 = cy - cell.outer_radius * math.sin(start_angle)
+      local ox1 = cx + cell.outer_radius * math.cos(end_angle)
+      local oy1 = cy - cell.outer_radius * math.sin(end_angle)
+      if cell.inner_radius <= 0.0005 then
+        return string.format(
+          "M %s %s L %s %s A %s %s 0 %d %d %s %s Z",
+          svg_number(cx), svg_number(cy), svg_number(ox0),
+          svg_number(oy0), svg_number(cell.outer_radius),
+          svg_number(cell.outer_radius), large, sweep, svg_number(ox1),
+          svg_number(oy1))
+      end
+      local ix0 = cx + cell.inner_radius * math.cos(start_angle)
+      local iy0 = cy - cell.inner_radius * math.sin(start_angle)
+      local ix1 = cx + cell.inner_radius * math.cos(end_angle)
+      local iy1 = cy - cell.inner_radius * math.sin(end_angle)
+      return string.format(
+        "M %s %s A %s %s 0 %d %d %s %s L %s %s A %s %s 0 %d %d %s %s Z",
+        svg_number(ox0), svg_number(oy0), svg_number(cell.outer_radius),
+        svg_number(cell.outer_radius), large, sweep, svg_number(ox1),
+        svg_number(oy1), svg_number(ix1), svg_number(iy1),
+        svg_number(cell.inner_radius), svg_number(cell.inner_radius), large,
+        1 - sweep, svg_number(ix0), svg_number(iy0))
+    end
     local direction_label = polar.theta_direction == "clockwise" and
       "clockwise" or "counterclockwise"
     out[#out + 1] = string.format(
-      '<g class="scene-polar" data-polar="true" data-rmax="%s" data-theta-zero="%s" data-theta-direction="%s">',
+      '<g class="scene-polar" data-polar="true" data-rmax="%s" data-theta-zero="%s" data-theta-direction="%s" data-has-colorbar="%s">',
       svg_number(rmax), svg_number(theta_zero),
-      escape_html(direction_label))
+      escape_html(direction_label), has_colorbar and "true" or "false")
     if scene.grid ~= false then
       for _, tick in ipairs(Polar.rings(polar, rmax)) do
         local ring_radius = radius * tick.value / rmax
@@ -815,6 +864,67 @@ function Format.scene_svg(scene, width, height)
         end
       end
     end
+
+    -- Heatmaps and contours sit under the frame and the data series.
+    for _, heatmap in ipairs(resolved.heatmaps) do
+      for _, cell in ipairs(Polar.heatmap_cells(heatmap, cx, cy, radius,
+          rmax, theta_zero, direction)) do
+        local opacity = cell.alpha < 1 and string.format(
+          ' fill-opacity="%s"', svg_number(cell.alpha)) or ""
+        out[#out + 1] = string.format(
+          '<g class="scene-polar-heatmap-cell" data-row="%d" data-col="%d" fill="%s"%s>',
+          cell.row, cell.col, cell.color, opacity)
+        if cell.full_disc then
+          out[#out + 1] = string.format(
+            '<circle cx="%s" cy="%s" r="%s"/>', svg_number(cx),
+            svg_number(cy), svg_number(cell.outer_radius))
+        else
+          for _, part in ipairs(cell.parts) do
+            out[#out + 1] = string.format(
+              '<path d="%s"/>', annular_path(cell, part))
+          end
+        end
+        out[#out + 1] = "</g>"
+      end
+    end
+    for _, contour in ipairs(resolved.contours) do
+      local dash = ""
+      if contour.style.linestyle == "dashed" then
+        dash = ' stroke-dasharray="6 4"'
+      elseif contour.style.linestyle == "dotted" then
+        dash = ' stroke-dasharray="1.5 3"'
+      end
+      local opacity = contour.style.alpha < 1 and string.format(
+        ' stroke-opacity="%s"', svg_number(contour.style.alpha)) or ""
+      for _, level in ipairs(contour.levels) do
+        local level_label = Polar.compact_number(level.level) or ""
+        for _, segment in ipairs(level.segments) do
+          local points = Polar.contour_segment_points(contour, segment, cx,
+            cy, radius, rmax, theta_zero, direction)
+          local path_parts = {}
+          for index, point in ipairs(points) do
+            path_parts[index] = svg_number(point[1]) .. " " ..
+              svg_number(point[2])
+          end
+          if #path_parts > 0 then
+            out[#out + 1] = string.format(
+              '<path class="scene-polar-contour" fill="none" data-level="%s" d="M %s"%s stroke="%s" stroke-width="%s"%s/>',
+              escape_html(level_label), table.concat(path_parts, " L "),
+              dash, contour.style.color,
+              svg_number(contour.style.linewidth), opacity)
+          end
+        end
+        local label = Polar.contour_label(contour, level, cx, cy, radius,
+          rmax, theta_zero, direction)
+        if label ~= nil then
+          out[#out + 1] = string.format(
+            '<text class="scene-polar-contour-label" text-anchor="middle" x="%s" y="%s" font-size="10" fill="%s">%s</text>',
+            svg_number(label.x), svg_number(label.y + 3),
+            contour.style.color, escape_html(label.text))
+        end
+      end
+    end
+
     out[#out + 1] = string.format(
       '<circle class="scene-polar-frame" cx="%s" cy="%s" r="%s"/>',
       svg_number(cx), svg_number(cy), svg_number(radius))
@@ -875,6 +985,48 @@ function Format.scene_svg(scene, width, height)
           end
         end
       end
+    end
+
+    if resolved.colorbar ~= nil then
+      local bar = resolved.colorbar
+      local bx, by, bw, bh = Polar.colorbar_layout(cx, cy, radius)
+      out[#out + 1] = string.format(
+        '<g class="scene-polar-colorbar" data-orientation="vertical" data-vmin="%s" data-vmax="%s" data-x="%s" data-y="%s" data-width="%s" data-height="%s">',
+        svg_number(bar.vmin), svg_number(bar.vmax), svg_number(bx),
+        svg_number(by), svg_number(bw), svg_number(bh))
+      for _, step in ipairs(Polar.colorbar_steps(bar)) do
+        local top = by + bh * step.y0
+        out[#out + 1] = string.format(
+          '<rect class="scene-polar-colorbar-step" x="%s" y="%s" width="%s" height="%s" fill="%s"/>',
+          svg_number(bx), svg_number(top), svg_number(bw),
+          svg_number(bh * (step.y1 - step.y0) + 0.5), step.color)
+      end
+      out[#out + 1] = string.format(
+        '<rect class="scene-polar-colorbar-frame" fill="none" x="%s" y="%s" width="%s" height="%s"/>',
+        svg_number(bx - 0.5), svg_number(by - 0.5),
+        svg_number(bw + 1), svg_number(bh + 1))
+      local max_label = 0
+      for _, tick in ipairs(Polar.colorbar_ticks(bar)) do
+        local tick_y = by + bh * (1 - tick.fraction)
+        out[#out + 1] = string.format(
+          '<line class="scene-polar-colorbar-tick" x1="%s" y1="%s" x2="%s" y2="%s"/>',
+          svg_number(bx + bw), svg_number(tick_y),
+          svg_number(bx + bw + 4), svg_number(tick_y))
+        out[#out + 1] = string.format(
+          '<text class="scene-polar-colorbar-label" x="%s" y="%s">%s</text>',
+          svg_number(bx + bw + 8), svg_number(tick_y + 3.5),
+          escape_html(tick.label))
+        max_label = math.max(max_label, #tick.label * 5.5)
+      end
+      if bar.label ~= nil then
+        local title_x = bx + bw + 8 + max_label + 14
+        local title_y = by + bh / 2
+        out[#out + 1] = string.format(
+          '<text class="scene-polar-colorbar-title" x="%s" y="%s" text-anchor="middle" transform="rotate(-90 %s %s)">%s</text>',
+          svg_number(title_x), svg_number(title_y), svg_number(title_x),
+          svg_number(title_y), escape_html(bar.label))
+      end
+      out[#out + 1] = "</g>"
     end
     out[#out + 1] = "</g>"
   else
@@ -1196,6 +1348,12 @@ pre.scene-data{max-height:18rem;font-size:12px}
 .scene-polar-label{fill:var(--muted);font:9px/1 system-ui,-apple-system,"Segoe UI",sans-serif}
 .scene-polar-line{fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .scene-polar-bar{stroke:none;opacity:.82}
+.scene-polar-heatmap-cell{stroke:none}
+.scene-polar-contour{fill:none;stroke-linecap:round;stroke-linejoin:round}
+.scene-polar-colorbar-frame{fill:none;stroke:var(--muted);stroke-width:1}
+.scene-polar-colorbar-tick{stroke:var(--muted);stroke-width:1}
+.scene-polar-colorbar-label{fill:var(--muted);font:9px/1 system-ui,-apple-system,"Segoe UI",sans-serif}
+.scene-polar-colorbar-title{fill:var(--muted);font:10px/1 system-ui,-apple-system,"Segoe UI",sans-serif}
 @media (max-width:760px){.layout{display:block;padding-top:0}.toc{position:static;max-height:none;margin-bottom:1.4rem}h1{font-size:1.7rem}.search input[type=search]{flex-basis:100%}}
 @media print{:root{--bg:#fff;--fg:#000;--muted:#444;--card:#fff;--code:#f4f4f4;--output:#f4f4f4;--border:#ccc;--figure:#fff}.toc,.skip,.permalink,.search,.search-status{display:none!important}.layout{display:block;max-width:none;padding:0}.document-header{padding:0 0 1rem}.cell{box-shadow:none;break-inside:avoid;page-break-inside:avoid}a{color:#000;text-decoration:none}.scene details{display:none}}
 ]==]

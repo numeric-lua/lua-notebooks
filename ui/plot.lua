@@ -200,20 +200,127 @@ function Plot.draw(pass, font, scene, x, y, w, h)
 end
 
 -- The polar frame keeps a little room for theta labels, which sit outside the
--- circle.  The radius formula is shared with the SVG preview.
-function Plot.polar_layout(x, y, w, h)
+-- circle.  The radius formula is shared with the SVG preview.  A scene with a
+-- colourbar reserves the bar column before fitting the circle.
+function Plot.polar_layout(x, y, w, h, has_colorbar)
   local left = x + 52
   local right = x + w - 52
   local top = y + 34
   local bottom = y + h - 30
-  local plot_w = math.max(1, right - left)
-  local plot_h = math.max(1, bottom - top)
-  return left + plot_w / 2, top + plot_h / 2,
-    Polar.frame_radius(plot_w, plot_h)
+  return Polar.frame_layout(left, top, right, bottom, has_colorbar)
+end
+
+-- Flat polygon points for one annular cell part.  The centre-first form is
+-- used for pie-like cells whose inner radius is zero.
+local function polar_cell_points(cell, part, cx, cy)
+  local points = {}
+  local start_angle, end_angle = part.start_angle, part.end_angle
+  local span = math.abs(end_angle - start_angle)
+  local steps = math.max(2, math.ceil(span / (math.pi / 24)))
+  if cell.inner_radius <= 0.0005 then
+    points[1], points[2], points[3] = cx, cy, 0
+  end
+  for index = 0, steps do
+    local angle = start_angle + (end_angle - start_angle) * index / steps
+    points[#points + 1] = cx + cell.outer_radius * math.cos(angle)
+    points[#points + 1] = cy - cell.outer_radius * math.sin(angle)
+    points[#points + 1] = 0
+  end
+  if cell.inner_radius > 0.0005 then
+    for index = steps, 0, -1 do
+      local angle = start_angle + (end_angle - start_angle) * index / steps
+      points[#points + 1] = cx + cell.inner_radius * math.cos(angle)
+      points[#points + 1] = cy - cell.inner_radius * math.sin(angle)
+      points[#points + 1] = 0
+    end
+  end
+  return points
+end
+
+local function draw_polar_fields(pass, font, resolved, cx, cy, radius)
+  local heat_cells = 0
+  for _, heatmap in ipairs(resolved.heatmaps) do
+    for _, cell in ipairs(Polar.heatmap_cells(heatmap, cx, cy, radius,
+        resolved.rmax, resolved.theta_zero, resolved.direction)) do
+      set_color(pass, { color = cell.color, alpha = cell.alpha })
+      if cell.full_disc then
+        pass:circle(cx, cy, 0, cell.outer_radius)
+      else
+        for _, part in ipairs(cell.parts) do
+          pass:polygon(polar_cell_points(cell, part, cx, cy))
+        end
+      end
+      heat_cells = heat_cells + 1
+    end
+  end
+
+  for _, contour in ipairs(resolved.contours) do
+    set_color(pass, contour.style)
+    for _, level in ipairs(contour.levels) do
+      for _, segment in ipairs(level.segments) do
+        local points = Polar.contour_segment_points(contour, segment, cx, cy,
+          radius, resolved.rmax, resolved.theta_zero, resolved.direction)
+        for index = 2, #points do
+          pass:line(points[index - 1][1], points[index - 1][2], 0,
+            points[index][1], points[index][2], 0)
+        end
+      end
+      local label = Polar.contour_label(contour, level, cx, cy, radius,
+        resolved.rmax, resolved.theta_zero, resolved.direction)
+      if label ~= nil then
+        text(pass, font, label.text, label.x, label.y, 0.55, "center",
+          "middle", { color = contour.style.color })
+      end
+    end
+  end
+  return heat_cells
+end
+
+local function draw_polar_colorbar(pass, font, colorbar, cx, cy, radius)
+  if colorbar == nil then return end
+  local x, y, width, height = Polar.colorbar_layout(cx, cy, radius)
+  local tick_color = Theme.mode == "light" and "#5b6472" or "#7f879a"
+  local frame_color = Theme.mode == "light" and "#616a7a" or "#42506a"
+
+  for _, step in ipairs(Polar.colorbar_steps(colorbar)) do
+    local top = y + height * step.y0
+    local bottom = y + height * step.y1
+    set_color(pass, { color = step.color, alpha = 1 })
+    pass:plane(x + width / 2, (top + bottom) / 2, 0, width,
+      math.max(1, bottom - top))
+  end
+
+  set_color(pass, { color = frame_color })
+  pass:line(x, y, 0, x + width, y, 0)
+  pass:line(x + width, y, 0, x + width, y + height, 0)
+  pass:line(x + width, y + height, 0, x, y + height, 0)
+  pass:line(x, y + height, 0, x, y, 0)
+
+  local ticks = Polar.colorbar_ticks(colorbar)
+  local max_label = 0
+  for _, tick in ipairs(ticks) do
+    local tick_y = y + height * (1 - tick.fraction)
+    pass:line(x + width, tick_y, 0, x + width + 4, tick_y, 0)
+    if tick.label ~= nil then
+      text(pass, font, tick.label, x + width + 8, tick_y + 3.5, 0.62,
+        "left", "middle", { color = tick_color })
+      max_label = math.max(max_label, #tick.label * 5.5)
+    end
+  end
+
+  if colorbar.label ~= nil then
+    local title_x = x + width + 8 + max_label + 14
+    set_color(pass, { color = tick_color })
+    pass:setFont(font)
+    pass:text(colorbar.label, title_x, y + height / 2, 0, 0.65,
+      -math.pi / 2, 0, 0, 1, 0, "center", "middle")
+  end
 end
 
 -- Draw a luaplotlib polar scene.  The static export and this function consume
--- the same resolved IR and the same projection helpers.
+-- the same resolved IR and the same projection helpers.  Heatmaps and
+-- contours are painted beneath the line/scatter/bar series; the colourbar is
+-- painted last, outside the frame.
 function Plot.draw_polar(pass, font, scene, x, y, w, h)
   scene = scene or {}
   local light = Theme.mode == "light"
@@ -221,7 +328,8 @@ function Plot.draw_polar(pass, font, scene, x, y, w, h)
   local rmax = resolved.rmax
   local theta_zero = resolved.theta_zero
   local direction = resolved.direction
-  local cx, cy, radius = Plot.polar_layout(x, y, w, h)
+  local cx, cy, radius = Plot.polar_layout(x, y, w, h,
+    resolved.colorbar ~= nil)
   local rings = Polar.rings(resolved.polar, rmax)
   local spokes = Polar.spokes(resolved.polar)
 
@@ -253,6 +361,9 @@ function Plot.draw_polar(pass, font, scene, x, y, w, h)
         cy - radius * math.sin(angle), 0)
     end
   end
+
+  -- Heatmap cells and contour isolines sit under the frame and series.
+  draw_polar_fields(pass, font, resolved, cx, cy, radius)
 
   -- Frame.
   if light then
@@ -337,6 +448,8 @@ function Plot.draw_polar(pass, font, scene, x, y, w, h)
       end
     end
   end
+
+  draw_polar_colorbar(pass, font, resolved.colorbar, cx, cy, radius)
 
   -- Labels.
   if scene.title then
