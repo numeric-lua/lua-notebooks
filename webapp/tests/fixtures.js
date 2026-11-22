@@ -162,6 +162,70 @@ export function polarQuiverScene() {
   };
 }
 
+export function polarStreamplotScene() {
+  const lines = [];
+  for (let line = 0; line < 2; line += 1) {
+    const theta = [];
+    const r = [];
+    for (let index = 0; index < 13; index += 1) {
+      theta.push(line * PI + index * 0.5);
+      r.push(0.5 + index * 0.1 + line * 0.35);
+    }
+    lines.push({
+      theta,
+      r,
+      points: theta.length,
+      arrows: [{
+        theta: theta[6],
+        r: r[6],
+        angle: line === 0 ? -70 : 110,
+      }],
+    });
+  }
+  return {
+    type: "luaplotlib",
+    orientation: "polar",
+    title: "polar streamplot",
+    polar: {
+      theta_zero: 0,
+      theta_direction: "counterclockwise",
+      rmax: 2.4,
+      theta_ticks: [
+        { value: 0, label: "0" },
+        { value: PI / 2, label: "90" },
+        { value: PI, label: "180" },
+        { value: (3 * PI) / 2, label: "270" },
+      ],
+      r_ticks: [
+        { value: 1, label: "1" },
+        { value: 2, label: "2" },
+      ],
+      series: [{
+        kind: "streamplot",
+        theta: [0, PI / 2, PI, (3 * PI) / 2, 2 * PI],
+        r: [0.25, 0.75, 1.25, 1.75, 2.25],
+        lines,
+        periodic: true,
+        density: 1,
+        step: 0.08,
+        step_mode: "explicit",
+        resolved_step: 0.08,
+        step_unit: "data_radius_units",
+        max_steps: 300,
+        max_lines: 16,
+        max_points: 800,
+        arrows: true,
+        head: 6,
+        truncated: false,
+        style: {
+          color: "#2ca02c", linewidth: 2, head: 8, alpha: 1,
+          label: "flow",
+        },
+      }],
+    },
+  };
+}
+
 // Generate the deterministic matrix used by the large-field parity fixture:
 // rows run from the inner radius to the outer radius, values are (row-1)/(rows-1).
 export function largeFieldValues(rows = 65, cols = 65) {
@@ -289,6 +353,7 @@ export const sceneMatrix = [
   { name: "polar-field", scene: polarFieldScene, seriesColor: [31, 119, 180], minSeriesPixels: 20 },
   { name: "large-polar-field", scene: () => largePolarFieldScene(96, 96), seriesColor: [31, 119, 180], minSeriesPixels: 20 },
   { name: "polar-quiver", scene: polarQuiverScene, seriesColor: [255, 127, 14], minSeriesPixels: 10 },
+  { name: "polar-streamplot", scene: polarStreamplotScene, seriesColor: [44, 160, 44], minSeriesPixels: 10 },
   { name: "cartesian", scene: cartesianScene, seriesColor: [138, 164, 255], minSeriesPixels: 30 },
   { name: "histogram", scene: histogramScene, seriesColor: [84, 162, 75], minSeriesPixels: 30 },
   { name: "categories", scene: categoryScene, seriesColor: [178, 121, 162], minSeriesPixels: 30 },

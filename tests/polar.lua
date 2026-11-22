@@ -8,6 +8,7 @@ package.path = root .. "/?.lua;" .. root .. "/?/init.lua;" .. package.path
 
 local Polar = require("notebook.polar")
 local Format = require("notebook.format")
+local Notebook = require("notebook.model")
 local Theme = require("ui.theme")
 local Plot = require("ui.plot")
 local json = require("notebook.json")
@@ -1425,6 +1426,31 @@ test("matches the cross-renderer streamplot fixture", function()
     end
   end
   eq(arrow_index, #expected.arrow_points)
+end)
+
+test("demo streamplot cell resolves and exports", function()
+  local stream_cell
+  for _, cell in ipairs(Notebook.demo()[1].cells) do
+    if cell.source:find('kind = "streamplot"', 1, true) then
+      stream_cell = cell
+      break
+    end
+  end
+  assert(stream_cell ~= nil, "demo is missing a streamplot cell")
+  local chunk = assert(loadstring(stream_cell.source))
+  setfenv(chunk, { math = math })
+  local result = chunk()
+  local resolved = Polar.resolve(result.scene)
+  local stream
+  for _, series in ipairs(resolved.series) do
+    if series.kind == "streamplot" then stream = series end
+  end
+  assert(stream ~= nil, "demo streamplot did not collect")
+  eq(stream.line_count, 2)
+  eq(stream.arrow_count, 2)
+  local svg = Format.scene_svg(result.scene, 800, 320)
+  eq(count_plain(svg, 'class="scene-polar-streamline-path"'), 2)
+  eq(count_plain(svg, 'class="scene-polar-stream-arrow"'), 2)
 end)
 
 print(string.format("\npolar tests: %d passed, %d failed", passed, failed))

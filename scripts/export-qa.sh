@@ -50,6 +50,27 @@ for index = 1, 12 do
   qu[index] = math.cos(2 * angle)
   qv[index] = math.sin(2 * angle)
 end
+local stream_lines = {}
+for k = 1, 2 do
+  local line, arrows = { theta = {}, r = {} }, {}
+  for index = 1, 15 do
+    local angle = (k - 1) * math.pi + (index - 1) * 0.25
+    local radius = 0.5 + 0.05 * (index - 1) + 0.3 * (k - 1)
+    line.theta[index] = angle
+    line.r[index] = radius
+    if index == 8 then
+      local next_angle = angle + 0.25
+      local next_radius = radius + 0.05
+      local x1, y1 = radius * math.cos(angle), -radius * math.sin(angle)
+      local x2 = next_radius * math.cos(next_angle)
+      local y2 = -next_radius * math.sin(next_angle)
+      arrows[1] = { theta = angle, r = radius,
+        angle = math.deg(math.atan2(y2 - y1, x2 - x1)) }
+    end
+  end
+  line.arrows = arrows
+  stream_lines[k] = line
+end
 local notebook = Notebook.new({ name = "export-qa.luanb", cells = {
   { kind = "markdown", source =
     "# Export QA\n\nReader-facing search and a polar preview." },
@@ -100,6 +121,14 @@ notebook.cells[2].scene = {
         scale = 14, pivot = "middle", max_arrows = 12,
         style = { color = "#e45756", linewidth = 1.3, head = 5,
           alpha = 0.9, label = "flow" } },
+      { kind = "streamplot",
+        theta = { 0, math.pi / 2, math.pi, 3 * math.pi / 2, 2 * math.pi },
+        r = { 0.25, 0.75, 1.25, 1.75 },
+        lines = stream_lines, periodic = true, density = 1,
+        step = 0.08, step_mode = "explicit", resolved_step = 0.08,
+        max_steps = 300, max_lines = 16, max_points = 800, head = 6,
+        style = { color = "#54a24b", linewidth = 1.4, alpha = 0.9,
+          label = "stream" } },
     },
   },
 }
@@ -110,17 +139,25 @@ do
   assert(heatmap.sampled, "export QA field was not sampled")
   assert(heatmap.sampled_cells <= Polar.HEATMAP_CELL_LIMIT,
     "export QA field exceeded the heatmap cell cap")
-  local quiver
+  local quiver, stream
   for _, series in ipairs(resolved.series) do
     if series.kind == "quiver" then quiver = series end
+    if series.kind == "streamplot" then stream = series end
   end
   assert(quiver ~= nil and quiver.drawn == 12,
     "export QA quiver does not draw twelve arrows")
+  assert(stream ~= nil and stream.line_count == 2 and
+    stream.arrow_count == 2, "export QA streamplot is incomplete")
   local svg = Format.scene_svg(notebook.cells[2].scene, 800, 320)
   assert(select(2, svg:gsub('class="scene%-polar%-quiver%-arrow"', "")) ==
     quiver.drawn, "export QA quiver arrow count disagrees")
-  print(string.format("export-qa field: %d blocks, quiver: %d arrows",
-    heatmap.sampled_cells, quiver.drawn))
+  assert(select(2, svg:gsub('class="scene%-polar%-streamline%-path"', "")) ==
+    stream.line_count, "export QA streamline count disagrees")
+  assert(select(2, svg:gsub('class="scene%-polar%-stream%-arrow"', "")) ==
+    stream.arrow_count, "export QA stream arrow count disagrees")
+  print(string.format(
+    "export-qa field: %d blocks, quiver: %d arrows, streamplot: %d lines",
+    heatmap.sampled_cells, quiver.drawn, stream.line_count))
 end
 local handle = assert(io.open(output, "wb"))
 handle:write(Format.encode(notebook))

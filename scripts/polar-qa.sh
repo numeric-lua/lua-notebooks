@@ -56,6 +56,26 @@ for i = 1, 24 do
   quiver_u[i] = math.cos(3 * a)
   quiver_v[i] = math.sin(3 * a)
 end
+local stream_lines = {}
+for k = 1, 2 do
+  local line, arrows = { theta = {}, r = {} }, {}
+  for i = 1, 20 do
+    local a = (k - 1) * math.pi + (i - 1) * 0.22
+    local radius = 0.5 + 0.05 * (i - 1) + 0.3 * (k - 1)
+    line.theta[i] = a
+    line.r[i] = radius
+    if i == 10 then
+      local na = a + 0.22
+      local nr = radius + 0.05
+      local x1, y1 = radius * math.cos(a), -radius * math.sin(a)
+      local x2, y2 = nr * math.cos(na), -nr * math.sin(na)
+      arrows[1] = { theta = a, r = radius,
+        angle = math.deg(math.atan2(y2 - y1, x2 - x1)) }
+    end
+  end
+  line.arrows = arrows
+  stream_lines[k] = line
+end
 return { scene = {
   type = "luaplotlib", orientation = "polar", title = "polar QA",
   polar = {
@@ -103,6 +123,14 @@ return { scene = {
         max_arrows = 12,
         style = { color = "#e45756", linewidth = 1.4, head = 4,
           alpha = 0.95, label = "flow" } },
+      { kind = "streamplot",
+        theta = { 0, math.pi / 2, math.pi, 3 * math.pi / 2, 2 * math.pi },
+        r = { 0.25, 0.75, 1.25, 1.75 },
+        lines = stream_lines, periodic = true, density = 1,
+        step = 0.08, step_mode = "explicit", resolved_step = 0.08,
+        max_steps = 300, max_lines = 16, max_points = 800, head = 6,
+        style = { color = "#54a24b", linewidth = 1.4, alpha = 0.9,
+          label = "stream" } },
     },
   },
 } }
@@ -119,9 +147,10 @@ do
   assert(heatmap.sampled, "polar QA fixture was not sampled")
   assert(heatmap.sampled_cells <= Polar.HEATMAP_CELL_LIMIT,
     "polar QA fixture exceeded the heatmap cell cap")
-  local quiver
+  local quiver, stream
   for _, series in ipairs(resolved.series) do
     if series.kind == "quiver" then quiver = series end
+    if series.kind == "streamplot" then stream = series end
   end
   assert(quiver ~= nil and quiver.drawn > 0,
     "polar QA fixture has no quiver arrows")
@@ -135,10 +164,22 @@ do
     svg:gsub('class="scene%-polar%-quiver%-arrow"', ""))
   assert(exported_quiver == quiver.drawn,
     "live and exported quiver arrow counts disagree")
+  assert(stream ~= nil and stream.line_count == 2 and
+    stream.arrow_count == 2, "polar QA fixture has no streamplot lines")
+  local exported_stream = select(2,
+    svg:gsub('class="scene%-polar%-streamline%-path"', ""))
+  assert(exported_stream == stream.line_count,
+    "live and exported streamline counts disagree")
+  local exported_stream_arrows = select(2,
+    svg:gsub('class="scene%-polar%-stream%-arrow"', ""))
+  assert(exported_stream_arrows == stream.arrow_count,
+    "live and exported stream arrow counts disagree")
   print(string.format("polar-qa field: %dx%d -> %d blocks", heatmap.rows,
     heatmap.cols, heatmap.sampled_cells))
   print(string.format("polar-qa quiver: %d arrows -> %d drawn", quiver.count,
     quiver.drawn))
+  print(string.format("polar-qa streamplot: %d lines, %d arrows",
+    stream.line_count, stream.arrow_count))
 end
 local notebook = Notebook.new({ name = "polar-live.luanb", cells = {
   { kind = "code", source = source },

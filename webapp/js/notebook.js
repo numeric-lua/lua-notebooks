@@ -202,6 +202,54 @@ return { scene = {
     },
   },
 } }`),
+    createCell("code", `-- Polar streamplot: integrated streamlines with mid-line arrows.
+local lines = {}
+for k = 1, 2 do
+  local line, arrows = { theta = {}, r = {} }, {}
+  for i = 1, 24 do
+    local angle = (k - 1) * math.pi + (i - 1) * 0.18
+    local radius = 0.5 + 0.04 * (i - 1) + 0.35 * (k - 1)
+    line.theta[i] = angle
+    line.r[i] = radius
+    if i == 12 then
+      local next_angle = angle + 0.18
+      local next_radius = radius + 0.04
+      local x1, y1 = radius * math.cos(angle), -radius * math.sin(angle)
+      local x2 = next_radius * math.cos(next_angle)
+      local y2 = -next_radius * math.sin(next_angle)
+      arrows[1] = { theta = angle, r = radius,
+        angle = math.deg(math.atan2(y2 - y1, x2 - x1)) }
+    end
+  end
+  line.arrows = arrows
+  lines[k] = line
+end
+return { scene = {
+  type = "luaplotlib", orientation = "polar",
+  title = "polar streamplot", width = 800, height = 320,
+  polar = {
+    theta_zero = 0, theta_direction = "counterclockwise", rmax = 2.4,
+    theta_ticks = {
+      { value = 0, label = "0" }, { value = math.pi / 2, label = "90" },
+      { value = math.pi, label = "180" },
+      { value = 3 * math.pi / 2, label = "270" },
+    },
+    r_ticks = {
+      { value = 1, label = "1" }, { value = 2, label = "2" },
+    },
+    series = {
+      { kind = "streamplot",
+        theta = { 0, math.pi / 2, math.pi, 3 * math.pi / 2, 2 * math.pi },
+        r = { 0.25, 0.75, 1.25, 1.75, 2.25 },
+        lines = lines, periodic = true, density = 1,
+        step = 0.08, step_mode = "explicit", resolved_step = 0.08,
+        step_unit = "data_radius_units", max_steps = 300,
+        max_lines = 16, max_points = 800, head = 6, truncated = false,
+        style = { color = "#2ca02c", linewidth = 1.5, alpha = 0.95,
+          label = "flow" } },
+    },
+  },
+} }`),
   ]);
 }
 
