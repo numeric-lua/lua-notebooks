@@ -384,5 +384,136 @@
       "end_angle": 6.283185307179586,
       "color": "#fde725"
     }
+  },
+  "quiver_expected": {
+    "arrows": [
+      {
+        "angle": -90,
+        "index": 1,
+        "magnitude": 1,
+        "neck_x": 336.5,
+        "neck_y": 102,
+        "tail_x": 336.5,
+        "tail_y": 117,
+        "tip_x": 336.5,
+        "tip_y": 97
+      },
+      {
+        "angle": -180,
+        "index": 2,
+        "magnitude": 1,
+        "neck_x": 285,
+        "neck_y": 80.5,
+        "tail_x": 300,
+        "tail_y": 80.5,
+        "tip_x": 280,
+        "tip_y": 80.5
+      },
+      {
+        "angle": 0,
+        "index": 3,
+        "magnitude": 1,
+        "neck_x": 351.5,
+        "neck_y": 117,
+        "tail_x": 336.5,
+        "tail_y": 117,
+        "tip_x": 356.5,
+        "tip_y": 117
+      },
+      {
+        "angle": 0,
+        "index": 4,
+        "magnitude": 1,
+        "neck_x": 351.5,
+        "neck_y": 117,
+        "tail_x": 336.5,
+        "tail_y": 117,
+        "tip_x": 356.5,
+        "tip_y": 117
+      }
+    ],
+    "comment": "Projection and arrow geometry at layout 600x230 (cx=300, cy=117, radius=73) with rmax=6. Both tests/polar.lua and webapp/tests/polar.test.mjs compute this fixture.",
+    "count": 4,
+    "drawn": 4,
+    "max_arrows": 512,
+    "pivot": "tail",
+    "scale": 20,
+    "scale_mode": "explicit",
+    "stride": 1
+  },
+  "quiver_scene": {
+    "orientation": "polar",
+    "polar": {
+      "r_ticks": [
+        {
+          "label": "3",
+          "value": 3
+        },
+        {
+          "label": "6",
+          "value": 6
+        }
+      ],
+      "rmax": 6,
+      "series": [
+        {
+          "auto_scale": false,
+          "components": "tangential_radial",
+          "drawn": 4,
+          "kind": "quiver",
+          "max_arrows": 512,
+          "normalize": false,
+          "pivot": "tail",
+          "r": [
+            3,
+            3,
+            3,
+            3
+          ],
+          "resolved_scale": 20,
+          "scale": 20,
+          "scale_unit": "svg_user_units_per_magnitude",
+          "stride": 1,
+          "style": {
+            "alpha": 1,
+            "color": "#1f77b4",
+            "head": 5,
+            "linewidth": 1.2
+          },
+          "theta": [
+            0,
+            1.5707963267948966,
+            0,
+            0
+          ],
+          "u": [
+            1,
+            1,
+            0,
+            0
+          ],
+          "v": [
+            0,
+            0,
+            1,
+            1
+          ]
+        }
+      ],
+      "theta_direction": "counterclockwise",
+      "theta_ticks": [
+        {
+          "label": "0",
+          "value": 0
+        },
+        {
+          "label": "90",
+          "value": 1.5707963267948966
+        }
+      ],
+      "theta_zero": 0
+    },
+    "title": "quiver parity",
+    "type": "luaplotlib"
   }
 }

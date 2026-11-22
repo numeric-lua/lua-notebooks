@@ -26,12 +26,24 @@ Polar.DEFAULT_BAR_WIDTH = 0.2
 Polar.DEFAULT_POINT_RADIUS = 2.6
 Polar.MAX_POINT_RADIUS = 8
 Polar.MIN_POINT_RADIUS = 1
+Polar.QUIVER_AUTO_LENGTH = 18
+Polar.QUIVER_DEFAULT_MAX_ARROWS = 512
+Polar.QUIVER_MAX_ARROWS = 4096
+Polar.QUIVER_DEFAULT_HEAD = 5
+Polar.QUIVER_DEFAULT_LINEWIDTH = 1.2
+Polar.QUIVER_PIVOTS = { tail = 0, middle = 0.5, tip = 1 }
 
 local pi = math.pi
 
 local function finite_number(value)
   return type(value) == "number" and value == value and
     value ~= math.huge and value ~= -math.huge
+end
+
+local function finite_integer(value, minimum)
+  if not finite_number(value) or value < minimum then return nil end
+  if math.floor(value) ~= value then return nil end
+  return value
 end
 
 local function valid_color(value)
@@ -108,6 +120,78 @@ function Polar.collect(scene)
               kind = "bar", bars = bars, color = color, alpha = alpha,
             }
           end
+        elseif item.kind == "quiver" then
+          local u = type(item.u) == "table" and item.u or nil
+          local v = type(item.v) == "table" and item.v or nil
+          local normalize = item.normalize == true
+          local max_arrows = finite_integer(item.max_arrows, 1) or
+            Polar.QUIVER_DEFAULT_MAX_ARROWS
+          if max_arrows > Polar.QUIVER_MAX_ARROWS then
+            max_arrows = Polar.QUIVER_MAX_ARROWS
+          end
+          -- luaplotlib decimates with ceil(count / max_arrows) over the
+          -- source arrays, so a kernel-built scene gets the same arrows as
+          -- the SVG backend without trusting its exported stride/drawn hints.
+          local stride = math.max(1, math.ceil(count / max_arrows))
+          local maximum, arrows = 0, {}
+          for index = 1, count do
+            local theta_value, r_value = theta[index], r[index]
+            if finite_number(theta_value) and finite_number(r_value) then
+              note(r_value)
+            end
+            if u ~= nil and v ~= nil then
+              local u_value, v_value = u[index], v[index]
+              if finite_number(theta_value) and finite_number(r_value) and
+                 finite_number(u_value) and finite_number(v_value) then
+                local raw = math.sqrt(u_value * u_value + v_value * v_value)
+                local magnitude = normalize and raw > 0 and 1 or raw
+                if magnitude > maximum then maximum = magnitude end
+                if raw > 1e-12 and
+                   (index - 1) % stride == 0 then
+                  arrows[#arrows + 1] = {
+                    index = index,
+                    theta = theta_value,
+                    r = r_value,
+                    u = u_value,
+                    v = v_value,
+                    raw = raw,
+                    magnitude = magnitude,
+                  }
+                end
+              end
+            end
+          end
+          local scale = finite_number(item.scale) and item.scale > 0 and
+            item.scale or nil
+          local automatic = scale == nil
+          if scale == nil then
+            scale = finite_number(item.resolved_scale) and
+              item.resolved_scale > 0 and item.resolved_scale or nil
+          end
+          if scale == nil then
+            scale = maximum > 0 and Polar.QUIVER_AUTO_LENGTH / maximum or 1
+          end
+          local pivot = item.pivot
+          if pivot ~= "middle" and pivot ~= "tip" then pivot = "tail" end
+          collected[#collected + 1] = {
+            kind = "quiver",
+            arrows = arrows,
+            count = count,
+            drawn = #arrows,
+            color = color,
+            alpha = alpha,
+            linewidth = finite_number(style.linewidth) and
+              math.max(0, style.linewidth) or Polar.QUIVER_DEFAULT_LINEWIDTH,
+            head = finite_number(style.head) and math.max(0, style.head) or
+              Polar.QUIVER_DEFAULT_HEAD,
+            pivot = pivot,
+            normalize = normalize,
+            max_arrows = max_arrows,
+            stride = stride,
+            scale = scale,
+            auto_scale = automatic,
+            label = type(style.label) == "string" and style.label or nil,
+          }
         else
           local radii = type(item.radii) == "table" and item.radii or nil
           local colors = type(item.colors) == "table" and item.colors or nil
@@ -262,6 +346,76 @@ function Polar.project(cx, cy, radius, rmax, theta_zero, direction, theta, value
     cy - radius * ratio * math.sin(angle), angle
 end
 
+-- Screen-space arrow geometry for one collected quiver series.  `u` points
+-- toward increasing data theta and `v` outward along the radius; rotating that
+-- local orthonormal pair by the displayed angle reproduces luaplotlib's SVG
+-- quiver geometry.  Glyph lengths are SVG user units, not data units, so the
+-- arrows stay readable when rmax changes.  A zero-length vector has no
+-- direction and is skipped, matching the SVG backend.
+function Polar.quiver_arrows(quiver, cx, cy, radius, rmax, theta_zero,
+    direction)
+  local arrows = {}
+  if type(quiver) ~= "table" then return arrows end
+  rmax = finite_number(rmax) and rmax > 0 and rmax or 1
+  local pivot = quiver.pivot == "middle" and 0.5 or
+    (quiver.pivot == "tip" and 1 or 0)
+  local scale = finite_number(quiver.scale) and quiver.scale or 1
+  local head = finite_number(quiver.head) and quiver.head or 0
+  for _, arrow in ipairs(quiver.arrows or {}) do
+    local raw = arrow.raw or math.sqrt(arrow.u * arrow.u + arrow.v * arrow.v)
+    if raw > 1e-12 then
+      local magnitude = quiver.normalize and 1 or raw
+      local display = theta_zero + direction * arrow.theta
+      local cosine, sine = math.cos(display), math.sin(display)
+      local dx = arrow.v * cosine - direction * arrow.u * sine
+      local dy = -arrow.v * sine - direction * arrow.u * cosine
+      local ux, uy = dx / raw, dy / raw
+      local length = magnitude * scale
+      local x, y = Polar.project(cx, cy, radius, rmax, theta_zero,
+        direction, arrow.theta, arrow.r)
+      local tail_x = x - ux * length * pivot
+      local tail_y = y - uy * length * pivot
+      local tip_x = tail_x + ux * length
+      local tip_y = tail_y + uy * length
+      local arrow_head = math.min(head, length)
+      local neck_x = tip_x - ux * arrow_head
+      local neck_y = tip_y - uy * arrow_head
+      local half = arrow_head * 0.45
+      local px, py = -uy * half, ux * half
+      local angle = math.deg(math.atan2(dy, dx))
+      if angle == 0 then angle = 0 end
+      arrows[#arrows + 1] = {
+        index = arrow.index,
+        theta = arrow.theta,
+        r = arrow.r,
+        u = arrow.u,
+        v = arrow.v,
+        raw = raw,
+        magnitude = magnitude,
+        angle = angle,
+        length = length,
+        x = x,
+        y = y,
+        tail_x = tail_x,
+        tail_y = tail_y,
+        tip_x = tip_x,
+        tip_y = tip_y,
+        neck_x = neck_x,
+        neck_y = neck_y,
+        head_x1 = tip_x,
+        head_y1 = tip_y,
+        head_x2 = neck_x + px,
+        head_y2 = neck_y + py,
+        head_x3 = neck_x - px,
+        head_y3 = neck_y - py,
+        shaft = quiver.linewidth > 0 and length - arrow_head > 1e-9,
+        headed = arrow_head > 1e-9,
+      }
+    end
+  end
+  return arrows
+end
+
 function Polar.ring_label_position(cx, cy, ring_radius)
   return cx + ring_radius - 3, cy + 3
 end
@@ -380,12 +534,6 @@ Polar.HEAT_ANCHORS = {
 local function clamp(value, minimum, maximum)
   if value < minimum then return minimum end
   if value > maximum then return maximum end
-  return value
-end
-
-local function finite_integer(value, minimum)
-  if not finite_number(value) or value < minimum then return nil end
-  if math.floor(value) ~= value then return nil end
   return value
 end
 

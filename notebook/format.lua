@@ -994,6 +994,44 @@ function Format.scene_svg(scene, width, height)
             end
           end
         end
+      elseif series.arrows ~= nil then
+        local stroke_opacity, fill_opacity = "", ""
+        if series.alpha < 1 then
+          local alpha = svg_number(series.alpha)
+          stroke_opacity = string.format(' stroke-opacity="%s"', alpha)
+          fill_opacity = string.format(' fill-opacity="%s"', alpha)
+        end
+        out[#out + 1] = string.format(
+          '<g class="scene-polar-quiver" data-count="%d" data-drawn="%d" data-stride="%d" data-max-arrows="%d" data-scale="%s" data-scale-mode="%s" data-pivot="%s" data-normalize="%s" data-color="%s">',
+          series.count, series.drawn, series.stride, series.max_arrows,
+          svg_number(series.scale),
+          series.auto_scale and "auto" or "explicit", series.pivot,
+          series.normalize and "true" or "false", series.color)
+        for _, arrow in ipairs(Polar.quiver_arrows(series, cx, cy, radius,
+            rmax, theta_zero, direction)) do
+          out[#out + 1] = string.format(
+            '<g class="scene-polar-quiver-arrow" data-index="%d" data-magnitude="%s" data-theta="%s" data-r="%s" data-angle="%s">',
+            arrow.index, svg_number(arrow.magnitude),
+            svg_number(arrow.theta), svg_number(arrow.r),
+            svg_number(arrow.angle))
+          if arrow.shaft then
+            out[#out + 1] = string.format(
+              '<line class="scene-polar-quiver-shaft" x1="%s" y1="%s" x2="%s" y2="%s" stroke="%s" stroke-width="%s" stroke-linecap="round"%s/>',
+              svg_number(arrow.tail_x), svg_number(arrow.tail_y),
+              svg_number(arrow.neck_x), svg_number(arrow.neck_y),
+              series.color, svg_number(series.linewidth), stroke_opacity)
+          end
+          if arrow.headed then
+            out[#out + 1] = string.format(
+              '<polygon class="scene-polar-quiver-head" points="%s,%s %s,%s %s,%s" fill="%s"%s/>',
+              svg_number(arrow.head_x1), svg_number(arrow.head_y1),
+              svg_number(arrow.head_x2), svg_number(arrow.head_y2),
+              svg_number(arrow.head_x3), svg_number(arrow.head_y3),
+              series.color, fill_opacity)
+          end
+          out[#out + 1] = "</g>"
+        end
+        out[#out + 1] = "</g>"
       end
     end
 
@@ -1360,6 +1398,8 @@ pre.scene-data{max-height:18rem;font-size:12px}
 .scene-polar-bar{stroke:none;opacity:.82}
 .scene-polar-heatmap-cell{stroke:none}
 .scene-polar-contour{fill:none;stroke-linecap:round;stroke-linejoin:round}
+.scene-polar-quiver-shaft{stroke-linecap:round}
+.scene-polar-quiver-head{stroke:none}
 .scene-polar-colorbar-frame{fill:none;stroke:var(--muted);stroke-width:1}
 .scene-polar-colorbar-tick{stroke:var(--muted);stroke-width:1}
 .scene-polar-colorbar-label{fill:var(--muted);font:9px/1 system-ui,-apple-system,"Segoe UI",sans-serif}

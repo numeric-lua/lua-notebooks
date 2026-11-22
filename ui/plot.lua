@@ -446,6 +446,24 @@ function Plot.draw_polar(pass, font, scene, x, y, w, h)
           end
         end
       end
+    elseif series.arrows ~= nil then
+      -- Quiver arrows are already decimated and sized by notebook/polar.lua.
+      -- Draw the shaft first, then the filled head triangle, in series order.
+      set_color(pass, base_style)
+      for _, arrow in ipairs(Polar.quiver_arrows(series, cx, cy, radius,
+          rmax, theta_zero, direction)) do
+        if arrow.shaft then
+          pass:line(arrow.tail_x, arrow.tail_y, 0, arrow.neck_x,
+            arrow.neck_y, 0)
+        end
+        if arrow.headed then
+          pass:polygon({
+            arrow.head_x1, arrow.head_y1, 0,
+            arrow.head_x2, arrow.head_y2, 0,
+            arrow.head_x3, arrow.head_y3, 0,
+          })
+        end
+      end
     end
   end
 

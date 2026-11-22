@@ -153,6 +153,35 @@ local function large_field_scene(rows, cols)
   }
 end
 
+local function quiver_scene(options)
+  options = options or {}
+  return {
+    type = "luaplotlib", orientation = "polar", title = "quiver",
+    polar = {
+      theta_zero = options.theta_zero or 0,
+      theta_direction = options.theta_direction or "counterclockwise",
+      rmax = 6,
+      theta_ticks = { { value = 0, label = "0" } },
+      r_ticks = { { value = 3, label = "3" } },
+      series = { {
+        kind = "quiver",
+        theta = options.theta or { 0, math.pi / 2, 0, 0 },
+        r = options.r or { 3, 3, 3, 3 },
+        u = options.u or { 1, 1, 0, 0 },
+        v = options.v or { 0, 0, 1, 1 },
+        scale = options.scale == nil and 20 or options.scale,
+        pivot = options.pivot or "tail",
+        max_arrows = options.max_arrows,
+        normalize = options.normalize,
+        style = {
+          color = "#1f77b4", linewidth = 1.2, head = 5,
+          alpha = options.alpha or 1,
+        },
+      } },
+    },
+  }
+end
+
 test("resolves config, palette, and observed rmax", function()
   local scene = sample_scene()
   local resolved = Polar.resolve(scene)
@@ -907,6 +936,242 @@ test("matches the cross-renderer large field fixture", function()
   local summary = Format.scene_summary(scene)
   eq(summary.count, 1)
   eq(summary.points, expected.rows * expected.cols)
+end)
+
+test("collects quiver IR and projects local components", function()
+  local resolved = Polar.resolve(quiver_scene())
+  local quiver = resolved.series[1]
+  eq(quiver.kind, "quiver")
+  eq(quiver.count, 4)
+  eq(quiver.drawn, 4)
+  eq(quiver.stride, 1)
+  eq(quiver.max_arrows, Polar.QUIVER_DEFAULT_MAX_ARROWS)
+  eq(quiver.scale, 20)
+  eq(quiver.auto_scale, false)
+  eq(quiver.pivot, "tail")
+  eq(quiver.normalize, false)
+  eq(quiver.color, "#1f77b4")
+  near(quiver.linewidth, 1.2)
+  near(quiver.head, 5)
+
+  local arrows = Polar.quiver_arrows(quiver, 300, 117, 73, 6, 0, 1)
+  eq(#arrows, 4)
+  local first = arrows[1]
+  near(first.x, 336.5); near(first.y, 117)
+  near(first.tail_x, 336.5); near(first.tail_y, 117)
+  near(first.tip_x, 336.5); near(first.tip_y, 97)
+  near(first.neck_x, 336.5); near(first.neck_y, 102)
+  near(first.angle, -90)
+  near(first.length, 20)
+  near(first.head_x2, 338.75); near(first.head_y2, 102)
+  near(first.head_x3, 334.25); near(first.head_y3, 102)
+  eq(first.shaft, true)
+  eq(first.headed, true)
+  near(arrows[2].angle, -180)
+  near(arrows[3].angle, 0)
+  near(arrows[4].angle, 0)
+end)
+
+test("quiver follows theta_zero and clockwise direction", function()
+  local scene = quiver_scene({
+    theta_zero = math.pi / 2, theta_direction = "clockwise",
+    theta = { 0, 0 }, r = { 3, 3 }, u = { 1, 0 }, v = { 0, 1 },
+  })
+  local resolved = Polar.resolve(scene)
+  local arrows = Polar.quiver_arrows(resolved.series[1], 300, 117, 73, 6,
+    resolved.theta_zero, resolved.direction)
+  eq(#arrows, 2)
+  -- At a north zero location a clockwise tangential arrow points east while
+  -- the radial arrow points north.
+  near(arrows[1].angle, 0)
+  near(arrows[1].tip_x, 320)
+  near(arrows[1].tip_y, 80.5)
+  near(arrows[2].angle, -90)
+  contains(Format.scene_svg(scene, 600, 230),
+    'data-theta-direction="clockwise"', "clockwise export")
+end)
+
+test("quiver pivots and glyph length use SVG units", function()
+  local function render(pivot)
+    local scene = quiver_scene({
+      theta = { 0 }, r = { 3 }, u = { 0 }, v = { 1 }, pivot = pivot,
+    })
+    local resolved = Polar.resolve(scene)
+    return Polar.quiver_arrows(resolved.series[1], 300, 117, 73, 6, 0, 1)[1]
+  end
+
+  local tail = render("tail")
+  near(tail.tail_x, 336.5)
+  near(tail.tip_x, 356.5)
+  near(tail.neck_x, 351.5)
+
+  local middle = render("middle")
+  near(middle.tail_x, 326.5)
+  near(middle.tip_x, 346.5)
+
+  local tip = render("tip")
+  near(tip.tail_x, 316.5)
+  near(tip.tip_x, 336.5)
+  near(tip.length, 20)
+  eq(tip.shaft, true)
+end)
+
+test("quiver automatic scaling and normalization match luaplotlib", function()
+  local scene = quiver_scene({
+    theta = { 0, 0 }, r = { 2, 2 }, u = { 1, 0 }, v = { 0, 2.5 },
+  })
+  scene.polar.series[1].scale = nil
+  local resolved = Polar.resolve(scene)
+  local quiver = resolved.series[1]
+  eq(quiver.auto_scale, true)
+  near(quiver.scale, 7.2)
+  local arrows = Polar.quiver_arrows(quiver, 300, 117, 73, 6, 0, 1)
+  near(arrows[1].magnitude, 1)
+  near(arrows[1].length, 7.2)
+  near(arrows[2].magnitude, 2.5)
+  near(arrows[2].length, 18)
+
+  local normalized = quiver_scene({
+    theta = { 0, 0 }, r = { 2, 2 }, u = { 1, 0 }, v = { 0, 2.5 },
+    normalize = true,
+  })
+  normalized.polar.series[1].scale = nil
+  local normalized_resolved = Polar.resolve(normalized)
+  near(normalized_resolved.series[1].scale, 18)
+  local normalized_arrows = Polar.quiver_arrows(normalized_resolved.series[1],
+    300, 117, 73, 6, 0, 1)
+  near(normalized_arrows[1].magnitude, 1)
+  near(normalized_arrows[2].magnitude, 1)
+  near(normalized_arrows[1].length, 18)
+  near(normalized_arrows[2].length, 18)
+end)
+
+test("decimates quiver arrows deterministically", function()
+  local theta, u, v = {}, {}, {}
+  for index = 1, 10 do
+    theta[index] = 0
+    u[index] = 1
+    v[index] = 0
+  end
+  local scene = quiver_scene({ theta = theta, r = {}, u = u, v = v,
+    max_arrows = 3 })
+  for index = 1, 10 do scene.polar.series[1].r[index] = 3 end
+  scene.polar.series[1].u[5] = 0
+  local resolved = Polar.resolve(scene)
+  local quiver = resolved.series[1]
+  eq(quiver.count, 10)
+  eq(quiver.max_arrows, 3)
+  eq(quiver.stride, 4)
+  eq(quiver.drawn, 2)
+  local arrows = Polar.quiver_arrows(quiver, 300, 117, 73, 6, 0, 1)
+  eq(#arrows, 2)
+  eq(arrows[1].index, 1)
+  eq(arrows[2].index, 9)
+end)
+
+test("exports and draws quiver arrows in series order", function()
+  local scene = quiver_scene()
+  scene.grid = false
+  local svg = Format.scene_svg(scene, 600, 230)
+  contains(svg, 'class="scene-polar-quiver"', "quiver group")
+  contains(svg, 'data-count="4" data-drawn="4" data-stride="1" ' ..
+    'data-max-arrows="512"', "quiver counters")
+  contains(svg, 'data-scale="20.00" data-scale-mode="explicit"',
+    "explicit scale")
+  contains(svg, 'data-pivot="tail" data-normalize="false"',
+    "quiver options")
+  eq(count_plain(svg, 'class="scene-polar-quiver-arrow"'), 4)
+  eq(count_plain(svg, 'class="scene-polar-quiver-shaft"'), 4)
+  eq(count_plain(svg, 'class="scene-polar-quiver-head"'), 4)
+  contains(svg, 'data-angle="-90.00"', "first arrow angle")
+  contains(svg, 'data-angle="-180.00"', "second arrow angle")
+
+  local pass, calls = new_pass()
+  Plot.draw(pass, {}, scene, 0, 0, 600, 230)
+  eq(#named(calls, "line"), 4)
+  eq(#named(calls, "polygon"), 4)
+
+  local summary = Format.scene_summary(scene)
+  eq(summary.count, 1)
+  eq(summary.series[1].kind, "quiver")
+  eq(summary.points, 4)
+end)
+
+test("tolerates malformed and empty quiver data", function()
+  local scene = {
+    type = "luaplotlib", orientation = "polar", grid = false,
+    polar = {
+      rmax = 6,
+      series = {
+        { kind = "quiver", theta = { 0 / 0, 0 }, r = { 3, 4 },
+          u = { 1, 1 }, v = { 0, 0 },
+          max_arrows = 0,
+          style = { linewidth = -1, head = -2, color = "#ff7f0e" } },
+        { kind = "quiver", theta = { 0 }, r = { 2 } },
+      },
+    },
+  }
+  local resolved = Polar.resolve(scene)
+  eq(#resolved.series, 2)
+  local first = resolved.series[1]
+  eq(first.kind, "quiver")
+  eq(first.max_arrows, Polar.QUIVER_DEFAULT_MAX_ARROWS)
+  eq(first.stride, 1)
+  eq(first.drawn, 1)
+  eq(first.linewidth, 0)
+  eq(first.head, 0)
+  local second = resolved.series[2]
+  eq(second.drawn, 0)
+  eq(second.count, 1)
+  eq(resolved.rmax, 6)
+
+  local svg = Format.scene_svg(scene, 600, 230)
+  eq(count_plain(svg, 'class="scene-polar-quiver"'), 2)
+  eq(count_plain(svg, 'class="scene-polar-quiver-shaft"'), 0)
+  eq(count_plain(svg, 'class="scene-polar-quiver-head"'), 0)
+
+  local pass, calls = new_pass()
+  Plot.draw(pass, {}, scene, 0, 0, 600, 230)
+  eq(#named(calls, "line"), 0)
+  eq(#named(calls, "polygon"), 0)
+end)
+
+test("matches the cross-renderer quiver fixture", function()
+  local fixture = read_polar_fixture()
+  local expected = fixture.quiver_expected
+  local scene = fixture.quiver_scene
+  local resolved = Polar.resolve(scene)
+  local quiver = resolved.series[1]
+  eq(quiver.kind, "quiver")
+  eq(quiver.count, expected.count)
+  eq(quiver.drawn, expected.drawn)
+  eq(quiver.stride, expected.stride)
+  eq(quiver.max_arrows, expected.max_arrows)
+  near(quiver.scale, expected.scale)
+  eq(quiver.auto_scale, expected.scale_mode == "auto")
+  eq(quiver.pivot, expected.pivot)
+
+  local layout = fixture.layout
+  local cx, cy, radius = Polar.frame_layout(52, 34, layout.width - 52,
+    layout.height - 30, false)
+  eq(cx, layout.cx)
+  eq(cy, layout.cy)
+  eq(radius, layout.radius)
+  local arrows = Polar.quiver_arrows(quiver, cx, cy, radius, resolved.rmax,
+    resolved.theta_zero, resolved.direction)
+  eq(#arrows, #expected.arrows)
+  for index, arrow in ipairs(arrows) do
+    local want = expected.arrows[index]
+    eq(arrow.index, want.index)
+    near(arrow.angle, want.angle, 1e-9, "quiver angle")
+    near(arrow.magnitude, want.magnitude, 1e-9, "quiver magnitude")
+    near(arrow.tail_x, want.tail_x, 1e-9, "quiver tail x")
+    near(arrow.tail_y, want.tail_y, 1e-9, "quiver tail y")
+    near(arrow.tip_x, want.tip_x, 1e-9, "quiver tip x")
+    near(arrow.tip_y, want.tip_y, 1e-9, "quiver tip y")
+    near(arrow.neck_x, want.neck_x, 1e-9, "quiver neck x")
+    near(arrow.neck_y, want.neck_y, 1e-9, "quiver neck y")
+  end
 end)
 
 print(string.format("\npolar tests: %d passed, %d failed", passed, failed))
