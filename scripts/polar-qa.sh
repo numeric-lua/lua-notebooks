@@ -76,6 +76,17 @@ for k = 1, 2 do
   line.arrows = arrows
   stream_lines[k] = line
 end
+-- Third line leaves the frame and carries one rim arrow plus one fully
+-- outside arrow.  Dashes and clipping are pinned by the live/export counts.
+local clip_line = { theta = {}, r = {}, arrows = {
+  { theta = 1.45, r = 2.0, angle = 120 },
+  { theta = 2.0, r = 3.2, angle = 140 },
+} }
+for i = 1, 12 do
+  clip_line.theta[i] = 0.2 + 0.25 * (i - 1)
+  clip_line.r[i] = 1.0 + 0.18 * (i - 1)
+end
+stream_lines[3] = clip_line
 return { scene = {
   type = "luaplotlib", orientation = "polar", title = "polar QA",
   polar = {
@@ -129,8 +140,9 @@ return { scene = {
         lines = stream_lines, periodic = true, density = 1,
         step = 0.08, step_mode = "explicit", resolved_step = 0.08,
         max_steps = 300, max_lines = 16, max_points = 800, head = 6,
+        arrow_fraction = 0.35,
         style = { color = "#54a24b", linewidth = 1.4, alpha = 0.9,
-          label = "stream" } },
+          linestyle = "dashed", label = "stream" } },
     },
   },
 } }
@@ -164,22 +176,42 @@ do
     svg:gsub('class="scene%-polar%-quiver%-arrow"', ""))
   assert(exported_quiver == quiver.drawn,
     "live and exported quiver arrow counts disagree")
-  assert(stream ~= nil and stream.line_count == 2 and
-    stream.arrow_count == 2, "polar QA fixture has no streamplot lines")
+  assert(stream ~= nil and stream.line_count == 3 and
+    stream.arrow_count == 4, "polar QA fixture has no streamplot lines")
+  assert(stream.linestyle == "dashed",
+    "polar QA stream line style was dropped")
+  local cx, cy, radius = Polar.frame_layout(54, 22, 800 - 20, 320 - 30, false)
+  local drawn = Polar.stream_lines(stream, cx, cy, radius, resolved.rmax,
+    resolved.theta_zero, resolved.direction)
+  local visible_runs, visible_points, visible_arrows = 0, 0, 0
+  for _, line in ipairs(drawn) do
+    visible_runs = visible_runs + #line.runs
+    visible_points = visible_points + #line.points
+    visible_arrows = visible_arrows + #line.arrows
+  end
+  assert(visible_points < stream.point_count,
+    "polar QA streamplot was not clipped")
   local exported_stream = select(2,
     svg:gsub('class="scene%-polar%-streamline%-path"', ""))
-  assert(exported_stream == stream.line_count,
+  assert(exported_stream == visible_runs,
     "live and exported streamline counts disagree")
   local exported_stream_arrows = select(2,
     svg:gsub('class="scene%-polar%-stream%-arrow"', ""))
-  assert(exported_stream_arrows == stream.arrow_count,
+  assert(exported_stream_arrows == visible_arrows,
     "live and exported stream arrow counts disagree")
+  assert(svg:find('stroke-dasharray="6 4"', 1, true) ~= nil,
+    "polar QA stream dash pattern missing")
+  assert(svg:find('clip-path="url(#scene-polar-clip-', 1, true) ~= nil,
+    "polar QA stream clip path missing")
   print(string.format("polar-qa field: %dx%d -> %d blocks", heatmap.rows,
     heatmap.cols, heatmap.sampled_cells))
   print(string.format("polar-qa quiver: %d arrows -> %d drawn", quiver.count,
     quiver.drawn))
-  print(string.format("polar-qa streamplot: %d lines, %d arrows",
-    stream.line_count, stream.arrow_count))
+  print(string.format(
+    "polar-qa streamplot: %d lines, %d arrows, %d visible runs, " ..
+    "%d visible points, %d visible arrows",
+    stream.line_count, stream.arrow_count, visible_runs, visible_points,
+    visible_arrows))
 end
 local notebook = Notebook.new({ name = "polar-live.luanb", cells = {
   { kind = "code", source = source },

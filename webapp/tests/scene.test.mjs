@@ -314,3 +314,61 @@ test("draws polar streamlines and mid-line arrows inside the circle", () => {
   assert.ok(named(calls, "lineTo").length >= 5, "streamlines were not drawn");
   assertFiniteCalls(calls);
 });
+
+test("dashes and clips streamlines against the polar frame", () => {
+  const scene = {
+    type: "luaplotlib", orientation: "polar", grid: false,
+    polar: {
+      rmax: 2,
+      series: [{
+        kind: "streamplot",
+        theta: [0, 0, 0], r: [0.5, 2, 0.5],
+        head: 6,
+        style: { color: "#2ca02c", linewidth: 1.5, alpha: 1, linestyle: "dashed" },
+        lines: [{
+          theta: [0, 0, 0], r: [1, 3, 1],
+          arrows: [{ theta: 0, r: 2, angle: 0 }],
+        }],
+      }],
+    },
+  };
+  const { canvas, calls } = fakeCanvas(600, 230);
+  paintScene(canvas, scene);
+  assert.equal(named(calls, "clip").length, 1);
+  assert.ok(named(calls, "setLineDash").some((call) =>
+    Array.isArray(call.args[0]) && call.args[0][0] === 6
+    && call.args[0][1] === 4), "dashed stream did not set the dash pattern");
+  const strokes = named(calls, "stroke");
+  assert.ok(strokes.length >= 3, "dashed stream runs were not stroked");
+  for (const name of ["moveTo", "lineTo"]) {
+    for (const call of named(calls, name)) {
+      const dx = call.args[0] - 300;
+      const dy = call.args[1] - 117;
+      assert.ok(Math.sqrt(dx * dx + dy * dy) <= 73 + 1e-9,
+        `${name} escaped the circular frame`);
+    }
+  }
+
+  const none = {
+    type: "luaplotlib", orientation: "polar", grid: false,
+    polar: {
+      rmax: 2,
+      series: [{
+        kind: "streamplot",
+        theta: [0, 0, 0], r: [0.5, 2, 0.5],
+        head: 6,
+        style: { color: "#2ca02c", linewidth: 1.5, alpha: 1, linestyle: "none" },
+        lines: [{
+          theta: [0, 0, 0], r: [1, 3, 1],
+          arrows: [{ theta: 0, r: 2, angle: 0 }],
+        }],
+      }],
+    },
+  };
+  const plain = fakeCanvas(600, 230);
+  paintScene(plain.canvas, none);
+  assert.equal(named(plain.calls, "stroke").length, 1,
+    "linestyle none should only stroke the polar frame");
+  assert.equal(named(plain.calls, "fill").length, 1,
+    "linestyle none should still draw the arrow head");
+});

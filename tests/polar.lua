@@ -215,11 +215,13 @@ local function stream_scene(options)
         arrows = options.arrows,
         head = options.head,
         truncated = options.truncated,
+        arrow_fraction = options.arrow_fraction,
         style = {
           color = options.color or "#2ca02c",
           linewidth = options.linewidth == nil and 1.5 or options.linewidth,
           head = options.style_head or 6,
           alpha = options.alpha or 0.9,
+          linestyle = options.linestyle,
           label = "flow",
         },
       } },
@@ -1279,10 +1281,17 @@ test("streamplot follows theta_zero and clockwise direction", function()
   local arrow = lines[1].arrows[1]
   near(arrow.x, 300)
   near(arrow.y, 44)
-  near(arrow.head_x1, 303)
-  near(arrow.head_y1, 44)
-  near(arrow.head_y2, 46.7)
-  near(arrow.head_y3, 41.3)
+  eq(arrow.clipped, true)
+  near(arrow.tip_x, 303)
+  near(arrow.tip_y, 44)
+  near(arrow.head_points[1], 300)
+  near(arrow.head_points[2], 44)
+  for index = 1, #arrow.head_points, 2 do
+    local dx = arrow.head_points[index] - 300
+    local dy = arrow.head_points[index + 1] - 117
+    assert(math.sqrt(dx * dx + dy * dy) <= 73 + 1e-9,
+      "clipped stream arrow escaped the frame")
+  end
   contains(Format.scene_svg(scene, 600, 230),
     'data-theta-direction="clockwise"', "clockwise streamplot export")
 end)
@@ -1296,6 +1305,9 @@ test("streamplot derives auto step and tolerates malformed lines", function()
   eq(auto.periodic, true)
   near(auto.head, 6)
   near(auto.linewidth, 1.5)
+  eq(auto.linestyle, "solid")
+  near(auto.arrow_fraction, 0.5)
+  eq(auto.closed_lines, 0)
 
   local explicit = Polar.resolve(stream_scene({ step = 0.1 })).series[1]
   near(explicit.step, 0.1)
@@ -1428,6 +1440,67 @@ test("matches the cross-renderer streamplot fixture", function()
   eq(arrow_index, #expected.arrow_points)
 end)
 
+test("matches the clipped streamplot parity fixture", function()
+  local fixture = read_polar_fixture()
+  local expected = fixture.streamplot_clip_expected
+  local scene = fixture.streamplot_clip_scene
+  local resolved = Polar.resolve(scene)
+  local stream = resolved.series[1]
+  eq(stream.kind, "streamplot")
+  eq(stream.line_count, expected.lines)
+  eq(stream.point_count, expected.points)
+  eq(stream.arrow_count, expected.arrow_count)
+  eq(stream.linestyle, expected.linestyle)
+  near(stream.arrow_fraction, expected.arrow_fraction)
+  eq(stream.closed_lines, expected.closed_lines)
+
+  local layout = fixture.layout
+  local lines = Polar.stream_lines(stream, layout.cx, layout.cy,
+    layout.radius, resolved.rmax, resolved.theta_zero, resolved.direction)
+  eq(#lines, expected.visible_lines)
+  local visible_points, visible_runs, visible_arrows = 0, 0, 0
+  for line_index, line in ipairs(lines) do
+    visible_points = visible_points + #line.points
+    visible_runs = visible_runs + #line.runs
+    eq(#line.runs, #expected.line_runs[line_index])
+    eq(line.clipped, true)
+    for run_index, run in ipairs(line.runs) do
+      local want_run = expected.line_runs[line_index][run_index]
+      eq(#run, #want_run)
+      for point_index, point in ipairs(run) do
+        local want = want_run[point_index]
+        near(point.x, want.x, 1e-9, "clip point x")
+        near(point.y, want.y, 1e-9, "clip point y")
+        near(point.theta, want.theta, 1e-9, "clip point theta")
+        near(point.r, want.r, 1e-9, "clip point r")
+      end
+    end
+    for arrow_index, arrow in ipairs(line.arrows) do
+      local want = expected.arrow_points[arrow_index]
+      visible_arrows = visible_arrows + 1
+      eq(arrow.clipped, true)
+      near(arrow.x, want.x, 1e-9)
+      near(arrow.y, want.y, 1e-9)
+      near(arrow.tip_x, want.tip_x, 1e-9)
+      near(arrow.tip_y, want.tip_y, 1e-9)
+      eq(#arrow.head_points, #want.head_points)
+      for index = 1, #arrow.head_points do
+        near(arrow.head_points[index], want.head_points[index], 1e-9,
+          "clip arrow head point")
+      end
+    end
+  end
+  eq(visible_points, expected.visible_points)
+  eq(visible_runs, expected.visible_runs)
+  eq(visible_arrows, expected.visible_arrows)
+
+  local svg = Format.scene_svg(scene, layout.width, layout.height)
+  contains(svg, 'data-visible-runs="2"', "clip visible runs")
+  contains(svg, 'data-visible-points="4"', "clip visible points")
+  contains(svg, 'data-clipped="true"', "clip marker")
+  contains(svg, 'clip-path="url(#scene-polar-clip-', "clip path")
+end)
+
 test("demo streamplot cell resolves and exports", function()
   local stream_cell
   for _, cell in ipairs(Notebook.demo()[1].cells) do
@@ -1451,6 +1524,135 @@ test("demo streamplot cell resolves and exports", function()
   local svg = Format.scene_svg(result.scene, 800, 320)
   eq(count_plain(svg, 'class="scene-polar-streamline-path"'), 2)
   eq(count_plain(svg, 'class="scene-polar-stream-arrow"'), 2)
+end)
+
+test("clips streamplot lines and arrow heads to the circular frame", function()
+  local scene = stream_scene({
+    theta = { 0, 0, 0 }, r = { 0.5, 2, 0.5 },
+    lines = {
+      { theta = { 0, 0, 0 }, r = { 1, 3, 1 }, arrows = {
+        { theta = 0, r = 2, angle = 0 },
+        { theta = 0, r = 3, angle = 0 },
+      } },
+      { theta = { 0, 0 }, r = { 3, 4 } },
+    },
+  })
+  local stream = Polar.resolve(scene).series[1]
+  eq(stream.line_count, 2)
+  local lines = Polar.stream_lines(stream, 300, 117, 73, 2, 0, 1)
+  eq(#lines, 1, "a fully out-of-frame streamline is hidden")
+  local line = lines[1]
+  eq(line.clipped, true)
+  eq(#line.runs, 2, "the out-and-back line is cut into two runs")
+  eq(#line.points, 4)
+  local end_point = line.runs[1][2]
+  near(end_point.x, 373, 1e-9, "first run cut x")
+  near(end_point.y, 117, 1e-9, "first run cut y")
+  near(end_point.r, 2, 1e-9, "cut keeps the frame radius")
+  eq(#line.arrows, 1, "the fully outside arrow is dropped")
+  local arrow = line.arrows[1]
+  eq(arrow.clipped, true)
+  near(arrow.x, 373, 1e-9, "rim arrow anchor x")
+  for index = 1, #arrow.head_points, 2 do
+    local dx = arrow.head_points[index] - 300
+    local dy = arrow.head_points[index + 1] - 117
+    assert(math.sqrt(dx * dx + dy * dy) <= 73 + 1e-9,
+      "clipped arrow head escaped the frame")
+  end
+
+  local t0, t1 = Polar.clip_segment_to_circle(-10, 0, 10, 0, 0, 0, 5)
+  near(t0, 0.25)
+  near(t1, 0.75)
+  eq(Polar.clip_segment_to_circle(6, 0, 10, 0, 0, 0, 5), nil)
+
+  local dashes = Polar.dash_segments({
+    { x = 0, y = 0, theta = 0, r = 0 },
+    { x = 20, y = 0, theta = 0, r = 20 },
+  }, Polar.dash_pattern("dashed"))
+  eq(#dashes, 2)
+  near(dashes[1].points[1].x, 0)
+  near(dashes[1].points[#dashes[1].points].x, 6)
+  near(dashes[2].points[1].x, 10)
+  near(dashes[2].points[#dashes[2].points].x, 16)
+end)
+
+test("collects and renders streamplot line styles", function()
+  local dashed = stream_scene({
+    linestyle = "dashed", arrow_fraction = 0.25,
+    lines = { {
+      theta = { 0, 0.5, 1 }, r = { 1, 1.1, 1.2 }, closed = true,
+      arrows = { { theta = 0.5, r = 1.1, angle = 0 } },
+    } },
+  })
+  local stream = Polar.resolve(dashed).series[1]
+  eq(stream.linestyle, "dashed")
+  near(stream.arrow_fraction, 0.25)
+  eq(stream.closed_lines, 1)
+
+  local svg = Format.scene_svg(dashed, 600, 230)
+  contains(svg, 'data-linestyle="dashed"', "dashed stream metadata")
+  contains(svg, 'stroke-dasharray="6 4"', "dashed stream stroke")
+  contains(svg, 'data-arrow-fraction="0.25"', "arrow fraction metadata")
+  contains(svg, 'data-closed-lines="1"', "closed stream count")
+  contains(svg, 'data-closed="true"', "closed streamline flag")
+
+  local function draw_line_count(scene)
+    scene.grid = false
+    local pass, calls = new_pass()
+    Plot.draw(pass, {}, scene, 0, 0, 600, 230)
+    return #named(calls, "line"), calls
+  end
+  local solid_same = stream_scene({ lines = { {
+    theta = { 0, 0.5, 1 }, r = { 1, 1.1, 1.2 },
+    arrows = { { theta = 0.5, r = 1.1, angle = 0 } },
+  } } })
+  local solid_count = draw_line_count(solid_same)
+  local dashed_count = draw_line_count(dashed)
+  assert(dashed_count > solid_count,
+    "dashes should split the live polyline into more segments")
+
+  local none = stream_scene({ linestyle = "none" })
+  local none_count, none_calls = draw_line_count(none)
+  eq(none_count, 0, "linestyle none draws no path")
+  eq(#named(none_calls, "polygon"), 2, "linestyle none still draws arrows")
+
+  local dotted = Format.scene_svg(stream_scene({ linestyle = "dotted" }),
+    600, 230)
+  contains(dotted, 'stroke-dasharray="1.5 3"', "dotted stream stroke")
+end)
+
+test("demo clipped streamplot cell is dashed and cut at the frame", function()
+  local clip_cell
+  for _, cell in ipairs(Notebook.demo()[1].cells) do
+    if cell.source:find("polar streamplot clip", 1, true) then
+      clip_cell = cell
+      break
+    end
+  end
+  assert(clip_cell ~= nil, "demo is missing the clipped streamplot cell")
+  local chunk = assert(loadstring(clip_cell.source))
+  setfenv(chunk, { math = math })
+  local result = chunk()
+  local resolved = Polar.resolve(result.scene)
+  local stream
+  for _, series in ipairs(resolved.series) do
+    if series.kind == "streamplot" then stream = series end
+  end
+  assert(stream ~= nil, "clipped demo did not collect a streamplot")
+  eq(stream.linestyle, "dashed")
+  eq(stream.line_count, 2)
+  local cx, cy, radius = Polar.frame_layout(54, 22, 800 - 20, 320 - 30,
+    false)
+  local drawn = Polar.stream_lines(stream, cx, cy, radius, resolved.rmax,
+    resolved.theta_zero, resolved.direction)
+  local clipped = 0
+  for _, line in ipairs(drawn) do
+    if line.clipped then clipped = clipped + 1 end
+  end
+  eq(clipped, 1, "one demo streamline should cross the frame")
+  local svg = Format.scene_svg(result.scene, 800, 320)
+  contains(svg, 'stroke-dasharray="6 4"', "demo dashed style")
+  contains(svg, 'data-clipped="true"', "demo clipped streamline")
 end)
 
 print(string.format("\npolar tests: %d passed, %d failed", passed, failed))

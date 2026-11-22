@@ -226,6 +226,57 @@ export function polarStreamplotScene() {
   };
 }
 
+export function polarStreamplotClipScene() {
+  return {
+    type: "luaplotlib",
+    orientation: "polar",
+    title: "clipped streamplot",
+    polar: {
+      theta_zero: 0,
+      theta_direction: "counterclockwise",
+      rmax: 2,
+      theta_ticks: [
+        { value: 0, label: "0" },
+        { value: PI / 2, label: "90" },
+        { value: PI, label: "180" },
+        { value: (3 * PI) / 2, label: "270" },
+      ],
+      r_ticks: [{ value: 1, label: "1" }, { value: 2, label: "2" }],
+      series: [{
+        kind: "streamplot",
+        theta: [0, PI / 2, PI, (3 * PI) / 2, 2 * PI],
+        r: [0.25, 0.75, 1.25, 1.75],
+        lines: [
+          {
+            theta: [0, 0.5, 1], r: [0.8, 1.0, 1.2],
+            arrows: [{ theta: 0.5, r: 1.0, angle: 25 }],
+          },
+          {
+            theta: [2.2, 2.5, 2.8, 3.1], r: [1.2, 2.0, 2.6, 3.2],
+            arrows: [{ theta: 2.5, r: 2.0, angle: 120 }],
+          },
+        ],
+        periodic: false,
+        density: 1,
+        step: 0.08,
+        step_mode: "explicit",
+        resolved_step: 0.08,
+        max_steps: 300,
+        max_lines: 16,
+        max_points: 800,
+        arrows: true,
+        head: 6,
+        truncated: false,
+        arrow_fraction: 0.35,
+        style: {
+          color: "#9467bd", linewidth: 2, head: 6, alpha: 1,
+          linestyle: "dashed", label: "clipped flow",
+        },
+      }],
+    },
+  };
+}
+
 // Generate the deterministic matrix used by the large-field parity fixture:
 // rows run from the inner radius to the outer radius, values are (row-1)/(rows-1).
 export function largeFieldValues(rows = 65, cols = 65) {
@@ -354,6 +405,7 @@ export const sceneMatrix = [
   { name: "large-polar-field", scene: () => largePolarFieldScene(96, 96), seriesColor: [31, 119, 180], minSeriesPixels: 20 },
   { name: "polar-quiver", scene: polarQuiverScene, seriesColor: [255, 127, 14], minSeriesPixels: 10 },
   { name: "polar-streamplot", scene: polarStreamplotScene, seriesColor: [44, 160, 44], minSeriesPixels: 10 },
+  { name: "polar-streamplot-clip", scene: polarStreamplotClipScene, seriesColor: [148, 103, 189], minSeriesPixels: 10 },
   { name: "cartesian", scene: cartesianScene, seriesColor: [138, 164, 255], minSeriesPixels: 30 },
   { name: "histogram", scene: histogramScene, seriesColor: [84, 162, 75], minSeriesPixels: 30 },
   { name: "categories", scene: categoryScene, seriesColor: [178, 121, 162], minSeriesPixels: 30 },

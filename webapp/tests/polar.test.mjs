@@ -6,7 +6,8 @@ import {
   HEATMAP_CELL_LIMIT, LINE_SAMPLE_LIMIT, PALETTE, QUIVER_AUTO_LENGTH,
   QUIVER_DEFAULT_MAX_ARROWS, QUIVER_MAX_ARROWS, RADIUS_LABEL_LIMIT,
   SCATTER_SAMPLE_LIMIT, STREAM_DEFAULT_HEAD, STREAM_DEFAULT_LINEWIDTH,
-  THETA_LABEL_LIMIT, barSectors, colorbarLayout,
+  THETA_LABEL_LIMIT, barSectors, clipPolylineToCircle, clipSegmentToCircle,
+  colorbarLayout, dashPattern,
   colorbarSteps, colorbarTicks, collectColorbar, collectContours,
   collectHeatmaps, compactNumber, contourLabel, contourSegmentPoints,
   finiteNumber, frameLayout, frameRadius, heatColor, heatmapCells,
@@ -592,11 +593,13 @@ function streamScene(options = {}) {
         arrows: options.arrows,
         head: options.head,
         truncated: options.truncated,
+        arrow_fraction: options.arrow_fraction,
         style: {
           color: options.color ?? "#2ca02c",
           linewidth: options.linewidth ?? STREAM_DEFAULT_LINEWIDTH,
           head: options.styleHead ?? STREAM_DEFAULT_HEAD,
           alpha: options.alpha ?? 0.9,
+          linestyle: options.linestyle,
           label: "flow",
         },
       }],
@@ -819,10 +822,17 @@ test("streamplot follows theta zero and clockwise direction", () => {
   const arrow = lines[0].arrows[0];
   near(arrow.x, 300);
   near(arrow.y, 44);
-  near(arrow.headX1, 303);
-  near(arrow.headY1, 44);
-  near(arrow.headY2, 46.7);
-  near(arrow.headY3, 41.3);
+  assert.equal(arrow.clipped, true);
+  near(arrow.tipX, 303);
+  near(arrow.tipY, 44);
+  near(arrow.headPoints[0], 300);
+  near(arrow.headPoints[1], 44);
+  for (let index = 0; index < arrow.headPoints.length; index += 2) {
+    const dx = arrow.headPoints[index] - 300;
+    const dy = arrow.headPoints[index + 1] - 117;
+    assert.ok(Math.sqrt(dx * dx + dy * dy) <= 73 + 1e-9,
+      "clipped stream arrow escaped the frame");
+  }
 });
 
 test("streamplot derives auto step and tolerates malformed lines", () => {
@@ -862,6 +872,132 @@ test("streamplot derives auto step and tolerates malformed lines", () => {
   assert.equal(lines.length, 1);
   assert.equal(lines[0].points.length, 2);
   assert.equal(lines[0].arrows.length, 0);
+});
+
+test("clips streamplot lines and arrow heads to the circular frame", () => {
+  const scene = streamScene({
+    theta: [0, 0, 0], r: [0.5, 2, 0.5],
+    lines: [
+      {
+        theta: [0, 0, 0], r: [1, 3, 1],
+        arrows: [
+          { theta: 0, r: 2, angle: 0 },
+          { theta: 0, r: 3, angle: 0 },
+        ],
+      },
+      { theta: [0, 0], r: [3, 4] },
+    ],
+  });
+  const stream = resolvePolar(scene).series[0];
+  assert.equal(stream.lineCount, 2);
+  const lines = streamLines(stream, 300, 117, 73, 2, 0, 1);
+  assert.equal(lines.length, 1, "a fully out-of-frame streamline is hidden");
+  const line = lines[0];
+  assert.equal(line.clipped, true);
+  assert.equal(line.runs.length, 2);
+  assert.equal(line.points.length, 4);
+  const endPoint = line.runs[0][1];
+  near(endPoint.x, 373, 1e-9, "first run cut x");
+  near(endPoint.y, 117, 1e-9, "first run cut y");
+  near(endPoint.r, 2, 1e-9, "cut keeps the frame radius");
+  assert.equal(line.arrows.length, 1, "the fully outside arrow is dropped");
+  const arrow = line.arrows[0];
+  assert.equal(arrow.clipped, true);
+  near(arrow.x, 373, 1e-9, "rim arrow anchor x");
+  for (let index = 0; index < arrow.headPoints.length; index += 2) {
+    const dx = arrow.headPoints[index] - 300;
+    const dy = arrow.headPoints[index + 1] - 117;
+    assert.ok(Math.sqrt(dx * dx + dy * dy) <= 73 + 1e-9,
+      "clipped arrow head escaped the frame");
+  }
+
+  const interval = clipSegmentToCircle(-10, 0, 10, 0, 0, 0, 5);
+  near(interval[0], 0.25);
+  near(interval[1], 0.75);
+  assert.equal(clipSegmentToCircle(6, 0, 10, 0, 0, 0, 5), null);
+
+  assert.deepEqual(dashPattern("dashed"), [6, 4]);
+  assert.deepEqual(dashPattern("dotted"), [1.5, 3]);
+  assert.equal(dashPattern("solid"), null);
+  const contained = [{ x: 1, y: 2, theta: 0, r: 1 }];
+  assert.equal(clipPolylineToCircle(contained, 0, 0, 5)[0], contained);
+});
+
+test("collects streamplot line styles and metadata", () => {
+  const dashed = streamScene({
+    linestyle: "dashed", arrow_fraction: 0.25,
+    lines: [{
+      theta: [0, 0.5, 1], r: [1, 1.1, 1.2], closed: true,
+      arrows: [{ theta: 0.5, r: 1.1, angle: 0 }],
+    }],
+  });
+  const stream = resolvePolar(dashed).series[0];
+  assert.equal(stream.linestyle, "dashed");
+  near(stream.arrowFraction, 0.25);
+  assert.equal(stream.closedLines, 1);
+  assert.equal(stream.lines[0].closed, true);
+  assert.equal(resolvePolar(streamScene({})).series[0].linestyle, "solid");
+  near(resolvePolar(streamScene({})).series[0].arrowFraction, 0.5);
+});
+
+test("matches the clipped streamplot parity fixture", () => {
+  const fixture = JSON.parse(readFileSync(
+    new URL("./fixtures/polar-parity.json", import.meta.url), "utf8"));
+  const expected = fixture.streamplot_clip_expected;
+  const scene = fixture.streamplot_clip_scene;
+  const resolved = resolvePolar(scene);
+  const stream = resolved.series[0];
+  assert.equal(stream.kind, "streamplot");
+  assert.equal(stream.lineCount, expected.lines);
+  assert.equal(stream.pointCount, expected.points);
+  assert.equal(stream.arrowCount, expected.arrow_count);
+  assert.equal(stream.linestyle, expected.linestyle);
+  near(stream.arrowFraction, expected.arrow_fraction);
+  assert.equal(stream.closedLines, expected.closed_lines);
+
+  const { width, height, cx, cy, radius } = fixture.layout;
+  assert.equal(width, 600);
+  assert.equal(height, 230);
+  const lines = streamLines(stream, cx, cy, radius, resolved.rmax,
+    resolved.thetaZero, resolved.direction);
+  assert.equal(lines.length, expected.visible_lines);
+  let visiblePoints = 0;
+  let visibleRuns = 0;
+  let visibleArrows = 0;
+  lines.forEach((line, lineIndex) => {
+    visiblePoints += line.points.length;
+    visibleRuns += line.runs.length;
+    assert.equal(line.runs.length, expected.line_runs[lineIndex].length);
+    assert.equal(line.clipped, true);
+    line.runs.forEach((run, runIndex) => {
+      const wantRun = expected.line_runs[lineIndex][runIndex];
+      assert.equal(run.length, wantRun.length);
+      run.forEach((point, pointIndex) => {
+        const want = wantRun[pointIndex];
+        near(point.x, want.x, 1e-9, "clip point x");
+        near(point.y, want.y, 1e-9, "clip point y");
+        near(point.theta, want.theta, 1e-9, "clip point theta");
+        near(point.r, want.r, 1e-9, "clip point r");
+      });
+    });
+    line.arrows.forEach((arrow, arrowIndex) => {
+      const want = expected.arrow_points[arrowIndex];
+      visibleArrows += 1;
+      assert.equal(arrow.clipped, true);
+      near(arrow.x, want.x, 1e-9);
+      near(arrow.y, want.y, 1e-9);
+      near(arrow.tipX, want.tip_x, 1e-9);
+      near(arrow.tipY, want.tip_y, 1e-9);
+      assert.equal(arrow.headPoints.length, want.head_points.length);
+      arrow.headPoints.forEach((value, index) => {
+        near(value, want.head_points[index], 1e-9,
+          "clip arrow head point");
+      });
+    });
+  });
+  assert.equal(visiblePoints, expected.visible_points);
+  assert.equal(visibleRuns, expected.visible_runs);
+  assert.equal(visibleArrows, expected.visible_arrows);
 });
 
 test("matches the cross-renderer streamplot fixture", () => {

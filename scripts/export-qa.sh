@@ -71,6 +71,18 @@ for k = 1, 2 do
   line.arrows = arrows
   stream_lines[k] = line
 end
+-- Third line leaves the frame; its rim arrow is clipped and its far arrow is
+-- fully outside.  The dashed style pins the shared line-style metadata.
+local clip_line = { theta = {}, r = {}, arrows = {
+  { theta = 1.45, r = 2.0, angle = 120 },
+  { theta = 2.0, r = 3.2, angle = 140 },
+} }
+for index = 1, 12 do
+  local angle = 0.2 + 0.25 * (index - 1)
+  clip_line.theta[index] = angle
+  clip_line.r[index] = 1.0 + 0.18 * (index - 1)
+end
+stream_lines[3] = clip_line
 local notebook = Notebook.new({ name = "export-qa.luanb", cells = {
   { kind = "markdown", source =
     "# Export QA\n\nReader-facing search and a polar preview." },
@@ -127,8 +139,9 @@ notebook.cells[2].scene = {
         lines = stream_lines, periodic = true, density = 1,
         step = 0.08, step_mode = "explicit", resolved_step = 0.08,
         max_steps = 300, max_lines = 16, max_points = 800, head = 6,
+        arrow_fraction = 0.35,
         style = { color = "#54a24b", linewidth = 1.4, alpha = 0.9,
-          label = "stream" } },
+          linestyle = "dashed", label = "stream" } },
     },
   },
 }
@@ -146,18 +159,44 @@ do
   end
   assert(quiver ~= nil and quiver.drawn == 12,
     "export QA quiver does not draw twelve arrows")
-  assert(stream ~= nil and stream.line_count == 2 and
-    stream.arrow_count == 2, "export QA streamplot is incomplete")
+  assert(stream ~= nil and stream.line_count == 3 and
+    stream.arrow_count == 4, "export QA streamplot is incomplete")
+  assert(stream.linestyle == "dashed", "export QA stream style was dropped")
+  assert(stream.arrow_fraction == 0.35,
+    "export QA arrow fraction was dropped")
+  local cx, cy, radius = Polar.frame_layout(54, 22, 800 - 20, 320 - 30, false)
+  local drawn = Polar.stream_lines(stream, cx, cy, radius, resolved.rmax,
+    resolved.theta_zero, resolved.direction)
+  local visible_lines, visible_points, visible_runs, visible_arrows = 0, 0, 0,
+    0
+  for _, line in ipairs(drawn) do
+    visible_lines = visible_lines + 1
+    visible_points = visible_points + #line.points
+    visible_runs = visible_runs + #line.runs
+    visible_arrows = visible_arrows + #line.arrows
+  end
+  assert(visible_lines == 3 and visible_points < stream.point_count,
+    "export QA streamplot was not clipped")
+  assert(visible_arrows == 3 and visible_runs == 3,
+    "export QA visible stream counts are wrong")
   local svg = Format.scene_svg(notebook.cells[2].scene, 800, 320)
   assert(select(2, svg:gsub('class="scene%-polar%-quiver%-arrow"', "")) ==
     quiver.drawn, "export QA quiver arrow count disagrees")
   assert(select(2, svg:gsub('class="scene%-polar%-streamline%-path"', "")) ==
-    stream.line_count, "export QA streamline count disagrees")
+    visible_runs, "export QA streamline count disagrees")
   assert(select(2, svg:gsub('class="scene%-polar%-stream%-arrow"', "")) ==
-    stream.arrow_count, "export QA stream arrow count disagrees")
+    visible_arrows, "export QA stream arrow count disagrees")
+  assert(svg:find('data-linestyle="dashed"', 1, true) ~= nil,
+    "export QA stream style attribute missing")
+  assert(svg:find('stroke-dasharray="6 4"', 1, true) ~= nil,
+    "export QA stream dash pattern missing")
+  assert(svg:find('clip-path="url(#scene-polar-clip-', 1, true) ~= nil,
+    "export QA stream clip path missing")
   print(string.format(
-    "export-qa field: %d blocks, quiver: %d arrows, streamplot: %d lines",
-    heatmap.sampled_cells, quiver.drawn, stream.line_count))
+    "export-qa field: %d blocks, quiver: %d arrows, streamplot: %d lines, " ..
+    "%d visible runs, %d visible points, %d visible arrows",
+    heatmap.sampled_cells, quiver.drawn, stream.line_count, visible_runs,
+    visible_points, visible_arrows))
 end
 local handle = assert(io.open(output, "wb"))
 handle:write(Format.encode(notebook))

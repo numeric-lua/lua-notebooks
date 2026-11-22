@@ -797,5 +797,190 @@
       }
     ],
     "arrow_count": 2
+  },
+  "streamplot_clip_expected": {
+    "alpha": 0.85,
+    "arrow_count": 2,
+    "arrow_fraction": 0.35,
+    "arrow_points": [
+      {
+        "angle": 0,
+        "clipped": true,
+        "head_points": [
+          372.9088272244589,
+          115.60897225100649,
+          373,
+          117.00000000000006,
+          372.9088272244589,
+          118.3910277489935,
+          370,
+          119.7,
+          370,
+          114.3
+        ],
+        "r": 2,
+        "theta": 0,
+        "tip_x": 376,
+        "tip_y": 117,
+        "x": 373,
+        "y": 117
+      }
+    ],
+    "arrows": true,
+    "closed_lines": 0,
+    "color": "#9467bd",
+    "cols": 5,
+    "density": 1,
+    "head": 6,
+    "line_runs": [
+      [
+        [
+          {
+            "r": 1,
+            "theta": 0,
+            "x": 336.5,
+            "y": 117
+          },
+          {
+            "r": 2,
+            "theta": 0,
+            "x": 373,
+            "y": 117
+          }
+        ],
+        [
+          {
+            "r": 2,
+            "theta": 0,
+            "x": 373,
+            "y": 117
+          },
+          {
+            "r": 1,
+            "theta": 0,
+            "x": 336.5,
+            "y": 117
+          }
+        ]
+      ]
+    ],
+    "lines": 1,
+    "linestyle": "dashed",
+    "linewidth": 1.5,
+    "max_lines": 16,
+    "max_points": 800,
+    "max_steps": 300,
+    "periodic": true,
+    "points": 3,
+    "rows": 4,
+    "step": 0.08,
+    "step_mode": "explicit",
+    "truncated": false,
+    "visible_arrows": 1,
+    "visible_lines": 1,
+    "visible_points": 4,
+    "visible_runs": 2
+  },
+  "streamplot_clip_scene": {
+    "orientation": "polar",
+    "polar": {
+      "r_ticks": [
+        {
+          "label": "0.5",
+          "value": 0.5
+        },
+        {
+          "label": "1",
+          "value": 1
+        },
+        {
+          "label": "1.5",
+          "value": 1.5
+        },
+        {
+          "label": "2",
+          "value": 2
+        }
+      ],
+      "rmax": 2,
+      "series": [
+        {
+          "arrow_fraction": 0.35,
+          "arrows": true,
+          "density": 1,
+          "head": 6,
+          "kind": "streamplot",
+          "lines": [
+            {
+              "arrows": [
+                {
+                  "angle": 0,
+                  "r": 2,
+                  "theta": 0
+                },
+                {
+                  "angle": 0,
+                  "r": 3,
+                  "theta": 0
+                }
+              ],
+              "r": [
+                1,
+                3,
+                1
+              ],
+              "theta": [
+                0,
+                0,
+                0
+              ]
+            }
+          ],
+          "max_lines": 16,
+          "max_points": 800,
+          "max_steps": 300,
+          "periodic": true,
+          "r": [
+            0.5,
+            1,
+            1.5,
+            2
+          ],
+          "resolved_step": 0.08,
+          "step": 0.08,
+          "step_mode": "explicit",
+          "style": {
+            "alpha": 0.85,
+            "color": "#9467bd",
+            "head": 6,
+            "label": "clipped flow",
+            "linestyle": "dashed",
+            "linewidth": 1.5
+          },
+          "theta": [
+            0,
+            1.5707963267948966,
+            3.141592653589793,
+            4.71238898038469,
+            6.283185307179586
+          ],
+          "truncated": false
+        }
+      ],
+      "theta_direction": "counterclockwise",
+      "theta_ticks": [
+        {
+          "label": "0",
+          "value": 0
+        },
+        {
+          "label": "90",
+          "value": 1.5707963267948966
+        }
+      ],
+      "theta_zero": 0
+    },
+    "title": "streamplot clip parity",
+    "type": "luaplotlib"
   }
 }
