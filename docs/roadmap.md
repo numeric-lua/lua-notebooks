@@ -7,11 +7,11 @@
 - Process CPU/memory limits and timeout recovery.
 - luaplotlib scene rendering, including live Cartesian and polar
   line/scatter/bar/hist scenes, polar heatmaps with colourbars and bounded
-  block sampling for large fields, and polar contour isolines with shared
-  export geometry.
+  block sampling for large fields, polar contour isolines, and polar quiver
+  arrows with shared scale/pivot/decimation geometry and export attributes.
 - Browser front-end with local Canvas rendering for Cartesian
-  line/scatter/bar/hist and polar line/scatter/bar/heatmap/contour scenes,
-  shared polar parity fixtures, and a headless Chromium pixel check.
+  line/scatter/bar/hist and polar line/scatter/bar/heatmap/contour/quiver
+  scenes, shared polar parity fixtures, and a headless Chromium pixel check.
 - Extension manifests, discovery, hot reload, browser, local user extensions,
   and a restricted Lua environment.
 - Kernel widgets, editable multiline text, callbacks, persistence, and live
@@ -55,5 +55,5 @@ make test-webapp           # Node scene/model tests, no packages
 ./scripts/input-smoke.sh   # needs a seat and /dev/uinput
 ./scripts/visual-smoke.sh  # needs a display
 ./scripts/scene-qa.sh      # needs chromium
-luarocks make lua-notebooks-1.48.0-1.rockspec --tree=/tmp/luanb-rocks
+luarocks make lua-notebooks-1.49.0-1.rockspec --tree=/tmp/luanb-rocks
 ```

@@ -44,12 +44,14 @@ or with the settings button in the top bar.
 - `luaplotlib` Cartesian line, scatter, bar, and histogram scenes with axes,
   grid, titles/labels, categorical ticks, explicit bar widths, and the same
   800/400-point line/scatter sampling caps as the static export;
-- polar `luaplotlib` line, scatter, bar, heatmap, and contour scenes on the
-  shared circular frame: r rings, theta spokes, `theta_zero`/`theta_direction`,
-  an explicit or observed `rmax`, clamped radii, short tick labels, wide or
-  negative-radius bar wedges, annular heatmap blocks with the shared viridis
-  palette, bounded sampling for fields above 4096 cells, a stepped vertical
-  colourbar, and subdivided contour isolines with optional level labels;
+- polar `luaplotlib` line, scatter, bar, heatmap, contour, and quiver scenes on
+  the shared circular frame: r rings, theta spokes,
+  `theta_zero`/`theta_direction`, an explicit or observed `rmax`, clamped
+  radii, short tick labels, wide or negative-radius bar wedges, annular heatmap
+  blocks with the shared viridis palette, bounded sampling for fields above
+  4096 cells, a stepped vertical colourbar, subdivided contour isolines with
+  optional level labels, and clipped quiver shaft/head glyphs with shared
+  scaling, pivot, normalization, and arrow decimation;
 - `cube` and `grid` scene strings as local canvas drawings;
 - run all, kernel restart, auto-reconnect.
 
@@ -84,7 +86,7 @@ contract.
 `webapp/js/polar.js` mirrors the dependency-free `notebook/polar.lua` geometry
 used by the desktop viewport and the HTML export: rmax fallback, y-down
 projection, tick filtering and fallbacks, label limits, sample caps,
-point-radius clamps, and bar sectors. The fixture at
+point-radius clamps, bar sectors, and quiver arrows. The fixture at
 `webapp/tests/fixtures/polar-parity.json` is read by both `tests/polar.lua` and
 `webapp/tests/polar.test.mjs`, so a geometry drift on either side fails a
 suite.
@@ -96,9 +98,11 @@ heatmaps, contours, and colourbars use the same `field_scene` fixture in
 radii, contour subdivision, labels, colourbar geometry, and compact tick text
 are pinned across the Lua and JavaScript implementations. The
 `large_field_scene` fixture pins the 4096-cell sampling cap, block spans, and
-first/last block geometry for a 65x65 field, and `large-polar-field` is part of
-the headless Chromium scene matrix. Rendering stays Canvas 2D; the browser
-never needs a GPU or a LÖVR build.
+first/last block geometry for a 65x65 field, the `quiver_scene` fixture pins
+explicit scale, pivot, projection, and per-arrow angle/tail/tip/neck geometry,
+and both `large-polar-field` and `polar-quiver` are part of the headless
+Chromium scene matrix. Rendering stays Canvas 2D; the browser never needs a GPU
+or a LÖVR build.
 
 ## Tested
 
@@ -120,8 +124,8 @@ Validated in Chromium against a local gateway:
 - `print(...); return 6*7` produced the captured output and `42`;
 - widgets created and a button click returned `pong`;
 - a `star_nest` shader widget rendered and animated in WebGL;
-- polar, large sampled polar field, Cartesian, histogram, categorical, cube,
-  and grid canvases rendered;
+- polar, large sampled polar field, polar quiver, Cartesian, histogram,
+  categorical, cube, and grid canvases rendered;
 - no page exceptions.
 
 

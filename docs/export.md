@@ -71,6 +71,7 @@ Scene outputs become `<figure class="scene" id="figure-N">` elements:
 | polar `bar` | SVG wedge paths on the same frame |
 | polar `heatmap` | SVG annular/pie blocks, sampled to at most 4096 cells |
 | polar `contour` | subdivided SVG isolines with optional level labels |
+| polar `quiver` | SVG shaft/head glyphs, decimated to `max_arrows` |
 | polar colourbar | stepped vertical bar with compact tick labels and title |
 | `"cube"` | inline isometric cube glyph |
 | `"grid"` | inline perspective grid glyph |
@@ -109,10 +110,28 @@ space before projection, so long isolines read as spirals rather than chords.
 `labels = true` places at most one compact level label per contour level on the
 segment farthest from the origin and clamps it inside the frame.
 
+Polar quivers draw one arrow per `(theta, r)` position. `u` is the component
+toward increasing data theta and `v` points outward, so rotating that local
+pair by `theta_zero`/`theta_direction` yields the screen-space glyph. Arrow
+lengths are SVG user units per unit of vector magnitude: an explicit `scale`
+wins, otherwise the scene's `resolved_scale` is reused, and a scene without
+either gets the luaplotlib automatic scale (longest arrow 18 units). `pivot`
+chooses whether the data point sits at the tail, middle, or tip; `normalize`
+draws every non-zero vector at unit length; `head` and `linewidth` control the
+glyph. When a field has more than `max_arrows` vectors it is decimated with
+`stride = ceil(count / max_arrows)` over the source indices, so the export, the
+live viewport, and the browser draw the same arrows. The exported group carries
+`data-count`, `data-drawn`, `data-stride`, `data-max-arrows`, `data-scale`,
+`data-scale-mode`, `data-pivot`, and `data-normalize`; each
+`scene-polar-quiver-arrow` group records `data-index`, `data-magnitude`,
+`data-theta`, `data-r`, and `data-angle`, with
+`scene-polar-quiver-shaft`/`scene-polar-quiver-head` children.
+
 The live viewport consumes the same IR. `notebook/polar.lua` is the shared,
 LÖVR-free geometry module behind both renderers: it resolves rmax, projects
-y-down screen coordinates, filters tick sets, applies the 800/400 sample caps
-and short-label rules, and splits wide/negative-radius bars into wedge sectors.
+y-down screen coordinates, filters tick sets, applies the 800/400 sample caps,
+the quiver arrow cap, and short-label rules, and splits wide/negative-radius
+bars into wedge sectors.
 The live frame uses the same circular frame and tick placement, so the export
 is a faithful sketch rather than a separate implementation. The SVG itself is
 still deterministic and not a raster of the live renderer; animated or custom
@@ -127,9 +146,10 @@ rmax, projection, ring/theta labels, and bar sector for a small scene; the
 `field_scene` fixture pins heatmap cell colours and radii, contour subdivision
 and labels, colourbar geometry and compact tick text, and the field dimension
 reservation. The `large_field_scene` fixture pins the 65x65 sampling strides,
-block spans, sampled cell count, first/last block geometry, and extents. A
-change to one renderer either updates the shared contract deliberately or
-fails a test.
+block spans, sampled cell count, first/last block geometry, and extents. The
+`quiver_scene` fixture pins explicit scaling, pivot placement, projection, and
+per-arrow angle/tail/tip/neck geometry. A change to one renderer either updates
+the shared contract deliberately or fails a test.
 
 ## Markdown subset
 
@@ -180,19 +200,21 @@ table-of-contents links, search-index normalization and escaping, figure
 summaries/SVGs, polar axes and series, escaping, JSON truncation, tag filtering,
 and timing sums. `tests/polar.lua` additionally checks the shared projection,
 tick/label filters, bar sectors, heatmap-cell and contour geometry, large-field
-block sampling and export groups, colourbar layout, the live draw-call shape,
-agreement between the live renderer and the exported SVG, and the shared
-browser parity fixtures. `make test-webapp` checks
-the JavaScript counterpart and its draw calls, including the same 4096-cell
-sampling contract.
+block sampling and export groups, colourbar layout, quiver collection,
+scale/pivot/normalization, deterministic arrow decimation, the live draw-call
+shape, agreement between the live renderer and the exported SVG, and the shared
+browser parity fixtures. `make test-webapp` checks the JavaScript counterpart
+and its draw calls, including the same 4096-cell sampling and quiver-arrow
+contracts.
 `scripts/export-qa.sh` builds a small notebook, exports it with
 `tools/export.lua`, checks `?q=` and `?kind=` filtering through headless
-Chromium, and captures light, dark, narrow, and filtered screenshots under a
-scratch directory; it never commits them. `polar-qa.sh` runs a one-cell polar
-notebook with a 96x96 sampled field in the app, checks that the live and
-exported block counts agree, and keeps a live screenshot under another scratch
+Chromium, verifies the exported quiver arrow count, and captures light, dark,
+narrow, and filtered screenshots under a scratch directory; it never commits
+them. `polar-qa.sh` runs a one-cell polar notebook with a 96x96 sampled field
+and a decimated quiver in the app, checks that the live and exported block and
+arrow counts agree, and keeps a live screenshot under another scratch
 directory, while `scene-qa.sh` renders the browser scene matrix (including
-`large-polar-field`) in Chromium and checks Canvas pixels.
+`large-polar-field` and `polar-quiver`) in Chromium and checks Canvas pixels.
 
 For a rendered check from the app, export the demo notebook and open the
 result:
