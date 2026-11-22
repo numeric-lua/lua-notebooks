@@ -250,6 +250,38 @@ return { scene = {
     },
   },
 } }`),
+    createCell("code", `-- Polar streamplot clip: lines outside rmax are cut at the frame, and a
+-- dashed style splits the visible runs instead of drawing past the circle.
+local lines = {
+  { theta = { 0.0, 0.4, 0.8, 1.2 }, r = { 0.8, 1.2, 1.6, 2.0 },
+    arrows = { { theta = 0.6, r = 1.4, angle = 35 } } },
+  { theta = { 2.2, 2.5, 2.8, 3.1 }, r = { 1.2, 2.0, 2.6, 3.2 },
+    arrows = { { theta = 2.5, r = 2.0, angle = 120 } } },
+}
+return { scene = {
+  type = "luaplotlib", orientation = "polar",
+  title = "polar streamplot clip", width = 800, height = 320,
+  polar = {
+    theta_zero = 0, theta_direction = "counterclockwise", rmax = 2,
+    theta_ticks = {
+      { value = 0, label = "0" }, { value = math.pi / 2, label = "90" },
+      { value = math.pi, label = "180" },
+      { value = 3 * math.pi / 2, label = "270" },
+    },
+    r_ticks = { { value = 1, label = "1" }, { value = 2, label = "2" } },
+    series = {
+      { kind = "streamplot",
+        theta = { 0, math.pi / 2, math.pi, 3 * math.pi / 2, 2 * math.pi },
+        r = { 0.25, 0.75, 1.25, 1.75 },
+        lines = lines, arrows = true, head = 6, density = 1,
+        step = 0.08, step_mode = "explicit", resolved_step = 0.08,
+        max_steps = 300, max_lines = 16, max_points = 800,
+        periodic = false, truncated = false,
+        style = { color = "#b279a2", linewidth = 1.6, alpha = 0.9,
+          linestyle = "dashed", label = "clipped flow" } },
+    },
+  },
+} }`),
   ]);
 }
 
