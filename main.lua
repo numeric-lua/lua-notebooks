@@ -1865,20 +1865,25 @@ function lovr.load()
      os.getenv("LUANB_SMOKE_INPUT") then
     app.smoke = true
     app.smoke_start = lovr.timer.getTime()
-    if os.getenv("LUANB_SMOKE_SCENE") then
-      app:notebook():select(3)
+    local function find_cell(marker)
+      for index, cell in ipairs(app:notebook().cells) do
+        if (cell.source or ""):find(marker, 1, true) then return index end
+      end
+    end
+    local target
+    if os.getenv("LUANB_SMOKE_SCENE") or os.getenv("LUANB_SMOKE_INPUT") then
+      target = find_cell('return { scene = "cube" }')
     elseif os.getenv("LUANB_SMOKE_PLOT") then
-      app:notebook():select(4)
+      target = find_cell('title = "sin(x)"')
     elseif os.getenv("LUANB_SMOKE_POLAR") then
-      app:notebook():select(9)
+      target = find_cell('title = "polar rose"')
     elseif os.getenv("LUANB_SMOKE_GRID") then
-      app:notebook():select(5)
-    elseif os.getenv("LUANB_SMOKE_INPUT") then
-      app:notebook():select(3)
+      target = find_cell('return { scene = "grid" }')
     elseif os.getenv("LUANB_SMOKE_WIDGET") or
            os.getenv("LUANB_SMOKE_WIDGET_EVENT") then
-      app:notebook():select(6)
+      target = find_cell("widgets.slider(")
     end
+    if target then app:notebook():select(target) end
     app:run()
   end
 end
