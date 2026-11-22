@@ -1,3 +1,30 @@
+# lua-notebooks 1.48.0
+
+- sample polar heatmap fields above 4096 matrix cells into covering blocks in
+  the live viewport, the static HTML export, and the browser renderer; each
+  block spans the source rows and columns it replaces, so downsampling never
+  leaves gaps in the annulus;
+- keep `vmin`/`vmax` normalization tied to the full field: an explicit range
+  is used unchanged and a missing range scans every source cell before
+  sampling; captions continue to count source matrix values, not painted
+  blocks;
+- record the source grid and sampling strides on the exported heatmap group
+  (`data-rows`, `data-cols`, `data-row-step`, `data-col-step`,
+  `data-sampled`) and per-block spans on sampled cells;
+- add the `large_field_scene` cross-renderer fixture, a 65x65 sampling
+  contract in `tests/polar.lua` and the Node suite, and a
+  `large-polar-field` case in the headless Chromium scene matrix;
+- add large-field demo cells to the desktop and browser welcome notebooks, and
+  a 512x512 collect/project benchmark to `make bench`;
+- add a visual-baseline guard that pins the demo cells 4/6/7 scenes and checks
+  the committed baseline images exist and are intact;
+- document the 4096-cell cap, block coverage, export attributes, and parity
+  fixtures in the README, `docs/export.md`, `docs/web.md`,
+  `docs/architecture.md`, `docs/roadmap.md`, and `webapp/README.md`.
+
+No new runtime dependencies. The Neovim path and committed visual pixel
+baselines are unchanged.
+
 # lua-notebooks 1.47.0
 
 - render luaplotlib polar heatmaps in the live viewport, the static HTML
