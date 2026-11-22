@@ -189,6 +189,7 @@ Controls:
 | `Ctrl+Shift+R` | rename the trailing identifier across code cells |
 | `Ctrl+T` | open/close the tag index overlay |
 | `Ctrl+Shift+E` | show/hide per-cell execution timing |
+| `Ctrl+Shift+I` | open/close notebook statistics |
 | `F1` | open/close the command palette |
 | `F2` | open the hierarchical notebook filetree |
 | `F3` | toggle Vim mode (on by default) |
@@ -588,6 +589,15 @@ Tag scanning only reads Markdown prose. Tags inside fenced code blocks, inline c
 Every code-cell run records its kernel execution time. The timing stays hidden by default, so the cell layout and committed visual baselines do not change; press **Ctrl+Shift+E** or choose **Toggle execution timing** in the command palette to show a compact duration next to the cell index. Timings are live session data and are not persisted in `.luanb` files. The status bar always reports the duration of the run that just finished, and **Run all code cells** ends with the summed timed duration (for example, `all code cells finished in 1.24 s (6 timed)`).
 
 Neovim completion uses external popupmenu events rendered over the grid. Held Backspace, Delete, arrow, Home/End, and PageUp/PageDown keys repeat. F10 applies changes to the notebook model; F6 writes the `.luanb` file.
+
+## Notebook statistics
+
+Press **Ctrl+Shift+I** or choose **Notebook statistics** in the command palette
+for a read-only overview of the active notebook: cell counts, source lines split
+by kind, prose words, headings, wiki links, tags, text outputs, figures,
+widgets, errors, timed execution total, and kernel name. The overlay is a
+snapshot taken when it opens; `Esc`, **Ctrl+Shift+I**, or a click closes it. It
+does not change the notebook or any cell layout.
 
 ## Autosave and recovery
 

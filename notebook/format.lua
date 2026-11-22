@@ -1324,6 +1324,13 @@ function Format.widget_summary(cell)
   return result
 end
 
+local function source_line_count(source)
+  if type(source) ~= "string" or source == "" then return 0 end
+  local count = 1
+  for _ in source:gmatch("\n") do count = count + 1 end
+  return count
+end
+
 function Format.html_stats(notebook)
   local stats = {
     cells = #notebook.cells,
@@ -1333,22 +1340,41 @@ function Format.html_stats(notebook)
     widgets = 0,
     words = 0,
     tags = 0,
+    lines = 0,
+    code_lines = 0,
+    markdown_lines = 0,
+    headings = 0,
+    links = 0,
+    errors = 0,
+    outputs = 0,
   }
   for _, cell in ipairs(notebook.cells) do
+    local lines = source_line_count(cell.source)
+    stats.lines = stats.lines + lines
     if cell.kind == "markdown" then
       stats.markdown = stats.markdown + 1
+      stats.markdown_lines = stats.markdown_lines + lines
       for _ in (cell.source or ""):gmatch("%S+") do
         stats.words = stats.words + 1
       end
     else
       stats.code = stats.code + 1
+      stats.code_lines = stats.code_lines + lines
     end
     if cell.scene ~= nil then stats.figures = stats.figures + 1 end
     stats.widgets = stats.widgets + #Format.widget_summary(cell)
+    if cell.error ~= nil and cell.error ~= "" then
+      stats.errors = stats.errors + 1
+    end
+    if cell.output ~= nil and cell.output ~= "" then
+      stats.outputs = stats.outputs + 1
+    end
   end
   for _ in pairs(Format.tags(notebook.cells)) do
     stats.tags = stats.tags + 1
   end
+  stats.headings = #Format.headings(notebook.cells)
+  stats.links = #Format.wiki_links(notebook.cells)
   return stats
 end
 

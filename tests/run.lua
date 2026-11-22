@@ -843,6 +843,30 @@ test("aggregates tag index across open notebooks", function()
   eq(entries[3].tag, "plots")
 end)
 
+current = "notebook statistics"
+test("counts cells, source lines, prose, structure, and output", function()
+  local notebook = Notebook.new({ name = "stats.luanb", cells = {
+    { kind = "markdown", source = "# Intro\n\nTwo words.\n\n[[Other]] #tag" },
+    { kind = "code", source = "print(1)\nprint(2)", output = "1\n2" },
+    { kind = "code", source = "error('boom')", error = "boom" },
+  } })
+  local stats = Format.html_stats(notebook)
+  eq(stats.cells, 3)
+  eq(stats.code, 2)
+  eq(stats.markdown, 1)
+  eq(stats.lines, 8)
+  eq(stats.code_lines, 3)
+  eq(stats.markdown_lines, 5)
+  eq(stats.headings, 1)
+  eq(stats.links, 1)
+  eq(stats.tags, 1)
+  eq(stats.outputs, 1)
+  eq(stats.errors, 1)
+  eq(stats.words, 6)
+  local html = Format.to_html(notebook)
+  assert(html:find("— 3 cells, 2 code, 1 markdown", 1, true))
+end)
+
 current = "execution timing"
 test("formats timing without changing the cell baseline", function()
   eq(Format.duration(0.0004), "<1 ms")

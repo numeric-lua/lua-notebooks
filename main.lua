@@ -1275,6 +1275,7 @@ function lovr.load()
   if os.getenv("LUANB_QA_OUTLINE") then app.ui.show_outline = true end
   if os.getenv("LUANB_QA_TAGS") then app.ui.show_tags = true end
   if os.getenv("LUANB_QA_TIMING") then app.ui.show_timing = true end
+  if os.getenv("LUANB_QA_STATS") then app.ui:open_stats() end
   if os.getenv("LUANB_QA_HISTORY") then
     local notebook = app:notebook()
     notebook.cells[notebook.active].source = ""
@@ -1359,6 +1360,13 @@ function lovr.load()
     app.ui.vim_normal = true
     app.ui:keypressed("?")
     print("SMOKE_HELP=" .. tostring(app.ui.show_help))
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_STATS") then
+    app.ui:open_stats()
+    local values = app.ui.stats.values
+    app.ui:keypressed("escape")
+    print("SMOKE_STATS=" .. values.cells .. ":" .. values.lines .. ":" ..
+      tostring(app.ui.show_stats))
     lovr.event.quit()
   elseif os.getenv("LUANB_SMOKE_FKEYS") then
     app.ui:keypressed("f1")

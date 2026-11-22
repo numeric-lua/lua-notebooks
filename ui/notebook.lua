@@ -233,6 +233,8 @@ function UI.new(app)
     show_history = false,
     history_items = {},
     history_selected = 1,
+    show_stats = false,
+    stats = nil,
     vim_normal = app.vim_mode,
     vim_scope = app.vim_mode and "notebook" or "insert",
   }, UI)
@@ -760,6 +762,7 @@ function UI:draw(pass, logical_width, logical_height)
   self:draw_symbol_prompt(pass, width, height)
   self:draw_outline(pass, width, height)
   self:draw_history(pass, width, height)
+  self:draw_stats(pass, width, height)
   self:draw_extension_browser(pass, width, height)
   self:draw_replace(pass, width, height)
   self:draw_find(pass, width, height)
@@ -807,6 +810,7 @@ function UI:palette_commands()
     { id = "screenshot", label = "Save screenshot  (Ctrl+Shift+S)" },
     { id = "theme", label = "Toggle light/dark theme  (Ctrl+Shift+T)" },
     { id = "history", label = "Undo history  (Ctrl+Shift+U)" },
+    { id = "stats", label = "Notebook statistics  (Ctrl+Shift+I)" },
     { id = "cell-below", label = "Insert code cell below  (Alt+B)" },
     { id = "cell-above", label = "Insert code cell above  (Alt+A)" },
     { id = "markdown-below", label = "Insert markdown cell below  (Alt+M)" },
@@ -902,6 +906,7 @@ function UI:run_palette_command(id)
   elseif id == "new" then self.app:new_notebook()
   elseif id == "tree" then self.show_tree = true
   elseif id == "history" then self:open_history()
+  elseif id == "stats" then self:open_stats()
   elseif id == "cell-below" then self.app:add_cell("code")
   elseif id == "cell-above" then self.app:add_cell_above("code")
   elseif id == "markdown-below" then self.app:add_cell("markdown")
@@ -1356,6 +1361,7 @@ function UI:draw_help(pass, width, height)
         { "Ctrl+Shift+S", "screenshot" },
         { "Ctrl+Shift+E / T", "timing / light-dark theme" },
         { "Ctrl+Shift+U", "history" },
+        { "Ctrl+Shift+I", "notebook statistics" },
       } },
       { title = "FILES & VIM", rows = {
         { "F5 / p", "run selected cell" },
@@ -1824,6 +1830,59 @@ function UI:draw_history(pass, width, height)
   end
 end
 
+function UI:open_stats()
+  local notebook = self.app:notebook()
+  local values = Format.html_stats(notebook)
+  local elapsed, timed = Format.total_elapsed(notebook.cells)
+  self.stats = {
+    notebook = notebook:title(),
+    kernel = notebook.kernel or "lua",
+    values = values,
+    elapsed = elapsed,
+    timed = timed,
+  }
+  self.show_stats = true
+end
+
+function UI:draw_stats(pass, width, height)
+  if not self.show_stats or self.stats == nil then return end
+  local values = self.stats.values
+  local panel_w = math.min(620, width - 60)
+  local rows = {
+    { "Cells", string.format("%d  (%d code · %d markdown)",
+      values.cells, values.code, values.markdown) },
+    { "Source", string.format("%d lines  (%d code · %d markdown)",
+      values.lines, values.code_lines, values.markdown_lines) },
+    { "Prose", string.format("%d words · %d headings · %d wiki links",
+      values.words, values.headings, values.links) },
+    { "Output", string.format("%d text · %d figure(s) · %d widget(s) · %d error(s)",
+      values.outputs, values.figures, values.widgets, values.errors) },
+    { "Tags", tostring(values.tags) },
+    { "Timing", self.stats.elapsed and
+      string.format("%s across %d timed run(s)",
+        Format.duration(self.stats.elapsed), self.stats.timed) or
+      "no timed runs yet" },
+    { "Kernel", self.stats.kernel },
+  }
+  local panel_h = 70 + #rows * 30
+  local x, y = (width - panel_w) / 2, 90
+  self.stats_rect = { x = x, y = y, w = panel_w, h = panel_h }
+  box(pass, x, y, panel_w, panel_h, { 0.06, 0.07, 0.10, 0.98 })
+  text(pass, self.app.font, "Notebook statistics", x + 16, y + 12,
+    { 0.9, 0.94, 1, 1 }, 0.82)
+  text(pass, self.app.font, self.stats.notebook, x + panel_w - 16, y + 14,
+    { 0.55, 0.65, 0.82, 1 }, 0.64, "right")
+  for index, row in ipairs(rows) do
+    local row_y = y + 48 + (index - 1) * 30
+    text(pass, self.app.font, row[1], x + 18, row_y,
+      { 0.52, 0.62, 0.8, 1 }, 0.68)
+    text(pass, self.app.font, row[2], x + 116, row_y,
+      { 0.88, 0.92, 1, 1 }, 0.68)
+  end
+  text(pass, self.app.font, "Ctrl+Shift+I or Esc closes  ·  click anywhere",
+    x + 18, y + panel_h - 22, { 0.48, 0.56, 0.7, 1 }, 0.6)
+end
+
 function UI:update(dt)
   if self.app.show_nvim then
     if self.app.nvim_view then self.app.nvim_view:update() end
@@ -2129,6 +2188,12 @@ function UI:keypressed(key)
     end
     return
   end
+  if self.show_stats then
+    if key == "escape" or (ctrl_down and key == "i" and shift_down) then
+      self.show_stats = false
+    end
+    return
+  end
   if self.show_graph then
     if key == "escape" then self.show_graph = false end
     return
@@ -2175,6 +2240,9 @@ function UI:keypressed(key)
   end
   if ctrl_down and key == "e" and shift_down then
     self:toggle_timing(); return
+  end
+  if ctrl_down and key == "i" and shift_down then
+    self:open_stats(); return
   end
   if ctrl_down and key == "p" then
     self.show_palette = true
@@ -3020,6 +3088,10 @@ function UI:mousepressed(x, y, button)
     return
   end
   if button ~= 1 then return end
+  if self.show_stats then
+    self.show_stats = false
+    return
+  end
   for index, rect in pairs(self.heading_rects) do
     if inside(x, y, rect) then
       local collapsed = self.app:notebook():toggle_collapsed(index)

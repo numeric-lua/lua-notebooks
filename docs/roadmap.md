@@ -27,8 +27,8 @@
 - Inline and display math: symbols, fractions, radicals, simple matrices.
 - Collapsible markdown headings and heading outline.
 - Command palette, tag-index overlay with per-notebook chips, optional
-  per-cell execution timing, shortcut help, zip package, local install,
-  desktop entry, and LuaRocks package/launcher.
+  per-cell execution timing, a notebook-statistics overlay, shortcut help, zip
+  package, local install, desktop entry, and LuaRocks package/launcher.
 - Confirmed, undoable cell deletion when notebook-wide Neovim markers omit a
   cell; the prompt previews every omitted cell.
 - Navigable static HTML export with metadata, heading anchors/table of
