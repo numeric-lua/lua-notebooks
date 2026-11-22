@@ -1,3 +1,38 @@
+# lua-notebooks 1.51.0
+
+- clip luaplotlib polar streamplot polylines and mid-line arrow heads to the
+  circular frame in the live viewport and the static HTML export, matching the
+  browser's existing Canvas clip through one shared circle-cut geometry in
+  `notebook/polar.lua` and `webapp/js/polar.js`; a crossing line is cut at the
+  circle instead of being clamped along the rim, a line that leaves and
+  re-enters becomes several visible runs, a rim arrow head becomes a clipped
+  polygon, and a fully outside arrow is omitted;
+- export one `scene-polar-streamline-path` per visible run, a circular
+  `clipPath` around the streamplot group so stroke caps cannot spill past the
+  frame, and `data-visible-lines`/`data-visible-points`/`data-visible-runs`
+  plus per-line `data-runs`/`data-clipped` counters alongside the existing
+  source counts;
+- collect streamplot `style.linestyle` (`solid`, `dashed`, `dotted`, `none`),
+  `arrow_fraction`, per-line `closed`, and the group `closed_lines` count;
+  draw dashes through the shared live dash splitter, SVG `stroke-dasharray`,
+  and Canvas `setLineDash`, and keep mid-line heads when `linestyle = "none"`,
+  matching luaplotlib;
+- add the `streamplot_clip_scene` cross-renderer fixture read by
+  `tests/polar.lua` and the Node suite, a `polar-streamplot-clip` case in the
+  headless Chromium scene matrix, and clipped dashed streamplot checks in
+  `scripts/export-qa.sh` and `scripts/polar-qa.sh`, including visible
+  run/point/arrow counts;
+- add a clipped dashed streamplot demo cell to the desktop and browser welcome
+  notebooks after the existing cells, leaving visual-baseline cells 4/6/7
+  unchanged;
+- document frame clipping, visible/source counters, line styles, the clipPath,
+  and the new fixture in the README, `docs/export.md`, `docs/web.md`,
+  `docs/architecture.md`, `docs/roadmap.md`, and `webapp/README.md`.
+
+No new runtime dependencies. The Neovim path and committed visual pixel
+baselines are unchanged. No tag or package publish is part of this release
+preparation.
+
 # lua-notebooks 1.50.0
 
 - render luaplotlib polar streamplot scenes in the live viewport, the static
