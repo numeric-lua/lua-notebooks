@@ -17,10 +17,11 @@ Working in this milestone:
 - cell execution with captured `print`/`io.write`, errors, and return values
 - a **3D cube output** rendered by the host, never by the kernel
 - a **luaplotlib scene renderer**: Cartesian line/scatter/bar/hist and polar
-  line/scatter/bar, heatmap, contour, and quiver scenes, axes, rings/spokes,
-  grid, title, labels, polar colourbars, category ticks, bounded block sampling
-  for large polar fields, and shared quiver scale/pivot/decimation geometry
-  across the live and exported views
+  line/scatter/bar, heatmap, contour, quiver, and streamplot scenes, axes,
+  rings/spokes, grid, title, labels, polar colourbars, category ticks, bounded
+  block sampling for large polar fields, shared quiver scale/pivot/decimation
+  geometry, and integrated streamplot polyline/arrow geometry across the live
+  and exported views
 - a **render-target extension platform**: manifest validation, filesystem
   discovery, local pointer/key routing, F8 reload, a filesystem watcher, and
   two built-in extensions (`cube`, `grid`)
@@ -99,18 +100,20 @@ luajit webapp/serve.lua --port 8010
 It connects to the same gateway over a native WebSocket and renders the
 notebook shell, widgets, and `luaplotlib`/scene outputs locally: Cartesian
 line/scatter/bar/hist with categorical ticks and explicit bar widths, polar
-line/scatter/bar, heatmap, contour, and quiver scenes with an optional
-colourbar on the shared circular frame, and the built-in `cube`/`grid` strings.
-Quiver arrows are clipped to the circle and use the same scale, pivot,
-normalization, and decimation rules as the desktop and export renderers.
+line/scatter/bar, heatmap, contour, quiver, and streamplot scenes with an
+optional colourbar on the shared circular frame, and the built-in
+`cube`/`grid` strings. Quiver arrows and streamplot paths/heads are clipped to
+the circle; quivers use the same scale, pivot, normalization, and decimation
+rules as the desktop and export renderers, and streamplots draw the integrated
+polylines and mid-line heads from the same luaplotlib IR.
 Heatmap fields larger than 4096 matrix cells are sampled into covering blocks
 before painting, so the live frame, the SVG export, and the Canvas renderer stay
 bounded without leaving gaps in the annulus.
 `webapp/js/polar.js` mirrors `notebook/polar.lua`, and shared fixtures are
 checked by both `tests/polar.lua` and the Node suite so the browser, desktop,
 and export keep the same rmax, tick, label, projection, sampling, bar-wedge,
-heatmap-cell, contour, colourbar, quiver, and large-field behavior. See
-[webapp/README.md](webapp/README.md). This path is
+heatmap-cell, contour, colourbar, quiver, streamplot, and large-field behavior.
+See [webapp/README.md](webapp/README.md). This path is
 independent of the broken LÖVR 0.19 web runtime.
 
 See [docs/web.md](docs/web.md) for the LÖVR build steps and constraints.
@@ -195,9 +198,9 @@ Controls:
 | tabs / **+ Cell** | switch notebook / add cell |
 
 The welcome notebook has runnable cells for hello, a loop, a 3D cube scene,
-Cartesian and polar luaplotlib scenes (including a polar quiver field), a grid
-extension, and widgets. The second notebook has an independent kernel and
-global state.
+Cartesian and polar luaplotlib scenes (including polar quiver and streamplot
+fields), a grid extension, and widgets. The second notebook has an independent
+kernel and global state.
 
 ## File tree and Vim mode
 
@@ -360,8 +363,8 @@ remaining gaps.
 ## Tests
 
 `make test` runs the pure model, widget, engine, remote-supervisor,
-process-kernel, sandbox, editor, polar/heatmap/contour/quiver/colourbar export
-parity, and Neovim-buffer plan/apply suite on LuaJIT. `make test-lua51
+process-kernel, sandbox, editor, polar/heatmap/contour/quiver/streamplot/
+colourbar export parity, and Neovim-buffer plan/apply suite on LuaJIT. `make test-lua51
 LUA=lua5.1` runs the Lua 5.1-compatible subset, including `tests/polar.lua`.
 `make test-remote` starts the WebSocket gateway and executes a cell with a real
 client. `make test-webapp` runs the Node unit tests for the browser scene
@@ -384,12 +387,13 @@ reads it back from the GPU, and compares 50%-scale PNGs for cells 4, 6, and 7.
 It is display-dependent and not part of `make test`.
 
 `polar-qa.sh` builds a one-cell notebook with polar series, a 96x96 sampled
-heatmap, contour isolines, a colourbar, and a decimated quiver field, checks the
-live/export block and arrow counts, runs it in the app, and writes
-`polar-live.png` under a scratch directory (default `/tmp/luanb-polar-qa.*`).
+heatmap, contour isolines, a colourbar, a decimated quiver field, and two
+integrated streamlines, checks the live/export block, arrow, and streamline
+counts, runs it in the app, and writes `polar-live.png` under a scratch
+directory (default `/tmp/luanb-polar-qa.*`).
 It checks that the offscreen capture is non-blank and is useful for reviewing
-the live circular frame, ticks, bar wedges, field cells, quiver glyphs, and
-colourbar without committing generated media.
+the live circular frame, ticks, bar wedges, field cells, quiver glyphs,
+streamline paths and heads, and colourbar without committing generated media.
 
 `scene-qa.sh` (also `make qa-webapp`) serves `webapp/` with the bundled Lua
 server, renders the browser fixture matrix in headless Chromium, and reads back
@@ -587,7 +591,7 @@ Exports are self-contained HTML with no external assets. The document has viewpo
 
 A small inline script adds reader-facing full-text search and a cell-kind filter. Search is case-insensitive, whitespace-separated terms are combined with AND, `/` focuses the box, Escape clears it, and the table of contents hides links to filtered-out cells. `?q=term` and `?kind=figures` prefill the controls for shareable filtered links. Without JavaScript the controls are hidden and the full document remains readable.
 
-Code-cell scene outputs become `<figure>` placeholders with a deterministic inline SVG preview (Cartesian line, scatter, bar, and histogram; polar line, scatter, bar, heatmap, contour, and quiver; plus `cube` and `grid`), a caption with series/point counts, and a collapsible JSON scene dump. Polar previews honour zero/direction/`rmax`, the supplied theta/r ticks, and quiver scale/pivot/normalization and arrow decimation. The live viewport renders the same polar IR; both backends use `notebook/polar.lua` for rmax resolution, projection, tick fallbacks, sampling caps, label limits, bar wedges, heatmap/contour geometry, and quiver arrows. Interactive widgets are listed but not exported. The static preview is a sketch of the scene, not a raster of the live renderer. See [docs/export.md](docs/export.md) for the document shape, search semantics, Markdown subset, safety rules, and determinism guarantees.
+Code-cell scene outputs become `<figure>` placeholders with a deterministic inline SVG preview (Cartesian line, scatter, bar, and histogram; polar line, scatter, bar, heatmap, contour, quiver, and streamplot; plus `cube` and `grid`), a caption with series/point counts, and a collapsible JSON scene dump. Polar previews honour zero/direction/`rmax`, the supplied theta/r ticks, quiver scale/pivot/normalization and arrow decimation, and streamplot step/periodicity/cap metadata. The live viewport renders the same polar IR; both backends use `notebook/polar.lua` for rmax resolution, projection, tick fallbacks, sampling caps, label limits, bar wedges, heatmap/contour geometry, quiver arrows, and streamplot polylines and heads. Interactive widgets are listed but not exported. The static preview is a sketch of the scene, not a raster of the live renderer. See [docs/export.md](docs/export.md) for the document shape, search semantics, Markdown subset, safety rules, and determinism guarantees.
 
 From a source checkout, `luajit tools/export.lua INPUT.luanb OUTPUT.html` exports without opening the app (use `-` for stdout and extra `.luanb` arguments for backlinks). `./scripts/export-qa.sh` builds a fixture, verifies `?q=`/`?kind=` filtering in headless Chromium, and captures light/dark/narrow screenshots under `/tmp`. `./scripts/polar-qa.sh` does the corresponding live app check for a polar scene.
 

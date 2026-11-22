@@ -29,16 +29,17 @@ graphics fix and for the validated transport bridge.
 The front-end renders scene outputs itself on Canvas 2D. Cartesian
 line/scatter/bar/hist scenes honour x/y limits, categorical ticks, explicit bar
 widths, and the export's 800/400-point sampling caps. Polar line/scatter/bar,
-heatmap, contour, and quiver scenes use `webapp/js/polar.js`, a dependency-free
-JavaScript counterpart of `notebook/polar.lua`; both sides read the shared
-`webapp/tests/fixtures/polar-parity.json` fixtures so rmax, projection, ticks,
-labels, bar wedges, heatmap cells, contour subdivision, colourbar geometry, and
-quiver scaling/pivot/decimation stay aligned with the desktop viewport and HTML
-export. Quiver arrows are clipped to the circular frame in Canvas so rim glyphs
-do not escape the plot. Heatmap fields above 4096 matrix cells are sampled into
-covering blocks with the same strides in all three renderers; explicit
-`vmin`/`vmax` still describe the full field. The built-in `cube` and `grid`
-strings still draw locally.
+heatmap, contour, quiver, and streamplot scenes use `webapp/js/polar.js`, a
+dependency-free JavaScript counterpart of `notebook/polar.lua`; both sides read
+the shared `webapp/tests/fixtures/polar-parity.json` fixtures so rmax,
+projection, ticks, labels, bar wedges, heatmap cells, contour subdivision,
+colourbar geometry, quiver scaling/pivot/decimation, and streamplot
+polyline/arrow geometry stay aligned with the desktop viewport and HTML export.
+Quiver arrows and streamplot paths/heads are clipped to the circular frame in
+Canvas so rim glyphs do not escape the plot. Heatmap fields above 4096 matrix
+cells are sampled into covering blocks with the same strides in all three
+renderers; explicit `vmin`/`vmax` still describe the full field. The built-in
+`cube` and `grid` strings still draw locally.
 
 ## Build LÖVR for the web
 

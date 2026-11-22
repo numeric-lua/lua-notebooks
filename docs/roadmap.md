@@ -7,11 +7,13 @@
 - Process CPU/memory limits and timeout recovery.
 - luaplotlib scene rendering, including live Cartesian and polar
   line/scatter/bar/hist scenes, polar heatmaps with colourbars and bounded
-  block sampling for large fields, polar contour isolines, and polar quiver
-  arrows with shared scale/pivot/decimation geometry and export attributes.
+  block sampling for large fields, polar contour isolines, polar quiver
+  arrows with shared scale/pivot/decimation geometry, and polar streamplot
+  paths with mid-line arrow heads and export attributes.
 - Browser front-end with local Canvas rendering for Cartesian
-  line/scatter/bar/hist and polar line/scatter/bar/heatmap/contour/quiver
-  scenes, shared polar parity fixtures, and a headless Chromium pixel check.
+  line/scatter/bar/hist and polar
+  line/scatter/bar/heatmap/contour/quiver/streamplot scenes, shared polar
+  parity fixtures, and a headless Chromium pixel check.
 - Extension manifests, discovery, hot reload, browser, local user extensions,
   and a restricted Lua environment.
 - Kernel widgets, editable multiline text, callbacks, persistence, and live

@@ -95,19 +95,21 @@ that IR, not SVG strings:
 
 The notebook's `ui/plot.lua` implements the 2D Cartesian
 line/scatter/bar/hist part of this IR and the polar line/scatter/bar,
-heatmap, contour, and quiver parts (`orientation = "polar"`, data under
-`polar.series`, `polar.heatmaps`, `polar.contours`, and `polar.colorbar`). It
-maps data coordinates into the cell viewport, draws axes or a circular frame
-with rings/spokes, paints field cells and isolines beneath the series, draws a
-stepped colourbar when the scene requests one, and renders through the host
-pass.
+heatmap, contour, quiver, and streamplot parts (`orientation = "polar"`, data
+under `polar.series`, `polar.heatmaps`, `polar.contours`, and
+`polar.colorbar`). It maps data coordinates into the cell viewport, draws axes
+or a circular frame with rings/spokes, paints field cells and isolines beneath
+the series, draws a stepped colourbar when the scene requests one, and renders
+through the host pass.
 
 Polar geometry lives in the dependency-free `notebook/polar.lua` module. The
 live viewport and the static HTML export share its rmax resolution, y-down
 projection, tick fallbacks, sample caps, label limits, bar-wedge splitting,
 viridis-like heatmap palette, annular-cell construction, large-field block
 sampling, contour subdivision and label placement, colourbar layout, compact
-tick text, and quiver projection/scale/pivot/decimation. Heatmap fields above
+tick text, and quiver projection/scale/pivot/decimation. Streamplots reuse the
+same projection for luaplotlib's integrated polylines and rebuild the mid-line
+arrow triangles from the exported screen-space angle. Heatmap fields above
 `HEATMAP_CELL_LIMIT` (4096) are
 downsampled into blocks that cover the source rows and columns they replace, so
 the live frame, SVG export, and browser paint a bounded number of cells while
