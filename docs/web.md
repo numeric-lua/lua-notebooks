@@ -26,7 +26,9 @@ Then open <http://127.0.0.1:8010/>. See [webapp/README.md](../webapp/README.md).
 The LÖVR web instructions below are retained for the eventual upstream
 graphics fix and for the validated transport bridge.
 
-The front-end renders scene outputs itself on Canvas 2D. Cartesian
+The front-end renders Markdown locally, including nested lists, pipe tables
+with alignment, italic emphasis, and grouped blockquotes, matching the static
+export's subset. Scene outputs render locally on Canvas 2D. Cartesian
 line/scatter/bar/hist scenes honour x/y limits, categorical ticks, explicit bar
 widths, and the export's 800/400-point sampling caps. Polar line/scatter/bar,
 heatmap, contour, quiver, and streamplot scenes use `webapp/js/polar.js`, a

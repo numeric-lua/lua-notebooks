@@ -35,6 +35,8 @@ function App:new(notebooks)
     scroll = 0,
     status = "ready",
     pending = {},
+    kernel_keys = setmetatable({}, { __mode = "k" }),
+    next_kernel_key = 1,
     ui = nil,
     font = nil,
     title_font = nil,
@@ -162,6 +164,64 @@ function App:notebook()
   return self.notebooks[self.active]
 end
 
+-- Kernel ids follow notebook objects, not tab indexes.  Closing or reordering a
+-- tab therefore leaves every other notebook's persistent kernel attached to the
+-- notebook it belongs to.
+function App:kernel_id(notebook)
+  notebook = notebook or self:notebook()
+  if notebook == nil then return nil end
+  local id = self.kernel_keys[notebook]
+  if id == nil then
+    id = "nb" .. self.next_kernel_key
+    self.next_kernel_key = self.next_kernel_key + 1
+    self.kernel_keys[notebook] = id
+  end
+  return id
+end
+
+function App:close_notebook(index, force)
+  index = index or self.active
+  local notebook = self.notebooks[index]
+  if notebook == nil then return false, "no notebook" end
+  if notebook.dirty and not force then return false, "unsaved changes" end
+  if self.supervisor and self.supervisor.stop then
+    self.supervisor:stop(self:kernel_id(notebook))
+  end
+  self.kernel_keys[notebook] = nil
+  table.remove(self.notebooks, index)
+  for request, target in pairs(self.pending) do
+    if target.notebook == index then
+      self.pending[request] = nil
+    elseif target.notebook > index then
+      target.notebook = target.notebook - 1
+    end
+  end
+  if #self.notebooks == 0 then
+    self:new_notebook()
+  elseif self.active > index then
+    self.active = self.active - 1
+    if self.ui then self.ui.scroll_to_selected = true end
+  elseif self.active == index then
+    self.active = math.max(1, math.min(index, #self.notebooks))
+    if self.ui then self.ui.scroll_to_selected = true end
+  end
+  self:save_session()
+  self.status = "closed " .. notebook.name
+  return true
+end
+
+function App:save_and_close(index)
+  index = index or self.active
+  local notebook = self.notebooks[index]
+  if notebook == nil then return false, "no notebook" end
+  self:save()
+  if notebook.dirty then
+    self.status = "save failed; notebook kept open"
+    return false, "save failed"
+  end
+  return self:close_notebook(index, true)
+end
+
 function App:session_paths()
   local paths, active_path = {}, nil
   for index, notebook in ipairs(self.notebooks) do
@@ -269,7 +329,7 @@ function App:new_notebook()
   notebook._path = "notebooks/" .. name
   self.notebooks[#self.notebooks + 1] = notebook
   self.active = #self.notebooks
-  self.supervisor:open("nb" .. self.active)
+  self.supervisor:open(self:kernel_id(notebook))
   self.status = "created " .. name
 end
 
@@ -301,9 +361,11 @@ function App:delete_notebook(path)
   local ok, err = Format.delete_path(path)
   if not ok then self.status = "delete failed: " .. tostring(err); return end
   for index, notebook in ipairs(self.notebooks) do
-    if notebook._path == path then table.remove(self.notebooks, index); break end
+    if notebook._path == path then
+      self:close_notebook(index, true)
+      break
+    end
   end
-  self.active = math.max(1, math.min(self.active, #self.notebooks))
   self.status = "deleted " .. path
 end
 
@@ -330,7 +392,7 @@ function App:recover_autosave()
   notebook._path = nil
   self.notebooks[#self.notebooks + 1] = notebook
   self.active = #self.notebooks
-  self.supervisor:open("nb" .. self.active)
+  self.supervisor:open(self:kernel_id(notebook))
   self.status = "recovered autosave"
 end
 
@@ -367,15 +429,15 @@ function App:open_path(path)
   end
   self.notebooks[#self.notebooks + 1] = notebook
   self.active = #self.notebooks
-  self.supervisor:open("nb" .. self.active)
+  self.supervisor:open(self:kernel_id(notebook))
   self:save_session()
   self:remember_recent(path)
   self.status = "opened " .. notebook.name
 end
 
 function App:open_all_kernels()
-  for index = 1, #self.notebooks do
-    self.supervisor:open("nb" .. index)
+  for _, notebook in ipairs(self.notebooks) do
+    self.supervisor:open(self:kernel_id(notebook))
   end
 end
 
@@ -409,7 +471,7 @@ function App:run()
   cell.scene = nil
   cell.elapsed = nil
   local cell_token = self.active .. ":" .. index
-  local request, err = self.supervisor:run("nb" .. self.active, cell.source,
+  local request, err = self.supervisor:run(self:kernel_id(notebook), cell.source,
     cell_token)
   if request == nil then
     cell.running = false
@@ -447,7 +509,8 @@ function App:widget_event(cell_index, spec, event)
   local cell = self:notebook().cells[cell_index]
   if cell then cell.running = true end
   local cell_token = self.active .. ":" .. cell_index
-  local request, err = self.supervisor:widget("nb" .. self.active, cell_token,
+  local request, err = self.supervisor:widget(self:kernel_id(self:notebook()),
+    cell_token,
     spec.id, event)
   if request == nil then
     if cell then cell.running = false end
@@ -606,7 +669,7 @@ end
 
 function App:restart_kernel()
   self._run_all_position = nil
-  local id = "nb" .. self.active
+  local id = self:kernel_id(self:notebook())
   if self.supervisor.restart then
     self.supervisor:restart(id)
     local notebook = self:notebook()
@@ -1115,7 +1178,14 @@ function App:load()
     self.status = "load failed: " .. tostring(err)
     return
   end
+  local old = self:notebook()
+  if self.supervisor and self.supervisor.stop then
+    self.supervisor:stop(self:kernel_id(old))
+  end
+  self.kernel_keys[old] = nil
+  loaded._path = old._path
   self.notebooks[self.active] = loaded
+  self.supervisor:open(self:kernel_id(loaded))
   self.scroll = 0
   self.status = "loaded " .. loaded.name
 end
@@ -1220,7 +1290,7 @@ function App:update()
         cell.error = "kernel did not answer (timeout)"
       end
       if self.supervisor.restart then
-        self.supervisor:restart("nb" .. target.notebook)
+        self.supervisor:restart(self:kernel_id(notebook))
         self.status = "kernel restarted after timeout in " .. cell_label(target.cell)
       else
         self.status = "kernel timeout in " .. cell_label(target.cell)
@@ -1392,6 +1462,23 @@ function lovr.load()
       tostring(target ~= nil), total, app.active,
       tostring(not app.ui.show_global_find),
       tostring(app:notebook().cells[app:notebook().active] ~= nil)))
+    lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_CLOSE") then
+    local before = #app.notebooks
+    local first = app:notebook()
+    local old_id = app:kernel_id(first)
+    first.dirty = true
+    app.ui:request_close()
+    local prompted = app.ui.close_prompt ~= nil
+    app.ui.close_prompt = nil
+    local guarded = app:close_notebook(app.active)
+    local closed = app:close_notebook(app.active, true)
+    local remaining = app:notebook()
+    local kernel_ok = app.supervisor.kernels[app:kernel_id(remaining)] ~= nil
+    local old_gone = app.supervisor.kernels[old_id] == nil
+    print(string.format("SMOKE_CLOSE=%d:%d:%s:%s:%s:%s:%s", before,
+      #app.notebooks, tostring(prompted), tostring(guarded),
+      tostring(closed), tostring(kernel_ok), tostring(old_gone)))
     lovr.event.quit()
   elseif os.getenv("LUANB_SMOKE_OUTPUT") then
     local cell = app:notebook():selected()

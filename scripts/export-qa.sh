@@ -99,6 +99,15 @@ local notebook = Notebook.new({ name = "export-qa.luanb", cells = {
     "",
     "~~retired~~ wording",
     "",
+    "| Feature | Status |",
+    "| :--- | ---: |",
+    "| tables | ready |",
+    "",
+    "- parent",
+    "  - child",
+    "",
+    "*italic* and _under_",
+    "",
     "```lua",
     "print('snippet')",
     "```",
@@ -244,6 +253,10 @@ shoot export-filtered 1280,900 "$URL?q=needle"
   >"$OUT/full.dom.html" 2>"$OUT/full-dom.log"
 for needle in 'class="task-list"' 'class="task-list-item done"' \
     '<hr>' '<del>retired</del>' '<ol start="3">' \
+    '<table class="markdown-table">' '<th>Feature</th>' \
+    '<th class="align-right">Status</th>' \
+    '<ul><li>parent<ul><li>child</li></ul></li></ul>' \
+    '<em>italic</em>' '<em>under</em>' \
     'class="heading-permalink"' 'aria-label="Permalink to Export QA"' \
     'class="copy-code"' 'class="code-line"' 'data-line="1"' \
     'language-lua'; do

@@ -53,3 +53,28 @@ test("renders Markdown task lists as disabled checkboxes", () => {
   assert.match(html, /<li class="task-list-item"><input type="checkbox" disabled> later<\/li>/);
   assert.doesNotMatch(html, /<input type="checkbox" disabled checked> later/);
 });
+
+test("renders pipe tables with alignment and inline formatting", () => {
+  const html = renderMarkdown("| Item | Value |\n| :--- | ---: |\n| alpha | **1** |");
+  assert.match(html, /<table class="markdown-table"><thead><tr><th>Item<\/th><th class="align-right">Value<\/th><\/tr><\/thead><tbody>/);
+  assert.match(html, /<tr><td>alpha<\/td><td class="align-right"><strong>1<\/strong><\/td><\/tr>/);
+  assert.match(html, /<\/tbody><\/table>/);
+});
+
+test("renders nested unordered, ordered, and task lists", () => {
+  const html = renderMarkdown("- one\n  - two\n    3. three\n- four\n\n- [x] parent\n  - [ ] child");
+  assert.match(html, /<ul><li>one<ul><li>two<ol start="3"><li>three<\/li><\/ol><\/li><\/ul><\/li><li>four<\/li><\/ul>/);
+  assert.match(html, /<ul class="task-list"><li class="task-list-item done"><input type="checkbox" disabled checked> parent<ul class="task-list"><li class="task-list-item"><input type="checkbox" disabled> child<\/li><\/ul><\/li><\/ul>/);
+});
+
+test("aligns emphasis and grouped blockquotes with the export", () => {
+  const html = renderMarkdown("*italic* _under_ __bold__ **strong** and `*literal*`\n\n> q1\n> q2");
+  assert.match(html, /<p><em>italic<\/em> <em>under<\/em> <strong>bold<\/strong> <strong>strong<\/strong> and <code>\*literal\*<\/code><\/p>/);
+  assert.match(html, /<blockquote><p>q1<\/p><p>q2<\/p><\/blockquote>/);
+});
+
+test("does not parse a table inside a fenced code block", () => {
+  const html = renderMarkdown("```lua\n| a | b |\n| --- | --- |\n```");
+  assert.doesNotMatch(html, /markdown-table/);
+  assert.match(html, /<pre><code>\| a \| b \|/);
+});

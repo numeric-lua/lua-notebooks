@@ -54,6 +54,19 @@ test("restarts a kernel", function()
   supervisor:close()
 end)
 
+test("stops a kernel and drops its pending work", function()
+  local supervisor = Inline.new()
+  supervisor:open("a")
+  supervisor:open("b")
+  local request = supervisor:run("a", "return 1", "1:1")
+  supervisor:stop("a")
+  eq(supervisor.kernels.a, nil)
+  eq(supervisor.pending[request], nil)
+  eq(supervisor.kernels.b ~= nil, true)
+  eq(#supervisor.queue, 0)
+  supervisor:close()
+end)
+
 io.write(string.format("\n%d inline tests, %d passed, %d failed\n",
   passed + failed, passed, failed))
 if failed > 0 then os.exit(1) end

@@ -1009,6 +1009,24 @@ return { scene = {
 for line = 1, 12 do
   print(string.format("output line %02d", line))
 end]]),
+      cell("markdown", [[# Tables and nested lists
+
+| Feature | Syntax | Status |
+| :--- | :--- | ---: |
+| **Tables** | pipe rows | ready |
+| *Nested lists* | indentation | ready |
+| ~~Old~~ | strikethrough | 12 |
+
+- Notebooks
+  - cells
+    1. nested ordered item
+    2. second item
+  - tasks
+- [x] tables keep their alignment
+- [ ] try `Alt+R` in find]]),
+      cell("markdown", [[# Pattern search
+
+Press **Ctrl+F** for notebook search or **Ctrl+H** for replace, then **Alt+R** to switch from literal text to Lua patterns. `%d+` matches a run of digits, and `%1` expands the first capture in a replacement.]]),
     },
   })
   local second = Notebook.new({

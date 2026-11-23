@@ -375,6 +375,16 @@ end
 
 local function inline_markdown(text)
   local escaped = escape_html(text)
+  local slots = {}
+  local function hold(html)
+    slots[#slots + 1] = html
+    return "\1" .. #slots .. "\1"
+  end
+  -- Inline code wins over emphasis and links; keep it in a placeholder until
+  -- the rest of the inline pass has run.
+  escaped = escaped:gsub("`([^`]*)`", function(code)
+    return hold("<code>" .. code .. "</code>")
+  end)
   escaped = escaped:gsub("%[%[([^%]]+)%]%]", function(target)
     return '<span class="wiki-link" data-target="' .. target .. '">' ..
       target .. "</span>"
@@ -391,9 +401,114 @@ local function inline_markdown(text)
     return '<a href="' .. url .. '"' .. rel .. ">" .. label .. "</a>"
   end)
   escaped = escaped:gsub("%*%*(.-)%*%*", "<strong>%1</strong>")
+  escaped = escaped:gsub("__(.-)__", "<strong>%1</strong>")
   escaped = escaped:gsub("~~(.-)~~", "<del>%1</del>")
-  escaped = escaped:gsub("`([^`]*)`", "<code>%1</code>")
+  escaped = escaped:gsub("%*(.-)%*", "<em>%1</em>")
+  escaped = escaped:gsub("^_([^_]+)_", "<em>%1</em>")
+  escaped = escaped:gsub("([^%w_])_([^_]+)_", "%1<em>%2</em>")
+  escaped = escaped:gsub("\1(%d+)\1", function(index)
+    return slots[tonumber(index)] or ""
+  end)
   return escaped
+end
+
+local function split_markdown_lines(source)
+  local lines = {}
+  for line in ((source or "") .. "\n"):gmatch("(.-)\n") do
+    lines[#lines + 1] = line
+  end
+  return lines
+end
+
+-- Split a pipe table row without treating an escaped pipe as a cell boundary.
+local function table_row(line)
+  if line == nil or line:find("|", 1, true) == nil then return nil end
+  local trimmed = line:gsub("^%s+", ""):gsub("%s+$", "")
+  if trimmed:sub(1, 1) == "|" then trimmed = trimmed:sub(2) end
+  if trimmed:sub(-1) == "|" then trimmed = trimmed:sub(1, -2) end
+  trimmed = trimmed:gsub("\\|", "\1")
+  local cells = {}
+  for cell in (trimmed .. "|"):gmatch("(.-)|") do
+    cells[#cells + 1] = cell:gsub("\1", "|")
+  end
+  return cells
+end
+
+local function table_alignment(line)
+  local cells = table_row(line)
+  if cells == nil or #cells == 0 then return nil end
+  local aligns = {}
+  for _, cell in ipairs(cells) do
+    local value = cell:gsub("%s+", "")
+    if value:match("^:?%-+:?$") == nil then return nil end
+    if value:sub(1, 1) == ":" and value:sub(-1) == ":" then
+      aligns[#aligns + 1] = "center"
+    elseif value:sub(-1) == ":" then
+      aligns[#aligns + 1] = "right"
+    else
+      aligns[#aligns + 1] = "left"
+    end
+  end
+  return aligns
+end
+
+local function table_cell_html(tag, value, alignment)
+  local class = alignment ~= "left" and (' class="align-' .. alignment .. '"') or ""
+  return "<" .. tag .. class .. ">" ..
+    inline_markdown(value:gsub("^%s+", ""):gsub("%s+$", "")) ..
+    "</" .. tag .. ">"
+end
+
+local function table_html(lines, index, header, aligns)
+  local count = #aligns
+  local function row(cells, tag)
+    local parts = {}
+    for column = 1, count do
+      parts[#parts + 1] = table_cell_html(tag, cells[column] or "",
+        aligns[column])
+    end
+    return "<tr>" .. table.concat(parts) .. "</tr>"
+  end
+  local html = { '<table class="markdown-table"><thead>', row(header, "th"),
+    "</thead><tbody>" }
+  local cursor = index + 2
+  while cursor <= #lines do
+    local line = lines[cursor]
+    if line:match("^%s*$") then break end
+    local cells = table_row(line)
+    if cells == nil then break end
+    html[#html + 1] = row(cells, "td")
+    cursor = cursor + 1
+  end
+  html[#html + 1] = "</tbody></table>"
+  return table.concat(html), cursor
+end
+
+local function list_indent(prefix)
+  local width = 0
+  for character in prefix:gmatch(".") do
+    width = width + (character == "\t" and 2 or 1)
+  end
+  return width
+end
+
+local function list_item(line)
+  local prefix, rest = line:match("^(%s*)(.*)$")
+  local checked, task = rest:match("^[-*+]%s+%[([ xX])%]%s+(.*)$")
+  if checked ~= nil then
+    return { indent = list_indent(prefix), kind = "task", text = task,
+      checked = checked:lower() == "x" }
+  end
+  local bullet = rest:match("^[-*+]%s+(.*)$")
+  if bullet ~= nil then
+    return { indent = list_indent(prefix), kind = "ul", text = bullet }
+  end
+  local number, item = rest:match("^(%d+)[%.%)]%s+(.*)$")
+  if number ~= nil then
+    return { indent = list_indent(prefix), kind = "ol", text = item,
+      start = tonumber(number) or 1 }
+  end
+  return nil
 end
 
 local function safe_language(language)
@@ -425,13 +540,14 @@ local function code_block_html(source, language)
 end
 
 -- Small, readable Markdown renderer for static exports.  It intentionally
--- covers the subset the editor previews: headings, lists, quotes, fenced code,
--- emphasis, inline code, links, and wiki links.
+-- covers the subset the editor previews: headings, nested lists, pipe tables,
+-- quotes, fenced code, emphasis, inline code, links, and wiki links.
 local function markdown_html(source, headings)
+  local lines = split_markdown_lines(source)
   local out = {}
   local fence, fence_language, fence_lines = nil, nil, {}
-  local paragraph, list_kind, list_items = {}, nil, {}
-  local list_start = 1
+  local paragraph, quote = {}, {}
+  local list_stack = {}
   local heading_index = 0
 
   local function flush_paragraph()
@@ -441,21 +557,85 @@ local function markdown_html(source, headings)
     end
   end
 
-  local function flush_list()
-    if list_kind == "task" then
-      out[#out + 1] = '<ul class="task-list">' ..
-        table.concat(list_items) .. "</ul>"
-      list_kind, list_items = nil, {}
-    elseif list_kind ~= nil then
-      local start = ""
-      if list_kind == "ol" and list_start ~= 1 then
-        start = ' start="' .. tostring(list_start) .. '"'
-      end
-      out[#out + 1] = "<" .. list_kind .. start .. ">" ..
-        table.concat(list_items) .. "</" .. list_kind .. ">"
-      list_kind, list_items = nil, {}
-      list_start = 1
+  local function render_list(entry)
+    local tag = entry.kind == "ol" and "ol" or "ul"
+    local attributes = ""
+    if entry.kind == "task" then
+      attributes = ' class="task-list"'
+    elseif entry.kind == "ol" and entry.start ~= 1 then
+      attributes = ' start="' .. tostring(entry.start) .. '"'
     end
+    local items = {}
+    for _, item in ipairs(entry.items) do
+      local body
+      if entry.kind == "task" then
+        body = '<li class="task-list-item' ..
+          (item.checked and " done" or "") .. '">' ..
+          '<input type="checkbox" disabled' ..
+          (item.checked and " checked" or "") .. "> " ..
+          inline_markdown(item.text)
+      else
+        body = "<li>" .. inline_markdown(item.text)
+      end
+      for _, child in ipairs(item.children or {}) do
+        body = body .. child
+      end
+      items[#items + 1] = body .. "</li>"
+    end
+    return "<" .. tag .. attributes .. ">" .. table.concat(items) ..
+      "</" .. tag .. ">"
+  end
+
+  local function close_list()
+    local entry = table.remove(list_stack)
+    if entry == nil then return end
+    local html = render_list(entry)
+    local parent = list_stack[#list_stack]
+    if parent ~= nil then
+      local item = parent.items[#parent.items]
+      if item ~= nil then item.children[#item.children + 1] = html end
+    else
+      out[#out + 1] = html
+    end
+  end
+
+  local function close_lists()
+    while #list_stack > 0 do close_list() end
+  end
+
+  local function add_list_item(item)
+    while #list_stack > 0 and item.indent < list_stack[#list_stack].indent do
+      close_list()
+    end
+    local top = list_stack[#list_stack]
+    if top ~= nil and top.indent == item.indent and top.kind ~= item.kind then
+      close_list()
+      top = list_stack[#list_stack]
+    end
+    if top == nil or top.indent < item.indent then
+      top = { kind = item.kind, indent = item.indent,
+        start = item.start or 1, items = {} }
+      list_stack[#list_stack + 1] = top
+    end
+    top.items[#top.items + 1] = { text = item.text,
+      checked = item.checked == true, children = {} }
+  end
+
+  local function flush_quote()
+    if #quote > 0 then
+      local parts = {}
+      for _, line in ipairs(quote) do
+        parts[#parts + 1] = "<p>" .. inline_markdown(line) .. "</p>"
+      end
+      out[#out + 1] = "<blockquote>" .. table.concat(parts) .. "</blockquote>"
+      quote = {}
+    end
+  end
+
+  local function flush_blocks()
+    flush_paragraph()
+    close_lists()
+    flush_quote()
   end
 
   local function flush_fence()
@@ -466,7 +646,9 @@ local function markdown_html(source, headings)
     end
   end
 
-  for line in ((source or "") .. "\n"):gmatch("(.-)\n") do
+  local index = 1
+  while index <= #lines do
+    local line = lines[index]
     local marker, language = line:match(
       "^%s*([`~][`~][`~]+)%s*([%w_+%-]*)%s*$")
     if fence ~= nil then
@@ -476,64 +658,56 @@ local function markdown_html(source, headings)
       else
         fence_lines[#fence_lines + 1] = line
       end
+      index = index + 1
     elseif marker ~= nil then
-      flush_paragraph(); flush_list()
+      flush_blocks()
       fence, fence_language = marker, language or ""
+      index = index + 1
     else
-      local hashes, raw = line:match("^%s*(#+)%s+(.+)$")
-      if hashes ~= nil and #hashes <= 6 then
-        flush_paragraph(); flush_list()
-        heading_index = heading_index + 1
-        local heading = headings and headings[heading_index] or nil
-        local id = heading and (' id="' .. escape_html(heading.id) .. '"') or ""
-        local permalink = ""
-        if heading ~= nil then
-          permalink = '<a class="heading-permalink" href="#' ..
-            escape_html(heading.id) .. '" aria-label="Permalink to ' ..
-            escape_html(heading.text) .. '">#</a>'
-        end
-        out[#out + 1] = "<h" .. #hashes .. id .. ">" ..
-          inline_markdown(raw:gsub("%s+#+%s*$", "")) .. permalink ..
-          "</h" .. #hashes .. ">"
-      elseif line:match("^%s*([%*%-_])%s*%1%s*%1[%s%*%-_]*$") then
-        flush_paragraph(); flush_list()
-        out[#out + 1] = "<hr>"
-      elseif line:match("^%s*[-*+]%s+%[[ xX]%]%s+") then
-        local checked, task = line:match("^%s*[-*+]%s+%[([ xX])%]%s+(.*)$")
-        local done = checked:lower() == "x"
-        flush_paragraph()
-        if list_kind ~= "task" then flush_list(); list_kind = "task" end
-        list_items[#list_items + 1] = '<li class="task-list-item' ..
-          (done and " done" or "") .. '">' ..
-          '<input type="checkbox" disabled' ..
-          (done and " checked" or "") .. "> " ..
-          inline_markdown(task) .. "</li>"
-      elseif line:match("^%s*[-*+]%s+") then
-        flush_paragraph()
-        if list_kind ~= "ul" then flush_list(); list_kind = "ul" end
-        list_items[#list_items + 1] = "<li>" ..
-          inline_markdown(line:gsub("^%s*[-*+]%s+", "")) .. "</li>"
-      elseif line:match("^%s*%d+[%.%)]%s+") then
-        local number, item = line:match("^%s*(%d+)[%.%)]%s+(.*)$")
-        flush_paragraph()
-        if list_kind ~= "ol" then
-          flush_list(); list_kind = "ol"; list_start = tonumber(number) or 1
-        end
-        list_items[#list_items + 1] = "<li>" ..
-          inline_markdown(item) .. "</li>"
-      elseif line:match("^%s*>%s?") then
-        flush_paragraph(); flush_list()
-        out[#out + 1] = "<blockquote>" ..
-          inline_markdown(line:gsub("^%s*>%s?", "")) .. "</blockquote>"
-      elseif line:match("^%s*$") then
-        flush_paragraph(); flush_list()
+      local header = table_row(line)
+      local aligns = header and table_alignment(lines[index + 1] or "")
+      if header ~= nil and aligns ~= nil then
+        flush_blocks()
+        local html, next_index = table_html(lines, index, header, aligns)
+        out[#out + 1] = html
+        index = next_index
       else
-        flush_list()
-        paragraph[#paragraph + 1] = inline_markdown(line:gsub("^%s+", ""))
+        local item = list_item(line)
+        local hashes, raw = line:match("^%s*(#+)%s+(.+)$")
+        if hashes ~= nil and #hashes <= 6 then
+          flush_blocks()
+          heading_index = heading_index + 1
+          local heading = headings and headings[heading_index] or nil
+          local id = heading and (' id="' .. escape_html(heading.id) .. '"') or ""
+          local permalink = ""
+          if heading ~= nil then
+            permalink = '<a class="heading-permalink" href="#' ..
+              escape_html(heading.id) .. '" aria-label="Permalink to ' ..
+              escape_html(heading.text) .. '">#</a>'
+          end
+          out[#out + 1] = "<h" .. #hashes .. id .. ">" ..
+            inline_markdown(raw:gsub("%s+#+%s*$", "")) .. permalink ..
+            "</h" .. #hashes .. ">"
+        elseif line:match("^%s*([%*%-_])%s*%1%s*%1[%s%*%-_]*$") then
+          flush_blocks()
+          out[#out + 1] = "<hr>"
+        elseif item ~= nil then
+          flush_paragraph(); flush_quote()
+          add_list_item(item)
+        elseif line:match("^%s*>%s?") then
+          flush_paragraph(); close_lists()
+          quote[#quote + 1] = line:gsub("^%s*>%s?", "")
+        elseif line:match("^%s*$") then
+          flush_blocks()
+        else
+          close_lists(); flush_quote()
+          paragraph[#paragraph + 1] = inline_markdown(line:gsub("^%s+", ""))
+        end
+        index = index + 1
       end
     end
   end
-  flush_fence(); flush_paragraph(); flush_list()
+  flush_fence(); flush_blocks()
   return table.concat(out, "\n")
 end
 
@@ -1582,6 +1756,11 @@ pre.error{background:var(--error);border-left:4px solid #c94b4b;color:#b42323}
 .task-list-item{display:flex;gap:.5rem;align-items:baseline}
 .task-list-item input{margin:0;accent-color:var(--accent)}
 .task-list-item.done{color:var(--muted)}
+.cell .markdown-table{width:100%;border-collapse:collapse;margin:.7rem 0 1rem;font-size:.94rem}
+.markdown-table th,.markdown-table td{border:1px solid var(--border);padding:.38rem .55rem;text-align:left;vertical-align:top}
+.markdown-table th{background:var(--toc);font-weight:650}
+.markdown-table .align-center{text-align:center}
+.markdown-table .align-right{text-align:right}
 .scene{margin:1rem 0 0;padding:0}
 .scene-svg{display:block;width:100%;height:auto;border:1px solid var(--border);border-radius:10px;background:var(--figure)}
 .scene figcaption{color:var(--muted);font-size:.86rem;padding:.55rem .15rem 0;display:flex;flex-wrap:wrap;gap:.35rem .6rem;align-items:baseline}

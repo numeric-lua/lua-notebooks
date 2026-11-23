@@ -40,6 +40,17 @@ Inline math: $E = mc^2$. A formula:
 $$\\int_0^1 x^2 \\, dx = \\frac{1}{3}$$
 
 > Notebooks are documents first. The window is just a view.`),
+    createCell("markdown", `## Tables and nesting
+
+| Feature | State |
+| :--- | ---: |
+| pipe tables | ready |
+| nested lists | ready |
+
+- parent
+  - child
+    1. ordered child
+- [x] task lists render locally`),
     createCell("code", `local xs, ys = {}, {}
 for i = 1, 80 do
   local x = (i - 1) * 0.1

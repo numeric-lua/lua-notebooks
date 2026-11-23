@@ -20,8 +20,13 @@
 - Kernel widgets, editable multiline text, callbacks, persistence, live
   shader widgets (Star Nest preset), and expandable long text output.
 - Syntax highlighting, static diagnostics, completion, hover, go-to-definition,
-  workspace rename, case/whole-word notebook find and replace, and a
-  cross-notebook search overlay with per-tab result jumps.
+  workspace rename, literal or Lua-pattern find/replace with case and
+  whole-word options, and a cross-notebook search overlay with per-tab result
+  jumps.
+- GitHub-style Markdown pipe tables, nested lists, italic emphasis and grouped
+  blockquotes across the preview, static export, and browser front-end.
+- Close-notebook tabs with an unsaved-changes guard; kernels are keyed by
+  notebook object so other tabs keep their globals.
 - Hierarchical notebook filetree with create/delete/rename/folder actions.
 - Vim mode (default on): insert/normal, cell/character visual, registers,
   yank/paste, undo, search, command line, literal/pattern substitution.
@@ -59,5 +64,5 @@ make test-webapp           # Node scene/model tests, no packages
 ./scripts/input-smoke.sh   # needs a seat and /dev/uinput
 ./scripts/visual-smoke.sh  # needs a display
 ./scripts/scene-qa.sh      # needs chromium
-luarocks make lua-notebooks-1.53.0-1.rockspec --tree=/tmp/luanb-rocks
+luarocks make lua-notebooks-1.54.0-1.rockspec --tree=/tmp/luanb-rocks
 ```

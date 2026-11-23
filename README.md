@@ -32,6 +32,10 @@ Working in this milestone:
 
 Implemented after the original milestone:
 
+- Markdown pipe tables, nested lists, italic emphasis, grouped blockquotes, and
+  literal or Lua-pattern notebook find/replace;
+- closable notebook tabs with an unsaved-changes guard and kernels that stay
+  attached to their notebook across tab changes;
 - native file dialogs on Linux, Windows, and macOS;
 - extension permissions, sandbox gating, and per-extension toggles;
 - a standalone stdio JSON-RPC LSP server;
@@ -185,10 +189,11 @@ Controls:
 | `F11` | open/close the heading outline |
 | `Ctrl+Space` | open Lua completion for the selected code cell |
 | `Ctrl+Shift+F` | search all open notebooks |
-| `Ctrl+H` | show hover help for the trailing identifier |
-| `Ctrl+G` | jump to a local/function definition of the trailing identifier |
+| `Ctrl+H` | replace in the current notebook (`Alt+R` toggles Lua patterns) |
+| `Ctrl+G` | open the notebook link graph |
 | `Ctrl+Shift+R` | rename the trailing identifier across code cells |
 | `Ctrl+T` | open/close the tag index overlay |
+| `Ctrl+W` | close the current notebook tab (prompts when unsaved) |
 | `Ctrl+Shift+E` | show/hide per-cell execution timing |
 | `Ctrl+Shift+I` | open/close notebook statistics |
 | `Ctrl+Shift+O` | expand/collapse the selected cell's long output |
@@ -276,9 +281,14 @@ movement, and Vim operations share the code-cell editing path.
 Markdown cells show formatted text when unfocused: heading markers, emphasis,
 strikethrough, inline code, links, and list markers are removed for display.
 Selecting the cell returns to editable source. Display math renders in both
-states. Checklist items (`- [x] done`, `- [ ] todo`) preview as `[x]`/`[ ]`
-markers, thematic breaks (`---`, `***`, `___`) preview as a rule, and both
-build as disabled checkboxes/rules in the static HTML and browser front-end.
+states. Nested bullets, ordered items, and checklists keep their indentation.
+Pipe tables preview as aligned rows with cell dividers; the static HTML and
+browser front-end emit a real `<table>` with left/center/right alignment from
+the delimiter row. Italic (`*text*`, `_text_`), bold, strikethrough, and grouped
+blockquotes render consistently in the preview, export, and browser. Checklist
+items (`- [x] done`, `- [ ] todo`) preview as `[x]`/`[ ]` markers, thematic
+breaks (`---`, `***`, `___`) preview as a rule, and both build as disabled
+checkboxes/rules in the static HTML and browser front-end.
 
 ## Notebook title
 
@@ -373,8 +383,9 @@ remaining gaps.
 ## Tests
 
 `make test` runs the pure model, widget, engine, remote-supervisor,
-process-kernel, sandbox, editor, polar/heatmap/contour/quiver/streamplot/
-colourbar/clipping export parity, and Neovim-buffer plan/apply suite on LuaJIT. `make test-lua51
+process-kernel, sandbox, editor, Markdown table/nesting/emphasis/regex,
+polar/heatmap/contour/quiver/streamplot/colourbar/clipping export parity, and
+Neovim-buffer plan/apply suite on LuaJIT. `make test-lua51
 LUA=lua5.1` runs the Lua 5.1-compatible subset, including `tests/polar.lua`.
 `make test-remote` starts the WebSocket gateway and executes a cell with a real
 client. `make test-webapp` runs the Node unit tests for the browser scene
@@ -416,7 +427,7 @@ compositor and window stacking.
 ## LuaRocks
 
 ```sh
-luarocks make lua-notebooks-1.53.0-1.rockspec
+luarocks make lua-notebooks-1.54.0-1.rockspec
 lua-notebooks
 ```
 
@@ -425,7 +436,7 @@ The rockspec installs the app source under the LuaRocks share tree and a
 
 ```sh
 make rock
-luarocks install lua-notebooks-1.53.0-1.src.rock
+luarocks install lua-notebooks-1.54.0-1.src.rock
 ```
 
 Publishing to a remote rock server is intentionally not automated.
@@ -478,6 +489,7 @@ LUANB_SMOKE_WIDGET_EVENT=1 lovr . # run the widget cell and change a slider
 LUANB_SMOKE_SAVE=1 lovr .   # save/load the active notebook, then quit
 LUANB_SMOKE_STATS=1 lovr .  # open/close notebook statistics, then quit
 LUANB_SMOKE_GLOBAL_FIND=1 lovr . # search/jump across tabs, then quit
+LUANB_SMOKE_CLOSE=1 lovr . # guard, close, and re-key notebook kernels, then quit
 LUANB_SMOKE_OUTPUT=1 lovr . # expand a 12-line output, then quit
 LUANB_QA_CELL=6 lovr .      # run one cell and keep the window open for visual QA
 LUANB_QA_TAGS=1 LUANB_QA_SCREENSHOT=1 lovr . # tag-index overlay screenshot
@@ -580,12 +592,24 @@ options, previews the number of replacements before applying, and replaces
 every matching source occurrence as one undoable change. Output text is
 searchable but is never rewritten.
 
+Press **Alt+R** in find, cross-notebook search, or replace to switch from
+literal matching to **Lua patterns**. Use `%d+` for a digit run, `%a+` for
+letters, and `%1`–`%9` in the replacement to expand captures (`%0` is the whole
+match and `%%` is a literal percent). A malformed pattern is reported in the
+overlay instead of breaking search. Zero-length pattern matches are skipped.
+Ignore-case matching lowercases both the pattern and the searched text, so
+capture text from an ignore-case replacement is lowercase.
+
 ## Kernel commands
 
 The command palette exposes **Restart current kernel**, **Clear all cell outputs**, **Run all code cells**,
-**Move selected cell up/down**, **Duplicate selected cell**, **Export notebook
-as Markdown**, and **Export notebook as HTML**. `Ctrl+Shift+K` restarts the
-current kernel.
+**Move selected cell up/down**, **Duplicate selected cell**, **Close current
+notebook tab**, **Export notebook as Markdown**, and **Export notebook as
+HTML**. `Ctrl+Shift+K` restarts the current kernel. `Ctrl+W` closes the current
+tab; when the notebook has unsaved changes, the prompt offers **Enter/Y** to
+discard, **S** to save and close, or **Escape/N** to cancel. Kernels are keyed
+by notebook, not tab number, so closing one tab keeps every remaining kernel
+and its globals alive.
 
 ## Links
 
@@ -637,7 +661,7 @@ Successfully opened paths are kept in `recent.json` (latest ten). They appear as
 
 ## HTML export
 
-Exports are self-contained HTML with no external assets. The document has viewport and description metadata, a dark-mode-aware stylesheet, a print stylesheet, a sticky table of contents with unique heading anchors, per-heading and per-cell permalinks, a figures section, styled outputs and errors, and a closing backlinks list computed from `[[wiki links]]` across the open notebooks. Code cells and fenced Markdown blocks render with a language badge, CSS line numbers, and a **Copy** button that copies the source without the numbers; without JavaScript the button is hidden and every block stays readable. Markdown thematic breaks render as rules, `~~text~~` renders as strikethrough, and ordered lists keep their first number in the generated `<ol start="…">`.
+Exports are self-contained HTML with no external assets. The document has viewport and description metadata, a dark-mode-aware stylesheet, a print stylesheet, a sticky table of contents with unique heading anchors, per-heading and per-cell permalinks, a figures section, styled outputs and errors, and a closing backlinks list computed from `[[wiki links]]` across the open notebooks. Code cells and fenced Markdown blocks render with a language badge, CSS line numbers, and a **Copy** button that copies the source without the numbers; without JavaScript the button is hidden and every block stays readable. Markdown thematic breaks render as rules, `~~text~~` renders as strikethrough, and ordered lists keep their first number in the generated `<ol start="…">`. Pipe tables become `<table class="markdown-table">` with `align-left`/`align-center`/`align-right` cells, nested lists keep their hierarchy, italic emphasis renders as `<em>`, and consecutive blockquote lines share one `<blockquote>`.
 
 A small inline script adds reader-facing full-text search and a cell-kind filter. Search is case-insensitive, whitespace-separated terms are combined with AND, `/` focuses the box, Escape clears it, and the table of contents hides links to filtered-out cells. `?q=term` and `?kind=figures` prefill the controls for shareable filtered links. Without JavaScript the controls are hidden and the full document remains readable.
 

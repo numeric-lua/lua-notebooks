@@ -203,6 +203,11 @@ button { cursor: pointer; }
 .markdown-preview pre code { background: none; border: 0; padding: 0; color: #d5def4; }
 .markdown-preview ul, .markdown-preview ol { color: #cdd4e5; padding-left: 24px; }
 .markdown-preview blockquote { margin: 10px 0; padding: 2px 14px; border-left: 3px solid var(--accent-strong); color: var(--muted); background: rgba(138,164,255,.04); }
+.markdown-preview table.markdown-table { width: 100%; border-collapse: collapse; margin: 12px 0 16px; font-size: 13.5px; }
+.markdown-preview .markdown-table th, .markdown-preview .markdown-table td { border: 1px solid var(--border); padding: 6px 9px; text-align: left; vertical-align: top; }
+.markdown-preview .markdown-table th { background: #1b2130; font-weight: 650; }
+.markdown-preview .markdown-table .align-center { text-align: center; }
+.markdown-preview .markdown-table .align-right { text-align: right; }
 .markdown-preview hr { border: 0; border-top: 1px solid var(--border); margin: 18px 0; }
 .math { font-family: "Cambria Math", "STIX Two Math", serif; color: #c9d5ff; }
 

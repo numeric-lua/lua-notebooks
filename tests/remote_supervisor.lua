@@ -95,6 +95,26 @@ test("reports malformed transport messages", function()
   remote:close()
 end)
 
+test("stops a notebook and drops pending work", function()
+  local transport = fake_transport()
+  local remote = Remote.new({ transport = transport })
+  remote:run("a", "return 1", "1:1")
+  remote:run("b", "return 2", "1:1")
+  remote:stop("a")
+  eq(remote.kernels.a, nil)
+  eq(remote.kernels.b ~= nil, true)
+  for _, pending in pairs(remote.pending) do
+    eq(pending.kernel ~= "a", true)
+  end
+  local closed = false
+  for _, text in ipairs(transport.sent) do
+    local message = json.decode(text)
+    if message.type == "close" and message.notebook == "a" then closed = true end
+  end
+  eq(closed, true)
+  remote:close()
+end)
+
 io.write(string.format("\n%d remote tests, %d passed, %d failed\n",
   passed + failed, passed, failed))
 if failed > 0 then os.exit(1) end

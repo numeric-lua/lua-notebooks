@@ -81,7 +81,7 @@ current = "model"
 test("demo has two notebooks and a live polar cell", function()
   local notebooks = Notebook.demo()
   eq(#notebooks, 2)
-  eq(#notebooks[1].cells, 19)
+  eq(#notebooks[1].cells, 21)
   local polar, field, large, quiver, stream
   for _, cell in ipairs(notebooks[1].cells) do
     if cell.source:find('orientation = "polar"', 1, true) then
@@ -644,6 +644,82 @@ test("preserves an ordered list's start number and parenthesis markers", functio
   assert(html:find("<ol><li>one</li><li>two</li></ol>", 1, true))
 end)
 
+current = "html markdown tables"
+test("renders pipe tables with alignment and inline formatting", function()
+  local notebook = Notebook.new({ name = "tables.luanb", cells = {
+    { kind = "markdown", source = table.concat({
+      "| Item | Value |",
+      "| :--- | ---: |",
+      "| alpha | **1** |",
+      "| beta | `2` |",
+      "",
+      "After",
+    }, "\n") },
+  } })
+  local html = Format.to_html(notebook)
+  assert(html:find('<table class="markdown-table"><thead><tr><th>Item</th>' ..
+    '<th class="align-right">Value</th></tr></thead><tbody>', 1, true))
+  assert(html:find('<tr><td>alpha</td><td class="align-right">' ..
+    '<strong>1</strong></td></tr>', 1, true))
+  assert(html:find('<tr><td>beta</td><td class="align-right">' ..
+    '<code>2</code></td></tr>', 1, true))
+  assert(html:find("</tbody></table>\n<p>After</p>", 1, true))
+  local fenced = Notebook.new({ name = "fenced.luanb", cells = {
+    { kind = "markdown", source = table.concat({
+      "```lua",
+      "| a | b |",
+      "| --- | --- |",
+      "```",
+    }, "\n") },
+  } })
+  assert(Format.to_html(fenced):find('<table class="markdown-table">', 1,
+    true) == nil)
+end)
+
+current = "html nested lists"
+test("renders nested unordered, ordered, and task lists", function()
+  local notebook = Notebook.new({ name = "nested.luanb", cells = {
+    { kind = "markdown", source = table.concat({
+      "- one",
+      "  - two",
+      "    3. three",
+      "- four",
+      "",
+      "- [x] parent",
+      "  - [ ] child",
+    }, "\n") },
+  } })
+  local html = Format.to_html(notebook)
+  assert(html:find('<ul><li>one<ul><li>two<ol start="3">' ..
+    '<li>three</li></ol></li></ul></li><li>four</li></ul>', 1, true))
+  assert(html:find('<ul class="task-list"><li class="task-list-item done">' ..
+    '<input type="checkbox" disabled checked> parent<ul class="task-list">' ..
+    '<li class="task-list-item"><input type="checkbox" disabled> child' ..
+    '</li></ul></li></ul>', 1, true))
+end)
+
+current = "html emphasis and quotes"
+test("renders inline emphasis and groups quote lines", function()
+  local notebook = Notebook.new({ name = "emphasis.luanb", cells = {
+    { kind = "markdown", source = table.concat({
+      "*italic* _under_ __bold__ **strong** and `*literal*`",
+      "",
+      "> q1",
+      "> q2",
+    }, "\n") },
+  } })
+  local html = Format.to_html(notebook)
+  assert(html:find('<p><em>italic</em> <em>under</em> ' ..
+    '<strong>bold</strong> <strong>strong</strong> and ' ..
+    '<code>*literal*</code></p>', 1, true))
+  assert(html:find('<blockquote><p>q1</p><p>q2</p></blockquote>', 1, true))
+  local identifiers = Notebook.new({ name = "ids.luanb", cells = {
+    { kind = "markdown", source = "snake_case_name stays literal" },
+  } })
+  assert(Format.to_html(identifiers):find("snake_case_name stays literal",
+    1, true))
+end)
+
 current = "html code blocks"
 test("renders labeled, numbered code blocks with copy controls", function()
   local notebook = Notebook.new({ name = "code.luanb", cells = {
@@ -1076,6 +1152,52 @@ test("replace_all honours case-sensitive and whole-word options", function()
   local all = notebook:replace_all("foo", "x", { whole_word = true })
   eq(all, 1)
   eq(notebook.cells[1].source, "x x food foo_bar")
+end)
+
+current = "search regex"
+test("matches Lua patterns and reports malformed patterns", function()
+  local Search = require("notebook.search")
+  local text = "alpha beta 42\nalpha gamma 7"
+  local matches = Search.matches(text, "(%a+)%s+(%a+)%s+(%d+)",
+    { regex = true })
+  eq(#matches, 2)
+  eq(matches[1][1], 1)
+  local ok, err = Search.validate("(", { regex = true })
+  eq(ok, false)
+  assert(err ~= nil)
+  local rows, total, pattern_error = Search.collect({ { source = "x" } }, "(",
+    { regex = true })
+  eq(#rows, 0)
+  eq(total, 0)
+  assert(pattern_error ~= nil)
+  eq(#Search.matches("Alpha alpha", "alpha", { regex = true }), 2)
+  eq(#Search.matches("foo food", "foo", { regex = true,
+    whole_word = true }), 1)
+  eq(#Search.matches("abc", "%a*", { regex = true }), 1)
+end)
+test("expands numbered captures in regex replacements", function()
+  local Search = require("notebook.search")
+  local text = "alpha beta 42\nalpha gamma 7"
+  local replaced, count = Search.replace_text(text,
+    "(%a+)%s+(%a+)%s+(%d+)", "%3:%1", { regex = true })
+  eq(count, 2)
+  eq(replaced, "42:alpha\n7:alpha")
+  local wrapped = Search.replace_text("a1", "%d", "[%0]", { regex = true })
+  eq(wrapped, "a[1]")
+  local literal_percent = Search.replace_text("a1", "%d", "[%%]",
+    { regex = true })
+  eq(literal_percent, "a[%]")
+  local whole, whole_count = Search.replace_text("foo food", "foo", "x",
+    { regex = true, whole_word = true })
+  eq(whole_count, 1)
+  eq(whole, "x food")
+  local cells = { { source = "a1 b2", cursor = 6 } }
+  local total, changed = Search.replace_cells(cells, "(%a)(%d)", "%2%1",
+    { regex = true })
+  eq(total, 2)
+  eq(changed, true)
+  eq(cells[1].source, "1a 2b")
+  eq(cells[1].cursor, 6)
 end)
 
 current = "recent"

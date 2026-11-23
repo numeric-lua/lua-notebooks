@@ -1,6 +1,8 @@
 --
--- Pure literal search helpers shared by the notebook find/replace overlays and
--- the document model.  Everything is byte-oriented and Lua 5.1 compatible.
+-- Pure search helpers shared by the notebook find/replace overlays and the
+-- document model.  Literal matching is the default; `regex = true` switches to
+-- Lua patterns and numbered capture replacement.  Everything is byte-oriented
+-- and Lua 5.1 compatible.
 --
 local Search = {}
 
@@ -10,6 +12,7 @@ local function normalise(options)
     case_sensitive = options.case_sensitive == true,
     whole_word = options.whole_word == true,
     include_output = options.include_output ~= false,
+    regex = options.regex == true,
     limit = options.limit,
   }
 end
@@ -26,8 +29,13 @@ local function boundary_ok(text, first, last, whole_word)
   return not is_word_char(before) and not is_word_char(after)
 end
 
-local function next_match(haystack, needle, position)
-  return haystack:find(needle, position, true)
+-- A literal search uses plain find.  A pattern search goes through pcall so a
+-- malformed user pattern is reported instead of crashing the overlay.
+local function next_match(haystack, needle, position, regex)
+  if not regex then return haystack:find(needle, position, true) end
+  local ok, first, last = pcall(string.find, haystack, needle, position)
+  if not ok then return nil, nil, tostring(first) end
+  return first, last
 end
 
 local function prepare(text, query, options)
@@ -42,16 +50,31 @@ local function prepare(text, query, options)
   return haystack, needle, opts
 end
 
+-- Exposed so the overlays can label a malformed pattern before it is used.
+function Search.validate(query, options)
+  if type(query) ~= "string" or query == "" then return true end
+  local opts = normalise(options)
+  if not opts.regex then return true end
+  local ok, err = pcall(string.find, "", query)
+  if ok then return true end
+  return false, tostring(err)
+end
+
 -- Return the 1-based start/end offsets of every non-overlapping occurrence.
+-- A second return value carries a pattern error when the query is malformed.
 function Search.matches(text, query, options)
   local haystack, needle, opts = prepare(text, query, options)
   if haystack == nil then return {} end
   local result = {}
   local position = 1
   while position <= #haystack do
-    local first, last = next_match(haystack, needle, position)
+    local first, last, err = next_match(haystack, needle, position, opts.regex)
+    if err ~= nil then return result, err end
     if first == nil then break end
-    if boundary_ok(text or "", first, last, opts.whole_word) then
+    if last < first then
+      -- Empty pattern match: record nothing and make progress by one byte.
+      position = first + 1
+    elseif boundary_ok(text or "", first, last, opts.whole_word) then
       result[#result + 1] = { first, last }
       position = last + 1
     else
@@ -62,7 +85,8 @@ function Search.matches(text, query, options)
 end
 
 function Search.count_text(text, query, options)
-  return #Search.matches(text, query, options)
+  local matches = Search.matches(text, query, options)
+  return #matches
 end
 
 -- Collect one result row per matching source or output line.  `total` counts
@@ -76,7 +100,8 @@ function Search.collect(cells, query, options)
     local source = type(cell.source) == "string" and cell.source or ""
     local offset = 1
     for line in (source .. "\n"):gmatch("(.-)\n") do
-      local matches = Search.matches(line, query, opts)
+      local matches, err = Search.matches(line, query, opts)
+      if err ~= nil then return results, total, err end
       total = total + #matches
       if #matches > 0 and (opts.limit == nil or #results < opts.limit) then
         results[#results + 1] = {
@@ -91,7 +116,8 @@ function Search.collect(cells, query, options)
     if opts.include_output and type(cell.output) == "string" and
        cell.output ~= "" then
       for line in (cell.output .. "\n"):gmatch("(.-)\n") do
-        local matches = Search.matches(line, query, opts)
+        local matches, err = Search.matches(line, query, opts)
+        if err ~= nil then return results, total, err end
         total = total + #matches
         if #matches > 0 and (opts.limit == nil or #results < opts.limit) then
           results[#results + 1] = {
@@ -120,8 +146,9 @@ function Search.collect_notebooks(notebooks, query, options)
   local results, total = {}, 0
   if type(query) ~= "string" or query == "" then return results, total end
   for notebook_index, notebook in ipairs(notebooks or {}) do
-    local rows, notebook_total = Search.collect(notebook.cells or {}, query,
+    local rows, notebook_total, err = Search.collect(notebook.cells or {}, query,
       opts)
+    if err ~= nil then return results, total, err end
     total = total + notebook_total
     for _, row in ipairs(rows) do
       if opts.limit == nil or #results < opts.limit then
@@ -140,8 +167,9 @@ function Search.collect_notebooks(notebooks, query, options)
   return results, total
 end
 
--- Replace literal text.  The replacement is inserted verbatim, so `%` and
--- captures in the replacement have no special meaning.
+-- Replace literal text, or expand `%0`-`%9` captures in a pattern replacement.
+-- The replacement is inserted verbatim in literal mode, so `%` has no special
+-- meaning there.
 function Search.replace_text(text, query, replacement, options)
   text = text or ""
   local haystack, needle, opts = prepare(text, query, options)
@@ -149,11 +177,21 @@ function Search.replace_text(text, query, replacement, options)
   replacement = replacement or ""
   local out, position, total = {}, 1, 0
   while position <= #haystack do
-    local first, last = next_match(haystack, needle, position)
+    local first, last, err = next_match(haystack, needle, position, opts.regex)
+    if err ~= nil then return text, 0, err end
     if first == nil then break end
-    if boundary_ok(text, first, last, opts.whole_word) then
+    if last < first then
+      position = first + 1
+    elseif boundary_ok(text, first, last, opts.whole_word) then
       out[#out + 1] = text:sub(position, first - 1)
-      out[#out + 1] = replacement
+      if opts.regex then
+        local matched = text:sub(first, last)
+        local source = opts.case_sensitive and matched or matched:lower()
+        local ok, expanded = pcall(string.gsub, source, needle, replacement, 1)
+        out[#out + 1] = ok and expanded or replacement
+      else
+        out[#out + 1] = replacement
+      end
       position = last + 1
       total = total + 1
     else

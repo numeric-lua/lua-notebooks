@@ -181,6 +181,8 @@ function UI.new(app)
     global_find_selected = 1,
     global_find_case_sensitive = false,
     global_find_whole_word = false,
+    global_find_regex = false,
+    global_find_error = nil,
     global_find_rects = {},
     show_replace = false,
     show_graph = false,
@@ -194,12 +196,16 @@ function UI.new(app)
     replace_count = nil,
     replace_case_sensitive = false,
     replace_whole_word = false,
+    replace_regex = false,
+    replace_error = nil,
     find_query = "",
     find_results = {},
     find_total = 0,
     find_selected = 1,
     find_case_sensitive = false,
     find_whole_word = false,
+    find_regex = false,
+    find_error = nil,
     find_rects = {},
     link_rects = {},
     show_palette = false,
@@ -237,6 +243,7 @@ function UI.new(app)
     rename_prompt = nil,
     folder_prompt = nil,
     confirm_delete = nil,
+    close_prompt = nil,
     symbol_prompt = nil,
     zen_mode = false,
     show_history = false,
@@ -785,6 +792,7 @@ function UI:draw(pass, logical_width, logical_height)
   self:draw_tree(pass, width, height)
   self:draw_rename(pass, width, height)
   self:draw_confirm(pass, width, height)
+  self:draw_close_prompt(pass, width, height)
   self:draw_symbol_prompt(pass, width, height)
   self:draw_outline(pass, width, height)
   self:draw_history(pass, width, height)
@@ -830,6 +838,7 @@ function UI:palette_commands()
     { id = "duplicate-cell", label = "Duplicate selected cell" },
     { id = "save", label = "Save notebook  (F6)" },
     { id = "save-as", label = "Save notebook as…" },
+    { id = "close", label = "Close current notebook tab  (Ctrl+W)" },
     { id = "open-dialog", label = "Open notebook…" },
     { id = "load", label = "Load notebook  (F7)" },
     { id = "new", label = "New notebook" },
@@ -926,6 +935,7 @@ function UI:run_palette_command(id)
   elseif id == "duplicate-cell" then self.app:duplicate_cell()
   elseif id == "save" then self.app:save()
   elseif id == "save-as" then self.app:save_as()
+  elseif id == "close" then self:request_close()
   elseif id == "open-dialog" then self.app:open_dialog()
   elseif id:match("^recent:(%d+)$") then
     local path = self.app.recent_paths[tonumber(id:match("%d+"))]
@@ -1233,11 +1243,13 @@ function UI:draw_tags(pass, width, height)
     x + 18, y + panel_h - 22, { 0.5, 0.58, 0.72, 1 }, 0.62)
 end
 
-local function search_options(case_sensitive, whole_word, include_output)
+local function search_options(case_sensitive, whole_word, include_output,
+    regex)
   return {
     case_sensitive = case_sensitive == true,
     whole_word = whole_word == true,
     include_output = include_output ~= false,
+    regex = regex == true,
   }
 end
 
@@ -1247,6 +1259,8 @@ function UI:open_replace()
   self.replace_with = ""
   self.replace_phase = "find"
   self.replace_count = 0
+  self.replace_error = nil
+  self.replace_regex = false
 end
 
 function UI:draw_replace(pass, width, height)
@@ -1254,16 +1268,24 @@ function UI:draw_replace(pass, width, height)
   local panel_w = math.min(680, width - 60)
   local x, y = (width - panel_w) / 2, 96
   box(pass, x, y, panel_w, 118, { 0.06, 0.07, 0.10, 0.98 })
-  self.replace_count = Search.count(self.app:notebook().cells,
-    self.replace_find, search_options(self.replace_case_sensitive,
-      self.replace_whole_word, false))
+  local replace_options = search_options(self.replace_case_sensitive,
+    self.replace_whole_word, false, self.replace_regex)
+  local valid, pattern_error = Search.validate(self.replace_find,
+    replace_options)
+  self.replace_error = valid and nil or pattern_error
+  self.replace_count = valid and Search.count(self.app:notebook().cells,
+    self.replace_find, replace_options) or 0
   text(pass, self.app.font, "Replace in notebook  (Tab switches field)",
     x + 14, y + 10, { 0.9, 0.94, 1, 1 }, 0.78)
-  text(pass, self.app.font, string.format("%s · %s · %d match%s",
-    self.replace_case_sensitive and "case" or "ignore case",
-    self.replace_whole_word and "whole word" or "substring",
-    self.replace_count, self.replace_count == 1 and "" or "es"),
-    x + panel_w - 14, y + 12, { 0.55, 0.65, 0.82, 1 }, 0.6, "right")
+  local replace_mode = self.replace_error and "invalid pattern" or
+    string.format("%s · %s · %s · %d match%s",
+      self.replace_case_sensitive and "case" or "ignore case",
+      self.replace_regex and "regex" or "literal",
+      self.replace_whole_word and "whole word" or "substring",
+      self.replace_count, self.replace_count == 1 and "" or "es")
+  text(pass, self.app.font, replace_mode, x + panel_w - 14, y + 12,
+    self.replace_error and { 0.95, 0.55, 0.55, 1 } or
+    { 0.55, 0.65, 0.82, 1 }, 0.6, "right")
   local find_color = self.replace_phase == "find" and
     { 0.25, 0.35, 0.5, 1 } or { 0.11, 0.13, 0.18, 1 }
   local replace_color = self.replace_phase == "replace" and
@@ -1275,7 +1297,7 @@ function UI:draw_replace(pass, width, height)
   text(pass, self.app.font, "replace: " .. self.replace_with .. "|",
     x + 20, y + 75, { 0.9, 0.94, 1, 1 }, 0.74)
   text(pass, self.app.font,
-    "Enter next field / apply  ·  Alt+C case  ·  Alt+W whole word  ·  Esc cancel",
+    "Enter next field / apply  ·  Alt+C case  ·  Alt+W word  ·  Alt+R regex  ·  Esc cancel",
     x + 14, y + 102, { 0.5, 0.58, 0.72, 1 }, 0.6)
 end
 
@@ -1285,14 +1307,16 @@ function UI:open_find()
   self.find_selected = 1
   self.find_results = {}
   self.find_total = 0
+  self.find_error = nil
+  self.find_regex = false
 end
 
 function UI:update_find()
   self.find_selected = 1
   local options = search_options(self.find_case_sensitive,
-    self.find_whole_word, true)
+    self.find_whole_word, true, self.find_regex)
   options.limit = 40
-  self.find_results, self.find_total = Search.collect(
+  self.find_results, self.find_total, self.find_error = Search.collect(
     self.app:notebook().cells, self.find_query, options)
 end
 
@@ -1307,11 +1331,15 @@ function UI:draw_find(pass, width, height)
   box(pass, x, y, panel_w, panel_h, { 0.06, 0.07, 0.10, 0.98 })
   text(pass, self.app.font, "Find in notebook  (Ctrl+F)", x + 14, y + 12,
     { 0.9, 0.94, 1, 1 }, 0.78)
-  text(pass, self.app.font, string.format("%s · %s · %d match%s",
-    self.find_case_sensitive and "case" or "ignore case",
-    self.find_whole_word and "whole word" or "substring",
-    self.find_total, self.find_total == 1 and "" or "es"),
-    x + panel_w - 14, y + 14, { 0.55, 0.65, 0.82, 1 }, 0.6, "right")
+  local mode = self.find_error and "invalid pattern" or
+    string.format("%s · %s · %s · %d match%s",
+      self.find_case_sensitive and "case" or "ignore case",
+      self.find_regex and "regex" or "literal",
+      self.find_whole_word and "whole word" or "substring",
+      self.find_total, self.find_total == 1 and "" or "es")
+  text(pass, self.app.font, mode, x + panel_w - 14, y + 14,
+    self.find_error and { 0.95, 0.55, 0.55, 1 } or { 0.55, 0.65, 0.82, 1 },
+    0.6, "right")
   box(pass, x + 12, y + 36, panel_w - 24, 26, { 0.11, 0.13, 0.18, 1 })
   text(pass, self.app.font, self.find_query .. "|", x + 20, y + 41,
     { 0.9, 0.94, 1, 1 }, 0.75)
@@ -1337,14 +1365,16 @@ function UI:open_global_find()
   self.global_find_selected = 1
   self.global_find_results = {}
   self.global_find_total = 0
+  self.global_find_error = nil
+  self.global_find_regex = false
 end
 
 function UI:update_global_find()
   self.global_find_selected = 1
   local options = search_options(self.global_find_case_sensitive,
-    self.global_find_whole_word, true)
+    self.global_find_whole_word, true, self.global_find_regex)
   options.limit = 80
-  self.global_find_results, self.global_find_total =
+  self.global_find_results, self.global_find_total, self.global_find_error =
     Search.collect_notebooks(self.app.notebooks, self.global_find_query,
       options)
 end
@@ -1378,11 +1408,15 @@ function UI:draw_global_find(pass, width, height)
   box(pass, x, y, panel_w, 2, { 0.35, 0.72, 1, 1 })
   text(pass, self.app.font, "Find in all open notebooks  (Ctrl+Shift+F)",
     x + 14, y + 10, { 0.9, 0.94, 1, 1 }, 0.78)
-  text(pass, self.app.font, string.format("%s · %s · %d match%s in %d notebook(s)",
-    self.global_find_case_sensitive and "case" or "ignore case",
-    self.global_find_whole_word and "whole word" or "substring",
-    self.global_find_total, self.global_find_total == 1 and "" or "es",
-    #self.app.notebooks), x + panel_w - 14, y + 12,
+  local mode = self.global_find_error and "invalid pattern" or
+    string.format("%s · %s · %s · %d match%s in %d notebook(s)",
+      self.global_find_case_sensitive and "case" or "ignore case",
+      self.global_find_regex and "regex" or "literal",
+      self.global_find_whole_word and "whole word" or "substring",
+      self.global_find_total, self.global_find_total == 1 and "" or "es",
+      #self.app.notebooks)
+  text(pass, self.app.font, mode, x + panel_w - 14, y + 12,
+    self.global_find_error and { 0.95, 0.55, 0.55, 1 } or
     { 0.55, 0.65, 0.82, 1 }, 0.6, "right")
   box(pass, x + 12, y + 32, panel_w - 24, 26, { 0.11, 0.13, 0.18, 1 })
   text(pass, self.app.font, self.global_find_query .. "|", x + 20, y + 37,
@@ -1412,7 +1446,7 @@ function UI:draw_global_find(pass, width, height)
     }
   end
   text(pass, self.app.font,
-    "Enter opens result  ·  Up/Down select  ·  Alt+C case  ·  Alt+W whole word  ·  Esc closes",
+    "Enter opens result  ·  Up/Down select  ·  Alt+C case  ·  Alt+W word  ·  Alt+R regex  ·  Esc closes",
     x + 14, y + panel_h - 22, { 0.5, 0.58, 0.72, 1 }, 0.58)
 end
 
@@ -1437,12 +1471,13 @@ function UI:draw_help(pass, width, height)
         { "Alt+X / dd", "delete focused cell" },
         { "Ctrl+1 / 2", "code / markdown" },
         { "o / O", "insert below / above and edit" },
-        { "Ctrl+F", "find across notebook cells (Alt+C/Alt+W options)" },
+        { "Ctrl+F", "find cells (Alt+C/Alt+W/Alt+R options)" },
         { "Ctrl+Shift+F", "find across all open notebooks" },
-        { "Ctrl+H", "replace in notebook (Alt+C/Alt+W options)" },
+        { "Ctrl+H", "replace (Alt+C/Alt+W/Alt+R options)" },
         { "Ctrl+G / Ctrl+T", "link graph / tag index" },
         { "Ctrl+P", "command palette" },
         { "Ctrl+S", "save notebook" },
+        { "Ctrl+W", "close notebook tab" },
         { "Ctrl+Tab", "next / previous notebook" },
         { "F2", "notebook filetree" },
         { "F1", "command palette" },
@@ -1916,6 +1951,31 @@ function UI:run_without_focus()
   self.nav_repeat = nil
 end
 
+function UI:request_close()
+  local notebook = self.app:notebook()
+  if notebook ~= nil and notebook.dirty then
+    self.close_prompt = { index = self.app.active, name = notebook.name }
+  else
+    self.app:close_notebook()
+  end
+end
+
+function UI:draw_close_prompt(pass, width, height)
+  if self.close_prompt == nil then return end
+  local panel_w, panel_h = 520, 104
+  local x, y = (width - panel_w) / 2, 150
+  box(pass, x, y, panel_w, panel_h, { 0.04, 0.05, 0.08, 1 })
+  box(pass, x, y, panel_w, 2, { 0.95, 0.55, 0.55, 1 })
+  text(pass, self.app.font,
+    "Close " .. self.close_prompt.name .. " with unsaved changes?",
+    x + 16, y + 14, { 0.95, 0.82, 0.82, 1 }, 0.72)
+  text(pass, self.app.font,
+    "Enter/Y discard · S save and close · Escape/N cancel", x + 16,
+    y + 52, { 0.72, 0.78, 0.9, 1 }, 0.66)
+  text(pass, self.app.font, "Closing stops this notebook's kernel.",
+    x + 16, y + 76, { 0.5, 0.58, 0.72, 1 }, 0.6)
+end
+
 function UI:open_history()
   self.app:notebook():flush_history()
   self.history_items = self.app:notebook():history_nodes_flat()
@@ -2281,6 +2341,20 @@ function UI:keypressed(key)
     (lovr.system.isKeyDown("lshift") or lovr.system.isKeyDown("rshift"))
   local alt_down = lovr.system and lovr.system.isKeyDown and
     (lovr.system.isKeyDown("lalt") or lovr.system.isKeyDown("ralt"))
+  if self.close_prompt then
+    if key == "escape" or key == "n" then
+      self.close_prompt = nil
+    elseif key == "return" or key == "y" then
+      local prompt = self.close_prompt
+      self.close_prompt = nil
+      self.app:close_notebook(prompt.index, true)
+    elseif key == "s" then
+      local prompt = self.close_prompt
+      self.close_prompt = nil
+      self.app:save_and_close(prompt.index)
+    end
+    return
+  end
   if self.show_replace then
     if key == "escape" then
       self.show_replace = false
@@ -2298,6 +2372,10 @@ function UI:keypressed(key)
       self.replace_whole_word = not self.replace_whole_word
       self.app.status = self.replace_whole_word and
         "replace: whole word" or "replace: substring"
+    elseif alt_down and key == "r" then
+      self.replace_regex = not self.replace_regex
+      self.app.status = self.replace_regex and
+        "replace: regex" or "replace: literal"
     elseif key == "tab" then
       self.replace_phase = self.replace_phase == "find" and "replace" or "find"
     elseif key == "return" then
@@ -2306,7 +2384,7 @@ function UI:keypressed(key)
       else
         local count = self.app:notebook():replace_all(self.replace_find,
           self.replace_with, search_options(self.replace_case_sensitive,
-            self.replace_whole_word, false))
+            self.replace_whole_word, false, self.replace_regex))
         self.app.status = count > 0 and ("replaced " .. count .. " occurrence(s)") or
           "no matches"
         self.show_replace = false
@@ -2343,6 +2421,11 @@ function UI:keypressed(key)
       self:update_global_find()
       self.app.status = self.global_find_whole_word and
         "global find: whole word" or "global find: substring"
+    elseif alt_down and key == "r" then
+      self.global_find_regex = not self.global_find_regex
+      self:update_global_find()
+      self.app.status = self.global_find_regex and
+        "global find: regex" or "global find: literal"
     elseif key == "backspace" then
       self.global_find_query = self.global_find_query:sub(1, -2)
       self:update_global_find()
@@ -2371,6 +2454,11 @@ function UI:keypressed(key)
       self:update_find()
       self.app.status = self.find_whole_word and
         "find: whole word" or "find: substring"
+    elseif alt_down and key == "r" then
+      self.find_regex = not self.find_regex
+      self:update_find()
+      self.app.status = self.find_regex and
+        "find: regex" or "find: literal"
     elseif key == "backspace" then
       self.find_query = self.find_query:sub(1, -2); self:update_find()
     elseif key == "return" and self.find_results[self.find_selected] then
@@ -2422,6 +2510,10 @@ function UI:keypressed(key)
     if target < 1 then target = count end
     if target > count then target = 1 end
     self.app:set_tab(target)
+    return
+  end
+  if ctrl_down and key == "w" then
+    self:request_close()
     return
   end
   if ctrl_down and key == "s" and lovr.system and
@@ -3252,6 +3344,10 @@ function UI:mousepressed(x, y, button)
     return
   end
   if button ~= 1 then return end
+  if self.close_prompt then
+    self.close_prompt = nil
+    return
+  end
   if self.show_stats then
     self.show_stats = false
     return

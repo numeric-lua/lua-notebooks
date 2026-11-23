@@ -108,6 +108,9 @@ function ProcessSupervisor:stop(id)
   end
   os.execute(Platform.remove(self.platform, kernel.dir))
   self.kernels[id] = nil
+  for request, pending in pairs(self.pending) do
+    if pending.kernel == id then self.pending[request] = nil end
+  end
 end
 
 function ProcessSupervisor:restart(id)

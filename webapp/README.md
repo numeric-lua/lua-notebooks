@@ -35,9 +35,10 @@ or with the settings button in the top bar.
 
 ## What works
 
-- code and markdown cells, Markdown task-list checkboxes, thematic breaks,
-  strikethrough, ordered-list start numbers, local notebook persistence,
-  `.luanb` import/export;
+- code and markdown cells, Markdown task-list checkboxes, nested lists, pipe
+  tables with alignment, italic emphasis, grouped blockquotes, thematic
+  breaks, strikethrough, ordered-list start numbers, local notebook
+  persistence, `.luanb` import/export;
 - Shift+Enter / Ctrl+Enter execution;
 - stdout, returned values, errors;
 - kernel widgets: sliders, buttons, checkboxes, selects, text, numbers,

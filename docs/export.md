@@ -194,17 +194,21 @@ contract deliberately or fails a test.
 
 The export renders the Markdown subset the notebook previews and edits:
 ATX headings, fenced code blocks (language badge, line numbers, and copy
-control), unordered and ordered lists, blockquotes, thematic breaks
-(`---`, `***`, `___`), bold, strikethrough (`~~text~~`), inline code,
-`[label](url)` links (only `http`, `https`, `mailto`, and relative links are
-emitted; `javascript:`/`data:` links degrade to text), and wiki links as
-styled text with a `data-target` attribute. Checklist items
-(`- [x]`/`- [ ]`) become `<ul class="task-list">` entries with disabled
-checkboxes and a `done` class on completed items; they are read-only in the
-static export. Ordered list markers accept both `1.` and `1)`, and a list that
-starts above one keeps its first number through `<ol start="N">`. Every
-rendered heading carries a hover/focus `#` permalink pointing at its anchor.
-Raw HTML in Markdown is escaped.
+control), nested unordered/ordered/task lists, pipe tables, blockquotes,
+thematic breaks (`---`, `***`, `___`), bold, italic (`*text*`/`_text_`),
+strikethrough (`~~text~~`), inline code, `[label](url)` links (only `http`,
+`https`, `mailto`, and relative links are emitted; `javascript:`/`data:` links
+degrade to text), and wiki links as styled text with a `data-target` attribute.
+Checklist items (`- [x]`/`- [ ]`) become `<ul class="task-list">` entries with
+disabled checkboxes and a `done` class on completed items; they are read-only
+in the static export. List indentation creates nested `<ul>`/`<ol>` groups, and
+ordered list markers accept both `1.` and `1)`, keeping a list's first number
+through `<ol start="N">`. Pipe tables become
+`<table class="markdown-table">` with a `<thead>` row and left, center, or right
+aligned `<th>`/`<td>` cells taken from the `:---`/`:---:`/`---:` delimiter row;
+a table inside a fenced block stays code. Consecutive `>` lines are grouped in
+one `<blockquote>`, and every rendered heading carries a hover/focus `#`
+permalink pointing at its anchor. Raw HTML in Markdown is escaped.
 
 ## Determinism
 
@@ -242,7 +246,8 @@ make test-webapp          # Node browser-renderer tests
 ```
 
 The unit tests exercise heading anchors, duplicate slugs, heading permalinks,
-table-of-contents links, thematic breaks and strikethrough, ordered-list start
+table-of-contents links, tables and alignment, nested lists, italic and
+blockquote grouping, thematic breaks and strikethrough, ordered-list start
 numbers, search-index normalization and escaping, figure
 summaries/SVGs, polar axes and series, escaping, JSON truncation, tag filtering,
 and timing sums. `tests/polar.lua` additionally checks the shared projection,

@@ -70,6 +70,12 @@ function InlineSupervisor:threaderror() end
 
 function InlineSupervisor:stop(id)
   self.kernels[id] = nil
+  for request, pending in pairs(self.pending) do
+    if pending.kernel == id then self.pending[request] = nil end
+  end
+  for index = #self.queue, 1, -1 do
+    if self.queue[index].id == id then table.remove(self.queue, index) end
+  end
 end
 
 function InlineSupervisor:restart(id)

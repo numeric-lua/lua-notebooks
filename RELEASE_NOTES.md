@@ -1,3 +1,37 @@
+# lua-notebooks 1.54.0
+
+- render GitHub-style Markdown pipe tables in the live preview, the static HTML
+  export, and the browser front-end: strip optional outer pipes, honor
+  `:---`/`:---:`/`---:` alignment, escape cell content, keep tables inside
+  fenced code as code, and style exported and browser tables for light/dark and
+  print;
+- render nested unordered, ordered, and task lists in all three Markdown
+  renderers, preserving indentation depth, mixed list kinds, ordered-list start
+  numbers, disabled task checkboxes, and the existing preview bullet markers;
+- align inline emphasis and blockquotes across the preview/export/browser:
+  italic `*text*`/`_text_`, bold `**text**`/`__text__`, strikethrough, inline
+  code precedence, and one grouped `<blockquote>` for consecutive `>` lines;
+- add **Alt+R** Lua-pattern search and replace to the find, cross-notebook
+  search, and replace overlays: numbered captures (`%1`–`%9`, `%0`, `%%`) in
+  replacements, case/whole-word combinations, malformed-pattern reporting
+  instead of crashes, and skipped zero-length matches;
+- add **Ctrl+W** and a palette action to close the current notebook tab, with an
+  unsaved-changes prompt (**Enter/Y** discard, **S** save and close,
+  **Escape/N** cancel), stable kernel ids keyed by notebook object, and
+  supervisor stop support so closing one tab keeps every remaining kernel and
+  its globals alive;
+- add table, nested-list, emphasis, and pattern-search demo cells after the
+  existing welcome-notebook cells; extend `scripts/export-qa.sh` with table,
+  nesting, and italic DOM checks; add `LUANB_SMOKE_CLOSE`; and document the new
+  behavior in the README, `docs/export.md`, `docs/roadmap.md`, `docs/web.md`,
+  and `webapp/README.md`.
+
+No new runtime dependencies. The committed visual pixel baselines, Neovim
+path, and kernel protocol are unchanged. `make test`, `make test-nvim`,
+`make test-webapp`, the pixel baseline check, `scripts/export-qa.sh`,
+`scripts/scene-qa.sh`, and the close-tab LÖVR smoke pass. This release is
+tagged `v1.54.0`.
+
 # lua-notebooks 1.53.0
 
 - add **Ctrl+Shift+F** cross-notebook search: match every open notebook at
