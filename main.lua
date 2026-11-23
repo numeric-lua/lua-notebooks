@@ -312,9 +312,13 @@ function App:server_diagnostic(cell)
   return items and items[1] or nil
 end
 
-function App:library_items()
+function App:library_items(filter)
   self.tree_expanded = self.tree_expanded or { notebooks = true }
-  return Format.list_tree(self.tree_expanded)
+  local filtering = type(filter) == "string" and filter:match("%S") ~= nil
+  local entries = Format.list_tree(self.tree_expanded, "notebooks", 0,
+    filtering)
+  if not filtering then return entries end
+  return Format.filter_entries(entries, filter)
 end
 
 function App:new_notebook()

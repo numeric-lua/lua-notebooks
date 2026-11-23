@@ -25,13 +25,24 @@ local function is_table_rule(cells)
 end
 
 function Markdown.preview(line)
+  local literals = {}
+  line = line:gsub("\\([\\`*_~=%[%]()#+%.!|%-%%])", function(char)
+    literals[#literals + 1] = char
+    return "\2" .. #literals .. "\2"
+  end)
+  local function restore(value)
+    return (value:gsub("\2(%d+)\2", function(index)
+      return literals[tonumber(index)] or ""
+    end))
+  end
+
   if line:match("^%s*([%*%-_])%s*%1%s*%1[%s%*%-_]*$") then
-    return "----------"
+    return restore("----------")
   end
 
   local cells = table_cells(line)
   if is_table_rule(cells) then
-    return string.rep("─", math.max(4, #cells * 6))
+    return restore(string.rep("─", math.max(4, #cells * 6)))
   elseif cells ~= nil then
     line = "│ " .. table.concat(cells, " │ ") .. " │"
   else
@@ -58,13 +69,14 @@ function Markdown.preview(line)
   line = line:gsub("%*%*(.-)%*%*", "%1")
   line = line:gsub("__(.-)__", "%1")
   line = line:gsub("~~(.-)~~", "%1")
+  line = line:gsub("==(.-)==", "%1")
   line = line:gsub("%*(.-)%*", "%1")
   line = line:gsub("^_([^_]+)_", "%1")
   line = line:gsub("([^%w_])_([^_]+)_", "%1%2")
   line = line:gsub("`([^`]*)`", "%1")
   line = line:gsub("%[([^%]]+)%]%b()", "%1")
   line = line:gsub("%[%[([^%]]+)%]%]", "%1")
-  return line
+  return restore(line)
 end
 
 return Markdown

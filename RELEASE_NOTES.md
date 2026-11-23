@@ -1,3 +1,36 @@
+# lua-notebooks 1.55.0
+
+- add a type-to-filter field to the **F2** notebook filetree: case-insensitive
+  filename matching searches collapsed folders, keeps ancestor directories,
+  shows a match count and empty state, opens the first match with Enter, and
+  leaves create/rename/delete actions available on the filtered rows;
+- add **Alt+L** current-cell scope to notebook find and replace: result rows
+  keep their real cell numbers, output rows stay searchable for find, replace
+  counts and applies only in the selected cell, and the overlay header reports
+  `current cell` versus `notebook`;
+- render Markdown highlight (`==text==`) as a styled `<mark>` in the static
+  export and browser front-end and as plain text in the live preview, with
+  light/dark/print styles;
+- autolink bare `http(s)://` URLs in the static export and browser front-end
+  without touching inline code, explicit link destinations, or explicit link
+  labels; trim trailing sentence punctuation and unbalanced closing parentheses
+  while preserving balanced parentheses and HTML entities;
+- support backslash escapes for Markdown punctuation (`\*`, `\_`, an escaped
+  backtick, brackets, parentheses, headings, list markers, emphasis, highlight,
+  pipes, and `\\`) across the live preview, static export, and browser so
+  escaped punctuation never triggers formatting;
+- add an inline-details demo cell and browser welcome text, extend
+  `tests/markdown.lua`, `tests/run.lua`, and the Node Markdown suite, and add
+  highlight/autolink/escape DOM checks to `scripts/export-qa.sh`; document the
+  filetree filter, cell-scoped search, and inline Markdown behavior in the
+  README, `docs/export.md`, `docs/roadmap.md`, and `webapp/README.md`.
+
+No new runtime dependencies. The committed visual pixel baselines, Neovim path,
+and kernel protocol are unchanged. `make test`, `make test-nvim`,
+`make test-webapp`, the pixel baseline check, `scripts/export-qa.sh`,
+`scripts/scene-qa.sh`, and the LÖVR smoke suite pass. This release is tagged
+`v1.55.0`.
+
 # lua-notebooks 1.54.0
 
 - render GitHub-style Markdown pipe tables in the live preview, the static HTML

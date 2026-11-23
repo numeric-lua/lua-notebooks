@@ -219,7 +219,10 @@ kernel and global state.
 **F2** opens a hierarchical list of saved notebooks under `notebooks/`.
 Clicking a folder expands it, clicking a notebook opens it, `+ New notebook`
 creates one, `+ Folder` creates a folder, `✎` renames one, and `×` asks for
-confirmation before deleting one.
+confirmation before deleting one. The `filter:` field narrows the tree as you
+type: matching is a case-insensitive substring over notebook filenames, folders
+with a matching descendant stay visible even when collapsed, and Backspace/Enter
+open or refine the list. Escape or F2 closes the tree.
 
 Vim mode is **on by default** and is shown in the footer:
 
@@ -289,6 +292,14 @@ blockquotes render consistently in the preview, export, and browser. Checklist
 items (`- [x] done`, `- [ ] todo`) preview as `[x]`/`[ ]` markers, thematic
 breaks (`---`, `***`, `___`) preview as a rule, and both build as disabled
 checkboxes/rules in the static HTML and browser front-end.
+
+Highlight `==text==` renders as plain text in the live preview and as `<mark>` in
+the static export and browser. Bare `http://` and `https://` URLs become links in
+the export and browser (not inside inline code or another link), and trailing
+sentence punctuation stays outside the anchor. Backslash escapes keep Markdown
+punctuation literal (`\*`, `\_`, an escaped backtick, `\[`, `\]`, `\(`, `\)`,
+`\#`, `\+`, `\-`, `\.`, `\!`, `\|`, `\~`, `\=`, and `\\`) in all three
+renderers.
 
 ## Notebook title
 
@@ -383,9 +394,10 @@ remaining gaps.
 ## Tests
 
 `make test` runs the pure model, widget, engine, remote-supervisor,
-process-kernel, sandbox, editor, Markdown table/nesting/emphasis/regex,
-polar/heatmap/contour/quiver/streamplot/colourbar/clipping export parity, and
-Neovim-buffer plan/apply suite on LuaJIT. `make test-lua51
+process-kernel, sandbox, editor, filetree filtering, Markdown
+table/nesting/emphasis/highlight/autolink/escape/regex, polar/heatmap/contour/
+quiver/streamplot/colourbar/clipping export parity, and Neovim-buffer plan/apply
+suite on LuaJIT. `make test-lua51
 LUA=lua5.1` runs the Lua 5.1-compatible subset, including `tests/polar.lua`.
 `make test-remote` starts the WebSocket gateway and executes a cell with a real
 client. `make test-webapp` runs the Node unit tests for the browser scene
@@ -427,7 +439,7 @@ compositor and window stacking.
 ## LuaRocks
 
 ```sh
-luarocks make lua-notebooks-1.54.0-1.rockspec
+luarocks make lua-notebooks-1.55.0-1.rockspec
 lua-notebooks
 ```
 
@@ -436,7 +448,7 @@ The rockspec installs the app source under the LuaRocks share tree and a
 
 ```sh
 make rock
-luarocks install lua-notebooks-1.54.0-1.src.rock
+luarocks install lua-notebooks-1.55.0-1.src.rock
 ```
 
 Publishing to a remote rock server is intentionally not automated.
@@ -578,6 +590,8 @@ by default; **Alt+C** toggles case-sensitive matching and **Alt+W** requires a
 whole word (`foo` matches `foo` but not `food` or `foo_bar`). The overlay shows
 the total occurrence count and only the first 40 matching lines. Use Up/Down
 and Enter or click a result to select the matching cell and cursor position.
+Press **Alt+L** to limit the search to the selected cell; the header shows
+`current cell` and result rows keep their real notebook cell numbers.
 
 **Ctrl+Shift+F** searches every open notebook at once. The overlay groups each
 result by notebook title and cell number, shows the total occurrence count
@@ -589,8 +603,9 @@ count covers every occurrence.
 
 **Ctrl+H** opens notebook-wide replace. It uses the same **Alt+C**/**Alt+W**
 options, previews the number of replacements before applying, and replaces
-every matching source occurrence as one undoable change. Output text is
-searchable but is never rewritten.
+every matching source occurrence as one undoable change. Press **Alt+L** to
+replace only in the selected cell; the count and status use the same scope.
+Output text is searchable but is never rewritten.
 
 Press **Alt+R** in find, cross-notebook search, or replace to switch from
 literal matching to **Lua patterns**. Use `%d+` for a digit run, `%a+` for
@@ -661,7 +676,7 @@ Successfully opened paths are kept in `recent.json` (latest ten). They appear as
 
 ## HTML export
 
-Exports are self-contained HTML with no external assets. The document has viewport and description metadata, a dark-mode-aware stylesheet, a print stylesheet, a sticky table of contents with unique heading anchors, per-heading and per-cell permalinks, a figures section, styled outputs and errors, and a closing backlinks list computed from `[[wiki links]]` across the open notebooks. Code cells and fenced Markdown blocks render with a language badge, CSS line numbers, and a **Copy** button that copies the source without the numbers; without JavaScript the button is hidden and every block stays readable. Markdown thematic breaks render as rules, `~~text~~` renders as strikethrough, and ordered lists keep their first number in the generated `<ol start="…">`. Pipe tables become `<table class="markdown-table">` with `align-left`/`align-center`/`align-right` cells, nested lists keep their hierarchy, italic emphasis renders as `<em>`, and consecutive blockquote lines share one `<blockquote>`.
+Exports are self-contained HTML with no external assets. The document has viewport and description metadata, a dark-mode-aware stylesheet, a print stylesheet, a sticky table of contents with unique heading anchors, per-heading and per-cell permalinks, a figures section, styled outputs and errors, and a closing backlinks list computed from `[[wiki links]]` across the open notebooks. Code cells and fenced Markdown blocks render with a language badge, CSS line numbers, and a **Copy** button that copies the source without the numbers; without JavaScript the button is hidden and every block stays readable. Markdown thematic breaks render as rules, `~~text~~` renders as strikethrough, `==text==` renders as `<mark>`, bare `http(s)://` URLs become links, backslash-escaped punctuation stays literal, and ordered lists keep their first number in the generated `<ol start="…">`. Pipe tables become `<table class="markdown-table">` with `align-left`/`align-center`/`align-right` cells, nested lists keep their hierarchy, italic emphasis renders as `<em>`, and consecutive blockquote lines share one `<blockquote>`.
 
 A small inline script adds reader-facing full-text search and a cell-kind filter. Search is case-insensitive, whitespace-separated terms are combined with AND, `/` focuses the box, Escape clears it, and the table of contents hides links to filtered-out cells. `?q=term` and `?kind=figures` prefill the controls for shareable filtered links. Without JavaScript the controls are hidden and the full document remains readable.
 

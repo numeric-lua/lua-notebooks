@@ -37,7 +37,8 @@ or with the settings button in the top bar.
 
 - code and markdown cells, Markdown task-list checkboxes, nested lists, pipe
   tables with alignment, italic emphasis, grouped blockquotes, thematic
-  breaks, strikethrough, ordered-list start numbers, local notebook
+  breaks, strikethrough, highlight (`==text==`), bare `http(s)://` autolinks,
+  backslash-escaped punctuation, ordered-list start numbers, local notebook
   persistence, `.luanb` import/export;
 - Shift+Enter / Ctrl+Enter execution;
 - stdout, returned values, errors;

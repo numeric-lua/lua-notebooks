@@ -108,6 +108,8 @@ local notebook = Notebook.new({ name = "export-qa.luanb", cells = {
     "",
     "*italic* and _under_",
     "",
+    "==highlighted== https://example.com/docs and \\*literal\\*",
+    "",
     "```lua",
     "print('snippet')",
     "```",
@@ -257,6 +259,8 @@ for needle in 'class="task-list"' 'class="task-list-item done"' \
     '<th class="align-right">Status</th>' \
     '<ul><li>parent<ul><li>child</li></ul></li></ul>' \
     '<em>italic</em>' '<em>under</em>' \
+    '<mark>highlighted</mark>' 'href="https://example.com/docs"' \
+    '>https://example.com/docs</a>' '*literal*' \
     'class="heading-permalink"' 'aria-label="Permalink to Export QA"' \
     'class="copy-code"' 'class="code-line"' 'data-line="1"' \
     'language-lua'; do

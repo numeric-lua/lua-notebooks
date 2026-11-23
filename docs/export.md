@@ -196,9 +196,13 @@ The export renders the Markdown subset the notebook previews and edits:
 ATX headings, fenced code blocks (language badge, line numbers, and copy
 control), nested unordered/ordered/task lists, pipe tables, blockquotes,
 thematic breaks (`---`, `***`, `___`), bold, italic (`*text*`/`_text_`),
-strikethrough (`~~text~~`), inline code, `[label](url)` links (only `http`,
-`https`, `mailto`, and relative links are emitted; `javascript:`/`data:` links
-degrade to text), and wiki links as styled text with a `data-target` attribute.
+strikethrough (`~~text~~`), highlight (`==text==` rendered as `<mark>`), inline
+code, `[label](url)` links (only `http`, `https`, `mailto`, and relative links
+are emitted; `javascript:`/`data:` links degrade to text), bare `http(s)://`
+autolinks with trailing sentence punctuation kept outside the anchor, wiki links
+as styled text with a `data-target` attribute, and backslash escapes for
+Markdown punctuation. Autolinks and escapes are not applied inside inline code
+or an explicit link's destination.
 Checklist items (`- [x]`/`- [ ]`) become `<ul class="task-list">` entries with
 disabled checkboxes and a `done` class on completed items; they are read-only
 in the static export. List indentation creates nested `<ul>`/`<ol>` groups, and

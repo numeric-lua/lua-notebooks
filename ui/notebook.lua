@@ -198,6 +198,7 @@ function UI.new(app)
     replace_whole_word = false,
     replace_regex = false,
     replace_error = nil,
+    replace_cell_only = false,
     find_query = "",
     find_results = {},
     find_total = 0,
@@ -206,6 +207,7 @@ function UI.new(app)
     find_whole_word = false,
     find_regex = false,
     find_error = nil,
+    find_cell_only = false,
     find_rects = {},
     link_rects = {},
     show_palette = false,
@@ -240,6 +242,7 @@ function UI.new(app)
     vim_last_search = nil,
     tree_rects = {},
     tree_items = {},
+    tree_query = "",
     rename_prompt = nil,
     folder_prompt = nil,
     confirm_delete = nil,
@@ -948,7 +951,9 @@ function UI:run_palette_command(id)
     self.app:set_tab(tonumber(id:match("%d+")))
   elseif id == "load" then self.app:load()
   elseif id == "new" then self.app:new_notebook()
-  elseif id == "tree" then self.show_tree = true
+  elseif id == "tree" then
+    self.show_tree = true
+    self.tree_query = ""
   elseif id == "history" then self:open_history()
   elseif id == "stats" then self:open_stats()
   elseif id == "cell-below" then self.app:add_cell("code")
@@ -1261,6 +1266,7 @@ function UI:open_replace()
   self.replace_count = 0
   self.replace_error = nil
   self.replace_regex = false
+  self.replace_cell_only = false
 end
 
 function UI:draw_replace(pass, width, height)
@@ -1270,6 +1276,9 @@ function UI:draw_replace(pass, width, height)
   box(pass, x, y, panel_w, 118, { 0.06, 0.07, 0.10, 0.98 })
   local replace_options = search_options(self.replace_case_sensitive,
     self.replace_whole_word, false, self.replace_regex)
+  if self.replace_cell_only then
+    replace_options.cell = self.app:notebook().active
+  end
   local valid, pattern_error = Search.validate(self.replace_find,
     replace_options)
   self.replace_error = valid and nil or pattern_error
@@ -1278,10 +1287,11 @@ function UI:draw_replace(pass, width, height)
   text(pass, self.app.font, "Replace in notebook  (Tab switches field)",
     x + 14, y + 10, { 0.9, 0.94, 1, 1 }, 0.78)
   local replace_mode = self.replace_error and "invalid pattern" or
-    string.format("%s · %s · %s · %d match%s",
+    string.format("%s · %s · %s · %s · %d match%s",
       self.replace_case_sensitive and "case" or "ignore case",
       self.replace_regex and "regex" or "literal",
       self.replace_whole_word and "whole word" or "substring",
+      self.replace_cell_only and "current cell" or "notebook",
       self.replace_count, self.replace_count == 1 and "" or "es")
   text(pass, self.app.font, replace_mode, x + panel_w - 14, y + 12,
     self.replace_error and { 0.95, 0.55, 0.55, 1 } or
@@ -1297,7 +1307,7 @@ function UI:draw_replace(pass, width, height)
   text(pass, self.app.font, "replace: " .. self.replace_with .. "|",
     x + 20, y + 75, { 0.9, 0.94, 1, 1 }, 0.74)
   text(pass, self.app.font,
-    "Enter next field / apply  ·  Alt+C case  ·  Alt+W word  ·  Alt+R regex  ·  Esc cancel",
+    "Enter next field / apply  ·  Alt+C case  ·  Alt+W word  ·  Alt+R regex  ·  Alt+L cell  ·  Esc cancel",
     x + 14, y + 102, { 0.5, 0.58, 0.72, 1 }, 0.6)
 end
 
@@ -1309,6 +1319,7 @@ function UI:open_find()
   self.find_total = 0
   self.find_error = nil
   self.find_regex = false
+  self.find_cell_only = false
 end
 
 function UI:update_find()
@@ -1316,6 +1327,9 @@ function UI:update_find()
   local options = search_options(self.find_case_sensitive,
     self.find_whole_word, true, self.find_regex)
   options.limit = 40
+  if self.find_cell_only then
+    options.cell = self.app:notebook().active
+  end
   self.find_results, self.find_total, self.find_error = Search.collect(
     self.app:notebook().cells, self.find_query, options)
 end
@@ -1332,10 +1346,11 @@ function UI:draw_find(pass, width, height)
   text(pass, self.app.font, "Find in notebook  (Ctrl+F)", x + 14, y + 12,
     { 0.9, 0.94, 1, 1 }, 0.78)
   local mode = self.find_error and "invalid pattern" or
-    string.format("%s · %s · %s · %d match%s",
+    string.format("%s · %s · %s · %s · %d match%s",
       self.find_case_sensitive and "case" or "ignore case",
       self.find_regex and "regex" or "literal",
       self.find_whole_word and "whole word" or "substring",
+      self.find_cell_only and "current cell" or "notebook",
       self.find_total, self.find_total == 1 and "" or "es")
   text(pass, self.app.font, mode, x + panel_w - 14, y + 14,
     self.find_error and { 0.95, 0.55, 0.55, 1 } or { 0.55, 0.65, 0.82, 1 },
@@ -1471,9 +1486,9 @@ function UI:draw_help(pass, width, height)
         { "Alt+X / dd", "delete focused cell" },
         { "Ctrl+1 / 2", "code / markdown" },
         { "o / O", "insert below / above and edit" },
-        { "Ctrl+F", "find cells (Alt+C/Alt+W/Alt+R options)" },
+        { "Ctrl+F", "find cells (Alt+L cell, Alt+C/W/R)" },
         { "Ctrl+Shift+F", "find across all open notebooks" },
-        { "Ctrl+H", "replace (Alt+C/Alt+W/Alt+R options)" },
+        { "Ctrl+H", "replace (Alt+L cell, Alt+C/W/R)" },
         { "Ctrl+G / Ctrl+T", "link graph / tag index" },
         { "Ctrl+P", "command palette" },
         { "Ctrl+S", "save notebook" },
@@ -1597,36 +1612,50 @@ end
 function UI:draw_tree(pass, width, height)
   self.tree_rects = {}
   if not self.show_tree then return end
-  local items = self.app:library_items()
+  local filtering = self.tree_query:match("%S") ~= nil
+  local items = self.app:library_items(self.tree_query)
   local panel_w = 360
-  local panel_h = 122 + math.max(1, #items) * 26
+  local panel_h = 154 + math.max(1, #items) * 26
   local x, y = 20, 52
   box(pass, x, y, panel_w, panel_h, { 0.035, 0.045, 0.07, 1 })
   text(pass, self.app.font, "Files  (F2 to close)", x + 14, y + 12,
     { 0.9, 0.94, 1, 1 }, 0.74)
-  box(pass, x + 12, y + 36, (panel_w - 28) / 2, 26, { 0.12, 0.22, 0.16, 1 })
-  text(pass, self.app.font, "+ Notebook", x + 22, y + 42,
+  if filtering then
+    text(pass, self.app.font, string.format("%d match%s", #items,
+      #items == 1 and "" or "es"), x + panel_w - 14, y + 14,
+      { 0.55, 0.65, 0.82, 1 }, 0.6, "right")
+  end
+  box(pass, x + 12, y + 34, panel_w - 24, 26, { 0.09, 0.11, 0.17, 1 })
+  text(pass, self.app.font, "filter: " .. self.tree_query .. "|", x + 20,
+    y + 39, { 0.88, 0.93, 1, 1 }, 0.68)
+  box(pass, x + 12, y + 68, (panel_w - 28) / 2, 26, { 0.12, 0.22, 0.16, 1 })
+  text(pass, self.app.font, "+ Notebook", x + 22, y + 74,
     { 0.8, 0.95, 0.85, 1 }, 0.66)
   self.tree_rects[#self.tree_rects + 1] = {
-    x = x + 12, y = y + 36, w = (panel_w - 28) / 2, h = 26, action = "new",
+    x = x + 12, y = y + 68, w = (panel_w - 28) / 2, h = 26, action = "new",
   }
-  box(pass, x + 18 + (panel_w - 28) / 2, y + 36, (panel_w - 28) / 2, 26,
+  box(pass, x + 18 + (panel_w - 28) / 2, y + 68, (panel_w - 28) / 2, 26,
     { 0.12, 0.16, 0.26, 1 })
-  text(pass, self.app.font, "+ Folder", x + 28 + (panel_w - 28) / 2, y + 42,
+  text(pass, self.app.font, "+ Folder", x + 28 + (panel_w - 28) / 2, y + 74,
     { 0.8, 0.88, 1, 1 }, 0.66)
   self.tree_rects[#self.tree_rects + 1] = {
-    x = x + 18 + (panel_w - 28) / 2, y = y + 36,
+    x = x + 18 + (panel_w - 28) / 2, y = y + 68,
     w = (panel_w - 28) / 2, h = 26, action = "folder",
   }
+  if #items == 0 then
+    text(pass, self.app.font, "No notebooks match this filter.", x + 18,
+      y + 106, { 0.6, 0.66, 0.78, 1 }, 0.66)
+  end
   for index, item in ipairs(items) do
-    local row_y = y + 72 + (index - 1) * 26
+    local row_y = y + 104 + (index - 1) * 26
     local indent = 14 + item.depth * 18
     local active = item.kind == "file" and self.app:notebook()._path ==
       item.path
     box(pass, x + 10, row_y, panel_w - 20, 23,
       active and { 0.14, 0.22, 0.34, 1 } or { 0.065, 0.075, 0.1, 1 })
     local marker = item.kind == "directory" and
-      (self.app.tree_expanded[item.path] and "▾ " or "▸ ") or "• "
+      ((filtering or self.app.tree_expanded[item.path]) and "▾ " or "▸ ") or
+      "• "
     text(pass, self.app.font, marker .. item.name, x + indent, row_y + 4,
       { 0.82, 0.88, 1, 1 }, 0.66)
     self.tree_rects[#self.tree_rects + 1] = {
@@ -1892,6 +1921,10 @@ function UI:textinput(value)
   end
   if self.folder_prompt then
     self.folder_prompt.value = self.folder_prompt.value .. value
+    return
+  end
+  if self.show_tree then
+    self.tree_query = self.tree_query .. value
     return
   end
   if self.vim_search ~= nil then
@@ -2355,6 +2388,23 @@ function UI:keypressed(key)
     end
     return
   end
+  if self.show_tree and self.rename_prompt == nil and
+     self.folder_prompt == nil and self.confirm_delete == nil then
+    if key == "escape" or key == "f2" then
+      self.show_tree = false
+    elseif key == "backspace" then
+      self.tree_query = self.tree_query:sub(1, -2)
+    elseif key == "return" then
+      for _, item in ipairs(self.app:library_items(self.tree_query)) do
+        if item.kind == "file" then
+          self.app:open_path(item.path)
+          self.show_tree = false
+          break
+        end
+      end
+    end
+    return
+  end
   if self.show_replace then
     if key == "escape" then
       self.show_replace = false
@@ -2376,15 +2426,23 @@ function UI:keypressed(key)
       self.replace_regex = not self.replace_regex
       self.app.status = self.replace_regex and
         "replace: regex" or "replace: literal"
+    elseif alt_down and key == "l" then
+      self.replace_cell_only = not self.replace_cell_only
+      self.app.status = self.replace_cell_only and
+        "replace: current cell" or "replace: whole notebook"
     elseif key == "tab" then
       self.replace_phase = self.replace_phase == "find" and "replace" or "find"
     elseif key == "return" then
       if self.replace_phase == "find" then
         self.replace_phase = "replace"
       else
+        local options = search_options(self.replace_case_sensitive,
+          self.replace_whole_word, false, self.replace_regex)
+        if self.replace_cell_only then
+          options.cell = self.app:notebook().active
+        end
         local count = self.app:notebook():replace_all(self.replace_find,
-          self.replace_with, search_options(self.replace_case_sensitive,
-            self.replace_whole_word, false, self.replace_regex))
+          self.replace_with, options)
         self.app.status = count > 0 and ("replaced " .. count .. " occurrence(s)") or
           "no matches"
         self.show_replace = false
@@ -2459,6 +2517,11 @@ function UI:keypressed(key)
       self:update_find()
       self.app.status = self.find_regex and
         "find: regex" or "find: literal"
+    elseif alt_down and key == "l" then
+      self.find_cell_only = not self.find_cell_only
+      self:update_find()
+      self.app.status = self.find_cell_only and
+        "find: current cell" or "find: whole notebook"
     elseif key == "backspace" then
       self.find_query = self.find_query:sub(1, -2); self:update_find()
     elseif key == "return" and self.find_results[self.find_selected] then
@@ -3228,6 +3291,7 @@ function UI:keypressed(key)
     self.palette_selected = 1
   elseif key == "f2" then
     self.show_tree = not self.show_tree
+    if self.show_tree then self.tree_query = "" end
   elseif key == "f3" then
     self.app.vim_mode = not self.app.vim_mode
     self.vim_normal = self.app.vim_mode

@@ -10,11 +10,34 @@ function safeUrl(url) {
   return "#";
 }
 
+function trimAutolink(url) {
+  let trimmed = String(url);
+  for (;;) {
+    const last = trimmed.slice(-1);
+    if (last === "." || last === "," || last === ":" || last === "!" || last === "?") {
+      trimmed = trimmed.slice(0, -1);
+    } else if (last === ";") {
+      if (/&[a-z#][\w#]*;$/i.test(trimmed)) break;
+      trimmed = trimmed.slice(0, -1);
+    } else if (last === ")") {
+      const opens = (trimmed.match(/\(/g) || []).length;
+      const closes = (trimmed.match(/\)/g) || []).length;
+      if (closes > opens) trimmed = trimmed.slice(0, -1);
+      else break;
+    } else {
+      break;
+    }
+  }
+  return { link: trimmed, trailing: String(url).slice(trimmed.length) };
+}
+
 function inline(text) {
   let value = escapeHtml(text);
   const slots = [];
   const hold = (html) => `\u0000${slots.push(html) - 1}\u0000`;
 
+  // Backslash escapes are literal, so keep them away from code and emphasis.
+  value = value.replace(/\\([\\`*_{}\[\]()#+.!~=|%-])/g, (_, char) => hold(char));
   value = value.replace(/`([^`]+)`/g, (_, code) => hold(`<code>${code}</code>`));
   value = value.replace(/\$\$([^$]+)\$\$/g, (_, math) =>
     hold(`<span class="math">${math}</span>`));
@@ -22,13 +45,26 @@ function inline(text) {
     hold(`<span class="math">${math}</span>`));
   value = value.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, url) =>
     hold(`<a href="${escapeHtml(safeUrl(url))}" target="_blank" rel="noreferrer">${label}</a>`));
+  // Explicit links are already held, so this never links their destination or
+  // label twice.  The text is HTML-escaped at this point, so it is reused as-is.
+  value = value.replace(/https?:\/\/[^\s]+/g, (url) => {
+    const { link, trailing } = trimAutolink(url);
+    if (!link) return url;
+    return hold(`<a href="${link}" target="_blank" rel="noreferrer">${link}</a>`) + trailing;
+  });
+  value = value.replace(/==([^=]+)==/g, "<mark>$1</mark>");
   value = value.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
   value = value.replace(/__([^_]+)__/g, "<strong>$1</strong>");
   value = value.replace(/(^|[^*])\*([^*]+)\*/g, "$1<em>$2</em>");
   value = value.replace(/(^|[^_\w])_([^_]+)_/g, "$1<em>$2</em>");
   value = value.replace(/~~([^~]+)~~/g, "<del>$1</del>");
-  value = value.replace(/\u0000(\d+)\u0000/g, (_, index) => slots[Number(index)]);
-  return value;
+  let restored = value;
+  for (;;) {
+    const next = restored.replace(/\u0000(\d+)\u0000/g, (_, index) =>
+      slots[Number(index)] ?? "");
+    if (next === restored) return restored;
+    restored = next;
+  }
 }
 
 function tableCells(line) {

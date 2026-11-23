@@ -73,6 +73,19 @@ test("aligns emphasis and grouped blockquotes with the export", () => {
   assert.match(html, /<blockquote><p>q1<\/p><p>q2<\/p><\/blockquote>/);
 });
 
+test("renders highlights, autolinks, and backslash escapes", () => {
+  const html = renderMarkdown("==marked== and https://example.com/docs).\n\n\\*literal\\* and \\[brackets\\] and \\\\");
+  assert.match(html, /<p><mark>marked<\/mark> and <a href="https:\/\/example.com\/docs" target="_blank" rel="noreferrer">https:\/\/example.com\/docs<\/a>\)\.<\/p>/);
+  assert.match(html, /<p>\*literal\* and \[brackets\] and \\<\/p>/);
+});
+
+test("does not autolink inside code or an explicit link", () => {
+  const html = renderMarkdown("`https://example.com` and [https://example.com](https://example.com)");
+  assert.equal((html.match(/<a /g) || []).length, 1);
+  assert.match(html, /<code>https:\/\/example.com<\/code>/);
+  assert.match(html, /<a href="https:\/\/example.com" target="_blank" rel="noreferrer">https:\/\/example.com<\/a>/);
+});
+
 test("does not parse a table inside a fenced code block", () => {
   const html = renderMarkdown("```lua\n| a | b |\n| --- | --- |\n```");
   assert.doesNotMatch(html, /markdown-table/);

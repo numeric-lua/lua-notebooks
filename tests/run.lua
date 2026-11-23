@@ -81,7 +81,7 @@ current = "model"
 test("demo has two notebooks and a live polar cell", function()
   local notebooks = Notebook.demo()
   eq(#notebooks, 2)
-  eq(#notebooks[1].cells, 21)
+  eq(#notebooks[1].cells, 22)
   local polar, field, large, quiver, stream
   for _, cell in ipairs(notebooks[1].cells) do
     if cell.source:find('orientation = "polar"', 1, true) then
@@ -720,6 +720,30 @@ test("renders inline emphasis and groups quote lines", function()
     1, true))
 end)
 
+current = "html inline extensions"
+test("renders highlights, autolinks, and backslash escapes", function()
+  local notebook = Notebook.new({ name = "inline.luanb", cells = {
+    { kind = "markdown", source = table.concat({
+      "==marked== and https://example.com/docs.",
+      "",
+      "\\*literal\\* and \\[brackets\\] and \\\\",
+      "",
+      "`https://example.com` and [https://example.com](https://example.com)",
+    }, "\n") },
+  } })
+  local html = Format.to_html(notebook)
+  assert(html:find('<mark>marked</mark>', 1, true))
+  assert(html:find('<a href="https://example.com/docs" ' ..
+    'rel="noopener noreferrer">https://example.com/docs</a>.', 1, true))
+  assert(html:find('<p>*literal* and [brackets] and \\</p>', 1, true))
+  assert(html:find('<code>https://example.com</code>', 1, true))
+  local body = html:match('<main id="content">(.-)</main>')
+  local _, anchors = body:gsub('<a href="https://', "")
+  eq(anchors, 2)
+  assert(html:find('<a href="https://example.com" ' ..
+    'rel="noopener noreferrer">https://example.com</a>', 1, true))
+end)
+
 current = "html code blocks"
 test("renders labeled, numbered code blocks with copy controls", function()
   local notebook = Notebook.new({ name = "code.luanb", cells = {
@@ -1051,6 +1075,45 @@ test("session files round-trip paths and active tab", function()
   eq(bad, nil)
 end)
 
+current = "filetree"
+test("filters notebook files and keeps ancestor directories", function()
+  local entries = {
+    { path = "notebooks/work", name = "work", kind = "directory", depth = 0 },
+    { path = "notebooks/work/alpha.luanb", name = "alpha.luanb",
+      kind = "file", depth = 1 },
+    { path = "notebooks/work/beta.luanb", name = "beta.luanb",
+      kind = "file", depth = 1 },
+    { path = "notebooks/play", name = "play", kind = "directory", depth = 0 },
+    { path = "notebooks/play/gamma.luanb", name = "gamma.luanb",
+      kind = "file", depth = 1 },
+  }
+  local filtered = Format.filter_entries(entries, "ALPHA")
+  eq(#filtered, 2)
+  eq(filtered[1].path, "notebooks/work")
+  eq(filtered[2].path, "notebooks/work/alpha.luanb")
+  eq(#Format.filter_entries(entries, "missing"), 0)
+  eq(#Format.filter_entries(entries, "  "), #entries)
+end)
+test("recursively searches collapsed folders for the filter", function()
+  local saved_lovr = rawget(_G, "lovr")
+  local tree = {
+    notebooks = { "play", "work" },
+    ["notebooks/work"] = { "alpha.luanb", "beta.luanb" },
+    ["notebooks/play"] = { "gamma.luanb" },
+  }
+  _G.lovr = { filesystem = {
+    getDirectoryItems = function(path) return tree[path] or {} end,
+    isDirectory = function(path) return tree[path] ~= nil end,
+  } }
+  local entries = Format.list_tree({}, "notebooks", 0, true)
+  _G.lovr = saved_lovr
+  eq(#entries, 5)
+  local filtered = Format.filter_entries(entries, "alpha")
+  eq(#filtered, 2)
+  eq(filtered[1].name, "work")
+  eq(filtered[2].name, "alpha.luanb")
+end)
+
 current = "replace"
 test("replace_all replaces literal text across cells", function()
   local notebook = Notebook.new({ cells = {
@@ -1091,6 +1154,26 @@ test("collects source and output rows while counting every occurrence", function
   eq(rows[1].cursor, 1)
   local output_rows = Search.collect(cells, "output", { limit = 10 })
   assert(output_rows[1].line:find("out: ", 1, true) == 1)
+end)
+test("scopes collection and replacement to one cell", function()
+  local Search = require("notebook.search")
+  local cells = {
+    { source = "needle one", output = "needle out" },
+    { source = "needle two", output = "" },
+  }
+  local rows, total = Search.collect(cells, "needle", { cell = 2 })
+  eq(total, 1)
+  eq(#rows, 1)
+  eq(rows[1].cell, 2)
+  eq(rows[1].line, "needle two")
+  local count, changed = Search.replace_cells(cells, "needle", "thread",
+    { cell = 2 })
+  eq(count, 1)
+  eq(changed, true)
+  eq(cells[1].source, "needle one")
+  eq(cells[2].source, "thread two")
+  local none = Search.collect(cells, "needle", { cell = 99 })
+  eq(#none, 0)
 end)
 test("collects matches across every open notebook", function()
   local Search = require("notebook.search")

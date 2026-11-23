@@ -373,6 +373,34 @@ local function headings_by_cell(cells)
   return result
 end
 
+-- Trim sentence punctuation from a bare URL without touching balanced closing
+-- parentheses or an HTML entity's semicolon.  Returns the link and the suffix
+-- so the punctuation stays outside the generated anchor.
+local function trim_autolink(url)
+  local trimmed = url
+  while #trimmed > 0 do
+    local last = trimmed:sub(-1)
+    if last == "." or last == "," or last == ":" or last == "!" or
+       last == "?" then
+      trimmed = trimmed:sub(1, -2)
+    elseif last == ";" then
+      if trimmed:match("&[%a#][%w#]*;$") ~= nil then break end
+      trimmed = trimmed:sub(1, -2)
+    elseif last == ")" then
+      local opens = select(2, trimmed:gsub("%(", ""))
+      local closes = select(2, trimmed:gsub("%)", ""))
+      if closes > opens then
+        trimmed = trimmed:sub(1, -2)
+      else
+        break
+      end
+    else
+      break
+    end
+  end
+  return trimmed, url:sub(#trimmed + 1)
+end
+
 local function inline_markdown(text)
   local escaped = escape_html(text)
   local slots = {}
@@ -380,14 +408,19 @@ local function inline_markdown(text)
     slots[#slots + 1] = html
     return "\1" .. #slots .. "\1"
   end
+  -- Backslash escapes are literal characters, so hide them before code and
+  -- emphasis can claim the punctuation.
+  escaped = escaped:gsub("\\([\\`*_~=%[%]()#+%.!|%-%%])", function(char)
+    return hold(char)
+  end)
   -- Inline code wins over emphasis and links; keep it in a placeholder until
   -- the rest of the inline pass has run.
   escaped = escaped:gsub("`([^`]*)`", function(code)
     return hold("<code>" .. code .. "</code>")
   end)
   escaped = escaped:gsub("%[%[([^%]]+)%]%]", function(target)
-    return '<span class="wiki-link" data-target="' .. target .. '">' ..
-      target .. "</span>"
+    return hold('<span class="wiki-link" data-target="' .. target .. '">' ..
+      target .. "</span>")
   end)
   escaped = escaped:gsub("%[([^%]]+)%]%(([^%)]+)%)", function(label, url)
     local lower = url:lower()
@@ -398,17 +431,31 @@ local function inline_markdown(text)
     end
     local rel = (scheme == "http" or scheme == "https") and
       ' rel="noopener noreferrer"' or ""
-    return '<a href="' .. url .. '"' .. rel .. ">" .. label .. "</a>"
+    return hold('<a href="' .. url .. '"' .. rel .. ">" .. label .. "</a>")
   end)
+  -- Bare http(s) links are common in notes.  Explicit links are already held,
+  -- so their destinations and labels are not linked a second time.
+  escaped = escaped:gsub("https?://[^%s]+", function(url)
+    local link, trailing = trim_autolink(url)
+    if link == "" then return url end
+    return hold('<a href="' .. link ..
+      '" rel="noopener noreferrer">' .. link .. "</a>") .. trailing
+  end)
+  escaped = escaped:gsub("==(.-)==", "<mark>%1</mark>")
   escaped = escaped:gsub("%*%*(.-)%*%*", "<strong>%1</strong>")
   escaped = escaped:gsub("__(.-)__", "<strong>%1</strong>")
   escaped = escaped:gsub("~~(.-)~~", "<del>%1</del>")
   escaped = escaped:gsub("%*(.-)%*", "<em>%1</em>")
   escaped = escaped:gsub("^_([^_]+)_", "<em>%1</em>")
   escaped = escaped:gsub("([^%w_])_([^_]+)_", "%1<em>%2</em>")
-  escaped = escaped:gsub("\1(%d+)\1", function(index)
-    return slots[tonumber(index)] or ""
-  end)
+  -- A held anchor can contain an earlier code slot; restore until stable.
+  while true do
+    local restored, count = escaped:gsub("\1(%d+)\1", function(index)
+      return slots[tonumber(index)] or ""
+    end)
+    escaped = restored
+    if count == 0 then break end
+  end
   return escaped
 end
 
@@ -1744,6 +1791,8 @@ pre.error{background:var(--error);border-left:4px solid #c94b4b;color:#b42323}
 .cell blockquote{margin:.7rem 0;padding:.35rem 0 .35rem 1rem;border-left:3px solid var(--border);color:var(--muted)}
 .cell hr{border:0;border-top:1px solid var(--border);margin:1.2rem 0}
 .cell del{color:var(--muted)}
+.cell mark{background:#ffe58a;color:#2a2100;border-radius:3px;padding:0 .12em}
+@media (prefers-color-scheme:dark){.cell mark{background:#5c4a12;color:#ffe7a8}}
 .cell h1,.cell h2,.cell h3,.cell h4,.cell h5,.cell h6{line-height:1.25;margin:1.1rem 0 .5rem}
 .heading-permalink{opacity:0;margin-left:.4rem;font-size:.72em;font-weight:400;color:var(--muted);text-decoration:none}
 .cell h1:hover .heading-permalink,.cell h2:hover .heading-permalink,.cell h3:hover .heading-permalink,.cell h4:hover .heading-permalink,.cell h5:hover .heading-permalink,.cell h6:hover .heading-permalink,.heading-permalink:focus{opacity:1;color:var(--accent)}
@@ -1799,7 +1848,7 @@ pre.scene-data{max-height:18rem;font-size:12px}
 .scene-polar-colorbar-label{fill:var(--muted);font:9px/1 system-ui,-apple-system,"Segoe UI",sans-serif}
 .scene-polar-colorbar-title{fill:var(--muted);font:10px/1 system-ui,-apple-system,"Segoe UI",sans-serif}
 @media (max-width:760px){.layout{display:block;padding-top:0}.toc{position:static;max-height:none;margin-bottom:1.4rem}h1{font-size:1.7rem}.search input[type=search]{flex-basis:100%}}
-@media print{:root{--bg:#fff;--fg:#000;--muted:#444;--card:#fff;--code:#f4f4f4;--output:#f4f4f4;--border:#ccc;--figure:#fff}.toc,.skip,.permalink,.search,.search-status,.copy-code{display:none!important}.layout{display:block;max-width:none;padding:0}.document-header{padding:0 0 1rem}.cell{box-shadow:none;break-inside:avoid;page-break-inside:avoid}a{color:#000;text-decoration:none}.scene details{display:none}}
+@media print{:root{--bg:#fff;--fg:#000;--muted:#444;--card:#fff;--code:#f4f4f4;--output:#f4f4f4;--border:#ccc;--figure:#fff}.toc,.skip,.permalink,.search,.search-status,.copy-code{display:none!important}.layout{display:block;max-width:none;padding:0}.document-header{padding:0 0 1rem}.cell{box-shadow:none;break-inside:avoid;page-break-inside:avoid}a{color:#000;text-decoration:none}.scene details{display:none}.cell mark{background:#ffe58a;color:#000}}
 ]==]
 
 local HTML_CODE_SCRIPT = [==[
@@ -2120,9 +2169,10 @@ function Format.list()
   return names
 end
 
-function Format.list_tree(expanded, prefix, depth)
+function Format.list_tree(expanded, prefix, depth, recurse)
   prefix = prefix or "notebooks"
   depth = depth or 0
+  expanded = expanded or {}
   local entries = {}
   local ok, items = pcall(lovr.filesystem.getDirectoryItems, prefix)
   if not ok then return entries end
@@ -2132,8 +2182,9 @@ function Format.list_tree(expanded, prefix, depth)
     if lovr.filesystem.isDirectory(path) then
       entries[#entries + 1] = { path = path, name = item, depth = depth,
         kind = "directory" }
-      if expanded[path] then
-        for _, child in ipairs(Format.list_tree(expanded, path, depth + 1)) do
+      if expanded[path] or recurse then
+        for _, child in ipairs(Format.list_tree(expanded, path, depth + 1,
+            recurse)) do
           entries[#entries + 1] = child
         end
       end
@@ -2143,6 +2194,36 @@ function Format.list_tree(expanded, prefix, depth)
     end
   end
   return entries
+end
+
+-- Keep only matching notebook files plus the directory rows that contain a
+-- match.  Entries stay in their original depth-first order, so the filetree
+-- can render a filtered tree without changing directory nesting.
+function Format.filter_entries(entries, query)
+  if type(query) ~= "string" or query:match("^%s*$") then return entries end
+  local needle = query:lower()
+  local matched = {}
+  for _, item in ipairs(entries or {}) do
+    if item.kind == "file" and
+       item.name:lower():find(needle, 1, true) ~= nil then
+      matched[item.path] = true
+    end
+  end
+  local result = {}
+  for _, item in ipairs(entries or {}) do
+    if item.kind == "file" then
+      if matched[item.path] then result[#result + 1] = item end
+    else
+      local prefix = item.path .. "/"
+      for path in pairs(matched) do
+        if path:sub(1, #prefix) == prefix then
+          result[#result + 1] = item
+          break
+        end
+      end
+    end
+  end
+  return result
 end
 
 function Format.create_folder(name)

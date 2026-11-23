@@ -1027,6 +1027,11 @@ end]]),
       cell("markdown", [[# Pattern search
 
 Press **Ctrl+F** for notebook search or **Ctrl+H** for replace, then **Alt+R** to switch from literal text to Lua patterns. `%d+` matches a run of digits, and `%1` expands the first capture in a replacement.]]),
+      cell("markdown", [[# Inline details
+
+Use ==highlight== for a marker, bare links such as https://love2d.org, and a backslash to keep punctuation literal: \*star\*, \[brackets\], and \_underscore\_.
+
+Press **Alt+L** in find or replace to limit the search to the selected cell.]]),
     },
   })
   local second = Notebook.new({

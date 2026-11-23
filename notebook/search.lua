@@ -14,6 +14,7 @@ local function normalise(options)
     include_output = options.include_output ~= false,
     regex = options.regex == true,
     limit = options.limit,
+    cell = tonumber(options.cell),
   }
 end
 
@@ -91,41 +92,46 @@ end
 
 -- Collect one result row per matching source or output line.  `total` counts
 -- every occurrence, while `limit` only bounds the returned rows used by the
--- overlay list.
+-- overlay list.  `options.cell` restricts the search to one 1-based cell while
+-- preserving the notebook-wide cell numbers in the rows.
 function Search.collect(cells, query, options)
   local opts = normalise(options)
   local results, total = {}, 0
   if type(query) ~= "string" or query == "" then return results, total end
   for cell_index, cell in ipairs(cells or {}) do
-    local source = type(cell.source) == "string" and cell.source or ""
-    local offset = 1
-    for line in (source .. "\n"):gmatch("(.-)\n") do
-      local matches, err = Search.matches(line, query, opts)
-      if err ~= nil then return results, total, err end
-      total = total + #matches
-      if #matches > 0 and (opts.limit == nil or #results < opts.limit) then
-        results[#results + 1] = {
-          cell = cell_index,
-          line = line,
-          cursor = offset + matches[1][1] - 1,
-          count = #matches,
-        }
-      end
-      offset = offset + #line + 1
-    end
-    if opts.include_output and type(cell.output) == "string" and
-       cell.output ~= "" then
-      for line in (cell.output .. "\n"):gmatch("(.-)\n") do
+    if opts.cell == nil or opts.cell == cell_index then
+      local source = type(cell.source) == "string" and cell.source or ""
+      local offset = 1
+      for line in (source .. "\n"):gmatch("(.-)\n") do
         local matches, err = Search.matches(line, query, opts)
         if err ~= nil then return results, total, err end
         total = total + #matches
-        if #matches > 0 and (opts.limit == nil or #results < opts.limit) then
+        if #matches > 0 and
+           (opts.limit == nil or #results < opts.limit) then
           results[#results + 1] = {
             cell = cell_index,
-            line = "out: " .. line,
-            cursor = #source + 1,
+            line = line,
+            cursor = offset + matches[1][1] - 1,
             count = #matches,
           }
+        end
+        offset = offset + #line + 1
+      end
+      if opts.include_output and type(cell.output) == "string" and
+         cell.output ~= "" then
+        for line in (cell.output .. "\n"):gmatch("(.-)\n") do
+          local matches, err = Search.matches(line, query, opts)
+          if err ~= nil then return results, total, err end
+          total = total + #matches
+          if #matches > 0 and
+             (opts.limit == nil or #results < opts.limit) then
+            results[#results + 1] = {
+              cell = cell_index,
+              line = "out: " .. line,
+              cursor = #source + 1,
+              count = #matches,
+            }
+          end
         end
       end
     end
@@ -206,13 +212,15 @@ end
 
 -- Replace across cells, returning the total count and whether anything
 -- changed.  Cursors are clamped so a shrunken source never points past its
--- final byte.
+-- final byte.  `options.cell` limits replacement to one 1-based cell.
 function Search.replace_cells(cells, query, replacement, options)
+  local opts = normalise(options)
   local total, changed = 0, false
-  for _, cell in ipairs(cells or {}) do
-    if type(cell.source) == "string" then
+  for index, cell in ipairs(cells or {}) do
+    if type(cell.source) == "string" and
+       (opts.cell == nil or opts.cell == index) then
       local source, count = Search.replace_text(cell.source, query,
-        replacement, options)
+        replacement, opts)
       if count > 0 then
         cell.source = source
         local cursor = cell.cursor or (#source + 1)

@@ -50,7 +50,9 @@ $$\\int_0^1 x^2 \\, dx = \\frac{1}{3}$$
 - parent
   - child
     1. ordered child
-- [x] task lists render locally`),
+- [x] task lists render locally
+
+Use ==highlight==, bare links like https://love2d.org, and \\*literal\\* escapes.`),
     createCell("code", `local xs, ys = {}, {}
 for i = 1, 80 do
   local x = (i - 1) * 0.1
