@@ -1,3 +1,34 @@
+# lua-notebooks 1.53.0
+
+- add **Ctrl+Shift+F** cross-notebook search: match every open notebook at
+  once, group rows by notebook title and cell number, show the total
+  occurrence count across tabs, honor the existing case-sensitive and
+  whole-word options, and jump to the owning tab, cell, and cursor with Enter
+  or a click; expose the same action from the command palette and shortcut
+  help, and add `LUANB_SMOKE_GLOBAL_FIND`;
+- render Markdown thematic breaks (`---`, `***`, `___`) in the live preview
+  and static HTML export, with a print-safe rule style and preview/export/browser
+  tests;
+- render Markdown strikethrough (`~~text~~`) in the live preview and static
+  HTML export, matching the browser front-end, with a muted `<del>` style and
+  tests;
+- preserve ordered-list start numbers in the static export and browser
+  front-end (`3.` / `3)` produce `<ol start="3">`), keep the live preview
+  source numbering, and accept both `.` and `)` list markers;
+- add a hover/focus `#` permalink to every rendered heading in the static
+  export, pointing at the same deterministic anchor used by the table of
+  contents, with printable styling and DOM/export-QA coverage;
+- document the cross-notebook search shortcut and overlay, heading permalinks,
+  Markdown rules/strikethrough/ordered-list starts, the new smoke hook, and the
+  expanded `scripts/export-qa.sh` checks in the README, `docs/export.md`,
+  `docs/roadmap.md`, and `webapp/README.md`.
+
+No new runtime dependencies. The desktop kernel, Neovim path, and committed
+visual pixel baselines are unchanged. `make test`, `make test-nvim`,
+`make test-webapp`, the pixel baseline check, `scripts/export-qa.sh`,
+`scripts/scene-qa.sh`, and the LÖVR smoke suite pass. This release is tagged
+`v1.53.0`.
+
 # lua-notebooks 1.52.0
 
 - add case-sensitive and whole-word options to notebook find and replace

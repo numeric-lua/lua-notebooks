@@ -391,6 +391,7 @@ local function inline_markdown(text)
     return '<a href="' .. url .. '"' .. rel .. ">" .. label .. "</a>"
   end)
   escaped = escaped:gsub("%*%*(.-)%*%*", "<strong>%1</strong>")
+  escaped = escaped:gsub("~~(.-)~~", "<del>%1</del>")
   escaped = escaped:gsub("`([^`]*)`", "<code>%1</code>")
   return escaped
 end
@@ -430,6 +431,7 @@ local function markdown_html(source, headings)
   local out = {}
   local fence, fence_language, fence_lines = nil, nil, {}
   local paragraph, list_kind, list_items = {}, nil, {}
+  local list_start = 1
   local heading_index = 0
 
   local function flush_paragraph()
@@ -445,9 +447,14 @@ local function markdown_html(source, headings)
         table.concat(list_items) .. "</ul>"
       list_kind, list_items = nil, {}
     elseif list_kind ~= nil then
-      out[#out + 1] = "<" .. list_kind .. ">" ..
+      local start = ""
+      if list_kind == "ol" and list_start ~= 1 then
+        start = ' start="' .. tostring(list_start) .. '"'
+      end
+      out[#out + 1] = "<" .. list_kind .. start .. ">" ..
         table.concat(list_items) .. "</" .. list_kind .. ">"
       list_kind, list_items = nil, {}
+      list_start = 1
     end
   end
 
@@ -479,8 +486,18 @@ local function markdown_html(source, headings)
         heading_index = heading_index + 1
         local heading = headings and headings[heading_index] or nil
         local id = heading and (' id="' .. escape_html(heading.id) .. '"') or ""
+        local permalink = ""
+        if heading ~= nil then
+          permalink = '<a class="heading-permalink" href="#' ..
+            escape_html(heading.id) .. '" aria-label="Permalink to ' ..
+            escape_html(heading.text) .. '">#</a>'
+        end
         out[#out + 1] = "<h" .. #hashes .. id .. ">" ..
-          inline_markdown(raw:gsub("%s+#+%s*$", "")) .. "</h" .. #hashes .. ">"
+          inline_markdown(raw:gsub("%s+#+%s*$", "")) .. permalink ..
+          "</h" .. #hashes .. ">"
+      elseif line:match("^%s*([%*%-_])%s*%1%s*%1[%s%*%-_]*$") then
+        flush_paragraph(); flush_list()
+        out[#out + 1] = "<hr>"
       elseif line:match("^%s*[-*+]%s+%[[ xX]%]%s+") then
         local checked, task = line:match("^%s*[-*+]%s+%[([ xX])%]%s+(.*)$")
         local done = checked:lower() == "x"
@@ -496,11 +513,14 @@ local function markdown_html(source, headings)
         if list_kind ~= "ul" then flush_list(); list_kind = "ul" end
         list_items[#list_items + 1] = "<li>" ..
           inline_markdown(line:gsub("^%s*[-*+]%s+", "")) .. "</li>"
-      elseif line:match("^%s*%d+%.%s+") then
+      elseif line:match("^%s*%d+[%.%)]%s+") then
+        local number, item = line:match("^%s*(%d+)[%.%)]%s+(.*)$")
         flush_paragraph()
-        if list_kind ~= "ol" then flush_list(); list_kind = "ol" end
+        if list_kind ~= "ol" then
+          flush_list(); list_kind = "ol"; list_start = tonumber(number) or 1
+        end
         list_items[#list_items + 1] = "<li>" ..
-          inline_markdown(line:gsub("^%s*%d+%.%s+", "")) .. "</li>"
+          inline_markdown(item) .. "</li>"
       elseif line:match("^%s*>%s?") then
         flush_paragraph(); flush_list()
         out[#out + 1] = "<blockquote>" ..
@@ -1548,7 +1568,12 @@ pre.output{background:var(--output);border-left:4px solid #4d9b6a}
 pre.error{background:var(--error);border-left:4px solid #c94b4b;color:#b42323}
 @media (prefers-color-scheme:dark){pre.error{color:#ff9c9c}}
 .cell blockquote{margin:.7rem 0;padding:.35rem 0 .35rem 1rem;border-left:3px solid var(--border);color:var(--muted)}
+.cell hr{border:0;border-top:1px solid var(--border);margin:1.2rem 0}
+.cell del{color:var(--muted)}
 .cell h1,.cell h2,.cell h3,.cell h4,.cell h5,.cell h6{line-height:1.25;margin:1.1rem 0 .5rem}
+.heading-permalink{opacity:0;margin-left:.4rem;font-size:.72em;font-weight:400;color:var(--muted);text-decoration:none}
+.cell h1:hover .heading-permalink,.cell h2:hover .heading-permalink,.cell h3:hover .heading-permalink,.cell h4:hover .heading-permalink,.cell h5:hover .heading-permalink,.cell h6:hover .heading-permalink,.heading-permalink:focus{opacity:1;color:var(--accent)}
+@media print{.heading-permalink{opacity:1}}
 .cell h1{font-size:1.55rem}
 .cell h2{font-size:1.3rem}
 .cell h3{font-size:1.12rem}

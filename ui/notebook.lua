@@ -174,6 +174,14 @@ function UI.new(app)
     outline_rects = {},
     show_help = false,
     show_find = false,
+    show_global_find = false,
+    global_find_query = "",
+    global_find_results = {},
+    global_find_total = 0,
+    global_find_selected = 1,
+    global_find_case_sensitive = false,
+    global_find_whole_word = false,
+    global_find_rects = {},
     show_replace = false,
     show_graph = false,
     graph_rects = {},
@@ -784,6 +792,7 @@ function UI:draw(pass, logical_width, logical_height)
   self:draw_extension_browser(pass, width, height)
   self:draw_replace(pass, width, height)
   self:draw_find(pass, width, height)
+  self:draw_global_find(pass, width, height)
   self:draw_graph(pass, width, height)
   self:draw_tags(pass, width, height)
   self:draw_help(pass, width, height)
@@ -809,6 +818,7 @@ function UI:palette_commands()
     { id = "export-html", label = "Export notebook as HTML" },
     { id = "recover-autosave", label = "Recover autosaved notebook" },
     { id = "replace", label = "Replace in notebook  (Ctrl+H)" },
+    { id = "find-global", label = "Search all open notebooks  (Ctrl+Shift+F)" },
     { id = "graph", label = "Link graph" },
     { id = "tags", label = "Tag index  (Ctrl+T)" },
     { id = "timing", label = "Toggle execution timing" },
@@ -901,6 +911,7 @@ function UI:run_palette_command(id)
   elseif id == "export-html" then self.app:export_html()
   elseif id == "recover-autosave" then self.app:recover_autosave()
   elseif id == "replace" then self:open_replace()
+  elseif id == "find-global" then self:open_global_find()
   elseif id == "graph" then self:open_graph()
   elseif id == "tags" then self:open_tags()
   elseif id == "timing" then self:toggle_timing()
@@ -1320,6 +1331,91 @@ function UI:draw_find(pass, width, height)
   end
 end
 
+function UI:open_global_find()
+  self.show_global_find = true
+  self.global_find_query = ""
+  self.global_find_selected = 1
+  self.global_find_results = {}
+  self.global_find_total = 0
+end
+
+function UI:update_global_find()
+  self.global_find_selected = 1
+  local options = search_options(self.global_find_case_sensitive,
+    self.global_find_whole_word, true)
+  options.limit = 80
+  self.global_find_results, self.global_find_total =
+    Search.collect_notebooks(self.app.notebooks, self.global_find_query,
+      options)
+end
+
+function UI:open_global_result(result)
+  if result == nil then return end
+  self.show_global_find = false
+  if result.notebook ~= self.app.active then
+    self.app:set_tab(result.notebook)
+  end
+  local notebook = self.app:notebook()
+  notebook:select(result.cell)
+  local cell = notebook.cells[result.cell]
+  if cell ~= nil then
+    local cursor = result.cursor or (#(cell.source or "") + 1)
+    cell.cursor = math.max(1, math.min(cursor, #(cell.source or "") + 1))
+  end
+  self.scroll_to_selected = true
+  self.app.status = string.format("%s · cell %d",
+    result.title or notebook:title(), result.cell)
+end
+
+function UI:draw_global_find(pass, width, height)
+  self.global_find_rects = {}
+  if not self.show_global_find then return end
+  local panel_w = math.min(820, width - 60)
+  local rows = math.min(#self.global_find_results, 10)
+  local panel_h = 98 + math.max(rows, 1) * 24
+  local x, y = (width - panel_w) / 2, 78
+  box(pass, x, y, panel_w, panel_h, { 0.06, 0.07, 0.10, 0.98 })
+  box(pass, x, y, panel_w, 2, { 0.35, 0.72, 1, 1 })
+  text(pass, self.app.font, "Find in all open notebooks  (Ctrl+Shift+F)",
+    x + 14, y + 10, { 0.9, 0.94, 1, 1 }, 0.78)
+  text(pass, self.app.font, string.format("%s · %s · %d match%s in %d notebook(s)",
+    self.global_find_case_sensitive and "case" or "ignore case",
+    self.global_find_whole_word and "whole word" or "substring",
+    self.global_find_total, self.global_find_total == 1 and "" or "es",
+    #self.app.notebooks), x + panel_w - 14, y + 12,
+    { 0.55, 0.65, 0.82, 1 }, 0.6, "right")
+  box(pass, x + 12, y + 32, panel_w - 24, 26, { 0.11, 0.13, 0.18, 1 })
+  text(pass, self.app.font, self.global_find_query .. "|", x + 20, y + 37,
+    { 0.9, 0.94, 1, 1 }, 0.75)
+  if rows == 0 then
+    local message = self.global_find_query == "" and
+      "Type to search every open notebook." or "No matches in open notebooks."
+    text(pass, self.app.font, message, x + 18, y + 70,
+      { 0.6, 0.66, 0.78, 1 }, 0.68)
+  end
+  for index = 1, rows do
+    local result = self.global_find_results[index]
+    local row_y = y + 64 + (index - 1) * 24
+    if index == self.global_find_selected then
+      box(pass, x + 10, row_y - 2, panel_w - 20, 22, { 0.16, 0.24, 0.36, 1 })
+    end
+    local where = string.format("%s  ·  cell %d", shorten(result.title or "",
+      28), result.cell)
+    local prefix = where .. "  "
+    local room = math.max(12, 92 - #prefix)
+    local label = prefix .. result.line:sub(1, room)
+    text(pass, self.app.font, label, x + 18, row_y + 2,
+      index == self.global_find_selected and { 1, 1, 1, 1 } or
+      { 0.65, 0.72, 0.84, 1 }, 0.62)
+    self.global_find_rects[#self.global_find_rects + 1] = {
+      x = x + 10, y = row_y - 2, w = panel_w - 20, h = 22, index = index,
+    }
+  end
+  text(pass, self.app.font,
+    "Enter opens result  ·  Up/Down select  ·  Alt+C case  ·  Alt+W whole word  ·  Esc closes",
+    x + 14, y + panel_h - 22, { 0.5, 0.58, 0.72, 1 }, 0.58)
+end
+
 function UI:draw_help(pass, width, height)
   if not self.show_help then return end
   local columns = {
@@ -1342,6 +1438,7 @@ function UI:draw_help(pass, width, height)
         { "Ctrl+1 / 2", "code / markdown" },
         { "o / O", "insert below / above and edit" },
         { "Ctrl+F", "find across notebook cells (Alt+C/Alt+W options)" },
+        { "Ctrl+Shift+F", "find across all open notebooks" },
         { "Ctrl+H", "replace in notebook (Alt+C/Alt+W options)" },
         { "Ctrl+G / Ctrl+T", "link graph / tag index" },
         { "Ctrl+P", "command palette" },
@@ -1723,6 +1820,11 @@ function UI:textinput(value)
     return
   end
   self.suppress_textinput_until = 0
+  if self.show_global_find then
+    self.global_find_query = self.global_find_query .. value
+    self:update_global_find()
+    return
+  end
   if self.show_find then
     self.find_query = self.find_query .. value
     self:update_find()
@@ -2228,6 +2330,35 @@ function UI:keypressed(key)
     end
     return
   end
+  if self.show_global_find then
+    if key == "escape" then
+      self.show_global_find = false
+    elseif alt_down and key == "c" then
+      self.global_find_case_sensitive = not self.global_find_case_sensitive
+      self:update_global_find()
+      self.app.status = self.global_find_case_sensitive and
+        "global find: case sensitive" or "global find: ignore case"
+    elseif alt_down and key == "w" then
+      self.global_find_whole_word = not self.global_find_whole_word
+      self:update_global_find()
+      self.app.status = self.global_find_whole_word and
+        "global find: whole word" or "global find: substring"
+    elseif key == "backspace" then
+      self.global_find_query = self.global_find_query:sub(1, -2)
+      self:update_global_find()
+    elseif key == "return" and
+           self.global_find_results[self.global_find_selected] then
+      self:open_global_result(
+        self.global_find_results[self.global_find_selected])
+    elseif key == "up" then
+      self.global_find_selected = math.max(1,
+        self.global_find_selected - 1)
+    elseif key == "down" then
+      self.global_find_selected = math.min(#self.global_find_results,
+        self.global_find_selected + 1)
+    end
+    return
+  end
   if self.show_find then
     if key == "escape" then self.show_find = false
     elseif alt_down and key == "c" then
@@ -2255,6 +2386,9 @@ function UI:keypressed(key)
         self.find_selected + 1)
     end
     return
+  end
+  if ctrl_down and key == "f" and shift_down then
+    self:open_global_find(); return
   end
   if ctrl_down and key == "f" then self:open_find(); return end
   if ctrl_down and key == "h" then self:open_replace(); return end
@@ -3190,6 +3324,15 @@ function UI:mousepressed(x, y, button)
     for _, rect in ipairs(self.tag_rects) do
       if inside(x, y, rect) then
         self:open_tag(rect.tag, rect.notebook)
+        return
+      end
+    end
+    return
+  end
+  if self.show_global_find then
+    for _, rect in ipairs(self.global_find_rects) do
+      if inside(x, y, rect) then
+        self:open_global_result(self.global_find_results[rect.index])
         return
       end
     end

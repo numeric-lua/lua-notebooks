@@ -92,6 +92,13 @@ local notebook = Notebook.new({ name = "export-qa.luanb", cells = {
     "- [x] render task lists",
     "- [ ] copy source",
     "",
+    "---",
+    "",
+    "3. third step",
+    "4. fourth step",
+    "",
+    "~~retired~~ wording",
+    "",
     "```lua",
     "print('snippet')",
     "```",
@@ -236,6 +243,8 @@ shoot export-filtered 1280,900 "$URL?q=needle"
   --virtual-time-budget=2000 --dump-dom "$URL" \
   >"$OUT/full.dom.html" 2>"$OUT/full-dom.log"
 for needle in 'class="task-list"' 'class="task-list-item done"' \
+    '<hr>' '<del>retired</del>' '<ol start="3">' \
+    'class="heading-permalink"' 'aria-label="Permalink to Export QA"' \
     'class="copy-code"' 'class="code-line"' 'data-line="1"' \
     'language-lua'; do
   grep -Fq "$needle" "$OUT/full.dom.html" || {

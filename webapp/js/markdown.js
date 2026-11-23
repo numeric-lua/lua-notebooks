@@ -53,7 +53,9 @@ export function renderMarkdown(source) {
         `${inline(item.text)}</li>`).join("");
       out.push(`<ul class="task-list">${items}</ul>`);
     } else {
-      out.push(`<${list.type}>${list.items.map((item) => `<li>${inline(item)}</li>`).join("")}</${list.type}>`);
+      const start = list.type === "ol" && list.start && list.start !== 1
+        ? ` start="${list.start}"` : "";
+      out.push(`<${list.type}${start}>${list.items.map((item) => `<li>${inline(item)}</li>`).join("")}</${list.type}>`);
     }
     list = null;
   };
@@ -126,12 +128,15 @@ export function renderMarkdown(source) {
       list.items.push(bullet[1]);
       continue;
     }
-    const ordered = raw.match(/^\s*\d+[.)]\s+(.*)$/);
+    const ordered = raw.match(/^\s*(\d+)[.)]\s+(.*)$/);
     if (ordered) {
       flushParagraph();
       flushQuote();
-      if (!list || list.type !== "ol") { flushList(); list = { type: "ol", items: [] }; }
-      list.items.push(ordered[1]);
+      if (!list || list.type !== "ol") {
+        flushList();
+        list = { type: "ol", start: Number(ordered[1]) || 1, items: [] };
+      }
+      list.items.push(ordered[2]);
       continue;
     }
     if (list) flushList();

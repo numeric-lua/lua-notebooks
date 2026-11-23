@@ -23,6 +23,8 @@ dumped:
   reader search/filter bar when JavaScript is available;
 - a sticky `<nav class="toc">` table of contents built from Markdown headings,
   with GitHub-style unique anchors (`intro`, `intro-2`, …);
+- a copyable `#` permalink beside every rendered heading, in addition to the
+  per-cell and per-figure links;
 - a figures index that links to each exported scene;
 - one `<section class="cell" id="cell-N">` per cell with a permalink and a
   normalized `data-search` projection;
@@ -192,13 +194,17 @@ contract deliberately or fails a test.
 
 The export renders the Markdown subset the notebook previews and edits:
 ATX headings, fenced code blocks (language badge, line numbers, and copy
-control), unordered and ordered lists, blockquotes,
-bold, inline code, `[label](url)` links (only `http`, `https`, `mailto`, and
-relative links are emitted; `javascript:`/`data:` links degrade to text), and
-wiki links as styled text with a `data-target` attribute. Checklist items
+control), unordered and ordered lists, blockquotes, thematic breaks
+(`---`, `***`, `___`), bold, strikethrough (`~~text~~`), inline code,
+`[label](url)` links (only `http`, `https`, `mailto`, and relative links are
+emitted; `javascript:`/`data:` links degrade to text), and wiki links as
+styled text with a `data-target` attribute. Checklist items
 (`- [x]`/`- [ ]`) become `<ul class="task-list">` entries with disabled
 checkboxes and a `done` class on completed items; they are read-only in the
-static export. Raw HTML in Markdown is escaped.
+static export. Ordered list markers accept both `1.` and `1)`, and a list that
+starts above one keeps its first number through `<ol start="N">`. Every
+rendered heading carries a hover/focus `#` permalink pointing at its anchor.
+Raw HTML in Markdown is escaped.
 
 ## Determinism
 
@@ -235,8 +241,9 @@ make test-webapp          # Node browser-renderer tests
 ./scripts/scene-qa.sh     # headless browser Canvas pixel check
 ```
 
-The unit tests exercise heading anchors and duplicate slugs,
-table-of-contents links, search-index normalization and escaping, figure
+The unit tests exercise heading anchors, duplicate slugs, heading permalinks,
+table-of-contents links, thematic breaks and strikethrough, ordered-list start
+numbers, search-index normalization and escaping, figure
 summaries/SVGs, polar axes and series, escaping, JSON truncation, tag filtering,
 and timing sums. `tests/polar.lua` additionally checks the shared projection,
 tick/label filters, bar sectors, heatmap-cell and contour geometry, large-field

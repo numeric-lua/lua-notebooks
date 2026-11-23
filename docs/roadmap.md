@@ -20,7 +20,8 @@
 - Kernel widgets, editable multiline text, callbacks, persistence, live
   shader widgets (Star Nest preset), and expandable long text output.
 - Syntax highlighting, static diagnostics, completion, hover, go-to-definition,
-  workspace rename, and case/whole-word notebook find and replace.
+  workspace rename, case/whole-word notebook find and replace, and a
+  cross-notebook search overlay with per-tab result jumps.
 - Hierarchical notebook filetree with create/delete/rename/folder actions.
 - Vim mode (default on): insert/normal, cell/character visual, registers,
   yank/paste, undo, search, command line, literal/pattern substitution.
@@ -31,10 +32,10 @@
   package, local install, desktop entry, and LuaRocks package/launcher.
 - Confirmed, undoable cell deletion when notebook-wide Neovim markers omit a
   cell; the prompt previews every omitted cell.
-- Navigable static HTML export with metadata, heading anchors/table of
-  contents, a figures index, inline SVG scene previews (including polar
-  scenes), full-text search and a cell-kind filter, scene JSON, and printable
-  light/dark styling.
+- Navigable static HTML export with metadata, heading anchors/permalinks and
+  table of contents, a figures index, inline SVG scene previews (including
+  polar scenes), Markdown rules/strikethrough/ordered-list starts, full-text
+  search and a cell-kind filter, scene JSON, and printable light/dark styling.
 - Pure test suite and GitHub Actions CI.
 - Manual physical-input and visual smoke scripts.
 
@@ -58,5 +59,5 @@ make test-webapp           # Node scene/model tests, no packages
 ./scripts/input-smoke.sh   # needs a seat and /dev/uinput
 ./scripts/visual-smoke.sh  # needs a display
 ./scripts/scene-qa.sh      # needs chromium
-luarocks make lua-notebooks-1.52.0-1.rockspec --tree=/tmp/luanb-rocks
+luarocks make lua-notebooks-1.53.0-1.rockspec --tree=/tmp/luanb-rocks
 ```

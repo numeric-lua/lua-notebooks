@@ -184,6 +184,7 @@ Controls:
 | `F10` | open/close the extension browser; click a row to enable/disable |
 | `F11` | open/close the heading outline |
 | `Ctrl+Space` | open Lua completion for the selected code cell |
+| `Ctrl+Shift+F` | search all open notebooks |
 | `Ctrl+H` | show hover help for the trailing identifier |
 | `Ctrl+G` | jump to a local/function definition of the trailing identifier |
 | `Ctrl+Shift+R` | rename the trailing identifier across code cells |
@@ -273,10 +274,11 @@ movement, and Vim operations share the code-cell editing path.
 ## Markdown preview
 
 Markdown cells show formatted text when unfocused: heading markers, emphasis,
-inline code, links, and list markers are removed for display. Selecting the cell
-returns to editable source. Display math renders in both states. Checklist
-items (`- [x] done`, `- [ ] todo`) preview as `[x]`/`[ ]` markers and export
-as disabled HTML checkboxes in the static HTML and browser front-end.
+strikethrough, inline code, links, and list markers are removed for display.
+Selecting the cell returns to editable source. Display math renders in both
+states. Checklist items (`- [x] done`, `- [ ] todo`) preview as `[x]`/`[ ]`
+markers, thematic breaks (`---`, `***`, `___`) preview as a rule, and both
+build as disabled checkboxes/rules in the static HTML and browser front-end.
 
 ## Notebook title
 
@@ -414,7 +416,7 @@ compositor and window stacking.
 ## LuaRocks
 
 ```sh
-luarocks make lua-notebooks-1.52.0-1.rockspec
+luarocks make lua-notebooks-1.53.0-1.rockspec
 lua-notebooks
 ```
 
@@ -423,7 +425,7 @@ The rockspec installs the app source under the LuaRocks share tree and a
 
 ```sh
 make rock
-luarocks install lua-notebooks-1.52.0-1.src.rock
+luarocks install lua-notebooks-1.53.0-1.src.rock
 ```
 
 Publishing to a remote rock server is intentionally not automated.
@@ -475,6 +477,7 @@ LUANB_SMOKE_WIDGET=1 lovr . # run the widget cell, then quit
 LUANB_SMOKE_WIDGET_EVENT=1 lovr . # run the widget cell and change a slider
 LUANB_SMOKE_SAVE=1 lovr .   # save/load the active notebook, then quit
 LUANB_SMOKE_STATS=1 lovr .  # open/close notebook statistics, then quit
+LUANB_SMOKE_GLOBAL_FIND=1 lovr . # search/jump across tabs, then quit
 LUANB_SMOKE_OUTPUT=1 lovr . # expand a 12-line output, then quit
 LUANB_QA_CELL=6 lovr .      # run one cell and keep the window open for visual QA
 LUANB_QA_TAGS=1 LUANB_QA_SCREENSHOT=1 lovr . # tag-index overlay screenshot
@@ -564,6 +567,14 @@ whole word (`foo` matches `foo` but not `food` or `foo_bar`). The overlay shows
 the total occurrence count and only the first 40 matching lines. Use Up/Down
 and Enter or click a result to select the matching cell and cursor position.
 
+**Ctrl+Shift+F** searches every open notebook at once. The overlay groups each
+result by notebook title and cell number, shows the total occurrence count
+across tabs, and supports the same **Alt+C**/**Alt+W** options. Enter or a
+click switches to the owning tab, selects the cell, restores the match cursor,
+and scrolls it into view. The command palette exposes the same action as
+**Search all open notebooks**. Results are capped at 80 rows while the total
+count covers every occurrence.
+
 **Ctrl+H** opens notebook-wide replace. It uses the same **Alt+C**/**Alt+W**
 options, previews the number of replacements before applying, and replaces
 every matching source occurrence as one undoable change. Output text is
@@ -626,13 +637,13 @@ Successfully opened paths are kept in `recent.json` (latest ten). They appear as
 
 ## HTML export
 
-Exports are self-contained HTML with no external assets. The document has viewport and description metadata, a dark-mode-aware stylesheet, a print stylesheet, a sticky table of contents with unique heading anchors, a figures section, per-cell permalinks, styled outputs and errors, and a closing backlinks list computed from `[[wiki links]]` across the open notebooks. Code cells and fenced Markdown blocks render with a language badge, CSS line numbers, and a **Copy** button that copies the source without the numbers; without JavaScript the button is hidden and every block stays readable.
+Exports are self-contained HTML with no external assets. The document has viewport and description metadata, a dark-mode-aware stylesheet, a print stylesheet, a sticky table of contents with unique heading anchors, per-heading and per-cell permalinks, a figures section, styled outputs and errors, and a closing backlinks list computed from `[[wiki links]]` across the open notebooks. Code cells and fenced Markdown blocks render with a language badge, CSS line numbers, and a **Copy** button that copies the source without the numbers; without JavaScript the button is hidden and every block stays readable. Markdown thematic breaks render as rules, `~~text~~` renders as strikethrough, and ordered lists keep their first number in the generated `<ol start="…">`.
 
 A small inline script adds reader-facing full-text search and a cell-kind filter. Search is case-insensitive, whitespace-separated terms are combined with AND, `/` focuses the box, Escape clears it, and the table of contents hides links to filtered-out cells. `?q=term` and `?kind=figures` prefill the controls for shareable filtered links. Without JavaScript the controls are hidden and the full document remains readable.
 
 Code-cell scene outputs become `<figure>` placeholders with a deterministic inline SVG preview (Cartesian line, scatter, bar, and histogram; polar line, scatter, bar, heatmap, contour, quiver, and streamplot; plus `cube` and `grid`), a caption with series/point counts, and a collapsible JSON scene dump. Polar previews honour zero/direction/`rmax`, the supplied theta/r ticks, quiver scale/pivot/normalization and arrow decimation, and streamplot step/periodicity/cap metadata. The live viewport renders the same polar IR; both backends use `notebook/polar.lua` for rmax resolution, projection, tick fallbacks, sampling caps, label limits, bar wedges, heatmap/contour geometry, quiver arrows, and streamplot polylines and heads. Interactive widgets are listed but not exported. The static preview is a sketch of the scene, not a raster of the live renderer. See [docs/export.md](docs/export.md) for the document shape, search semantics, Markdown subset, safety rules, and determinism guarantees.
 
-From a source checkout, `luajit tools/export.lua INPUT.luanb OUTPUT.html` exports without opening the app (use `-` for stdout and extra `.luanb` arguments for backlinks). `./scripts/export-qa.sh` builds a fixture, verifies `?q=`/`?kind=` filtering in headless Chromium, and captures light/dark/narrow screenshots under `/tmp`. `./scripts/polar-qa.sh` does the corresponding live app check for a polar scene.
+From a source checkout, `luajit tools/export.lua INPUT.luanb OUTPUT.html` exports without opening the app (use `-` for stdout and extra `.luanb` arguments for backlinks). `./scripts/export-qa.sh` builds a fixture, verifies `?q=`/`?kind=` filtering plus task lists, rules, strikethrough, ordered-list starts, heading permalinks, and copy controls in headless Chromium, and captures light/dark/narrow screenshots under `/tmp`. `./scripts/polar-qa.sh` does the corresponding live app check for a polar scene.
 
 ## Link graph
 

@@ -32,6 +32,20 @@ test("renders lists and blockquotes", () => {
   assert.match(html, /<blockquote><p>quoted<\/p><\/blockquote>/);
 });
 
+test("renders horizontal rules and strikethrough", () => {
+  const html = renderMarkdown("Before\n\n---\n\nRetired ~~old~~ text.");
+  assert.match(html, /<p>Before<\/p>/);
+  assert.match(html, /<hr>/);
+  assert.match(html, /<p>Retired <del>old<\/del> text\.<\/p>/);
+  assert.doesNotMatch(html, /<p>----------<\/p>/);
+});
+
+test("preserves an ordered list start number", () => {
+  const html = renderMarkdown("3) third\n4) fourth\n\n1. one");
+  assert.match(html, /<ol start="3"><li>third<\/li><li>fourth<\/li><\/ol>/);
+  assert.match(html, /<ol><li>one<\/li><\/ol>/);
+});
+
 test("renders Markdown task lists as disabled checkboxes", () => {
   const html = renderMarkdown("- [x] done **now**\n- [ ] later");
   assert.match(html, /<ul class="task-list">/);

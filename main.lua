@@ -1379,6 +1379,20 @@ function lovr.load()
     print("SMOKE_STATS=" .. values.cells .. ":" .. values.lines .. ":" ..
       tostring(app.ui.show_stats))
     lovr.event.quit()
+  elseif os.getenv("LUANB_SMOKE_GLOBAL_FIND") then
+    app.ui:open_global_find()
+    app.ui:textinput("Second kernel")
+    local target
+    for _, result in ipairs(app.ui.global_find_results) do
+      if result.notebook == 2 then target = result; break end
+    end
+    local total = app.ui.global_find_total
+    if target then app.ui:open_global_result(target) end
+    print(string.format("SMOKE_GLOBAL_FIND=%s:%d:%d:%s:%s",
+      tostring(target ~= nil), total, app.active,
+      tostring(not app.ui.show_global_find),
+      tostring(app:notebook().cells[app:notebook().active] ~= nil)))
+    lovr.event.quit()
   elseif os.getenv("LUANB_SMOKE_OUTPUT") then
     local cell = app:notebook():selected()
     local lines = {}

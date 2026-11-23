@@ -112,6 +112,34 @@ function Search.count(cells, query, options)
   return total
 end
 
+-- Search across several open notebooks.  Rows keep the owning notebook index
+-- and title so the overlay can switch tabs and jump to the exact cell without
+-- re-running the search.  `limit` still bounds only the returned rows.
+function Search.collect_notebooks(notebooks, query, options)
+  local opts = normalise(options)
+  local results, total = {}, 0
+  if type(query) ~= "string" or query == "" then return results, total end
+  for notebook_index, notebook in ipairs(notebooks or {}) do
+    local rows, notebook_total = Search.collect(notebook.cells or {}, query,
+      opts)
+    total = total + notebook_total
+    for _, row in ipairs(rows) do
+      if opts.limit == nil or #results < opts.limit then
+        results[#results + 1] = {
+          notebook = notebook_index,
+          title = notebook:title(),
+          name = notebook.name,
+          cell = row.cell,
+          line = row.line,
+          cursor = row.cursor,
+          count = row.count,
+        }
+      end
+    end
+  end
+  return results, total
+end
+
 -- Replace literal text.  The replacement is inserted verbatim, so `%` and
 -- captures in the replacement have no special meaning.
 function Search.replace_text(text, query, replacement, options)

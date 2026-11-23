@@ -502,7 +502,9 @@ test("exports escaped standalone HTML", function()
   local text = Format.to_html(notebook)
   assert(text:find("<!doctype html>", 1, true))
   assert(text:find("&lt;tag&gt;", 1, true))
-  assert(text:find('<h1 id="heading">Heading</h1>', 1, true))
+  assert(text:find(
+    '<h1 id="heading">Heading<a class="heading-permalink" href="#heading"',
+    1, true))
 end)
 
 current = "html navigation"
@@ -534,6 +536,10 @@ test("builds deterministic heading anchors and table of contents", function()
   assert(html:find('<nav class="toc"', 1, true))
   assert(html:find('href="#intro-2"', 1, true))
   assert(html:find('id="bold-plot-section"', 1, true))
+  assert(html:find(
+    'class="heading-permalink" href="#bold-plot-section"', 1, true))
+  assert(html:find(
+    'aria-label="Permalink to Bold plot section"', 1, true))
   assert(html:find('id="cell-1"', 1, true))
   assert(html:find('name="viewport"', 1, true))
   assert(html:find('name="generator"', 1, true))
@@ -599,6 +605,43 @@ test("renders Markdown checklists as disabled task items", function()
   assert(html:find('<li class="task-list-item"><input type="checkbox" disabled> write <code>docs</code></li>', 1, true))
   assert(html:find('<li>plain item</li>', 1, true))
   eq(select(2, html:gsub('class="task%-list%-item', "")), 2)
+end)
+
+current = "html markdown rules"
+test("renders horizontal rules and strikethrough", function()
+  local notebook = Notebook.new({ name = "rules.luanb", cells = {
+    { kind = "markdown", source = table.concat({
+      "Before",
+      "",
+      "---",
+      "",
+      "Retired ~~old~~ text.",
+    }, "\n") },
+  } })
+  local html = Format.to_html(notebook)
+  assert(html:find("<p>Before</p>", 1, true))
+  assert(html:find("<hr>", 1, true))
+  assert(html:find("<p>Retired <del>old</del> text.</p>", 1, true))
+  assert(html:find("<p>----------</p>", 1, true) == nil)
+end)
+
+current = "html ordered lists"
+test("preserves an ordered list's start number and parenthesis markers", function()
+  local notebook = Notebook.new({ name = "ordered.luanb", cells = {
+    { kind = "markdown", source = table.concat({
+      "Steps:",
+      "",
+      "3) third",
+      "4) fourth",
+      "",
+      "1. one",
+      "2. two",
+    }, "\n") },
+  } })
+  local html = Format.to_html(notebook)
+  assert(html:find('<ol start="3"><li>third</li><li>fourth</li></ol>', 1,
+    true))
+  assert(html:find("<ol><li>one</li><li>two</li></ol>", 1, true))
 end)
 
 current = "html code blocks"
@@ -972,6 +1015,39 @@ test("collects source and output rows while counting every occurrence", function
   eq(rows[1].cursor, 1)
   local output_rows = Search.collect(cells, "output", { limit = 10 })
   assert(output_rows[1].line:find("out: ", 1, true) == 1)
+end)
+test("collects matches across every open notebook", function()
+  local Search = require("notebook.search")
+  local notebooks = {
+    Notebook.new({ name = "one.luanb", cells = {
+      { kind = "markdown", source = "# One\nneedle here" },
+      { kind = "code", source = "print('needle')", output = "needle out" },
+    } }),
+    Notebook.new({ name = "two.luanb", cells = {
+      { kind = "code", source = "local Needle = 2\nreturn Needle" },
+    } }),
+  }
+  local rows, total = Search.collect_notebooks(notebooks, "needle")
+  eq(total, 5)
+  eq(#rows, 5)
+  eq(rows[1].notebook, 1)
+  eq(rows[1].title, "One")
+  eq(rows[1].cell, 1)
+  eq(rows[1].cursor, 7)
+  eq(rows[4].notebook, 2)
+  eq(rows[4].cell, 1)
+  local _, exact = Search.collect_notebooks(notebooks, "Needle",
+    { case_sensitive = true })
+  eq(exact, 2)
+  local _, bounded = Search.collect_notebooks(notebooks, "needle",
+    { whole_word = true })
+  eq(bounded, 5)
+  local limited, all = Search.collect_notebooks(notebooks, "needle",
+    { limit = 2 })
+  eq(all, 5)
+  eq(#limited, 2)
+  local none = Search.collect_notebooks(notebooks, "")
+  eq(#none, 0)
 end)
 test("replaces with case and whole-word options and clamps cursors", function()
   local Search = require("notebook.search")
