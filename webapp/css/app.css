@@ -215,6 +215,14 @@ button { cursor: pointer; }
 .markdown-preview .footnotes { margin-top: 14px; padding-top: 8px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; }
 .markdown-preview .footnotes ol { padding-left: 22px; }
 .markdown-preview .footnote-back { margin-left: 4px; text-decoration: none; border-bottom: 0; }
+.markdown-preview .callout { margin: 12px 0; padding: 10px 14px; border-left: 4px solid var(--accent); border-radius: 7px; background: #111722; }
+.markdown-preview .callout-title { margin: 0 0 4px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #cdd4e5; }
+.markdown-preview .callout p { margin: 4px 0; }
+.markdown-preview .callout-note { border-left-color: #4b8bf5; }
+.markdown-preview .callout-tip { border-left-color: #3fa66a; }
+.markdown-preview .callout-important { border-left-color: #9b6bdf; }
+.markdown-preview .callout-warning { border-left-color: #d79a31; }
+.markdown-preview .callout-caution { border-left-color: #d15b5b; }
 .markdown-preview hr { border: 0; border-top: 1px solid var(--border); margin: 18px 0; }
 .math { font-family: "Cambria Math", "STIX Two Math", serif; color: #c9d5ff; }
 

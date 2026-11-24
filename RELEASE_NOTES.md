@@ -1,3 +1,33 @@
+# lua-notebooks 1.58.0
+
+- add **Ctrl+Alt+T** and a palette action to reopen the most recently closed
+  notebook tab, restoring the in-memory notebook, its dirty state, and a fresh
+  kernel;
+- make the **Ctrl+T** tag index filterable: type a case-insensitive substring,
+  see matched/total tag counts, move the highlight with Up/Down, and open the
+  selected tag with Enter;
+- add **Ctrl+Alt+X** and a palette action to clear the selected cell's output,
+  scene, widgets, and error, refusing while that cell is running;
+- make rendered wiki links clickable in the live Markdown preview, switching to
+  the matching notebook tab;
+- render GitHub-style callouts (`> [!NOTE]`, `[!TIP]`, `[!IMPORTANT]`,
+  `[!WARNING]`, `[!CAUTION]`) in the live preview, static HTML export, and
+  browser front-end, with normalized titles, shared body formatting, and
+  unknown markers staying ordinary blockquotes;
+- extend `tests/workflow.lua`, `tests/run.lua`, `tests/markdown.lua`, and the
+  browser Markdown suite; expand `LUANB_SMOKE_WORKFLOW` to cover tag filtering,
+  wiki-link clicks, and selected-output clearing; extend `LUANB_SMOKE_CLOSE`
+  to reopen the closed tab; add callout and nested-quote DOM checks to
+  `scripts/export-qa.sh`; update the welcome notebooks and document the new
+  behavior in the README, `docs/export.md`, `docs/web.md`, `docs/roadmap.md`,
+  and `webapp/README.md`.
+
+No new runtime dependencies. The Neovim path, kernel protocol, and committed
+visual pixel baselines are unchanged. `make test`, `make test-nvim`,
+`make test-webapp`, `LUANB_SMOKE_WORKFLOW=1 lovr .`, `LUANB_SMOKE_CLOSE=1 lovr .`,
+the pixel baseline check, `scripts/export-qa.sh`, and `scripts/scene-qa.sh`
+pass. This release is tagged `v1.58.0`.
+
 # lua-notebooks 1.57.0
 
 - make Markdown task-list markers clickable in the live preview: clicking

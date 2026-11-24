@@ -53,7 +53,10 @@ $$\\int_0^1 x^2 \\, dx = \\frac{1}{3}$$
     1. ordered child
 - [x] task lists render locally
 
-Use ==highlight==, bare links like https://love2d.org, and \\*literal\\* escapes.`),
+Use ==highlight==, bare links like https://love2d.org, and \\*literal\\* escapes.
+
+> [!TIP]
+> Callouts use GitHub alert syntax and render locally.`),
     createCell("markdown", `## Footnotes
 
 Footnotes use [^label] for the reference and a [^label]: line for the note.[^web]

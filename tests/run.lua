@@ -296,6 +296,20 @@ test("filters outline headings by case-insensitive text", function()
   eq(#Format.filter_headings(headings, "missing"), 0)
 end)
 
+test("filters tag-index entries by case-insensitive tag name", function()
+  local Format = require("notebook.format")
+  local entries = {
+    { tag = "lua", count = 3 }, { tag = "plots", count = 2 },
+    { tag = "notebook", count = 1 },
+  }
+  eq(#Format.filter_tag_entries(entries, ""), 3)
+  local matched = Format.filter_tag_entries(entries, "L")
+  eq(#matched, 2)
+  eq(matched[1].tag, "lua")
+  eq(matched[2].tag, "plots")
+  eq(#Format.filter_tag_entries(entries, "zzz"), 0)
+end)
+
 test("navigates between headings without wrapping", function()
   local Notebook = require("notebook.model")
   local notebook = Notebook.new({ cells = {
@@ -752,6 +766,27 @@ test("renders nested Markdown blockquotes", function()
     "<blockquote><p>outer</p><blockquote><p>inner</p></blockquote>" ..
     "<p>outer again</p><blockquote><blockquote>" ..
     "<p>deepest</p></blockquote></blockquote></blockquote>", 1, true))
+end)
+
+test("renders GitHub-style callout blockquotes", function()
+  local notebook = Notebook.new({ name = "callouts.luanb", cells = {
+    { kind = "markdown", source = table.concat({
+      "> [!WARNING]",
+      "> Careful with **this**.",
+      ">",
+      "> Second paragraph.",
+      "",
+      "> [!UNKNOWN]",
+      "> Not a callout.",
+    }, "\n") },
+  } })
+  local html = Format.to_html(notebook)
+  assert(html:find(
+    '<div class="callout callout-warning"><p class="callout-title">' ..
+    'Warning</p><p>Careful with <strong>this</strong>.</p>' ..
+    '<p>Second paragraph.</p></div>', 1, true))
+  assert(html:find('<div class="callout callout-unknown">', 1, true) == nil)
+  assert(html:find("<p>[!UNKNOWN]</p>", 1, true))
 end)
 
 current = "html ordered lists"

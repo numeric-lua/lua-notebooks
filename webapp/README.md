@@ -37,7 +37,7 @@ or with the settings button in the top bar.
 
 - code and markdown cells, Markdown task-list checkboxes (read-only in the
   browser), nested lists, pipe tables with alignment, italic emphasis, grouped
-  and nested blockquotes, thematic
+  and nested blockquotes and callouts, thematic
   breaks, strikethrough, highlight (`==text==`), bare `http(s)://` autolinks,
   backslash-escaped punctuation, ordered-list start numbers, numbered
   footnotes with endnote backlinks, local notebook persistence, `.luanb`

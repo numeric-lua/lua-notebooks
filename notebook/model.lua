@@ -913,7 +913,7 @@ widgets.select({ label = "mode", options = { "fast", "slow" }, value = "fast" })
 widgets.text({ label = "name", value = "notebook",
   on_change = function(value) print("name", value) end })
 widgets.shader({ label = "Star Nest", shader = "star_nest", height = 180 })]]),
-      cell("markdown", "# A 3D notebook\n\nA notebook is a list of cells. Code cells share one persistent kernel; markdown cells render prose and math.\n\n## Math\nInline: $E = mc^2$ and $\\alpha + \\beta = \\pi$.\n\n$$\\left(\\frac{a}{b}\\right)$$\n$$\\mathbf{F}=m\\mathbf{a}$$\n$$\\sqrt{x}$$\n$$\\begin{matrix}a & b \\\\ c & d\\end{matrix}$$\n\n## Keyboard\n- **F5** run the selected cell\n- **F6 / F7** save and load\n- **F10** extensions\n- **F1** shortcut help\n\n## Links\nThis notebook links to [[Second kernel]].\n\nTags: #lua #notebook\n\n## Collapsible section\nClick the heading arrow to fold the following cells. Add your own plots by returning `{ scene = { ... } }` from a code cell."),
+      cell("markdown", "# A 3D notebook\n\nA notebook is a list of cells. Code cells share one persistent kernel; markdown cells render prose and math.\n\n## Math\nInline: $E = mc^2$ and $\\alpha + \\beta = \\pi$.\n\n$$\\left(\\frac{a}{b}\\right)$$\n$$\\mathbf{F}=m\\mathbf{a}$$\n$$\\sqrt{x}$$\n$$\\begin{matrix}a & b \\\\ c & d\\end{matrix}$$\n\n## Keyboard\n- **F5** run the selected cell\n- **F6 / F7** save and load\n- **F10** extensions\n- **F1** shortcut help\n\n## Links\nThis notebook links to [[Second kernel]]; click the colored wiki link in the preview to open it.\n\nTags: #lua #notebook — press **Ctrl+T** for a filterable tag index.\n\n## Collapsible section\nClick the heading arrow to fold the following cells. Add your own plots by returning `{ scene = { ... } }` from a code cell."),
       cell("code", [[
 -- Large polar heatmap: fields above the paint cap are sampled into blocks.
 local rows, cols = 96, 96
@@ -1096,7 +1096,10 @@ Press **Alt+L** in find or replace to limit the search to the selected cell.
 
 > Quotes can nest.
 > > A nested quote is indented one level deeper.
-> Back at the outer level.]]),
+> Back at the outer level.
+
+> [!NOTE]
+> Callouts use GitHub alert syntax and render in the preview, export, and browser.]]),
       cell("markdown", [[# Footnotes
 
 Markdown footnotes use `[^label]` for the reference and a `[^label]: text` line for the note. The same note renders in the live preview, the static HTML export, and the browser front-end.[^workflow]
@@ -1107,6 +1110,7 @@ Markdown footnotes use `[^label]` for the reference and a `[^label]: text` line 
 - **Ctrl+Shift+F5** restarts the kernel and runs every code cell.
 - **Ctrl+Shift+C** copies the selected cell source; **Ctrl+Alt+C** copies its text output.
 - **Ctrl+Alt+Enter** runs the selected cell and every code cell below it.
+- **Ctrl+Alt+X** clears the selected cell output; **Ctrl+Alt+T** reopens the last closed tab.
 - **Alt+Up / Alt+Down** moves the selected cell.
 - **Ctrl+Shift+Up / Ctrl+Shift+Down** jumps between headings, and the command palette can collapse or expand every heading at once.
 - **F11** opens the heading outline; type to filter it and press Enter to jump.]]),

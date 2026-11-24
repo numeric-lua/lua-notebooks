@@ -38,6 +38,15 @@ test("renders nested blockquotes", () => {
     /<blockquote><p>outer<\/p><blockquote><p>inner<\/p><\/blockquote><p>outer again<\/p><blockquote><blockquote><p>deepest<\/p><\/blockquote><\/blockquote><\/blockquote>/);
 });
 
+test("renders GitHub-style callout blockquotes", () => {
+  const html = renderMarkdown(
+    "> [!WARNING]\n> Careful with **this**.\n>\n> Second paragraph.\n\n> [!UNKNOWN]\n> Not a callout.");
+  assert.match(html,
+    /<div class="callout callout-warning"><p class="callout-title">Warning<\/p><p>Careful with <strong>this<\/strong>.<\/p><p>Second paragraph.<\/p><\/div>/);
+  assert.doesNotMatch(html, /callout-unknown/);
+  assert.match(html, /<p>\[!UNKNOWN\]<\/p>/);
+});
+
 test("renders horizontal rules and strikethrough", () => {
   const html = renderMarkdown("Before\n\n---\n\nRetired ~~old~~ text.");
   assert.match(html, /<p>Before<\/p>/);

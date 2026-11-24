@@ -639,30 +639,57 @@ local function quote_depth(line)
   return depth, rest
 end
 
+local CALLOUT_TITLES = {
+  note = "Note", tip = "Tip", important = "Important",
+  warning = "Warning", caution = "Caution",
+}
+
+local function callout_marker(entry)
+  if entry == nil or entry.depth ~= 1 then return nil end
+  local kind, rest = entry.text:match("^%s*%[!(%a+)%]%s*(.*)$")
+  if kind == nil then return nil end
+  kind = kind:lower()
+  if CALLOUT_TITLES[kind] == nil then return nil end
+  return kind, rest
+end
+
 -- Render consecutive blockquote entries as nested <blockquote> blocks while
 -- keeping one paragraph per source line, matching the existing preview/export
--- behavior for depth-one quotes.
+-- behavior for depth-one quotes.  A leading `[!NOTE]`-style marker becomes a
+-- callout instead of a plain quote.
 local function quote_html(entries, footnotes)
-  local function render_from(start, depth)
+  local function render_from(list, start, depth)
     local out = {}
     local index = start
-    while index <= #entries and entries[index].depth >= depth do
-      if entries[index].depth == depth then
-        out[#out + 1] = "<p>" ..
-          inline_markdown(entries[index].text, footnotes) .. "</p>"
+    while index <= #list and list[index].depth >= depth do
+      if list[index].depth == depth then
+        if list[index].text ~= "" then
+          out[#out + 1] = "<p>" ..
+            inline_markdown(list[index].text, footnotes) .. "</p>"
+        end
         index = index + 1
       else
         local child_start = index
-        while index <= #entries and entries[index].depth > depth do
+        while index <= #list and list[index].depth > depth do
           index = index + 1
         end
         out[#out + 1] = "<blockquote>" ..
-          render_from(child_start, depth + 1) .. "</blockquote>"
+          render_from(list, child_start, depth + 1) .. "</blockquote>"
       end
     end
     return table.concat(out)
   end
-  return "<blockquote>" .. render_from(1, 1) .. "</blockquote>"
+
+  local kind, rest = callout_marker(entries[1])
+  if kind ~= nil then
+    local body = {}
+    if rest ~= "" then body[#body + 1] = { depth = 1, text = rest } end
+    for index = 2, #entries do body[#body + 1] = entries[index] end
+    return '<div class="callout callout-' .. kind .. '">' ..
+      '<p class="callout-title">' .. CALLOUT_TITLES[kind] .. "</p>" ..
+      render_from(body, 1, 1) .. "</div>"
+  end
+  return "<blockquote>" .. render_from(entries, 1, 1) .. "</blockquote>"
 end
 
 -- Small, readable Markdown renderer for static exports.  It intentionally
@@ -1920,6 +1947,14 @@ pre.error{background:var(--error);border-left:4px solid #c94b4b;color:#b42323}
 .footnotes li{margin:.18rem 0}
 .footnote-back{text-decoration:none;margin-left:.3rem}
 @media print{.footnote-back{display:none}}
+.callout{margin:.8rem 0;padding:.65rem .9rem;border-left:4px solid var(--accent);border-radius:7px;background:var(--toc)}
+.callout-title{margin:0 0 .3rem;font-size:.78rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.callout p{margin:.25rem 0}
+.callout-note{border-left-color:#4b8bf5}
+.callout-tip{border-left-color:#3fa66a}
+.callout-important{border-left-color:#9b6bdf}
+.callout-warning{border-left-color:#d79a31}
+.callout-caution{border-left-color:#d15b5b}
 .scene{margin:1rem 0 0;padding:0}
 .scene-svg{display:block;width:100%;height:auto;border:1px solid var(--border);border-radius:10px;background:var(--figure)}
 .scene figcaption{color:var(--muted);font-size:.86rem;padding:.55rem .15rem 0;display:flex;flex-wrap:wrap;gap:.35rem .6rem;align-items:baseline}
@@ -2346,6 +2381,19 @@ function Format.filter_headings(headings, query)
   for _, heading in ipairs(headings or {}) do
     if tostring(heading.text or ""):lower():find(needle, 1, true) ~= nil then
       result[#result + 1] = heading
+    end
+  end
+  return result
+end
+
+-- Case-insensitive substring filter over tag names.
+function Format.filter_tag_entries(entries, query)
+  if type(query) ~= "string" or query == "" then return entries end
+  local needle = query:lower()
+  local result = {}
+  for _, entry in ipairs(entries or {}) do
+    if tostring(entry.tag or ""):lower():find(needle, 1, true) ~= nil then
+      result[#result + 1] = entry
     end
   end
   return result

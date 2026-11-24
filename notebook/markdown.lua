@@ -4,6 +4,11 @@
 --
 local Markdown = {}
 
+local CALLOUT_TITLES = {
+  note = "Note", tip = "Tip", important = "Important",
+  warning = "Warning", caution = "Caution",
+}
+
 local function table_cells(line)
   if line:find("|", 1, true) == nil then return nil end
   local trimmed = line:gsub("^%s+", ""):gsub("%s+$", ""):gsub("\\|", "\1")
@@ -105,7 +110,13 @@ function Markdown.preview(line, footnotes)
     quote_rest = rest
   end
   if quote_depth > 0 then
-    line = string.rep("│ ", quote_depth) .. quote_rest
+    local kind, rest = quote_rest:match("^%s*%[!(%a+)%]%s*(.*)$")
+    local title = kind and CALLOUT_TITLES[kind:lower()]
+    if quote_depth == 1 and title ~= nil then
+      line = "▌ " .. title:upper() .. (rest ~= "" and ("  " .. rest) or "")
+    else
+      line = string.rep("│ ", quote_depth) .. quote_rest
+    end
   end
 
   if line:match("^%s*([%*%-_])%s*%1%s*%1[%s%*%-_]*$") then

@@ -192,6 +192,9 @@ function UI.new(app)
     graph_rects = {},
     show_tags = false,
     tag_rects = {},
+    tag_query = "",
+    tag_selected = 1,
+    tag_entries = {},
     show_timing = false,
     replace_find = "",
     replace_with = "",
@@ -616,9 +619,13 @@ function UI:draw(pass, logical_width, logical_height)
             x = x + line_font:getWidth(segment.text) * text_scale
           end
           if wiki_target then
+            local start_at = display:find(wiki_target, 1, true)
+            local prefix = start_at and display:sub(1, start_at - 1) or ""
             self.link_rects[#self.link_rects + 1] = {
-              x = 36, y = line_y, w = width - 72, h = 20,
-              target = wiki_target,
+              x = 36 + app.font:getWidth(prefix) * text_scale,
+              y = line_y - 2,
+              w = app.font:getWidth(wiki_target) * text_scale + 4,
+              h = 22, target = wiki_target,
             }
           end
           line_y = line_y + 21
@@ -844,6 +851,7 @@ function UI:palette_commands()
     { id = "restart-kernel", label = "Restart current kernel" },
     { id = "restart-run-all", label = "Restart kernel and run all cells  (Ctrl+Shift+F5)" },
     { id = "clear-outputs", label = "Clear all cell outputs" },
+    { id = "clear-cell-output", label = "Clear selected cell output  (Ctrl+Alt+X)" },
     { id = "run-all", label = "Run all code cells" },
     { id = "run-below", label = "Run selected cell and below  (Ctrl+Alt+Enter)" },
     { id = "copy-cell", label = "Copy selected cell source  (Ctrl+Shift+C)" },
@@ -869,6 +877,7 @@ function UI:palette_commands()
     { id = "save", label = "Save notebook  (F6)" },
     { id = "save-as", label = "Save notebook as…" },
     { id = "close", label = "Close current notebook tab  (Ctrl+W)" },
+    { id = "reopen-closed", label = "Reopen last closed notebook  (Ctrl+Alt+T)" },
     { id = "open-dialog", label = "Open notebook…" },
     { id = "load", label = "Load notebook  (F7)" },
     { id = "new", label = "New notebook" },
@@ -946,6 +955,7 @@ function UI:run_palette_command(id)
   elseif id == "restart-kernel" then self.app:restart_kernel()
   elseif id == "restart-run-all" then self.app:restart_and_run_all()
   elseif id == "clear-outputs" then self.app:clear_outputs()
+  elseif id == "clear-cell-output" then self.app:clear_cell_output()
   elseif id == "run-all" then self.app:run_all()
   elseif id == "run-below" then self.app:run_all_below()
   elseif id == "copy-cell" then self.app:copy_cell_source()
@@ -974,6 +984,7 @@ function UI:run_palette_command(id)
   elseif id == "save" then self.app:save()
   elseif id == "save-as" then self.app:save_as()
   elseif id == "close" then self:request_close()
+  elseif id == "reopen-closed" then self.app:reopen_closed_notebook()
   elseif id == "open-dialog" then self.app:open_dialog()
   elseif id:match("^recent:(%d+)$") then
     local path = self.app.recent_paths[tonumber(id:match("%d+"))]
@@ -1174,8 +1185,30 @@ function UI:draw_nvim_delete_prompt(pass, width, height)
     x + 20, y + panel_h - 28, { 0.55, 0.8, 1, 1 }, 0.68)
 end
 
+function UI:update_tags()
+  local all = Format.tag_index(self.app.notebooks)
+  self.tag_entries = Format.filter_tag_entries(all, self.tag_query)
+  if #self.tag_entries == 0 then
+    self.tag_selected = 1
+  else
+    self.tag_selected = math.max(1,
+      math.min(self.tag_selected, #self.tag_entries))
+  end
+  return self.tag_entries
+end
+
 function UI:open_tags()
   self.show_tags = true
+  self.tag_query = ""
+  self.tag_selected = 1
+  self:update_tags()
+end
+
+function UI:jump_to_selected_tag()
+  local entry = self.tag_entries[self.tag_selected]
+  if entry == nil then return false end
+  self:open_tag(entry.tag)
+  return true
 end
 
 function UI:toggle_timing()
@@ -1215,31 +1248,41 @@ end
 function UI:draw_tags(pass, width, height)
   self.tag_rects = {}
   if not self.show_tags then return end
-  local entries = Format.tag_index(self.app.notebooks)
+  local entries = self:update_tags()
+  local all_entries = Format.tag_index(self.app.notebooks)
   local row_h = 38
-  local max_rows = math.max(1, math.floor((height - 130) / row_h))
+  local max_rows = math.max(1, math.floor((height - 170) / row_h))
   local visible = math.min(#entries, math.min(20, max_rows))
   local panel_w = math.min(700, width - 80)
   local rows = math.max(visible, 1)
-  local panel_h = 74 + rows * row_h + 34
+  local panel_h = 104 + rows * row_h + 34
   local x = (width - panel_w) / 2
   local y = math.max(28, (height - panel_h) / 2)
   box(pass, x + 5, y + 5, panel_w, panel_h, { 0, 0, 0, 0.35 })
   box(pass, x, y, panel_w, panel_h, { 0.055, 0.065, 0.095, 0.99 })
   box(pass, x, y, panel_w, 2, { 0.45, 0.78, 1, 1 })
   text(pass, self.app.font, string.format(
-    "Tag index — %d tag(s) across %d open notebook(s)", #entries,
+    "Tag index — %d tag(s) across %d open notebook(s)", #all_entries,
     #self.app.notebooks), x + 18, y + 14, { 0.9, 0.94, 1, 1 }, 0.8)
+  box(pass, x + 14, y + 40, panel_w - 28, 26, { 0.09, 0.12, 0.18, 1 })
+  text(pass, self.app.font,
+    (self.tag_query == "" and "type to filter tags" or self.tag_query) .. "|",
+    x + 22, y + 46,
+    self.tag_query == "" and { 0.45, 0.5, 0.62, 1 } or { 0.85, 0.92, 1, 1 },
+    0.7)
+  text(pass, self.app.font, string.format("%d of %d", #entries, #all_entries),
+    x + panel_w - 18, y + 46, { 0.55, 0.62, 0.75, 1 }, 0.62, "right")
   if #entries == 0 then
-    text(pass, self.app.font, "No markdown #tags in open notebooks.",
-      x + 18, y + 54, { 0.6, 0.66, 0.78, 1 }, 0.7)
+    text(pass, self.app.font, "No tags match this filter.", x + 18, y + 84,
+      { 0.6, 0.66, 0.78, 1 }, 0.7)
   end
   for index = 1, visible do
     local entry = entries[index]
-    local row_y = y + 48 + (index - 1) * row_h
+    local row_y = y + 76 + (index - 1) * row_h
     box(pass, x + 10, row_y, panel_w - 20, row_h - 2,
-      index % 2 == 0 and { 0.075, 0.09, 0.13, 1 } or
-      { 0.095, 0.11, 0.16, 1 })
+      index == self.tag_selected and { 0.14, 0.22, 0.34, 1 } or
+      (index % 2 == 0 and { 0.075, 0.09, 0.13, 1 } or
+      { 0.095, 0.11, 0.16, 1 }))
     text(pass, self.app.font, "#" .. entry.tag, x + 18, row_y + 4,
       { 0.85, 0.92, 1, 1 }, 0.7)
     local meta = string.format("%d use(s) · %d notebook(s)", entry.count,
@@ -1269,17 +1312,17 @@ function UI:draw_tags(pass, width, height)
     end
     self.tag_rects[#self.tag_rects + 1] = {
       x = x + 10, y = row_y, w = panel_w - 20, h = row_h - 2,
-      tag = entry.tag,
+      tag = entry.tag, match = index,
     }
   end
   if #entries > visible then
     text(pass, self.app.font,
-      string.format("showing %d of %d tags; search narrows in a notebook",
-        visible, #entries), x + 18, y + 48 + visible * row_h,
+      string.format("showing %d of %d matching tags", visible, #entries),
+      x + 18, y + 76 + visible * row_h,
       { 0.55, 0.62, 0.74, 1 }, 0.6)
   end
   text(pass, self.app.font,
-    "Click a tag or notebook chip to search  ·  Ctrl+T toggles  ·  Esc closes",
+    "Up/Down select · Enter opens · click a chip for a notebook · Esc closes",
     x + 18, y + panel_h - 22, { 0.5, 0.58, 0.72, 1 }, 0.62)
 end
 
@@ -1530,6 +1573,7 @@ function UI:draw_help(pass, width, height)
         { "Ctrl+W", "close notebook tab" },
         { "Ctrl+Shift+C / F5", "copy source / restart and run all" },
         { "Ctrl+Alt+C / Enter", "copy output / run below" },
+        { "Ctrl+Alt+X / T", "clear output / reopen tab" },
         { "Alt+Up / Down", "move selected cell" },
         { "Ctrl+Shift+Up / Down", "previous / next heading" },
         { "Ctrl+Tab", "next / previous notebook" },
@@ -1978,6 +2022,12 @@ function UI:textinput(value)
   if self.show_find then
     self.find_query = self.find_query .. value
     self:update_find()
+    return
+  end
+  if self.show_tags then
+    self.tag_query = self.tag_query .. value
+    self.tag_selected = 1
+    self:update_tags()
     return
   end
   if self.show_outline then
@@ -2560,8 +2610,20 @@ function UI:keypressed(key, modifiers)
     return
   end
   if self.show_tags then
-    if key == "escape" or (ctrl_down and key == "t" and not shift_down) then
+    if key == "escape" or
+       (ctrl_down and key == "t" and not shift_down and not alt_down) then
       self.show_tags = false
+    elseif key == "backspace" then
+      self.tag_query = self.tag_query:sub(1, -2)
+      self.tag_selected = 1
+      self:update_tags()
+    elseif key == "return" then
+      self:jump_to_selected_tag()
+    elseif key == "up" then
+      self.tag_selected = math.max(1, self.tag_selected - 1)
+    elseif key == "down" then
+      self.tag_selected = math.min(#self.tag_entries,
+        self.tag_selected + 1)
     end
     return
   end
@@ -2660,7 +2722,7 @@ function UI:keypressed(key, modifiers)
   if ctrl_down and key == "f" then self:open_find(); return end
   if ctrl_down and key == "h" then self:open_replace(); return end
   if ctrl_down and key == "g" then self:open_graph(); return end
-  if ctrl_down and key == "t" and not shift_down then
+  if ctrl_down and key == "t" and not shift_down and not alt_down then
     self:open_tags(); return
   end
   if ctrl_down and key == "e" and shift_down then
@@ -2693,6 +2755,14 @@ function UI:keypressed(key, modifiers)
   end
   if ctrl_down and alt_down and key == "c" then
     self.app:copy_cell_output()
+    return
+  end
+  if ctrl_down and alt_down and key == "x" then
+    self.app:clear_cell_output()
+    return
+  end
+  if ctrl_down and alt_down and key == "t" then
+    self.app:reopen_closed_notebook()
     return
   end
   if ctrl_down and key == "p" then
@@ -3666,6 +3736,12 @@ function UI:mousepressed(x, y, button)
       end
     end
     return
+  end
+  for _, rect in ipairs(self.link_rects) do
+    if inside(x, y, rect) then
+      self.app:open_title(rect.target)
+      return
+    end
   end
   for _, rect in ipairs(self.task_rects) do
     if inside(x, y, rect) then

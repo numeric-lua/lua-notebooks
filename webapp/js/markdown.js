@@ -227,25 +227,54 @@ function quoteDepth(line) {
   return { depth, text: rest };
 }
 
+const CALLOUT_TITLES = {
+  note: "Note",
+  tip: "Tip",
+  important: "Important",
+  warning: "Warning",
+  caution: "Caution",
+};
+
+function calloutMarker(entry) {
+  if (!entry || entry.depth !== 1) return null;
+  const match = String(entry.text).match(/^\s*\[!([a-z]+)\]\s*(.*)$/i);
+  if (!match) return null;
+  const kind = match[1].toLowerCase();
+  if (!CALLOUT_TITLES[kind]) return null;
+  return { kind, rest: match[2] };
+}
+
 function quoteHtml(entries, context) {
-  const renderFrom = (start, depth) => {
+  const renderFrom = (list, start, depth) => {
     const out = [];
     let index = start;
-    while (index < entries.length && entries[index].depth >= depth) {
-      if (entries[index].depth === depth) {
-        out.push(`<p>${inline(entries[index].text, context)}</p>`);
+    while (index < list.length && list[index].depth >= depth) {
+      if (list[index].depth === depth) {
+        if (list[index].text !== "") {
+          out.push(`<p>${inline(list[index].text, context)}</p>`);
+        }
         index += 1;
       } else {
         const childStart = index;
-        while (index < entries.length && entries[index].depth > depth) {
+        while (index < list.length && list[index].depth > depth) {
           index += 1;
         }
-        out.push(`<blockquote>${renderFrom(childStart, depth + 1)}</blockquote>`);
+        out.push(`<blockquote>${renderFrom(list, childStart, depth + 1)}</blockquote>`);
       }
     }
     return out.join("");
   };
-  return `<blockquote>${renderFrom(0, 1)}</blockquote>`;
+
+  const marker = calloutMarker(entries[0]);
+  if (marker) {
+    const body = [];
+    if (marker.rest) body.push({ depth: 1, text: marker.rest });
+    body.push(...entries.slice(1));
+    return `<div class="callout callout-${marker.kind}">` +
+      `<p class="callout-title">${CALLOUT_TITLES[marker.kind]}</p>` +
+      `${renderFrom(body, 0, 1)}</div>`;
+  }
+  return `<blockquote>${renderFrom(entries, 0, 1)}</blockquote>`;
 }
 
 export function renderMarkdown(source, prefix = "md") {

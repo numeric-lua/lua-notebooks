@@ -217,6 +217,13 @@ heading carries a hover/focus `#` permalink pointing at its anchor. Raw HTML
 in Markdown is escaped. Task-list checkboxes stay disabled in the static
 export; clicking them is a live-preview-only editing affordance.
 
+A quote whose first line is `[!NOTE]`, `[!TIP]`, `[!IMPORTANT]`,
+`[!WARNING]`, or `[!CAUTION]` becomes
+`<div class="callout callout-note">` with a
+`<p class="callout-title">Note</p>` and the remaining quote lines as body
+paragraphs. Unknown types stay ordinary blockquotes. Callout styles are shared
+with the browser front-end and print cleanly.
+
 Footnotes use `[^label]` references and single-line `[^label]: text`
 definitions within one cell. References become superscript links such as
 `<sup class="footnote-ref" id="fnref-cell-1-1">`; the referenced definitions are
@@ -263,10 +270,10 @@ make test-webapp          # Node browser-renderer tests
 
 The unit tests exercise heading anchors, duplicate slugs, heading permalinks,
 table-of-contents links, tables and alignment, nested lists, italic and
-blockquote grouping and nesting, thematic breaks and strikethrough,
+blockquote grouping, nesting, and callouts, thematic breaks and strikethrough,
 ordered-list start numbers, footnote references/endnotes/backlinks,
-interactive task-marker edits, outline filtering, search-index normalization
-and escaping, figure
+interactive task-marker edits, outline and tag filtering, search-index
+normalization and escaping, figure
 summaries/SVGs, polar axes and series, escaping, JSON truncation, tag filtering,
 and timing sums. `tests/polar.lua` additionally checks the shared projection,
 tick/label filters, bar sectors, heatmap-cell and contour geometry, large-field

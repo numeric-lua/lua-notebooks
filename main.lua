@@ -69,6 +69,7 @@ function App:new(notebooks)
   self._nvim_hidden_cell = nil
   self.nvim_delete_prompt = nil
   self.autosave_at = 0
+  self.closed_notebooks = {}
   self.recent_paths = {}
   local recent_ok, recent_text = pcall(lovr.filesystem.read, "recent.json")
   if recent_ok and recent_text then
@@ -188,6 +189,10 @@ function App:close_notebook(index, force)
     self.supervisor:stop(self:kernel_id(notebook))
   end
   self.kernel_keys[notebook] = nil
+  self.closed_notebooks[#self.closed_notebooks + 1] = {
+    notebook = notebook, index = index,
+  }
+  if #self.closed_notebooks > 10 then table.remove(self.closed_notebooks, 1) end
   table.remove(self.notebooks, index)
   for request, target in pairs(self.pending) do
     if target.notebook == index then
@@ -220,6 +225,24 @@ function App:save_and_close(index)
     return false, "save failed"
   end
   return self:close_notebook(index, true)
+end
+
+function App:reopen_closed_notebook()
+  local entry = table.remove(self.closed_notebooks)
+  if entry == nil then
+    self.status = "no closed notebook to reopen"
+    return false
+  end
+  local notebook = entry.notebook
+  self.notebooks[#self.notebooks + 1] = notebook
+  self.active = #self.notebooks
+  if self.supervisor and self.supervisor.open then
+    self.supervisor:open(self:kernel_id(notebook))
+  end
+  if self.ui then self.ui.scroll_to_selected = true end
+  self:save_session()
+  self.status = "reopened " .. notebook.name
+  return true
 end
 
 function App:session_paths()
@@ -683,6 +706,26 @@ function App:clear_outputs()
     cell.running = false
   end
   self.status = "cleared outputs"
+end
+
+function App:clear_cell_output()
+  local notebook = self:notebook()
+  local cell = notebook and notebook:selected()
+  if cell == nil then
+    self.status = "no cell to clear"
+    return false
+  end
+  if cell.running then
+    self.status = "cell is still running"
+    return false
+  end
+  cell.output = ""
+  cell.scene = nil
+  cell.widgets = {}
+  cell.error = nil
+  cell.output_expanded = false
+  self.status = "cleared output of cell " .. tostring(notebook.active)
+  return true
 end
 
 function App:restart_kernel()
@@ -1578,9 +1621,15 @@ function lovr.load()
     local remaining = app:notebook()
     local kernel_ok = app.supervisor.kernels[app:kernel_id(remaining)] ~= nil
     local old_gone = app.supervisor.kernels[old_id] == nil
-    print(string.format("SMOKE_CLOSE=%d:%d:%s:%s:%s:%s:%s", before,
+    app.ui:keypressed("t", { ctrl = true, alt = true })
+    local reopened = #app.notebooks == before and
+      app:notebook().name == first.name
+    local reopen_kernel =
+      app.supervisor.kernels[app:kernel_id(app:notebook())] ~= nil
+    print(string.format("SMOKE_CLOSE=%d:%d:%s:%s:%s:%s:%s:%s:%s", before,
       #app.notebooks, tostring(prompted), tostring(guarded),
-      tostring(closed), tostring(kernel_ok), tostring(old_gone)))
+      tostring(closed), tostring(kernel_ok), tostring(old_gone),
+      tostring(reopened), tostring(reopen_kernel)))
     lovr.event.quit()
   elseif os.getenv("LUANB_SMOKE_OUTPUT") then
     local cell = app:notebook():selected()
@@ -2034,15 +2083,52 @@ function lovr.load()
     outline_ok = outline_ok and outline_target ~= nil and
       notebook.active == outline_target.index and not app.ui.show_outline
 
+    notebook:select(1)
+    local clear_cell = notebook.cells[1]
+    local old_output2 = clear_cell.output
+    local old_error2 = clear_cell.error
+    local old_scene2 = clear_cell.scene
+    local old_widgets2 = clear_cell.widgets
+    clear_cell.output = "clear me"
+    clear_cell.error = "boom"
+    clear_cell.scene = "cube"
+    clear_cell.widgets = { { id = "w" } }
+    app.ui:keypressed("x", { ctrl = true, alt = true })
+    local clear_ok = clear_cell.output == "" and clear_cell.error == nil and
+      clear_cell.scene == nil and #clear_cell.widgets == 0
+    clear_cell.output = old_output2
+    clear_cell.error = old_error2
+    clear_cell.scene = old_scene2
+    clear_cell.widgets = old_widgets2
+
+    app.ui:keypressed("t", { ctrl = true })
+    app.ui:textinput("lua")
+    local tag_ok = #app.ui.tag_entries == 1 and
+      app.ui.tag_entries[1].tag == "lua"
+    app.ui:keypressed("return")
+    tag_ok = tag_ok and not app.ui.show_tags and
+      app.ui.find_query == "#lua"
+    app.ui:keypressed("escape")
+
+    app:set_tab(1)
+    app.ui.link_rects = {
+      { x = 0, y = 0, w = 20, h = 20, target = "Second kernel" },
+    }
+    app.ui:mousepressed(5, 5, 1)
+    local wiki_ok = app.active == 2 and
+      app:notebook():title() == "Second kernel"
+    app:set_tab(1)
+
     app.smoke_workflow_ok = moved_down and moved_up and heading_ok and
       collapsed_ok and expanded_ok and clipboard_ok and output_clipboard_ok and
-      task_ok and outline_ok
+      task_ok and outline_ok and clear_ok and tag_ok and wiki_ok
     print(string.format(
-      "SMOKE_WORKFLOW_SHORTCUTS=%s:%s:%s:%s:%s:%s:%s:%s:%s",
+      "SMOKE_WORKFLOW_SHORTCUTS=%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s",
       tostring(moved_down), tostring(moved_up), tostring(heading_ok),
       tostring(collapsed_ok), tostring(expanded_ok),
       tostring(clipboard_ok), tostring(output_clipboard_ok),
-      tostring(task_ok), tostring(outline_ok)))
+      tostring(task_ok), tostring(outline_ok), tostring(clear_ok),
+      tostring(tag_ok), tostring(wiki_ok)))
 
     local workflow = Notebook.new({
       name = "workflow-smoke.luanb",

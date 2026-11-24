@@ -192,13 +192,15 @@ Controls:
 | `Ctrl+H` | replace in the current notebook (`Alt+R` toggles Lua patterns) |
 | `Ctrl+G` | open the notebook link graph |
 | `Ctrl+Shift+R` | rename the trailing identifier across code cells |
-| `Ctrl+T` | open/close the tag index overlay |
+| `Ctrl+T` | open/close the filterable tag index overlay |
 | `Ctrl+W` | close the current notebook tab (prompts when unsaved) |
+| `Ctrl+Alt+T` | reopen the last closed notebook tab |
 | `Ctrl+Shift+E` | show/hide per-cell execution timing |
 | `Ctrl+Shift+I` | open/close notebook statistics |
 | `Ctrl+Shift+O` | expand/collapse the selected cell's long output |
 | `Ctrl+Shift+C` | copy the selected cell source |
 | `Ctrl+Alt+C` | copy the selected cell's text output or error |
+| `Ctrl+Alt+X` | clear the selected cell's output |
 | `Ctrl+Shift+F5` | restart the current kernel and run every code cell |
 | `Ctrl+Alt+Enter` | run the selected cell and every code cell below it |
 | `Alt+Up` / `Alt+Down` | move the selected cell up / down |
@@ -409,8 +411,8 @@ remaining gaps.
 
 `make test` runs the pure model, widget, engine, remote-supervisor,
 process-kernel, sandbox, editor, filetree filtering, workflow shortcut
-dispatch, Markdown table/nesting/emphasis/highlight/autolink/escape/footnote/
-regex, polar/heatmap/contour/
+dispatch, tag/heading filtering, Markdown nested quotes/callouts/tables/nesting/
+emphasis/highlight/autolink/escape/footnote/regex, polar/heatmap/contour/
 quiver/streamplot/colourbar/clipping export parity, and Neovim-buffer plan/apply
 suite on LuaJIT. `make test-lua51
 LUA=lua5.1` runs the Lua 5.1-compatible subset, including `tests/polar.lua`.
@@ -454,7 +456,7 @@ compositor and window stacking.
 ## LuaRocks
 
 ```sh
-luarocks make lua-notebooks-1.57.0-1.rockspec
+luarocks make lua-notebooks-1.58.0-1.rockspec
 lua-notebooks
 ```
 
@@ -463,7 +465,7 @@ The rockspec installs the app source under the LuaRocks share tree and a
 
 ```sh
 make rock
-luarocks install lua-notebooks-1.57.0-1.src.rock
+luarocks install lua-notebooks-1.58.0-1.src.rock
 ```
 
 Publishing to a remote rock server is intentionally not automated.
@@ -518,7 +520,7 @@ LUANB_SMOKE_STATS=1 lovr .  # open/close notebook statistics, then quit
 LUANB_SMOKE_GLOBAL_FIND=1 lovr . # search/jump across tabs, then quit
 LUANB_SMOKE_CLOSE=1 lovr . # guard, close, and re-key notebook kernels, then quit
 LUANB_SMOKE_OUTPUT=1 lovr . # expand a 12-line output, then quit
-LUANB_SMOKE_WORKFLOW=1 lovr . # shortcuts, task click, outline, restart + run below
+LUANB_SMOKE_WORKFLOW=1 lovr . # shortcuts, task click, tags/outline, restart + run below
 LUANB_QA_CELL=6 lovr .      # run one cell and keep the window open for visual QA
 LUANB_QA_TAGS=1 LUANB_QA_SCREENSHOT=1 lovr . # tag-index overlay screenshot
 LUANB_QA_STATS=1 LUANB_QA_SCREENSHOT=1 lovr . # statistics overlay screenshot
@@ -652,7 +654,10 @@ its globals alive.
 cells, without writing to the notebook or dirtying it. `Ctrl+Alt+C` copies the
 cell's captured text output, or its error text; scene and widget state are not
 clipboard text. `Ctrl+Alt+Enter` runs the selected cell and every code cell
-below it, leaving earlier outputs untouched. **Alt+Up** and **Alt+Down** reorder
+below it, leaving earlier outputs untouched. `Ctrl+Alt+X` clears the selected
+cell's output, scene, widgets, and error (refusing while it is running), and
+`Ctrl+Alt+T` reopens the most recently closed tab with a fresh kernel.
+**Alt+Up** and **Alt+Down** reorder
 the selected cell in one step; the cell keeps its source, output, and widget
 state. **Ctrl+Shift+Up** and **Ctrl+Shift+Down** jump to the nearest Markdown
 heading before or after the selected cell without wrapping. The command palette
@@ -678,15 +683,25 @@ indents deeper quotes with `│`, while the static export and browser front-end
 emit nested `<blockquote>` elements; depth-one quotes keep the existing
 one-paragraph-per-line layout.
 
+## Callouts
+
+A blockquote starting with `[!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`,
+or `[!CAUTION]` becomes a callout. The title is normalized (`[!WARNING]` renders
+as **Warning**), the remaining quoted lines keep their normal inline formatting,
+and unknown types stay ordinary blockquotes. The live preview marks the title
+with `▌`; the static export and browser emit
+`<div class="callout callout-warning">` with matching title/body styles.
+
 ## Links
 
-Wiki links such as `[[Notebook Title]]` are previewed without brackets. The command palette lists other tabs as **Switch to** entries and marks tabs that link to the current notebook as **Backlink**. Press **F1** to open it.
+Wiki links such as `[[Notebook Title]]` are previewed without brackets. Click a
+rendered wiki link in the preview to switch to that notebook tab. The command palette lists other tabs as **Switch to** entries and marks tabs that link to the current notebook as **Backlink**. Press **F1** to open it.
 
 The Neovim process is kept warm after F10/F9/F5, so reopening a cell or switching with Alt+J/K does not pay startup cost again. The process is destroyed when the app quits.
 
 ## Tags
 
-Markdown `#tags` are indexed across open notebooks in the command palette; selecting one opens notebook-wide search for that tag. Press **Ctrl+T** for a tag-index overlay that shows every tag with its total use count and a clickable chip for each notebook that contains it, including that notebook's per-tag count (up to three chips, then `+N more`). Click a chip to jump straight to that notebook and search for `#tag`, or click the tag row to use the current notebook when it has the tag and the first matching notebook otherwise; `Esc` closes the overlay.
+Markdown `#tags` are indexed across open notebooks in the command palette; selecting one opens notebook-wide search for that tag. Press **Ctrl+T** for a tag-index overlay that shows every tag with its total use count and a clickable chip for each notebook that contains it, including that notebook's per-tag count (up to three chips, then `+N more`). The overlay has a type-to-filter field; matching is a case-insensitive substring over tag names, Up/Down move the highlight, and Enter opens the selected tag. Click a chip to jump straight to that notebook and search for `#tag`, or click the tag row to use the current notebook when it has the tag and the first matching notebook otherwise; `Esc` closes the overlay.
 
 Tag scanning only reads Markdown prose. Tags inside fenced code blocks, inline code spans, URL fragments, and hex colors such as `#fff`, `#cafe`, or `#1a2b3c` are ignored; tags in headings, lists, and parentheses are counted.
 
