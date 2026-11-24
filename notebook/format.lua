@@ -401,7 +401,39 @@ local function trim_autolink(url)
   return trimmed, url:sub(#trimmed + 1)
 end
 
-local function inline_markdown(text)
+local function footnote_context(source, prefix)
+  local context = {
+    definitions = {},
+    numbers = {},
+    order = {},
+    prefix = (prefix or "cell"):gsub("[^%w%-_]", "-"),
+  }
+  local in_fence = false
+  for line in ((source or "") .. "\n"):gmatch("(.-)\n") do
+    if line:match("^%s*[`~][`~][`~]+") then
+      in_fence = not in_fence
+    elseif not in_fence then
+      local label, body = line:match("^%s*%[%^([%w%-_]+)%]:%s*(.*)$")
+      if label ~= nil and context.definitions[label] == nil then
+        context.definitions[label] = body
+      end
+    end
+  end
+  return context
+end
+
+local function footnote_number(context, label)
+  if context == nil or context.definitions[label] == nil then return nil end
+  local number = context.numbers[label]
+  if number == nil then
+    number = #context.order + 1
+    context.numbers[label] = number
+    context.order[number] = label
+  end
+  return number
+end
+
+local function inline_markdown(text, footnotes)
   local escaped = escape_html(text)
   local slots = {}
   local function hold(html)
@@ -448,6 +480,16 @@ local function inline_markdown(text)
   escaped = escaped:gsub("%*(.-)%*", "<em>%1</em>")
   escaped = escaped:gsub("^_([^_]+)_", "<em>%1</em>")
   escaped = escaped:gsub("([^%w_])_([^_]+)_", "%1<em>%2</em>")
+  if footnotes ~= nil then
+    escaped = escaped:gsub("%[%^([%w%-_]+)%]", function(label)
+      local number = footnote_number(footnotes, label)
+      if number == nil then return "[^" .. label .. "]" end
+      local reference = "fnref-" .. footnotes.prefix .. "-" .. number
+      local target = "fn-" .. footnotes.prefix .. "-" .. number
+      return '<sup class="footnote-ref" id="' .. reference .. '">' ..
+        '<a href="#' .. target .. '">' .. number .. "</a></sup>"
+    end)
+  end
   -- A held anchor can contain an earlier code slot; restore until stable.
   while true do
     local restored, count = escaped:gsub("\1(%d+)\1", function(index)
@@ -499,20 +541,20 @@ local function table_alignment(line)
   return aligns
 end
 
-local function table_cell_html(tag, value, alignment)
+local function table_cell_html(tag, value, alignment, footnotes)
   local class = alignment ~= "left" and (' class="align-' .. alignment .. '"') or ""
   return "<" .. tag .. class .. ">" ..
-    inline_markdown(value:gsub("^%s+", ""):gsub("%s+$", "")) ..
+    inline_markdown(value:gsub("^%s+", ""):gsub("%s+$", ""), footnotes) ..
     "</" .. tag .. ">"
 end
 
-local function table_html(lines, index, header, aligns)
+local function table_html(lines, index, header, aligns, footnotes)
   local count = #aligns
   local function row(cells, tag)
     local parts = {}
     for column = 1, count do
       parts[#parts + 1] = table_cell_html(tag, cells[column] or "",
-        aligns[column])
+        aligns[column], footnotes)
     end
     return "<tr>" .. table.concat(parts) .. "</tr>"
   end
@@ -589,8 +631,9 @@ end
 -- Small, readable Markdown renderer for static exports.  It intentionally
 -- covers the subset the editor previews: headings, nested lists, pipe tables,
 -- quotes, fenced code, emphasis, inline code, links, and wiki links.
-local function markdown_html(source, headings)
+local function markdown_html(source, headings, footnote_prefix)
   local lines = split_markdown_lines(source)
+  local footnotes = footnote_context(source, footnote_prefix)
   local out = {}
   local fence, fence_language, fence_lines = nil, nil, {}
   local paragraph, quote = {}, {}
@@ -620,9 +663,9 @@ local function markdown_html(source, headings)
           (item.checked and " done" or "") .. '">' ..
           '<input type="checkbox" disabled' ..
           (item.checked and " checked" or "") .. "> " ..
-          inline_markdown(item.text)
+          inline_markdown(item.text, footnotes)
       else
-        body = "<li>" .. inline_markdown(item.text)
+        body = "<li>" .. inline_markdown(item.text, footnotes)
       end
       for _, child in ipairs(item.children or {}) do
         body = body .. child
@@ -672,7 +715,8 @@ local function markdown_html(source, headings)
     if #quote > 0 then
       local parts = {}
       for _, line in ipairs(quote) do
-        parts[#parts + 1] = "<p>" .. inline_markdown(line) .. "</p>"
+        parts[#parts + 1] = "<p>" ..
+          inline_markdown(line, footnotes) .. "</p>"
       end
       out[#out + 1] = "<blockquote>" .. table.concat(parts) .. "</blockquote>"
       quote = {}
@@ -693,6 +737,21 @@ local function markdown_html(source, headings)
     end
   end
 
+  local function append_footnotes()
+    if #footnotes.order == 0 then return end
+    local items = {}
+    for number, label in ipairs(footnotes.order) do
+      local id = "fn-" .. footnotes.prefix .. "-" .. number
+      local reference = "fnref-" .. footnotes.prefix .. "-" .. number
+      items[#items + 1] = '<li id="' .. id .. '">' ..
+        inline_markdown(footnotes.definitions[label] or "", footnotes) ..
+        ' <a class="footnote-back" href="#' .. reference ..
+        '" aria-label="Back to footnote ' .. number .. '">↩</a></li>'
+    end
+    out[#out + 1] = '<section class="footnotes" role="doc-endnotes">' ..
+      "<hr><ol>" .. table.concat(items) .. "</ol></section>"
+  end
+
   local index = 1
   while index <= #lines do
     local line = lines[index]
@@ -711,50 +770,61 @@ local function markdown_html(source, headings)
       fence, fence_language = marker, language or ""
       index = index + 1
     else
-      local header = table_row(line)
-      local aligns = header and table_alignment(lines[index + 1] or "")
-      if header ~= nil and aligns ~= nil then
+      local definition = line:match("^%s*%[%^([%w%-_]+)%]:")
+      if definition ~= nil then
+        -- Definitions are rendered as the endnotes section below.
         flush_blocks()
-        local html, next_index = table_html(lines, index, header, aligns)
-        out[#out + 1] = html
-        index = next_index
-      else
-        local item = list_item(line)
-        local hashes, raw = line:match("^%s*(#+)%s+(.+)$")
-        if hashes ~= nil and #hashes <= 6 then
-          flush_blocks()
-          heading_index = heading_index + 1
-          local heading = headings and headings[heading_index] or nil
-          local id = heading and (' id="' .. escape_html(heading.id) .. '"') or ""
-          local permalink = ""
-          if heading ~= nil then
-            permalink = '<a class="heading-permalink" href="#' ..
-              escape_html(heading.id) .. '" aria-label="Permalink to ' ..
-              escape_html(heading.text) .. '">#</a>'
-          end
-          out[#out + 1] = "<h" .. #hashes .. id .. ">" ..
-            inline_markdown(raw:gsub("%s+#+%s*$", "")) .. permalink ..
-            "</h" .. #hashes .. ">"
-        elseif line:match("^%s*([%*%-_])%s*%1%s*%1[%s%*%-_]*$") then
-          flush_blocks()
-          out[#out + 1] = "<hr>"
-        elseif item ~= nil then
-          flush_paragraph(); flush_quote()
-          add_list_item(item)
-        elseif line:match("^%s*>%s?") then
-          flush_paragraph(); close_lists()
-          quote[#quote + 1] = line:gsub("^%s*>%s?", "")
-        elseif line:match("^%s*$") then
-          flush_blocks()
-        else
-          close_lists(); flush_quote()
-          paragraph[#paragraph + 1] = inline_markdown(line:gsub("^%s+", ""))
-        end
         index = index + 1
+      else
+        local header = table_row(line)
+        local aligns = header and table_alignment(lines[index + 1] or "")
+        if header ~= nil and aligns ~= nil then
+          flush_blocks()
+          local html, next_index = table_html(lines, index, header, aligns,
+            footnotes)
+          out[#out + 1] = html
+          index = next_index
+        else
+          local item = list_item(line)
+          local hashes, raw = line:match("^%s*(#+)%s+(.+)$")
+          if hashes ~= nil and #hashes <= 6 then
+            flush_blocks()
+            heading_index = heading_index + 1
+            local heading = headings and headings[heading_index] or nil
+            local id = heading and
+              (' id="' .. escape_html(heading.id) .. '"') or ""
+            local permalink = ""
+            if heading ~= nil then
+              permalink = '<a class="heading-permalink" href="#' ..
+                escape_html(heading.id) .. '" aria-label="Permalink to ' ..
+                escape_html(heading.text) .. '">#</a>'
+            end
+            out[#out + 1] = "<h" .. #hashes .. id .. ">" ..
+              inline_markdown(raw:gsub("%s+#+%s*$", ""), footnotes) ..
+              permalink .. "</h" .. #hashes .. ">"
+          elseif line:match("^%s*([%*%-_])%s*%1%s*%1[%s%*%-_]*$") then
+            flush_blocks()
+            out[#out + 1] = "<hr>"
+          elseif item ~= nil then
+            flush_paragraph(); flush_quote()
+            add_list_item(item)
+          elseif line:match("^%s*>%s?") then
+            flush_paragraph(); close_lists()
+            quote[#quote + 1] = line:gsub("^%s*>%s?", "")
+          elseif line:match("^%s*$") then
+            flush_blocks()
+          else
+            close_lists(); flush_quote()
+            paragraph[#paragraph + 1] =
+              inline_markdown(line:gsub("^%s+", ""), footnotes)
+          end
+          index = index + 1
+        end
       end
     end
   end
   flush_fence(); flush_blocks()
+  append_footnotes()
   return table.concat(out, "\n")
 end
 
@@ -1810,6 +1880,13 @@ pre.error{background:var(--error);border-left:4px solid #c94b4b;color:#b42323}
 .markdown-table th{background:var(--toc);font-weight:650}
 .markdown-table .align-center{text-align:center}
 .markdown-table .align-right{text-align:right}
+.footnote-ref{font-size:.72em;line-height:0;vertical-align:super}
+.footnote-ref a{text-decoration:none}
+.footnotes{margin:1.3rem 0 0;padding-top:.55rem;border-top:1px solid var(--border);color:var(--muted);font-size:.9rem}
+.footnotes ol{margin:.4rem 0 0;padding-left:1.4rem}
+.footnotes li{margin:.18rem 0}
+.footnote-back{text-decoration:none;margin-left:.3rem}
+@media print{.footnote-back{display:none}}
 .scene{margin:1rem 0 0;padding:0}
 .scene-svg{display:block;width:100%;height:auto;border:1px solid var(--border);border-radius:10px;background:var(--figure)}
 .scene figcaption{color:var(--muted);font-size:.86rem;padding:.55rem .15rem 0;display:flex;flex-wrap:wrap;gap:.35rem .6rem;align-items:baseline}
@@ -2117,7 +2194,8 @@ function Format.to_html(notebook, backlinks, options)
       index .. '</span><a class="permalink" href="#cell-' .. index ..
       '" aria-label="Permalink to cell ' .. index .. '">#</a></div>'
     if cell.kind == "markdown" then
-      out[#out + 1] = markdown_html(cell.source, by_cell[index])
+      out[#out + 1] = markdown_html(cell.source, by_cell[index],
+        "cell-" .. index)
     else
       out[#out + 1] = code_block_html(cell.source or "", "lua")
       if cell.scene ~= nil then

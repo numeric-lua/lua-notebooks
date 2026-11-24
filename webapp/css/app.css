@@ -210,6 +210,11 @@ button { cursor: pointer; }
 .markdown-preview .markdown-table th { background: #1b2130; font-weight: 650; }
 .markdown-preview .markdown-table .align-center { text-align: center; }
 .markdown-preview .markdown-table .align-right { text-align: right; }
+.markdown-preview .footnote-ref { font-size: .72em; line-height: 0; vertical-align: super; }
+.markdown-preview .footnote-ref a { text-decoration: none; border-bottom: 0; }
+.markdown-preview .footnotes { margin-top: 14px; padding-top: 8px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; }
+.markdown-preview .footnotes ol { padding-left: 22px; }
+.markdown-preview .footnote-back { margin-left: 4px; text-decoration: none; border-bottom: 0; }
 .markdown-preview hr { border: 0; border-top: 1px solid var(--border); margin: 18px 0; }
 .math { font-family: "Cambria Math", "STIX Two Math", serif; color: #c9d5ff; }
 

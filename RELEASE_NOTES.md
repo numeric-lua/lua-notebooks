@@ -1,3 +1,33 @@
+# lua-notebooks 1.56.0
+
+- add **Ctrl+Shift+F5** and a command-palette action to restart the current
+  kernel and immediately run every code cell, so the first cell sees a fresh
+  global state;
+- add **Ctrl+Shift+C** and a palette action to copy the selected cell source
+  exactly, without writing to the notebook or marking it dirty;
+- move the selected cell with **Alt+Up** / **Alt+Down** (the existing palette
+  move actions now show the shortcuts);
+- add **Ctrl+Shift+Up** / **Ctrl+Shift+Down** heading navigation plus
+  **Collapse all headings** and **Expand all headings** palette actions, with
+  the fold change stored as one undoable edit;
+- render Markdown footnotes across the live preview, static HTML export, and
+  browser front-end: `[^label]` references, single-line `[^label]: text`
+  definitions, first-reference numbering, an endnotes section with per-note
+  backlinks, literal handling inside code and for undefined/escaped
+  references, and light/dark/print styles;
+- add `tests/workflow.lua`, a `LUANB_SMOKE_WORKFLOW` LÖVR smoke that exercises
+  the shortcut dispatch and a real restart-run-all cycle, footnote unit and
+  browser tests, footnote DOM checks in `scripts/export-qa.sh`, a footnote demo
+  cell in the desktop and browser welcome notebooks, and documentation in the
+  README, `docs/export.md`, `docs/web.md`, `docs/roadmap.md`, and
+  `webapp/README.md`.
+
+No new runtime dependencies. The Neovim path, kernel protocol, and committed
+visual pixel baselines are unchanged. `make test`, `make test-nvim`,
+`make test-webapp`, `LUANB_SMOKE_WORKFLOW=1 lovr .`, the pixel baseline check,
+`scripts/export-qa.sh`, and `scripts/scene-qa.sh` pass. This release is tagged
+`v1.56.0`.
+
 # lua-notebooks 1.55.0
 
 - add a type-to-filter field to the **F2** notebook filetree: case-insensitive

@@ -110,6 +110,10 @@ local notebook = Notebook.new({ name = "export-qa.luanb", cells = {
     "",
     "==highlighted== https://example.com/docs and \\*literal\\*",
     "",
+    "Footnote reference[^qa].",
+    "",
+    "[^qa]: footnote body with *emphasis*.",
+    "",
     "```lua",
     "print('snippet')",
     "```",
@@ -262,6 +266,10 @@ for needle in 'class="task-list"' 'class="task-list-item done"' \
     '<mark>highlighted</mark>' 'href="https://example.com/docs"' \
     '>https://example.com/docs</a>' '*literal*' \
     'class="heading-permalink"' 'aria-label="Permalink to Export QA"' \
+    'class="footnote-ref" id="fnref-cell-1-1"' \
+    '<a href="#fn-cell-1-1">1</a>' 'class="footnotes"' \
+    '<li id="fn-cell-1-1">footnote body with <em>emphasis</em>.' \
+    'class="footnote-back" href="#fnref-cell-1-1"' \
     'class="copy-code"' 'class="code-line"' 'data-line="1"' \
     'language-lua'; do
   grep -Fq "$needle" "$OUT/full.dom.html" || {

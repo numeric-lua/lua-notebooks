@@ -197,6 +197,10 @@ Controls:
 | `Ctrl+Shift+E` | show/hide per-cell execution timing |
 | `Ctrl+Shift+I` | open/close notebook statistics |
 | `Ctrl+Shift+O` | expand/collapse the selected cell's long output |
+| `Ctrl+Shift+C` | copy the selected cell source |
+| `Ctrl+Shift+F5` | restart the current kernel and run every code cell |
+| `Alt+Up` / `Alt+Down` | move the selected cell up / down |
+| `Ctrl+Shift+Up` / `Ctrl+Shift+Down` | jump to the previous / next Markdown heading |
 | `F1` | open/close the command palette |
 | `F2` | open the hierarchical notebook filetree |
 | `F3` | toggle Vim mode (on by default) |
@@ -301,6 +305,13 @@ punctuation literal (`\*`, `\_`, an escaped backtick, `\[`, `\]`, `\(`, `\)`,
 `\#`, `\+`, `\-`, `\.`, `\!`, `\|`, `\~`, `\=`, and `\\`) in all three
 renderers.
 
+Footnotes use `[^label]` for a reference and a single-line `[^label]: text`
+definition in the same Markdown cell. The preview shows numbered references and
+a `↳` definition line; the static export and browser emit superscript links,
+an endnotes section numbered in first-reference order, and per-note backlinks.
+Definitions inside fenced code or inline code stay literal, and a reference
+without a definition remains literal too.
+
 ## Notebook title
 
 The first `#` heading in a markdown cell is the notebook title. Tabs show this
@@ -394,8 +405,9 @@ remaining gaps.
 ## Tests
 
 `make test` runs the pure model, widget, engine, remote-supervisor,
-process-kernel, sandbox, editor, filetree filtering, Markdown
-table/nesting/emphasis/highlight/autolink/escape/regex, polar/heatmap/contour/
+process-kernel, sandbox, editor, filetree filtering, workflow shortcut
+dispatch, Markdown table/nesting/emphasis/highlight/autolink/escape/footnote/
+regex, polar/heatmap/contour/
 quiver/streamplot/colourbar/clipping export parity, and Neovim-buffer plan/apply
 suite on LuaJIT. `make test-lua51
 LUA=lua5.1` runs the Lua 5.1-compatible subset, including `tests/polar.lua`.
@@ -439,7 +451,7 @@ compositor and window stacking.
 ## LuaRocks
 
 ```sh
-luarocks make lua-notebooks-1.55.0-1.rockspec
+luarocks make lua-notebooks-1.56.0-1.rockspec
 lua-notebooks
 ```
 
@@ -448,7 +460,7 @@ The rockspec installs the app source under the LuaRocks share tree and a
 
 ```sh
 make rock
-luarocks install lua-notebooks-1.55.0-1.src.rock
+luarocks install lua-notebooks-1.56.0-1.src.rock
 ```
 
 Publishing to a remote rock server is intentionally not automated.
@@ -503,6 +515,7 @@ LUANB_SMOKE_STATS=1 lovr .  # open/close notebook statistics, then quit
 LUANB_SMOKE_GLOBAL_FIND=1 lovr . # search/jump across tabs, then quit
 LUANB_SMOKE_CLOSE=1 lovr . # guard, close, and re-key notebook kernels, then quit
 LUANB_SMOKE_OUTPUT=1 lovr . # expand a 12-line output, then quit
+LUANB_SMOKE_WORKFLOW=1 lovr . # exercise workflow shortcuts + restart/run-all
 LUANB_QA_CELL=6 lovr .      # run one cell and keep the window open for visual QA
 LUANB_QA_TAGS=1 LUANB_QA_SCREENSHOT=1 lovr . # tag-index overlay screenshot
 LUANB_QA_STATS=1 LUANB_QA_SCREENSHOT=1 lovr . # statistics overlay screenshot
@@ -617,14 +630,28 @@ capture text from an ignore-case replacement is lowercase.
 
 ## Kernel commands
 
-The command palette exposes **Restart current kernel**, **Clear all cell outputs**, **Run all code cells**,
-**Move selected cell up/down**, **Duplicate selected cell**, **Close current
-notebook tab**, **Export notebook as Markdown**, and **Export notebook as
-HTML**. `Ctrl+Shift+K` restarts the current kernel. `Ctrl+W` closes the current
-tab; when the notebook has unsaved changes, the prompt offers **Enter/Y** to
-discard, **S** to save and close, or **Escape/N** to cancel. Kernels are keyed
-by notebook, not tab number, so closing one tab keeps every remaining kernel
-and its globals alive.
+The command palette exposes **Restart current kernel**, **Restart kernel and
+run all cells**, **Clear all cell outputs**, **Run all code cells**, **Copy
+selected cell source**, **Move selected cell up/down**, **Previous/next
+heading**, **Collapse/expand all headings**, **Duplicate selected cell**,
+**Close current notebook tab**, **Export notebook as Markdown**, and **Export
+notebook as HTML**. `Ctrl+Shift+K` restarts the current kernel;
+`Ctrl+Shift+F5` restarts and immediately runs every code cell, so the first
+cell already sees a fresh global state. `Ctrl+W` closes the current tab; when
+the notebook has unsaved changes, the prompt offers **Enter/Y** to discard,
+**S** to save and close, or **Escape/N** to cancel. Kernels are keyed by
+notebook, not tab number, so closing one tab keeps every remaining kernel and
+its globals alive.
+
+## Notebook workflow shortcuts
+
+`Ctrl+Shift+C` copies the selected cell's source exactly, including Markdown
+cells, without writing to the notebook or dirtying it. **Alt+Up** and
+**Alt+Down** reorder the selected cell in one step; the cell keeps its source,
+output, and widget state. **Ctrl+Shift+Up** and **Ctrl+Shift+Down** jump to the
+nearest Markdown heading before or after the selected cell without wrapping.
+The command palette adds **Collapse all headings** and **Expand all headings**,
+which change every heading as one undoable edit while leaving code cells alone.
 
 ## Links
 

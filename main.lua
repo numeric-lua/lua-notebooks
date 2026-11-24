@@ -676,12 +676,66 @@ function App:restart_kernel()
   local id = self:kernel_id(self:notebook())
   if self.supervisor.restart then
     self.supervisor:restart(id)
+    for request, target in pairs(self.pending) do
+      if target.notebook == self.active then self.pending[request] = nil end
+    end
     local notebook = self:notebook()
     for _, cell in ipairs(notebook.cells) do cell.running = false end
     self.status = "kernel restarted"
-  else
-    self.status = "kernel restart is unavailable for this backend"
+    return true
   end
+  self.status = "kernel restart is unavailable for this backend"
+  return false
+end
+
+-- Restart first, then run every code cell in the restarted state.  The restart
+-- is synchronous for every backend, so the first job always sees the new kernel.
+function App:restart_and_run_all()
+  if self:restart_kernel() then self:run_all() end
+end
+
+function App:copy_cell_source()
+  local notebook = self:notebook()
+  local cell = notebook and notebook:selected()
+  if cell == nil then
+    self.status = "no cell to copy"
+    return false
+  end
+  local ok = pcall(function()
+    lovr.system.setClipboardText(cell.source or "")
+  end)
+  if ok then
+    self.status = "copied source of cell " .. tostring(notebook.active)
+  else
+    self.status = "clipboard is unavailable"
+  end
+  return ok
+end
+
+function App:goto_heading(delta)
+  local notebook = self:notebook()
+  local target = notebook:heading_relative(delta)
+  if target == nil then
+    self.status = delta > 0 and "no later heading" or "no earlier heading"
+    return false
+  end
+  notebook:select(target)
+  self.scroll_to_selected = true
+  local heading = notebook.cells[target].source:gsub("^#+%s*", ""):gsub("\n.*$", "")
+  self.status = "heading: " .. heading
+  return true
+end
+
+function App:set_headings_collapsed(collapsed)
+  local changed = self:notebook():set_headings_collapsed(collapsed)
+  if changed then
+    self.scroll_to_selected = true
+    self.status = collapsed and "collapsed all headings" or "expanded all headings"
+  else
+    self.status = collapsed and "all headings are already collapsed" or
+      "all headings are already expanded"
+  end
+  return changed
 end
 
 function App:open_title(title)
@@ -1853,7 +1907,73 @@ function lovr.load()
   -- Non-interactive smoke path: run the first welcome cell, print its result,
   -- and quit.  This exercises thread startup, channels, the kernel worker, and
   -- result routing without requiring a human at the window.
-  if os.getenv("LUANB_SMOKE_VIMEDGE") then
+  if os.getenv("LUANB_SMOKE_WORKFLOW") then
+    local notebook = app:notebook()
+    notebook:select(1)
+    local first_source = notebook.cells[1].source
+    local second_source = notebook.cells[2].source
+    app.ui:keypressed("down", { alt = true })
+    local moved_down = notebook.active == 2 and
+      notebook.cells[2].source == first_source and
+      notebook.cells[1].source == second_source
+    app.ui:keypressed("up", { alt = true })
+    local moved_up = notebook.active == 1 and
+      notebook.cells[1].source == first_source
+
+    local headings = notebook:headings()
+    local heading_ok = #headings >= 2
+    if heading_ok then
+      notebook:select(headings[2].index)
+      app.ui:keypressed("up", { ctrl = true, shift = true })
+      local previous_ok = notebook.active == headings[1].index
+      app.ui:keypressed("down", { ctrl = true, shift = true })
+      heading_ok = previous_ok and notebook.active == headings[2].index
+    end
+
+    app.ui:run_palette_command("collapse-headings")
+    local collapsed_ok = true
+    for _, cell in ipairs(notebook.cells) do
+      if Notebook.heading_level(cell) and not cell.collapsed then
+        collapsed_ok = false
+      end
+    end
+    app.ui:run_palette_command("expand-headings")
+    local expanded_ok = true
+    for _, cell in ipairs(notebook.cells) do
+      if Notebook.heading_level(cell) and cell.collapsed then
+        expanded_ok = false
+      end
+    end
+
+    notebook:select(1)
+    local copied_source = notebook.cells[1].source
+    app.ui:keypressed("c", { ctrl = true, shift = true })
+    local clipboard_ok = lovr.system.getClipboardText() == copied_source
+
+    app.smoke_workflow_ok = moved_down and moved_up and heading_ok and
+      collapsed_ok and expanded_ok and clipboard_ok
+    print(string.format(
+      "SMOKE_WORKFLOW_SHORTCUTS=%s:%s:%s:%s:%s:%s",
+      tostring(moved_down), tostring(moved_up), tostring(heading_ok),
+      tostring(collapsed_ok), tostring(expanded_ok),
+      tostring(clipboard_ok)))
+
+    local workflow = Notebook.new({
+      name = "workflow-smoke.luanb",
+      cells = {
+        { kind = "code", output = "", source = "workflow_marker = (workflow_marker or 0) + 1\nprint(\"workflow marker\", workflow_marker)" },
+        { kind = "code", output = "", source = "print(\"workflow repeat\", workflow_marker)" },
+      },
+    })
+    app.notebooks[#app.notebooks + 1] = workflow
+    app.active = #app.notebooks
+    app.supervisor:open(app:kernel_id(workflow))
+    app.smoke = true
+    app.smoke_start = lovr.timer.getTime()
+    app.smoke_workflow_phase = "prepare"
+    workflow:select(1)
+    app:run()
+  elseif os.getenv("LUANB_SMOKE_VIMEDGE") then
     app.ui.vim_normal = true
     app.ui:keypressed("m")
     app.ui:keypressed("a")
@@ -2014,7 +2134,42 @@ function lovr.update(dt)
   if app.smoke then
     local notebook = app:notebook()
     local cell = notebook.cells[notebook.active]
-    if os.getenv("LUANB_SMOKE_SUBST") then
+    if os.getenv("LUANB_SMOKE_WORKFLOW") then
+      local first, second = notebook.cells[1], notebook.cells[2]
+      if app.smoke_workflow_phase == "prepare" then
+        if not first.running and
+           first.output:find("workflow marker\t1", 1, true) then
+          app.ui:keypressed("f5", { ctrl = true, shift = true })
+          app.smoke_workflow_phase = "run-all"
+          app.smoke_start = lovr.timer.getTime()
+        elseif lovr.timer.getTime() - app.smoke_start > 8 then
+          print("SMOKE_WORKFLOW=timeout:prepare:" ..
+            tostring(first.output))
+          app.smoke = false
+          lovr.event.quit()
+        end
+      elseif app.smoke_workflow_phase == "run-all" then
+        if app._run_all_position == nil and not first.running and
+           not second.running and
+           app.status:find("all code cells finished", 1, true) then
+          local first_ok =
+            first.output:find("workflow marker\t1", 1, true) ~= nil
+          local second_ok =
+            second.output:find("workflow repeat\t1", 1, true) ~= nil
+          local ok = app.smoke_workflow_ok and first_ok and second_ok
+          print("SMOKE_WORKFLOW=" .. tostring(ok) .. ":" ..
+            tostring(first_ok) .. ":" .. tostring(second_ok) .. ":" ..
+            tostring(first.output) .. "|" .. tostring(second.output))
+          app.smoke = false
+          lovr.event.quit()
+        elseif lovr.timer.getTime() - app.smoke_start > 15 then
+          print("SMOKE_WORKFLOW=timeout:run-all:" .. tostring(app.status) ..
+            ":" .. tostring(first.output) .. "|" .. tostring(second.output))
+          app.smoke = false
+          lovr.event.quit()
+        end
+      end
+    elseif os.getenv("LUANB_SMOKE_SUBST") then
     local cell = app:notebook():selected()
     cell.source = "hello hello"
     cell.cursor = #cell.source + 1

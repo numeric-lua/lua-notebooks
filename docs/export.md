@@ -214,6 +214,15 @@ a table inside a fenced block stays code. Consecutive `>` lines are grouped in
 one `<blockquote>`, and every rendered heading carries a hover/focus `#`
 permalink pointing at its anchor. Raw HTML in Markdown is escaped.
 
+Footnotes use `[^label]` references and single-line `[^label]: text`
+definitions within one cell. References become superscript links such as
+`<sup class="footnote-ref" id="fnref-cell-1-1">`; the referenced definitions are
+appended as `<section class="footnotes" role="doc-endnotes">` with one `<li>`
+per note and a `class="footnote-back"` link. Numbers follow first-reference
+order, definitions are removed from the body flow, and definitions or
+references inside inline/fenced code stay literal. An undefined reference is
+left as `[^label]`.
+
 ## Determinism
 
 `Format.to_html` contains no clock or filesystem data, so exporting the same
@@ -252,7 +261,8 @@ make test-webapp          # Node browser-renderer tests
 The unit tests exercise heading anchors, duplicate slugs, heading permalinks,
 table-of-contents links, tables and alignment, nested lists, italic and
 blockquote grouping, thematic breaks and strikethrough, ordered-list start
-numbers, search-index normalization and escaping, figure
+numbers, footnote references/endnotes/backlinks, search-index normalization
+and escaping, figure
 summaries/SVGs, polar axes and series, escaping, JSON truncation, tag filtering,
 and timing sums. `tests/polar.lua` additionally checks the shared projection,
 tick/label filters, bar sectors, heatmap-cell and contour geometry, large-field

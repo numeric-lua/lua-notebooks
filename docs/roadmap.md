@@ -24,8 +24,12 @@
   whole-word options, a current-cell scope, and a cross-notebook search
   overlay with per-tab result jumps.
 - GitHub-style Markdown pipe tables, nested lists, italic emphasis, grouped
-  blockquotes, highlight, bare-URL autolinks, and backslash escapes across the
-  preview, static export, and browser front-end.
+  blockquotes, highlight, bare-URL autolinks, backslash escapes, and numbered
+  footnotes with endnote backlinks across the preview, static export, and
+  browser front-end.
+- Notebook workflow commands: restart-and-run-all, copy cell source, move the
+  selected cell with Alt+Up/Down, heading navigation, and collapse/expand all
+  headings as one undoable edit.
 - Close-notebook tabs with an unsaved-changes guard; kernels are keyed by
   notebook object so other tabs keep their globals.
 - Filterable hierarchical notebook filetree with create/delete/rename/folder
@@ -63,8 +67,9 @@
 ```sh
 make test
 make test-webapp           # Node scene/model tests, no packages
+LUANB_SMOKE_WORKFLOW=1 lovr . # shortcut and restart/run-all smoke
 ./scripts/input-smoke.sh   # needs a seat and /dev/uinput
 ./scripts/visual-smoke.sh  # needs a display
 ./scripts/scene-qa.sh      # needs chromium
-luarocks make lua-notebooks-1.55.0-1.rockspec --tree=/tmp/luanb-rocks
+luarocks make lua-notebooks-1.56.0-1.rockspec --tree=/tmp/luanb-rocks
 ```

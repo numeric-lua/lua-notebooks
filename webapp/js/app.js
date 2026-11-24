@@ -285,14 +285,15 @@ function markdownFor(cell) {
   input.setAttribute("aria-label", "Markdown source");
   const preview = document.createElement("div");
   preview.className = "markdown-preview";
-  preview.innerHTML = renderMarkdown(cell.source);
+  const footnotePrefix = String(cell.id || "md").replace(/[^\w-]/g, "-");
+  preview.innerHTML = renderMarkdown(cell.source, footnotePrefix);
   const beginEdit = () => {
     wrap.classList.add("editing");
     requestAnimationFrame(() => { input.focus(); input.setSelectionRange(input.value.length, input.value.length); });
   };
   const endEdit = () => {
     wrap.classList.remove("editing");
-    preview.innerHTML = renderMarkdown(cell.source);
+    preview.innerHTML = renderMarkdown(cell.source, footnotePrefix);
   };
   edit.addEventListener("click", beginEdit);
   preview.addEventListener("dblclick", beginEdit);

@@ -504,12 +504,17 @@ function UI:draw(pass, logical_width, logical_height)
         char_b = math.max(self.vim_char_anchor, cell.cursor or 1)
       end
       local preview = cell.kind == "markdown" and not selected
+      local footnotes
+      if preview and cell.source and cell.source:find("[^", 1, true) then
+        footnotes = Markdown.footnote_context(cell.source)
+      end
       local line_tops = {}
       local line_y = source_y
       for line_index = 1, #source_lines do
         line_tops[line_index] = line_y
         local raw_display = source_lines[line_index]
-        local display = preview and Markdown.preview(raw_display) or raw_display
+        local display = preview and
+          Markdown.preview(raw_display, footnotes) or raw_display
         local engine_layout = math_layouts[line_index]
         local display_fraction = cell.kind == "markdown" and
           Math.display_fraction(raw_display)
@@ -823,8 +828,10 @@ function UI:palette_commands()
   local commands = {
     { id = "run", label = "Run selected cell  (F5)" },
     { id = "restart-kernel", label = "Restart current kernel" },
+    { id = "restart-run-all", label = "Restart kernel and run all cells  (Ctrl+Shift+F5)" },
     { id = "clear-outputs", label = "Clear all cell outputs" },
     { id = "run-all", label = "Run all code cells" },
+    { id = "copy-cell", label = "Copy selected cell source  (Ctrl+Shift+C)" },
     { id = "export-md", label = "Export notebook as Markdown" },
     { id = "export-html", label = "Export notebook as HTML" },
     { id = "recover-autosave", label = "Recover autosaved notebook" },
@@ -836,8 +843,12 @@ function UI:palette_commands()
     { id = "output", label = "Toggle long cell output  (Ctrl+Shift+O)" },
     { id = "clear-recent", label = "Clear recent notebooks" },
     { id = "clear-session", label = "Clear restored session" },
-    { id = "move-up", label = "Move selected cell up" },
-    { id = "move-down", label = "Move selected cell down" },
+    { id = "move-up", label = "Move selected cell up  (Alt+Up)" },
+    { id = "move-down", label = "Move selected cell down  (Alt+Down)" },
+    { id = "prev-heading", label = "Previous heading  (Ctrl+Shift+Up)" },
+    { id = "next-heading", label = "Next heading  (Ctrl+Shift+Down)" },
+    { id = "collapse-headings", label = "Collapse all headings" },
+    { id = "expand-headings", label = "Expand all headings" },
     { id = "duplicate-cell", label = "Duplicate selected cell" },
     { id = "save", label = "Save notebook  (F6)" },
     { id = "save-as", label = "Save notebook as…" },
@@ -917,8 +928,10 @@ function UI:run_palette_command(id)
   self.show_palette = false
   if id == "run" then self.app:run()
   elseif id == "restart-kernel" then self.app:restart_kernel()
+  elseif id == "restart-run-all" then self.app:restart_and_run_all()
   elseif id == "clear-outputs" then self.app:clear_outputs()
   elseif id == "run-all" then self.app:run_all()
+  elseif id == "copy-cell" then self.app:copy_cell_source()
   elseif id == "export-md" then self.app:export_markdown()
   elseif id == "export-html" then self.app:export_html()
   elseif id == "recover-autosave" then self.app:recover_autosave()
@@ -935,6 +948,10 @@ function UI:run_palette_command(id)
   elseif id == "clear-session" then self.app:clear_session()
   elseif id == "move-up" then self.app:move_cell(-1)
   elseif id == "move-down" then self.app:move_cell(1)
+  elseif id == "prev-heading" then self.app:goto_heading(-1)
+  elseif id == "next-heading" then self.app:goto_heading(1)
+  elseif id == "collapse-headings" then self.app:set_headings_collapsed(true)
+  elseif id == "expand-headings" then self.app:set_headings_collapsed(false)
   elseif id == "duplicate-cell" then self.app:duplicate_cell()
   elseif id == "save" then self.app:save()
   elseif id == "save-as" then self.app:save_as()
@@ -1493,6 +1510,9 @@ function UI:draw_help(pass, width, height)
         { "Ctrl+P", "command palette" },
         { "Ctrl+S", "save notebook" },
         { "Ctrl+W", "close notebook tab" },
+        { "Ctrl+Shift+C / F5", "copy source / restart and run all" },
+        { "Alt+Up / Down", "move selected cell" },
+        { "Ctrl+Shift+Up / Down", "previous / next heading" },
         { "Ctrl+Tab", "next / previous notebook" },
         { "F2", "notebook filetree" },
         { "F1", "command palette" },
@@ -2313,7 +2333,10 @@ function UI:keyreleased(key)
   end
 end
 
-function UI:keypressed(key)
+-- `modifiers` is an optional test/smoke seam.  Real input always reads the
+-- keyboard state from lovr.system; a table such as { ctrl = true } lets a
+-- headless run exercise the same shortcut paths without synthesising keys.
+function UI:keypressed(key, modifiers)
   if self.app.show_nvim then
     if self.app.nvim_delete_prompt then
       if key == "return" or key == "y" then
@@ -2368,12 +2391,16 @@ function UI:keypressed(key)
     return
   end
   local notebook = self.app:notebook()
-  local ctrl_down = lovr.system and lovr.system.isKeyDown and
-    (lovr.system.isKeyDown("lctrl") or lovr.system.isKeyDown("rctrl"))
-  local shift_down = lovr.system and lovr.system.isKeyDown and
-    (lovr.system.isKeyDown("lshift") or lovr.system.isKeyDown("rshift"))
-  local alt_down = lovr.system and lovr.system.isKeyDown and
-    (lovr.system.isKeyDown("lalt") or lovr.system.isKeyDown("ralt"))
+  local function modifier_down(name, left, right)
+    if modifiers ~= nil and modifiers[name] ~= nil then
+      return modifiers[name] == true
+    end
+    return lovr.system and lovr.system.isKeyDown and
+      (lovr.system.isKeyDown(left) or lovr.system.isKeyDown(right)) or false
+  end
+  local ctrl_down = modifier_down("ctrl", "lctrl", "rctrl")
+  local shift_down = modifier_down("shift", "lshift", "rshift")
+  local alt_down = modifier_down("alt", "lalt", "ralt")
   if self.close_prompt then
     if key == "escape" or key == "n" then
       self.close_prompt = nil
@@ -2559,6 +2586,18 @@ function UI:keypressed(key)
     self.app.status = expanded and "expanded output" or "collapsed output"
     return
   end
+  if ctrl_down and shift_down and key == "f5" then
+    self.app:restart_and_run_all()
+    return
+  end
+  if ctrl_down and shift_down and key == "c" then
+    self.app:copy_cell_source()
+    return
+  end
+  if ctrl_down and shift_down and (key == "down" or key == "up") then
+    self.app:goto_heading(key == "down" and 1 or -1)
+    return
+  end
   if ctrl_down and key == "p" then
     self.show_palette = true
     self.palette_query = ""
@@ -2597,7 +2636,10 @@ function UI:keypressed(key)
     else self.app:zoom_ui(0.1) end
     return
   end
-  if alt_down and key == "b" then
+  if alt_down and (key == "up" or key == "down") then
+    self.app:move_cell(key == "up" and -1 or 1)
+    return
+  elseif alt_down and key == "b" then
     self.app:add_cell("code"); return
   elseif alt_down and key == "a" then
     self.app:add_cell_above("code"); return

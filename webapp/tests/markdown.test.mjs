@@ -91,3 +91,29 @@ test("does not parse a table inside a fenced code block", () => {
   assert.doesNotMatch(html, /markdown-table/);
   assert.match(html, /<pre><code>\| a \| b \|/);
 });
+
+test("renders footnote references and endnotes with a stable prefix", () => {
+  const html = renderMarkdown(
+    "Alpha[^a] and beta[^b].\n\n[^a]: first *note*\n[^b]: second note",
+    "cell-7");
+  assert.match(html, /Alpha<sup class="footnote-ref" id="fnref-cell-7-1"><a href="#fn-cell-7-1">1<\/a><\/sup>/);
+  assert.match(html, /beta<sup class="footnote-ref" id="fnref-cell-7-2"><a href="#fn-cell-7-2">2<\/a><\/sup>/);
+  assert.match(html, /<section class="footnotes" role="doc-endnotes"><hr><ol>/);
+  assert.match(html, /<li id="fn-cell-7-1">first <em>note<\/em> /);
+  assert.match(html, /<a class="footnote-back" href="#fnref-cell-7-1"/);
+});
+
+test("keeps undefined and escaped footnotes literal and ignores code", () => {
+  const html = renderMarkdown(
+    "`code[^a]` and \\[^a] and [^missing].\n\n```\n[^a]: hidden\n```\n\n[^a]: shown");
+  assert.match(html, /<code>code\[\^a\]<\/code>/);
+  assert.match(html, /\[\^a\] and \[\^missing\]/);
+  assert.doesNotMatch(html, /fnref-md-1/);
+});
+
+test("numbers definitions in first-reference order", () => {
+  const html = renderMarkdown("[^b] then [^a]\n\n[^a]: A\n[^b]: B");
+  assert.match(html, /<a href="#fn-md-1">1<\/a><\/sup> then <sup class="footnote-ref" id="fnref-md-2"><a href="#fn-md-2">2<\/a>/);
+  assert.match(html, /<li id="fn-md-1">B /);
+  assert.match(html, /<li id="fn-md-2">A /);
+});

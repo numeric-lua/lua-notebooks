@@ -24,7 +24,55 @@ local function is_table_rule(cells)
   return true
 end
 
-function Markdown.preview(line)
+-- Collect per-cell footnote definitions and assign numbers in source reference
+-- order.  Fenced code and inline code never create or use a footnote.  The
+-- preview only needs the definition text and the number map; the export and
+-- browser render the actual reference/section markup.
+function Markdown.footnote_context(source)
+  local context = { definitions = {}, numbers = {}, order = {} }
+  local lines = {}
+  for line in ((source or "") .. "\n"):gmatch("(.-)\n") do
+    lines[#lines + 1] = line
+  end
+
+  local in_fence = false
+  for _, line in ipairs(lines) do
+    if line:match("^%s*[`~][`~][`~]+") then
+      in_fence = not in_fence
+    elseif not in_fence then
+      local label, body = line:match("^%s*%[%^([%w%-_]+)%]:%s*(.*)$")
+      if label ~= nil then
+        if context.definitions[label] == nil then
+          context.definitions[label] = body
+        end
+      end
+    end
+  end
+
+  in_fence = false
+  for _, line in ipairs(lines) do
+    if line:match("^%s*[`~][`~][`~]+") then
+      in_fence = not in_fence
+    elseif not in_fence then
+      local definition = line:match("^%s*%[%^([%w%-_]+)%]:")
+      if definition == nil then
+        local visible = line:gsub("`[^`]*`", "")
+        visible = visible:gsub("\\(%[%^[%w%-_]+%])", "\1")
+        for label in visible:gmatch("%[%^([%w%-_]+)%]") do
+          if context.definitions[label] ~= nil and
+             context.numbers[label] == nil then
+            local number = #context.order + 1
+            context.numbers[label] = number
+            context.order[number] = label
+          end
+        end
+      end
+    end
+  end
+  return context
+end
+
+function Markdown.preview(line, footnotes)
   local literals = {}
   line = line:gsub("\\([\\`*_~=%[%]()#+%.!|%-%%])", function(char)
     literals[#literals + 1] = char
@@ -34,6 +82,19 @@ function Markdown.preview(line)
     return (value:gsub("\2(%d+)\2", function(index)
       return literals[tonumber(index)] or ""
     end))
+  end
+  -- Inline code is literal: hide it from the footnote, link, and emphasis
+  -- passes, then put it back without the backticks at the end.
+  local code_spans = {}
+  line = line:gsub("`([^`]*)`", function(code)
+    code_spans[#code_spans + 1] = code
+    return "\3" .. #code_spans .. "\3"
+  end)
+
+  local definition, definition_text =
+    line:match("^%s*%[%^([%w%-_]+)%]:%s*(.*)$")
+  if definition ~= nil then
+    line = "↳ " .. definition_text
   end
 
   if line:match("^%s*([%*%-_])%s*%1%s*%1[%s%*%-_]*$") then
@@ -73,9 +134,18 @@ function Markdown.preview(line)
   line = line:gsub("%*(.-)%*", "%1")
   line = line:gsub("^_([^_]+)_", "%1")
   line = line:gsub("([^%w_])_([^_]+)_", "%1%2")
-  line = line:gsub("`([^`]*)`", "%1")
   line = line:gsub("%[([^%]]+)%]%b()", "%1")
   line = line:gsub("%[%[([^%]]+)%]%]", "%1")
+  if footnotes ~= nil then
+    line = line:gsub("%[%^([%w%-_]+)%]", function(label)
+      local number = footnotes.numbers[label]
+      if number ~= nil then return "[" .. number .. "]" end
+      return "[^" .. label .. "]"
+    end)
+  end
+  line = line:gsub("\3(%d+)\3", function(index)
+    return code_spans[tonumber(index)] or ""
+  end)
   return restore(line)
 end
 

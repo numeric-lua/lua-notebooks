@@ -607,6 +607,45 @@ function Notebook:toggle_collapsed(index)
   return cell.collapsed
 end
 
+-- Return the nearest heading cell after (delta > 0) or before (delta < 0) the
+-- selected cell.  This is navigation only; it never changes the document.
+function Notebook:heading_relative(delta)
+  local headings = self:headings()
+  if #headings == 0 then return nil end
+  if delta > 0 then
+    for _, heading in ipairs(headings) do
+      if heading.index > self.active then return heading.index end
+    end
+  else
+    for index = #headings, 1, -1 do
+      if headings[index].index < self.active then return headings[index].index end
+    end
+  end
+  return nil
+end
+
+-- Collapse or expand every heading in one undoable change.  Returns false when
+-- all headings already have the requested state, so callers can report a no-op.
+function Notebook:set_headings_collapsed(collapsed)
+  local changed = false
+  for _, cell in ipairs(self.cells) do
+    if Notebook.heading_level(cell) ~= nil and
+       (cell.collapsed == true) ~= collapsed then
+      changed = true
+      break
+    end
+  end
+  if not changed then return false end
+  self:push_undo(collapsed and "collapse all headings" or "expand all headings")
+  for _, cell in ipairs(self.cells) do
+    if Notebook.heading_level(cell) ~= nil then
+      cell.collapsed = collapsed
+    end
+  end
+  self.dirty = true
+  return true
+end
+
 local OUTPUT_PREVIEW_LINES = 6
 
 function Notebook.output_line_count(cell)
@@ -1032,6 +1071,17 @@ Press **Ctrl+F** for notebook search or **Ctrl+H** for replace, then **Alt+R** t
 Use ==highlight== for a marker, bare links such as https://love2d.org, and a backslash to keep punctuation literal: \*star\*, \[brackets\], and \_underscore\_.
 
 Press **Alt+L** in find or replace to limit the search to the selected cell.]]),
+      cell("markdown", [[# Footnotes
+
+Markdown footnotes use `[^label]` for the reference and a `[^label]: text` line for the note. The same note renders in the live preview, the static HTML export, and the browser front-end.[^workflow]
+
+[^workflow]: Footnote definitions can contain **emphasis**, `inline code`, and links.]]),
+      cell("markdown", [[# Notebook workflow
+
+- **Ctrl+Shift+F5** restarts the kernel and runs every code cell.
+- **Ctrl+Shift+C** copies the selected cell source.
+- **Alt+Up / Alt+Down** moves the selected cell.
+- **Ctrl+Shift+Up / Ctrl+Shift+Down** jumps between headings, and the command palette can collapse or expand every heading at once.]]),
     },
   })
   local second = Notebook.new({

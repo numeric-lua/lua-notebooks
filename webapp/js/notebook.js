@@ -53,6 +53,11 @@ $$\\int_0^1 x^2 \\, dx = \\frac{1}{3}$$
 - [x] task lists render locally
 
 Use ==highlight==, bare links like https://love2d.org, and \\*literal\\* escapes.`),
+    createCell("markdown", `## Footnotes
+
+Footnotes use [^label] for the reference and a [^label]: line for the note.[^web]
+
+[^web]: The browser renderer numbers endnotes in first-reference order.`),
     createCell("code", `local xs, ys = {}, {}
 for i = 1, 80 do
   local x = (i - 1) * 0.1

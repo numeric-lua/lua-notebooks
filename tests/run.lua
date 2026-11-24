@@ -81,7 +81,7 @@ current = "model"
 test("demo has two notebooks and a live polar cell", function()
   local notebooks = Notebook.demo()
   eq(#notebooks, 2)
-  eq(#notebooks[1].cells, 22)
+  eq(#notebooks[1].cells, 24)
   local polar, field, large, quiver, stream
   for _, cell in ipairs(notebooks[1].cells) do
     if cell.source:find('orientation = "polar"', 1, true) then
@@ -279,6 +279,59 @@ test("lists heading cells and levels", function()
   eq(headings[1].level, 1)
   eq(headings[1].text, "First")
   eq(headings[2].index, 3)
+end)
+
+test("navigates between headings without wrapping", function()
+  local Notebook = require("notebook.model")
+  local notebook = Notebook.new({ cells = {
+    { kind = "markdown", source = "# First" },
+    { kind = "code", source = "x" },
+    { kind = "markdown", source = "## Second" },
+    { kind = "markdown", source = "### Third" },
+  } })
+  notebook:select(1)
+  eq(notebook:heading_relative(1), 3)
+  notebook:select(3)
+  eq(notebook:heading_relative(1), 4)
+  notebook:select(4)
+  eq(notebook:heading_relative(1), nil)
+  eq(notebook:heading_relative(-1), 3)
+  notebook:select(1)
+  eq(notebook:heading_relative(-1), nil)
+end)
+test("collapses and expands every heading as one edit", function()
+  local Notebook = require("notebook.model")
+  local notebook = Notebook.new({ cells = {
+    { kind = "markdown", source = "# First" },
+    { kind = "markdown", source = "## Second" },
+    { kind = "code", source = "x" },
+  } })
+  notebook.cells[2].collapsed = true
+  eq(notebook:set_headings_collapsed(true), true)
+  eq(notebook:set_headings_collapsed(true), false)
+  eq(notebook.cells[1].collapsed, true)
+  eq(notebook.cells[2].collapsed, true)
+  eq(notebook.cells[3].collapsed == true, false)
+  eq(notebook.dirty, true)
+  eq(notebook:set_headings_collapsed(false), true)
+  eq(notebook.cells[1].collapsed, false)
+  eq(notebook.cells[2].collapsed, false)
+end)
+test("undoes and redoes a bulk heading fold", function()
+  local Notebook = require("notebook.model")
+  local notebook = Notebook.new({ cells = {
+    { kind = "markdown", source = "# First" },
+    { kind = "markdown", source = "## Second" },
+  } })
+  notebook.cells[1].collapsed = true
+  notebook:reset_history()
+  eq(notebook:set_headings_collapsed(true), true)
+  notebook:undo()
+  eq(notebook.cells[1].collapsed, true)
+  eq(notebook.cells[2].collapsed == true, false)
+  notebook:redo()
+  eq(notebook.cells[1].collapsed, true)
+  eq(notebook.cells[2].collapsed, true)
 end)
 
 current = "vim model"
@@ -505,6 +558,33 @@ test("exports escaped standalone HTML", function()
   assert(text:find(
     '<h1 id="heading">Heading<a class="heading-permalink" href="#heading"',
     1, true))
+end)
+
+test("exports footnote references and endnotes", function()
+  local notebook = Notebook.new({ name = "footnotes.luanb", cells = {
+    { kind = "markdown", source = table.concat({
+      "Alpha[^a] and beta[^b].",
+      "",
+      "[^a]: first *note*",
+      "[^b]: second note",
+      "",
+      "Undefined[^missing] and \\[^escaped].",
+    }, "\n") },
+  } })
+  local html = Format.to_html(notebook)
+  assert(html:find(
+    '<sup class="footnote-ref" id="fnref-cell-1-1"><a href="#fn-cell-1-1">1</a></sup>',
+    1, true))
+  assert(html:find(
+    '<sup class="footnote-ref" id="fnref-cell-1-2"><a href="#fn-cell-1-2">2</a></sup>',
+    1, true))
+  assert(html:find('<section class="footnotes" role="doc-endnotes">', 1, true))
+  assert(html:find('<li id="fn-cell-1-1">first <em>note</em> ', 1, true))
+  assert(html:find('<li id="fn-cell-1-2">second note ', 1, true))
+  assert(html:find('class="footnote-back" href="#fnref-cell-1-1"', 1, true))
+  assert(html:find("[^missing]", 1, true))
+  assert(html:find("[^escaped]", 1, true))
+  assert(not html:find("<p>[^a]: first", 1, true))
 end)
 
 current = "html navigation"

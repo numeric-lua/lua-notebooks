@@ -33,3 +33,29 @@ print("markdown preview tests ok")
 local wiki = require("notebook.markdown").preview("See [[Second kernel]]")
 if wiki ~= "See Second kernel" then error("wiki preview: " .. wiki, 2) end
 print("wiki preview ok")
+
+local source = table.concat({
+  "Text[^a] and **second**[^b].",
+  "",
+  "[^a]: first note",
+  "[^b]: second *note*",
+}, "\n")
+local footnotes = Markdown.footnote_context(source)
+assert(Markdown.preview("Text[^a] and", footnotes) == "Text[1] and",
+  "first footnote reference")
+assert(Markdown.preview("second[^b]", footnotes) == "second[2]",
+  "second footnote reference")
+assert(Markdown.preview("[^a]: first note", footnotes) == "↳ first note",
+  "footnote definition preview")
+assert(Markdown.preview("Text[^missing]", footnotes) == "Text[^missing]",
+  "undefined footnote stays literal")
+assert(Markdown.preview("\\[^a]", footnotes) == "[^a]",
+  "escaped footnote stays literal")
+local code_context = Markdown.footnote_context(
+  "`code[^a]`\n\n```\n[^a]: hidden\n```\n\nVisible[^a]\n\n[^a]: shown")
+assert(code_context.numbers.a == 1, "code footnote is not numbered")
+assert(Markdown.preview("Visible[^a]", code_context) == "Visible[1]",
+  "footnote after fenced code")
+assert(Markdown.preview("`code[^a]`", code_context) == "code[^a]",
+  "inline code keeps a footnote literal")
+print("footnote preview tests ok")

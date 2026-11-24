@@ -31,7 +31,66 @@ function trimAutolink(url) {
   return { link: trimmed, trailing: String(url).slice(trimmed.length) };
 }
 
-function inline(text) {
+function footnoteContext(source) {
+  const context = {
+    definitions: new Map(),
+    numbers: new Map(),
+    order: [],
+    prefix: "md",
+  };
+  let inCode = false;
+  for (const raw of String(source || "").replace(/\r\n/g, "\n").split("\n")) {
+    if (/^\s*[`~]{3,}/.test(raw)) {
+      inCode = !inCode;
+      continue;
+    }
+    if (inCode) continue;
+    const definition = raw.match(/^\s*\[\^([\w-]+)\]:\s*(.*)$/);
+    if (definition && !context.definitions.has(definition[1])) {
+      context.definitions.set(definition[1], definition[2]);
+    }
+  }
+  return context;
+}
+
+function footnoteNumber(label, context) {
+  if (!context || !context.definitions.has(label)) return null;
+  let number = context.numbers.get(label);
+  if (number === undefined) {
+    number = context.order.length + 1;
+    context.numbers.set(label, number);
+    context.order.push(label);
+  }
+  return number;
+}
+
+function footnoteRef(label, context) {
+  const number = footnoteNumber(label, context);
+  if (number === null) return null;
+  const prefix = context.prefix;
+  return `<sup class="footnote-ref" id="fnref-${prefix}-${number}">` +
+    `<a href="#fn-${prefix}-${number}">${number}</a></sup>`;
+}
+
+function footnoteSection(context) {
+  if (!context || context.order.length === 0) return "";
+  const prefix = context.prefix;
+  const items = [];
+  // Definition bodies can reference other footnotes; walk the growing order
+  // list so those references get their own endnote entry too.
+  for (let index = 0; index < context.order.length; index += 1) {
+    const label = context.order[index];
+    const number = context.numbers.get(label);
+    const body = inline(context.definitions.get(label) || "", context);
+    items.push(`<li id="fn-${prefix}-${number}">${body} ` +
+      `<a class="footnote-back" href="#fnref-${prefix}-${number}" ` +
+      `aria-label="Back to footnote ${number}">↩</a></li>`);
+  }
+  return `<section class="footnotes" role="doc-endnotes"><hr><ol>` +
+    `${items.join("")}</ol></section>`;
+}
+
+function inline(text, context = null) {
   let value = escapeHtml(text);
   const slots = [];
   const hold = (html) => `\u0000${slots.push(html) - 1}\u0000`;
@@ -58,6 +117,10 @@ function inline(text) {
   value = value.replace(/(^|[^*])\*([^*]+)\*/g, "$1<em>$2</em>");
   value = value.replace(/(^|[^_\w])_([^_]+)_/g, "$1<em>$2</em>");
   value = value.replace(/~~([^~]+)~~/g, "<del>$1</del>");
+  if (context) {
+    value = value.replace(/\[\^([\w-]+)\]/g, (match, label) =>
+      footnoteRef(label, context) ?? match);
+  }
   let restored = value;
   for (;;) {
     const next = restored.replace(/\u0000(\d+)\u0000/g, (_, index) =>
@@ -90,10 +153,10 @@ function tableAlignments(line) {
   return alignments;
 }
 
-function tableHtml(lines, index, header, alignments) {
+function tableHtml(lines, index, header, alignments, context) {
   const row = (cells, tag) => "<tr>" + alignments.map((alignment, column) => {
     const className = alignment !== "left" ? ` class="align-${alignment}"` : "";
-    return `<${tag}${className}>${inline((cells[column] || "").trim())}</${tag}>`;
+    return `<${tag}${className}>${inline((cells[column] || "").trim(), context)}</${tag}>`;
   }).join("") + "</tr>";
   const html = ['<table class="markdown-table"><thead>', row(header, "th"),
     "</thead><tbody>"];
@@ -132,7 +195,7 @@ function listItem(line) {
   return null;
 }
 
-function renderList(entry) {
+function renderList(entry, context) {
   const tag = entry.kind === "ol" ? "ol" : "ul";
   let attributes = "";
   if (entry.kind === "task") attributes = ' class="task-list"';
@@ -142,9 +205,9 @@ function renderList(entry) {
     if (entry.kind === "task") {
       body = `<li class="task-list-item${item.checked ? " done" : ""}">` +
         `<input type="checkbox" disabled${item.checked ? " checked" : ""}> ` +
-        inline(item.text);
+        inline(item.text, context);
     } else {
-      body = `<li>${inline(item.text)}`;
+      body = `<li>${inline(item.text, context)}`;
     }
     body += (item.children || []).join("");
     return `${body}</li>`;
@@ -152,8 +215,10 @@ function renderList(entry) {
   return `<${tag}${attributes}>${items}</${tag}>`;
 }
 
-export function renderMarkdown(source) {
+export function renderMarkdown(source, prefix = "md") {
   const lines = String(source || "").replace(/\r\n/g, "\n").split("\n");
+  const context = footnoteContext(source);
+  context.prefix = String(prefix).replace(/[^\w-]/g, "-") || "md";
   const out = [];
   let paragraph = [];
   let listStack = [];
@@ -162,14 +227,14 @@ export function renderMarkdown(source) {
 
   const flushParagraph = () => {
     if (paragraph.length) {
-      out.push(`<p>${inline(paragraph.join(" "))}</p>`);
+      out.push(`<p>${inline(paragraph.join(" "), context)}</p>`);
       paragraph = [];
     }
   };
   const closeList = () => {
     const entry = listStack.pop();
     if (!entry) return;
-    const html = renderList(entry);
+    const html = renderList(entry, context);
     const parent = listStack[listStack.length - 1];
     if (parent && parent.items.length) {
       parent.items[parent.items.length - 1].children.push(html);
@@ -197,7 +262,7 @@ export function renderMarkdown(source) {
   };
   const flushQuote = () => {
     if (quote.length) {
-      out.push(`<blockquote>${quote.map((line) => `<p>${inline(line)}</p>`).join("")}</blockquote>`);
+      out.push(`<blockquote>${quote.map((line) => `<p>${inline(line, context)}</p>`).join("")}</blockquote>`);
       quote = [];
     }
   };
@@ -228,6 +293,11 @@ export function renderMarkdown(source) {
       flushAll();
       continue;
     }
+    if (/^\s*\[\^[\w-]+\]:/.test(raw)) {
+      // Definitions are rendered as the endnotes section below.
+      flushAll();
+      continue;
+    }
     const quoteMatch = raw.match(/^>\s?(.*)$/);
     if (quoteMatch) {
       flushParagraph();
@@ -241,7 +311,7 @@ export function renderMarkdown(source) {
     const alignments = header ? tableAlignments(lines[index + 1] || "") : null;
     if (header && alignments) {
       flushAll();
-      const table = tableHtml(lines, index, header, alignments);
+      const table = tableHtml(lines, index, header, alignments, context);
       out.push(table.html);
       index = table.next - 1;
       continue;
@@ -251,7 +321,7 @@ export function renderMarkdown(source) {
     if (heading) {
       flushAll();
       const level = heading[1].length;
-      out.push(`<h${level}>${inline(heading[2])}</h${level}>`);
+      out.push(`<h${level}>${inline(heading[2], context)}</h${level}>`);
       continue;
     }
     if (/^\s*([-*_])\s*\1\s*\1[\s\-*_]*$/.test(raw)) {
@@ -271,5 +341,7 @@ export function renderMarkdown(source) {
   }
   if (code) out.push(`<pre><code>${escapeHtml(code.lines.join("\n"))}</code></pre>`);
   flushAll();
+  const footnotes = footnoteSection(context);
+  if (footnotes) out.push(footnotes);
   return out.join("\n");
 }
