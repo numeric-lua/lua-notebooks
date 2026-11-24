@@ -1,3 +1,32 @@
+# lua-notebooks 1.59.0
+
+- add **Ctrl+Alt+G** and a palette action for a numeric **Go to cell** prompt;
+  digits are accepted, Enter jumps and closes, Esc cancels, and invalid numbers
+  report a status without moving;
+- add **Alt+D** to duplicate the selected cell, and make cell duplication an
+  undoable edit;
+- add **Ctrl+Alt+W** and a palette action to close every other clean tab while
+  keeping and reporting tabs with unsaved changes;
+- render Markdown definition lists (`Term` followed by `: definition`) as
+  `<dl>`/`<dt>`/`<dd>` in the static export and browser, and as an indented
+  em-dash line in the live preview;
+- make browser task-list checkboxes interactive: clicking one toggles the
+  matching source line, saves the notebook, and re-renders the preview, while
+  fenced-code pseudo-tasks stay untouched and the static export remains
+  read-only;
+- extend `tests/workflow.lua`, `tests/run.lua`, the browser Markdown suite, and
+  `LUANB_SMOKE_WORKFLOW` for the new prompt, duplicate, close-other-tabs, and
+  definition-list behavior; add definition-list DOM checks to
+  `scripts/export-qa.sh`; update the welcome notebooks and document the new
+  behavior in the README, `docs/export.md`, `docs/web.md`, `docs/roadmap.md`,
+  and `webapp/README.md`.
+
+No new runtime dependencies. The Neovim path, kernel protocol, and committed
+visual pixel baselines are unchanged. `make test`, `make test-nvim`,
+`make test-webapp`, `LUANB_SMOKE_WORKFLOW=1 lovr .`, `LUANB_SMOKE_CLOSE=1 lovr .`,
+the pixel baseline check, `scripts/export-qa.sh`, and `scripts/scene-qa.sh`
+pass. This release is tagged `v1.59.0`.
+
 # lua-notebooks 1.58.0
 
 - add **Ctrl+Alt+T** and a palette action to reopen the most recently closed

@@ -29,12 +29,14 @@
   browser front-end.
 - Notebook workflow commands: restart-and-run-all, run selected-and-below,
   copy cell source/output, clear the selected output, reopen the last closed
-  tab, move the selected cell with Alt+Up/Down, heading navigation,
-  collapse/expand all headings, and a type-to-filter outline.
+  tab, close other clean tabs, go to a cell number, duplicate a cell, move the
+  selected cell with Alt+Up/Down, heading navigation, collapse/expand all
+  headings, and a type-to-filter outline.
 - Clickable Markdown task-list markers in the live preview and nested
   blockquotes and GitHub-style callouts across the preview, static export,
-  and browser front-end; clickable preview wiki links and a filterable tag
-  index.
+  and browser front-end; clickable browser task checkboxes, definition lists
+  across all three Markdown surfaces, clickable preview wiki links, and a
+  filterable tag index.
 - Close-notebook tabs with an unsaved-changes guard; kernels are keyed by
   notebook object so other tabs keep their globals.
 - Filterable hierarchical notebook filetree with create/delete/rename/folder
@@ -76,5 +78,5 @@ LUANB_SMOKE_WORKFLOW=1 lovr . # shortcut and restart/run-all smoke
 ./scripts/input-smoke.sh   # needs a seat and /dev/uinput
 ./scripts/visual-smoke.sh  # needs a display
 ./scripts/scene-qa.sh      # needs chromium
-luarocks make lua-notebooks-1.58.0-1.rockspec --tree=/tmp/luanb-rocks
+luarocks make lua-notebooks-1.59.0-1.rockspec --tree=/tmp/luanb-rocks
 ```

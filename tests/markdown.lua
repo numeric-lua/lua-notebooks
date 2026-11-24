@@ -34,6 +34,7 @@ assert(Markdown.preview("  > indented") == "│ indented")
 assert(Markdown.preview("> [!NOTE]") == "▌ NOTE")
 assert(Markdown.preview("> [!WARNING] hot") == "▌ WARNING  hot")
 assert(Markdown.preview("> > [!NOTE]") == "│ │ [!NOTE]")
+assert(Markdown.preview(": definition") == "  — definition")
 print("markdown preview tests ok")
 
 local wiki = require("notebook.markdown").preview("See [[Second kernel]]")

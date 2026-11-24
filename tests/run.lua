@@ -789,6 +789,24 @@ test("renders GitHub-style callout blockquotes", function()
   assert(html:find("<p>[!UNKNOWN]</p>", 1, true))
 end)
 
+test("renders Markdown definition lists", function()
+  local notebook = Notebook.new({ name = "definitions.luanb", cells = {
+    { kind = "markdown", source = table.concat({
+      "Alpha",
+      ": first **term**",
+      "Beta",
+      ": second term",
+      "",
+      "Normal paragraph.",
+    }, "\n") },
+  } })
+  local html = Format.to_html(notebook)
+  assert(html:find(
+    "<dl><dt>Alpha</dt><dd>first <strong>term</strong></dd>" ..
+    "<dt>Beta</dt><dd>second term</dd></dl>", 1, true))
+  assert(html:find("<p>Normal paragraph.</p>", 1, true))
+end)
+
 current = "html ordered lists"
 test("preserves an ordered list's start number and parenthesis markers", function()
   local notebook = Notebook.new({ name = "ordered.luanb", cells = {
@@ -1091,6 +1109,9 @@ test("duplicates a cell with a fresh id", function()
   assert(copy.id and copy.id ~= original)
   eq(#notebook.cells, 2)
   eq(notebook.active, 2)
+  notebook:undo()
+  eq(#notebook.cells, 1)
+  eq(notebook.active, 1)
 end)
 
 current = "tag index"

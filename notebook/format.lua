@@ -692,6 +692,27 @@ local function quote_html(entries, footnotes)
   return "<blockquote>" .. render_from(entries, 1, 1) .. "</blockquote>"
 end
 
+-- A term line followed by `: definition` lines becomes a description list.
+-- Marker-heavy lines are left to the normal block parser.
+local function definition_list_html(lines, index, footnotes)
+  local items = {}
+  local cursor = index
+  while cursor <= #lines do
+    local term = lines[cursor]
+    local definition = lines[cursor + 1] and
+      lines[cursor + 1]:match("^%s*:%s+(.*)$")
+    if definition == nil or term:match("^%s*$") or
+       term:match("^%s*[#%->:]") then
+      break
+    end
+    local clean = term:gsub("^%s+", ""):gsub("%s+$", "")
+    items[#items + 1] = "<dt>" .. inline_markdown(clean, footnotes) ..
+      "</dt><dd>" .. inline_markdown(definition, footnotes) .. "</dd>"
+    cursor = cursor + 2
+  end
+  return "<dl>" .. table.concat(items) .. "</dl>", cursor
+end
+
 -- Small, readable Markdown renderer for static exports.  It intentionally
 -- covers the subset the editor previews: headings, nested lists, pipe tables,
 -- quotes, fenced code, emphasis, inline code, links, and wiki links.
@@ -835,6 +856,16 @@ local function markdown_html(source, headings, footnote_prefix)
         flush_blocks()
         index = index + 1
       else
+        local next_definition = lines[index + 1] and
+          lines[index + 1]:match("^%s*:%s+")
+        if next_definition ~= nil and not line:match("^%s*$") and
+           not line:match("^%s*[#%->:]") then
+          flush_blocks()
+          local html, next_index = definition_list_html(lines, index,
+            footnotes)
+          out[#out + 1] = html
+          index = next_index
+        else
         local header = table_row(line)
         local aligns = header and table_alignment(lines[index + 1] or "")
         if header ~= nil and aligns ~= nil then
@@ -879,6 +910,7 @@ local function markdown_html(source, headings, footnote_prefix)
               inline_markdown(line:gsub("^%s+", ""), footnotes)
           end
           index = index + 1
+        end
         end
       end
     end
@@ -1955,6 +1987,9 @@ pre.error{background:var(--error);border-left:4px solid #c94b4b;color:#b42323}
 .callout-important{border-left-color:#9b6bdf}
 .callout-warning{border-left-color:#d79a31}
 .callout-caution{border-left-color:#d15b5b}
+.cell dl{margin:.7rem 0 1rem}
+.cell dt{font-weight:650;margin-top:.45rem}
+.cell dd{margin:.12rem 0 .45rem 1.2rem;color:var(--muted)}
 .scene{margin:1rem 0 0;padding:0}
 .scene-svg{display:block;width:100%;height:auto;border:1px solid var(--border);border-radius:10px;background:var(--figure)}
 .scene figcaption{color:var(--muted);font-size:.86rem;padding:.55rem .15rem 0;display:flex;flex-wrap:wrap;gap:.35rem .6rem;align-items:baseline}

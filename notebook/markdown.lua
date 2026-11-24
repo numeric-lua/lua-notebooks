@@ -119,6 +119,11 @@ function Markdown.preview(line, footnotes)
     end
   end
 
+  local definition_text = line:match("^%s*:%s+(.*)$")
+  if definition_text ~= nil then
+    line = "  — " .. definition_text
+  end
+
   if line:match("^%s*([%*%-_])%s*%1%s*%1[%s%*%-_]*$") then
     return restore("----------")
   end

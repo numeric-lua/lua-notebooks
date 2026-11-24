@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { renderMarkdown } from "../js/markdown.js";
+import { renderMarkdown, toggleTaskAt } from "../js/markdown.js";
 
 test("renders headings and paragraphs", () => {
   const html = renderMarkdown("# Title\n\nA paragraph.");
@@ -45,6 +45,14 @@ test("renders GitHub-style callout blockquotes", () => {
     /<div class="callout callout-warning"><p class="callout-title">Warning<\/p><p>Careful with <strong>this<\/strong>.<\/p><p>Second paragraph.<\/p><\/div>/);
   assert.doesNotMatch(html, /callout-unknown/);
   assert.match(html, /<p>\[!UNKNOWN\]<\/p>/);
+});
+
+test("renders Markdown definition lists", () => {
+  const html = renderMarkdown(
+    "Alpha\n: first **term**\nBeta\n: second term\n\nNormal paragraph.");
+  assert.match(html,
+    /<dl><dt>Alpha<\/dt><dd>first <strong>term<\/strong><\/dd><dt>Beta<\/dt><dd>second term<\/dd><\/dl>/);
+  assert.match(html, /<p>Normal paragraph\.<\/p>/);
 });
 
 test("renders horizontal rules and strikethrough", () => {
@@ -131,4 +139,21 @@ test("numbers definitions in first-reference order", () => {
   assert.match(html, /<a href="#fn-md-1">1<\/a><\/sup> then <sup class="footnote-ref" id="fnref-md-2"><a href="#fn-md-2">2<\/a>/);
   assert.match(html, /<li id="fn-md-1">B /);
   assert.match(html, /<li id="fn-md-2">A /);
+});
+
+test("renders interactive task checkboxes only when requested", () => {
+  const source = "- [ ] one\n- [x] two";
+  const plain = renderMarkdown(source);
+  assert.match(plain, /<input type="checkbox" disabled> one/);
+  const interactive = renderMarkdown(source, "cell-1", { interactiveTasks: true });
+  assert.match(interactive, /<input type="checkbox" data-task-index="1"> one/);
+  assert.match(interactive, /<input type="checkbox" data-task-index="2" checked> two/);
+  assert.doesNotMatch(interactive, /disabled/);
+});
+
+test("toggles the nth task line and skips fenced code", () => {
+  const source = "- [ ] one\n\n```\n- [ ] hidden\n```\n\n- [x] two";
+  assert.equal(toggleTaskAt(source, 1), "- [x] one\n\n```\n- [ ] hidden\n```\n\n- [x] two");
+  assert.equal(toggleTaskAt(source, 2), "- [ ] one\n\n```\n- [ ] hidden\n```\n\n- [ ] two");
+  assert.equal(toggleTaskAt(source, 3), null);
 });

@@ -17,7 +17,7 @@ local notebook = Notebook.new({ cells = {
 local calls = {
   move = 0, heading = 0, copy = 0, restart = 0, collapse = 0,
   copy_output = 0, run_below = 0, clear_output = 0, reopen = 0,
-  open_title = 0,
+  open_title = 0, duplicate = 0, close_others = 0,
 }
 local app = {
   notebooks = { notebook },
@@ -36,6 +36,8 @@ local app = {
   clear_cell_output = function(self) calls.clear_output = calls.clear_output + 1 end,
   reopen_closed_notebook = function(self) calls.reopen = calls.reopen + 1 end,
   open_title = function(self, title) calls.open_title = calls.open_title + 1; return true end,
+  duplicate_cell = function(self) calls.duplicate = calls.duplicate + 1 end,
+  close_other_notebooks = function(self) calls.close_others = calls.close_others + 1; return 0, 0 end,
   set_tab = function(self, index) self.active = index end,
   restart_and_run_all = function(self) calls.restart = calls.restart + 1 end,
   set_headings_collapsed = function(self, collapsed)
@@ -64,6 +66,16 @@ ui:keypressed("x", { ctrl = true, alt = true })
 assert(calls.clear_output == 1, "Ctrl+Alt+X does not clear the cell output")
 ui:keypressed("t", { ctrl = true, alt = true })
 assert(calls.reopen == 1, "Ctrl+Alt+T does not reopen the last tab")
+ui:keypressed("d", { alt = true })
+assert(calls.duplicate == 1, "Alt+D does not duplicate the selected cell")
+ui:keypressed("w", { ctrl = true, alt = true })
+assert(calls.close_others == 1, "Ctrl+Alt+W does not close other tabs")
+ui:keypressed("g", { ctrl = true, alt = true })
+assert(ui.show_cell_prompt, "Ctrl+Alt+G does not open the cell prompt")
+ui:textinput("3")
+ui:keypressed("return")
+assert(notebook.active == 3, "go-to-cell did not select cell 3")
+assert(not ui.show_cell_prompt, "go-to-cell prompt did not close")
 ui:keypressed("f5", { ctrl = true, shift = true })
 assert(calls.restart == 1, "Ctrl+Shift+F5 does not restart and run all")
 
@@ -72,8 +84,9 @@ for _, command in ipairs(ui:palette_commands()) do
   commands[command.id] = command.label
 end
 for _, id in ipairs({ "restart-run-all", "copy-cell", "copy-output",
-    "run-below", "clear-cell-output", "reopen-closed", "prev-heading",
-    "next-heading", "collapse-headings", "expand-headings" }) do
+    "run-below", "clear-cell-output", "reopen-closed", "go-to-cell",
+    "close-others", "duplicate-cell", "prev-heading", "next-heading",
+    "collapse-headings", "expand-headings" }) do
   assert(commands[id] ~= nil, "missing palette command: " .. id)
 end
 
@@ -93,6 +106,13 @@ ui:run_palette_command("clear-cell-output")
 assert(calls.clear_output == 2, "palette clear-cell-output is miswired")
 ui:run_palette_command("reopen-closed")
 assert(calls.reopen == 2, "palette reopen-closed is miswired")
+ui:run_palette_command("duplicate-cell")
+assert(calls.duplicate == 2, "palette duplicate-cell is miswired")
+ui:run_palette_command("close-others")
+assert(calls.close_others == 2, "palette close-others is miswired")
+ui:run_palette_command("go-to-cell")
+assert(ui.show_cell_prompt, "palette go-to-cell did not open the prompt")
+ui:keypressed("escape")
 ui:run_palette_command("restart-run-all")
 assert(calls.restart == 2, "palette restart-run-all is miswired")
 ui:run_palette_command("collapse-headings")

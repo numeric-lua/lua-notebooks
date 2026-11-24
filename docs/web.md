@@ -27,7 +27,8 @@ The LÖVR web instructions below are retained for the eventual upstream
 graphics fix and for the validated transport bridge.
 
 The front-end renders Markdown locally, including nested lists, pipe tables
-with alignment, italic emphasis, grouped and nested blockquotes and callouts, and numbered footnotes
+with alignment, definition lists, clickable task checkboxes, italic emphasis,
+grouped and nested blockquotes and callouts, and numbered footnotes
 with endnote backlinks, matching the static export's subset. Scene outputs
 render locally on Canvas 2D. Cartesian
 line/scatter/bar/hist scenes honour x/y limits, categorical ticks, explicit bar

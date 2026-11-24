@@ -223,6 +223,9 @@ button { cursor: pointer; }
 .markdown-preview .callout-important { border-left-color: #9b6bdf; }
 .markdown-preview .callout-warning { border-left-color: #d79a31; }
 .markdown-preview .callout-caution { border-left-color: #d15b5b; }
+.markdown-preview dl { margin: 10px 0 14px; }
+.markdown-preview dt { font-weight: 650; margin-top: 7px; color: #d6def0; }
+.markdown-preview dd { margin: 2px 0 7px 20px; color: var(--muted); }
 .markdown-preview hr { border: 0; border-top: 1px solid var(--border); margin: 18px 0; }
 .math { font-family: "Cambria Math", "STIX Two Math", serif; color: #c9d5ff; }
 

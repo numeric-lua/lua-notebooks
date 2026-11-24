@@ -245,6 +245,35 @@ function App:reopen_closed_notebook()
   return true
 end
 
+-- Close every other tab that has no unsaved changes.  Dirty tabs are kept and
+-- reported instead of opening one prompt per tab.
+function App:close_other_notebooks()
+  local keep = self.active
+  local closed, kept = 0, 0
+  for index = #self.notebooks, 1, -1 do
+    if index ~= keep then
+      local notebook = self.notebooks[index]
+      if notebook.dirty then
+        kept = kept + 1
+      else
+        self:close_notebook(index, true)
+        closed = closed + 1
+        if index < keep then keep = keep - 1 end
+      end
+    end
+  end
+  self.active = keep
+  if closed == 0 and kept == 0 then
+    self.status = "no other tabs are open"
+  elseif kept > 0 then
+    self.status = string.format("closed %d clean tab(s); kept %d unsaved",
+      closed, kept)
+  else
+    self.status = string.format("closed %d other tab(s)", closed)
+  end
+  return closed, kept
+end
+
 function App:session_paths()
   local paths, active_path = {}, nil
   for index, notebook in ipairs(self.notebooks) do
@@ -1626,10 +1655,15 @@ function lovr.load()
       app:notebook().name == first.name
     local reopen_kernel =
       app.supervisor.kernels[app:kernel_id(app:notebook())] ~= nil
-    print(string.format("SMOKE_CLOSE=%d:%d:%s:%s:%s:%s:%s:%s:%s", before,
-      #app.notebooks, tostring(prompted), tostring(guarded),
+    local after_reopen = #app.notebooks
+    local other_before = after_reopen
+    local closed_others, kept_others = app:close_other_notebooks()
+    local others_ok = closed_others == other_before - 1 and kept_others == 0
+    print(string.format("SMOKE_CLOSE=%d:%d:%s:%s:%s:%s:%s:%s:%s:%s:%s:%d", before,
+      after_reopen, tostring(prompted), tostring(guarded),
       tostring(closed), tostring(kernel_ok), tostring(old_gone),
-      tostring(reopened), tostring(reopen_kernel)))
+      tostring(reopened), tostring(reopen_kernel), tostring(others_ok),
+      tostring(kept_others), closed_others))
     lovr.event.quit()
   elseif os.getenv("LUANB_SMOKE_OUTPUT") then
     local cell = app:notebook():selected()
@@ -2083,6 +2117,19 @@ function lovr.load()
     outline_ok = outline_ok and outline_target ~= nil and
       notebook.active == outline_target.index and not app.ui.show_outline
 
+    notebook:select(2)
+    local duplicate_source = notebook.cells[2].source
+    local cells_before_duplicate = #notebook.cells
+    app.ui:keypressed("d", { alt = true })
+    local duplicate_ok = #notebook.cells == cells_before_duplicate + 1 and
+      notebook.cells[3].source == duplicate_source
+    notebook:undo()
+
+    app.ui:keypressed("g", { ctrl = true, alt = true })
+    app.ui:textinput("3")
+    app.ui:keypressed("return")
+    local goto_ok = notebook.active == 3
+
     notebook:select(1)
     local clear_cell = notebook.cells[1]
     local old_output2 = clear_cell.output
@@ -2121,14 +2168,16 @@ function lovr.load()
 
     app.smoke_workflow_ok = moved_down and moved_up and heading_ok and
       collapsed_ok and expanded_ok and clipboard_ok and output_clipboard_ok and
-      task_ok and outline_ok and clear_ok and tag_ok and wiki_ok
+      task_ok and outline_ok and clear_ok and tag_ok and wiki_ok and
+      duplicate_ok and goto_ok
     print(string.format(
-      "SMOKE_WORKFLOW_SHORTCUTS=%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s",
+      "SMOKE_WORKFLOW_SHORTCUTS=%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s",
       tostring(moved_down), tostring(moved_up), tostring(heading_ok),
       tostring(collapsed_ok), tostring(expanded_ok),
       tostring(clipboard_ok), tostring(output_clipboard_ok),
       tostring(task_ok), tostring(outline_ok), tostring(clear_ok),
-      tostring(tag_ok), tostring(wiki_ok)))
+      tostring(tag_ok), tostring(wiki_ok), tostring(duplicate_ok),
+      tostring(goto_ok)))
 
     local workflow = Notebook.new({
       name = "workflow-smoke.luanb",

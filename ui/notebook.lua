@@ -255,6 +255,8 @@ function UI.new(app)
     confirm_delete = nil,
     close_prompt = nil,
     symbol_prompt = nil,
+    show_cell_prompt = false,
+    cell_prompt = "",
     zen_mode = false,
     show_history = false,
     history_items = {},
@@ -822,6 +824,7 @@ function UI:draw(pass, logical_width, logical_height)
   self:draw_rename(pass, width, height)
   self:draw_confirm(pass, width, height)
   self:draw_close_prompt(pass, width, height)
+  self:draw_cell_prompt(pass, width, height)
   self:draw_symbol_prompt(pass, width, height)
   self:draw_outline(pass, width, height)
   self:draw_history(pass, width, height)
@@ -863,6 +866,7 @@ function UI:palette_commands()
     { id = "find-global", label = "Search all open notebooks  (Ctrl+Shift+F)" },
     { id = "graph", label = "Link graph" },
     { id = "tags", label = "Tag index  (Ctrl+T)" },
+    { id = "go-to-cell", label = "Go to cell…  (Ctrl+Alt+G)" },
     { id = "timing", label = "Toggle execution timing" },
     { id = "output", label = "Toggle long cell output  (Ctrl+Shift+O)" },
     { id = "clear-recent", label = "Clear recent notebooks" },
@@ -873,10 +877,11 @@ function UI:palette_commands()
     { id = "next-heading", label = "Next heading  (Ctrl+Shift+Down)" },
     { id = "collapse-headings", label = "Collapse all headings" },
     { id = "expand-headings", label = "Expand all headings" },
-    { id = "duplicate-cell", label = "Duplicate selected cell" },
+    { id = "duplicate-cell", label = "Duplicate selected cell  (Alt+D)" },
     { id = "save", label = "Save notebook  (F6)" },
     { id = "save-as", label = "Save notebook as…" },
     { id = "close", label = "Close current notebook tab  (Ctrl+W)" },
+    { id = "close-others", label = "Close other clean tabs  (Ctrl+Alt+W)" },
     { id = "reopen-closed", label = "Reopen last closed notebook  (Ctrl+Alt+T)" },
     { id = "open-dialog", label = "Open notebook…" },
     { id = "load", label = "Load notebook  (F7)" },
@@ -967,6 +972,7 @@ function UI:run_palette_command(id)
   elseif id == "find-global" then self:open_global_find()
   elseif id == "graph" then self:open_graph()
   elseif id == "tags" then self:open_tags()
+  elseif id == "go-to-cell" then self:open_cell_prompt()
   elseif id == "timing" then self:toggle_timing()
   elseif id == "output" then
     local notebook = self.app:notebook()
@@ -984,6 +990,7 @@ function UI:run_palette_command(id)
   elseif id == "save" then self.app:save()
   elseif id == "save-as" then self.app:save_as()
   elseif id == "close" then self:request_close()
+  elseif id == "close-others" then self.app:close_other_notebooks()
   elseif id == "reopen-closed" then self.app:reopen_closed_notebook()
   elseif id == "open-dialog" then self.app:open_dialog()
   elseif id:match("^recent:(%d+)$") then
@@ -1562,12 +1569,15 @@ function UI:draw_help(pass, width, height)
         { "M", "insert markdown below" },
         { "Alt+A / B / M", "same actions, anywhere" },
         { "Alt+X / dd", "delete focused cell" },
+        { "Alt+D", "duplicate selected cell" },
         { "Ctrl+1 / 2", "code / markdown" },
         { "o / O", "insert below / above and edit" },
         { "Ctrl+F", "find cells (Alt+L cell, Alt+C/W/R)" },
         { "Ctrl+Shift+F", "find across all open notebooks" },
         { "Ctrl+H", "replace (Alt+L cell, Alt+C/W/R)" },
         { "Ctrl+G / Ctrl+T", "link graph / tag index" },
+        { "Ctrl+Alt+G", "go to cell number" },
+        { "Ctrl+Alt+W", "close other clean tabs" },
         { "Ctrl+P", "command palette" },
         { "Ctrl+S", "save notebook" },
         { "Ctrl+W", "close notebook tab" },
@@ -1815,6 +1825,27 @@ function UI:draw_confirm(pass, width, height)
   end
 end
 
+function UI:open_cell_prompt()
+  self.show_cell_prompt = true
+  self.cell_prompt = ""
+end
+
+function UI:draw_cell_prompt(pass, width, height)
+  if not self.show_cell_prompt then return end
+  local notebook = self.app:notebook()
+  local panel_w, panel_h = 440, 110
+  local x, y = (width - panel_w) / 2, 170
+  box(pass, x, y, panel_w, panel_h, { 0.04, 0.05, 0.08, 1 })
+  text(pass, self.app.font,
+    string.format("Go to cell  (%d in this notebook)", #notebook.cells),
+    x + 16, y + 12, { 0.85, 0.92, 1, 1 }, 0.72)
+  box(pass, x + 14, y + 40, panel_w - 28, 28, { 0.09, 0.12, 0.18, 1 })
+  text(pass, self.app.font, self.cell_prompt .. "|", x + 24, y + 47,
+    { 0.85, 0.92, 1, 1 }, 0.74)
+  text(pass, self.app.font, "Enter jumps · Esc closes", x + 16,
+    y + panel_h - 22, { 0.5, 0.58, 0.72, 1 }, 0.62)
+end
+
 function UI:draw_symbol_prompt(pass, width, height)
   if self.symbol_prompt == nil then return end
   local panel_w, panel_h = 500, 100
@@ -2000,6 +2031,12 @@ function UI:draw_scene(pass, x, y, w, h, cell)
 end
 
 function UI:textinput(value)
+  if self.show_cell_prompt then
+    if value:match("^%d$") then
+      self.cell_prompt = self.cell_prompt .. value
+    end
+    return
+  end
   if self.show_replace then
     if self.replace_phase == "find" then
       self.replace_find = self.replace_find .. value
@@ -2537,6 +2574,23 @@ function UI:keypressed(key, modifiers)
     end
     return
   end
+  if self.show_cell_prompt then
+    if key == "escape" then
+      self.show_cell_prompt = false
+    elseif key == "backspace" then
+      self.cell_prompt = self.cell_prompt:sub(1, -2)
+    elseif key == "return" then
+      local target = tonumber(self.cell_prompt)
+      self.show_cell_prompt = false
+      if target == nil or not self.app:notebook():select(target) then
+        self.app.status = "no cell " .. tostring(self.cell_prompt)
+      else
+        self.scroll_to_selected = true
+        self.app.status = "moved to cell " .. tostring(target)
+      end
+    end
+    return
+  end
   if self.show_tree and self.rename_prompt == nil and
      self.folder_prompt == nil and self.confirm_delete == nil then
     if key == "escape" or key == "f2" then
@@ -2721,7 +2775,9 @@ function UI:keypressed(key, modifiers)
   end
   if ctrl_down and key == "f" then self:open_find(); return end
   if ctrl_down and key == "h" then self:open_replace(); return end
-  if ctrl_down and key == "g" then self:open_graph(); return end
+  if ctrl_down and key == "g" and not alt_down then
+    self:open_graph(); return
+  end
   if ctrl_down and key == "t" and not shift_down and not alt_down then
     self:open_tags(); return
   end
@@ -2763,6 +2819,14 @@ function UI:keypressed(key, modifiers)
   end
   if ctrl_down and alt_down and key == "t" then
     self.app:reopen_closed_notebook()
+    return
+  end
+  if ctrl_down and alt_down and key == "g" then
+    self:open_cell_prompt()
+    return
+  end
+  if ctrl_down and alt_down and key == "w" then
+    self.app:close_other_notebooks()
     return
   end
   if ctrl_down and key == "p" then
@@ -2814,6 +2878,8 @@ function UI:keypressed(key, modifiers)
     self.app:add_cell("markdown"); return
   elseif alt_down and key == "x" then
     self.app:delete_cell(); return
+  elseif alt_down and key == "d" then
+    self.app:duplicate_cell(); return
   elseif alt_down and key == "p" then
     self.app:run_next()
     if self.app.vim_mode then self.vim_normal = true end

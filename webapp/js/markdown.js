@@ -203,8 +203,12 @@ function renderList(entry, context) {
   const items = entry.items.map((item) => {
     let body;
     if (entry.kind === "task") {
+      const interactive = context && context.interactiveTasks;
+      if (interactive) context.taskIndex = (context.taskIndex || 0) + 1;
+      const index = interactive ? ` data-task-index="${context.taskIndex}"` : "";
+      const disabled = interactive ? "" : " disabled";
       body = `<li class="task-list-item${item.checked ? " done" : ""}">` +
-        `<input type="checkbox" disabled${item.checked ? " checked" : ""}> ` +
+        `<input type="checkbox"${disabled}${index}${item.checked ? " checked" : ""}> ` +
         inline(item.text, context);
     } else {
       body = `<li>${inline(item.text, context)}`;
@@ -277,10 +281,26 @@ function quoteHtml(entries, context) {
   return `<blockquote>${renderFrom(entries, 0, 1)}</blockquote>`;
 }
 
-export function renderMarkdown(source, prefix = "md") {
+function definitionListHtml(lines, index, context) {
+  const items = [];
+  let cursor = index;
+  while (cursor < lines.length) {
+    const term = lines[cursor];
+    const definition = (lines[cursor + 1] || "").match(/^\s*:\s+(.*)$/);
+    if (!definition || !term.trim() || /^\s*[#>\-:]/.test(term)) break;
+    items.push(`<dt>${inline(term.trim(), context)}</dt>` +
+      `<dd>${inline(definition[1], context)}</dd>`);
+    cursor += 2;
+  }
+  return { html: `<dl>${items.join("")}</dl>`, next: cursor };
+}
+
+export function renderMarkdown(source, prefix = "md", options = {}) {
   const lines = String(source || "").replace(/\r\n/g, "\n").split("\n");
   const context = footnoteContext(source);
   context.prefix = String(prefix).replace(/[^\w-]/g, "-") || "md";
+  context.interactiveTasks = options.interactiveTasks === true;
+  context.taskIndex = 0;
   const out = [];
   let paragraph = [];
   let listStack = [];
@@ -369,6 +389,15 @@ export function renderMarkdown(source, prefix = "md") {
     }
     if (quote.length) flushQuote();
 
+    const nextDefinition = /^\s*:\s+/.test(lines[index + 1] || "");
+    if (nextDefinition && raw.trim() && !/^\s*[#>\-:]/.test(raw)) {
+      flushAll();
+      const list = definitionListHtml(lines, index, context);
+      out.push(list.html);
+      index = list.next - 1;
+      continue;
+    }
+
     const header = tableCells(raw);
     const alignments = header ? tableAlignments(lines[index + 1] || "") : null;
     if (header && alignments) {
@@ -406,4 +435,29 @@ export function renderMarkdown(source, prefix = "md") {
   const footnotes = footnoteSection(context);
   if (footnotes) out.push(footnotes);
   return out.join("\n");
+}
+
+// Toggle the nth Markdown task item (1-based) in source.  Fenced code is
+// skipped, so a looked-like checkbox inside code never changes.  Returns the
+// updated source, or null when the index is out of range.
+export function toggleTaskAt(source, taskIndex) {
+  const lines = String(source || "").replace(/\r\n/g, "\n").split("\n");
+  let index = 0;
+  let inCode = false;
+  for (let line = 0; line < lines.length; line += 1) {
+    if (/^\s*[`~]{3,}/.test(lines[line])) {
+      inCode = !inCode;
+      continue;
+    }
+    if (inCode) continue;
+    const match = lines[line].match(/^(\s*[-*+]\s+\[)([ xX])(\].*)$/);
+    if (!match) continue;
+    index += 1;
+    if (index === taskIndex) {
+      lines[line] = match[1] + (match[2].toLowerCase() === "x" ? " " : "x") +
+        match[3];
+      return lines.join("\n");
+    }
+  }
+  return null;
 }

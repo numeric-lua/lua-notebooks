@@ -51,12 +51,15 @@ $$\\int_0^1 x^2 \\, dx = \\frac{1}{3}$$
 - parent
   - child
     1. ordered child
-- [x] task lists render locally
+- [x] task lists render locally (click a checkbox to toggle it)
 
 Use ==highlight==, bare links like https://love2d.org, and \\*literal\\* escapes.
 
 > [!TIP]
-> Callouts use GitHub alert syntax and render locally.`),
+> Callouts use GitHub alert syntax and render locally.
+
+Notebook
+: a definition list pairs a term with a description`),
     createCell("markdown", `## Footnotes
 
 Footnotes use [^label] for the reference and a [^label]: line for the note.[^web]

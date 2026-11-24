@@ -226,6 +226,7 @@ end
 function Notebook:duplicate(index)
   local source = self.cells[index] or self:selected()
   if source == nil then return nil end
+  self:push_undo("duplicate cell")
   local copy = {}
   for key, value in pairs(source) do copy[key] = value end
   copy.id = new_cell_id()
@@ -1099,7 +1100,10 @@ Press **Alt+L** in find or replace to limit the search to the selected cell.
 > Back at the outer level.
 
 > [!NOTE]
-> Callouts use GitHub alert syntax and render in the preview, export, and browser.]]),
+> Callouts use GitHub alert syntax and render in the preview, export, and browser.
+
+Notebook
+: a definition list pairs a term with indented description lines]]),
       cell("markdown", [[# Footnotes
 
 Markdown footnotes use `[^label]` for the reference and a `[^label]: text` line for the note. The same note renders in the live preview, the static HTML export, and the browser front-end.[^workflow]
@@ -1111,6 +1115,8 @@ Markdown footnotes use `[^label]` for the reference and a `[^label]: text` line 
 - **Ctrl+Shift+C** copies the selected cell source; **Ctrl+Alt+C** copies its text output.
 - **Ctrl+Alt+Enter** runs the selected cell and every code cell below it.
 - **Ctrl+Alt+X** clears the selected cell output; **Ctrl+Alt+T** reopens the last closed tab.
+- **Ctrl+Alt+G** jumps to a cell number; **Alt+D** duplicates the selected cell.
+- **Ctrl+Alt+W** closes every other clean tab and keeps unsaved ones open.
 - **Alt+Up / Alt+Down** moves the selected cell.
 - **Ctrl+Shift+Up / Ctrl+Shift+Down** jumps between headings, and the command palette can collapse or expand every heading at once.
 - **F11** opens the heading outline; type to filter it and press Enter to jump.]]),

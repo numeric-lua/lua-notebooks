@@ -35,8 +35,8 @@ or with the settings button in the top bar.
 
 ## What works
 
-- code and markdown cells, Markdown task-list checkboxes (read-only in the
-  browser), nested lists, pipe tables with alignment, italic emphasis, grouped
+- code and markdown cells, clickable Markdown task-list checkboxes, nested
+  lists, pipe tables with alignment, definition lists, italic emphasis, grouped
   and nested blockquotes and callouts, thematic
   breaks, strikethrough, highlight (`==text==`), bare `http(s)://` autolinks,
   backslash-escaped punctuation, ordered-list start numbers, numbered

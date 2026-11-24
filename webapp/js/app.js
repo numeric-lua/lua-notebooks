@@ -3,7 +3,7 @@ import {
   createCell, createNotebook, exportNotebook, importNotebook, loadGatewayUrl,
   loadState, saveGatewayUrl, saveState, uniqueNotebookName,
 } from "./notebook.js";
-import { renderMarkdown } from "./markdown.js";
+import { renderMarkdown, toggleTaskAt } from "./markdown.js";
 import { redrawScenes, renderScene } from "./scene.js";
 import { renderShaderWidget, stopShaderWidgets } from "./shader.js";
 
@@ -286,14 +286,30 @@ function markdownFor(cell) {
   const preview = document.createElement("div");
   preview.className = "markdown-preview";
   const footnotePrefix = String(cell.id || "md").replace(/[^\w-]/g, "-");
-  preview.innerHTML = renderMarkdown(cell.source, footnotePrefix);
+  const renderPreview = () => {
+    preview.innerHTML = renderMarkdown(cell.source, footnotePrefix,
+      { interactiveTasks: true });
+    for (const box of preview.querySelectorAll("input[data-task-index]")) {
+      box.disabled = false;
+      box.addEventListener("change", () => {
+        const updated = toggleTaskAt(cell.source,
+          Number(box.dataset.taskIndex));
+        if (updated === null) return;
+        cell.source = updated;
+        input.value = updated;
+        save();
+        renderPreview();
+      });
+    }
+  };
+  renderPreview();
   const beginEdit = () => {
     wrap.classList.add("editing");
     requestAnimationFrame(() => { input.focus(); input.setSelectionRange(input.value.length, input.value.length); });
   };
   const endEdit = () => {
     wrap.classList.remove("editing");
-    preview.innerHTML = renderMarkdown(cell.source, footnotePrefix);
+    renderPreview();
   };
   edit.addEventListener("click", beginEdit);
   preview.addEventListener("dblclick", beginEdit);

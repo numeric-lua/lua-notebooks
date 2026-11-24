@@ -224,6 +224,12 @@ A quote whose first line is `[!NOTE]`, `[!TIP]`, `[!IMPORTANT]`,
 paragraphs. Unknown types stay ordinary blockquotes. Callout styles are shared
 with the browser front-end and print cleanly.
 
+A term line followed by a `: definition` line becomes a `<dl>` with `<dt>` and
+`<dd>` pairs. Consecutive pairs share one list, inline formatting is applied to
+both sides, and marker-heavy lines remain normal blocks. The browser front-end
+uses the same parser; the live preview shows the definition with a leading em
+dash.
+
 Footnotes use `[^label]` references and single-line `[^label]: text`
 definitions within one cell. References become superscript links such as
 `<sup class="footnote-ref" id="fnref-cell-1-1">`; the referenced definitions are
@@ -272,8 +278,8 @@ The unit tests exercise heading anchors, duplicate slugs, heading permalinks,
 table-of-contents links, tables and alignment, nested lists, italic and
 blockquote grouping, nesting, and callouts, thematic breaks and strikethrough,
 ordered-list start numbers, footnote references/endnotes/backlinks,
-interactive task-marker edits, outline and tag filtering, search-index
-normalization and escaping, figure
+interactive task-marker edits, definition lists, outline and tag filtering,
+search-index normalization and escaping, figure
 summaries/SVGs, polar axes and series, escaping, JSON truncation, tag filtering,
 and timing sums. `tests/polar.lua` additionally checks the shared projection,
 tick/label filters, bar sectors, heatmap-cell and contour geometry, large-field

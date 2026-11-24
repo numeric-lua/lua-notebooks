@@ -116,6 +116,9 @@ local notebook = Notebook.new({ name = "export-qa.luanb", cells = {
     "> [!CAUTION]",
     "> Export QA callout with **emphasis**.",
     "",
+    "Notebook",
+    ": a definition list",
+    "",
     "Footnote reference[^qa].",
     "",
     "[^qa]: footnote body with *emphasis*.",
@@ -274,6 +277,7 @@ for needle in 'class="task-list"' 'class="task-list-item done"' \
     'class="heading-permalink"' 'aria-label="Permalink to Export QA"' \
     '<blockquote><p>outer quote</p><blockquote><p>inner quote</p></blockquote></blockquote>' \
     '<div class="callout callout-caution"><p class="callout-title">Caution</p>' \
+    '<dl><dt>Notebook</dt><dd>a definition list</dd></dl>' \
     '<p>Export QA callout with <strong>emphasis</strong>.</p></div>' \
     'class="footnote-ref" id="fnref-cell-1-1"' \
     '<a href="#fn-cell-1-1">1</a>' 'class="footnotes"' \

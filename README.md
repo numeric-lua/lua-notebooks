@@ -195,6 +195,7 @@ Controls:
 | `Ctrl+T` | open/close the filterable tag index overlay |
 | `Ctrl+W` | close the current notebook tab (prompts when unsaved) |
 | `Ctrl+Alt+T` | reopen the last closed notebook tab |
+| `Ctrl+Alt+W` | close other clean tabs; unsaved tabs stay open |
 | `Ctrl+Shift+E` | show/hide per-cell execution timing |
 | `Ctrl+Shift+I` | open/close notebook statistics |
 | `Ctrl+Shift+O` | expand/collapse the selected cell's long output |
@@ -203,6 +204,8 @@ Controls:
 | `Ctrl+Alt+X` | clear the selected cell's output |
 | `Ctrl+Shift+F5` | restart the current kernel and run every code cell |
 | `Ctrl+Alt+Enter` | run the selected cell and every code cell below it |
+| `Ctrl+Alt+G` | jump to a cell by number |
+| `Alt+D` | duplicate the selected cell |
 | `Alt+Up` / `Alt+Down` | move the selected cell up / down |
 | `Ctrl+Shift+Up` / `Ctrl+Shift+Down` | jump to the previous / next Markdown heading |
 | `F1` | open/close the command palette |
@@ -411,7 +414,8 @@ remaining gaps.
 
 `make test` runs the pure model, widget, engine, remote-supervisor,
 process-kernel, sandbox, editor, filetree filtering, workflow shortcut
-dispatch, tag/heading filtering, Markdown nested quotes/callouts/tables/nesting/
+dispatch, tag/heading filtering, Markdown nested quotes/callouts/definition
+lists/tables/nesting/
 emphasis/highlight/autolink/escape/footnote/regex, polar/heatmap/contour/
 quiver/streamplot/colourbar/clipping export parity, and Neovim-buffer plan/apply
 suite on LuaJIT. `make test-lua51
@@ -456,7 +460,7 @@ compositor and window stacking.
 ## LuaRocks
 
 ```sh
-luarocks make lua-notebooks-1.58.0-1.rockspec
+luarocks make lua-notebooks-1.59.0-1.rockspec
 lua-notebooks
 ```
 
@@ -465,7 +469,7 @@ The rockspec installs the app source under the LuaRocks share tree and a
 
 ```sh
 make rock
-luarocks install lua-notebooks-1.58.0-1.src.rock
+luarocks install lua-notebooks-1.59.0-1.src.rock
 ```
 
 Publishing to a remote rock server is intentionally not automated.
@@ -657,6 +661,9 @@ clipboard text. `Ctrl+Alt+Enter` runs the selected cell and every code cell
 below it, leaving earlier outputs untouched. `Ctrl+Alt+X` clears the selected
 cell's output, scene, widgets, and error (refusing while it is running), and
 `Ctrl+Alt+T` reopens the most recently closed tab with a fresh kernel.
+`Ctrl+Alt+W` closes every other tab that has no unsaved changes and reports how
+many dirty tabs it kept. `Ctrl+Alt+G` opens a numeric **Go to cell** prompt;
+Enter jumps and Esc cancels. `Alt+D` duplicates the selected cell.
 **Alt+Up** and **Alt+Down** reorder
 the selected cell in one step; the cell keeps its source, output, and widget
 state. **Ctrl+Shift+Up** and **Ctrl+Shift+Down** jump to the nearest Markdown
@@ -673,8 +680,9 @@ and closes the outline.
 
 In the live Markdown preview, clicking the `[x]` or `[ ]` marker of a task-list
 item toggles that item in the cell source as one undoable edit. The rest of the
-line, indentation, and list marker are preserved. The static HTML export and
-browser front-end remain read-only and keep their disabled checkboxes.
+line, indentation, and list marker are preserved. The browser front-end also
+renders those task checkboxes as live controls and saves the toggled source;
+the static HTML export remains read-only with disabled checkboxes.
 
 ## Nested blockquotes
 
@@ -691,6 +699,13 @@ as **Warning**), the remaining quoted lines keep their normal inline formatting,
 and unknown types stay ordinary blockquotes. The live preview marks the title
 with `▌`; the static export and browser emit
 `<div class="callout callout-warning">` with matching title/body styles.
+
+## Definition lists
+
+A term line followed by a `: definition` line becomes a definition list. The
+static export and browser emit `<dl>` with `<dt>`/`<dd>` pairs; the live preview
+shows the definition indented after an em dash. Consecutive term/definition
+pairs share one list, and a blank line starts normal content again.
 
 ## Links
 
@@ -749,7 +764,7 @@ A small inline script adds reader-facing full-text search and a cell-kind filter
 
 Code-cell scene outputs become `<figure>` placeholders with a deterministic inline SVG preview (Cartesian line, scatter, bar, and histogram; polar line, scatter, bar, heatmap, contour, quiver, and streamplot; plus `cube` and `grid`), a caption with series/point counts, and a collapsible JSON scene dump. Polar previews honour zero/direction/`rmax`, the supplied theta/r ticks, quiver scale/pivot/normalization and arrow decimation, and streamplot step/periodicity/cap metadata. The live viewport renders the same polar IR; both backends use `notebook/polar.lua` for rmax resolution, projection, tick fallbacks, sampling caps, label limits, bar wedges, heatmap/contour geometry, quiver arrows, and streamplot polylines and heads. Interactive widgets are listed but not exported. The static preview is a sketch of the scene, not a raster of the live renderer. See [docs/export.md](docs/export.md) for the document shape, search semantics, Markdown subset, safety rules, and determinism guarantees.
 
-From a source checkout, `luajit tools/export.lua INPUT.luanb OUTPUT.html` exports without opening the app (use `-` for stdout and extra `.luanb` arguments for backlinks). `./scripts/export-qa.sh` builds a fixture, verifies `?q=`/`?kind=` filtering plus task lists, rules, strikethrough, ordered-list starts, heading permalinks, and copy controls in headless Chromium, and captures light/dark/narrow screenshots under `/tmp`. `./scripts/polar-qa.sh` does the corresponding live app check for a polar scene.
+From a source checkout, `luajit tools/export.lua INPUT.luanb OUTPUT.html` exports without opening the app (use `-` for stdout and extra `.luanb` arguments for backlinks). `./scripts/export-qa.sh` builds a fixture, verifies `?q=`/`?kind=` filtering plus task lists, definition lists, rules, strikethrough, ordered-list starts, heading permalinks, and copy controls in headless Chromium, and captures light/dark/narrow screenshots under `/tmp`. `./scripts/polar-qa.sh` does the corresponding live app check for a polar scene.
 
 ## Link graph
 
