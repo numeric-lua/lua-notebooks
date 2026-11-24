@@ -110,6 +110,9 @@ local notebook = Notebook.new({ name = "export-qa.luanb", cells = {
     "",
     "==highlighted== https://example.com/docs and \\*literal\\*",
     "",
+    "> outer quote",
+    "> > inner quote",
+    "",
     "Footnote reference[^qa].",
     "",
     "[^qa]: footnote body with *emphasis*.",
@@ -266,6 +269,7 @@ for needle in 'class="task-list"' 'class="task-list-item done"' \
     '<mark>highlighted</mark>' 'href="https://example.com/docs"' \
     '>https://example.com/docs</a>' '*literal*' \
     'class="heading-permalink"' 'aria-label="Permalink to Export QA"' \
+    '<blockquote><p>outer quote</p><blockquote><p>inner quote</p></blockquote></blockquote>' \
     'class="footnote-ref" id="fnref-cell-1-1"' \
     '<a href="#fn-cell-1-1">1</a>' 'class="footnotes"' \
     '<li id="fn-cell-1-1">footnote body with <em>emphasis</em>.' \

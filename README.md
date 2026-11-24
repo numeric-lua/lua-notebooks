@@ -186,7 +186,7 @@ Controls:
 | `F8` | hot-reload the focused extension renderer |
 | `F9` | reload extensions from the save directory |
 | `F10` | open/close the extension browser; click a row to enable/disable |
-| `F11` | open/close the heading outline |
+| `F11` | open/close the filterable heading outline |
 | `Ctrl+Space` | open Lua completion for the selected code cell |
 | `Ctrl+Shift+F` | search all open notebooks |
 | `Ctrl+H` | replace in the current notebook (`Alt+R` toggles Lua patterns) |
@@ -198,7 +198,9 @@ Controls:
 | `Ctrl+Shift+I` | open/close notebook statistics |
 | `Ctrl+Shift+O` | expand/collapse the selected cell's long output |
 | `Ctrl+Shift+C` | copy the selected cell source |
+| `Ctrl+Alt+C` | copy the selected cell's text output or error |
 | `Ctrl+Shift+F5` | restart the current kernel and run every code cell |
+| `Ctrl+Alt+Enter` | run the selected cell and every code cell below it |
 | `Alt+Up` / `Alt+Down` | move the selected cell up / down |
 | `Ctrl+Shift+Up` / `Ctrl+Shift+Down` | jump to the previous / next Markdown heading |
 | `F1` | open/close the command palette |
@@ -292,10 +294,11 @@ states. Nested bullets, ordered items, and checklists keep their indentation.
 Pipe tables preview as aligned rows with cell dividers; the static HTML and
 browser front-end emit a real `<table>` with left/center/right alignment from
 the delimiter row. Italic (`*text*`, `_text_`), bold, strikethrough, and grouped
-blockquotes render consistently in the preview, export, and browser. Checklist
-items (`- [x] done`, `- [ ] todo`) preview as `[x]`/`[ ]` markers, thematic
-breaks (`---`, `***`, `___`) preview as a rule, and both build as disabled
-checkboxes/rules in the static HTML and browser front-end.
+blockquotes render consistently in the preview, export, and browser, including
+nested `>` depths. Checklist items (`- [x] done`, `- [ ] todo`) preview as
+clickable `[x]`/`[ ]` markers, thematic breaks (`---`, `***`, `___`) preview as
+a rule, and both build as disabled checkboxes/rules in the static HTML and
+browser front-end.
 
 Highlight `==text==` renders as plain text in the live preview and as `<mark>` in
 the static export and browser. Bare `http://` and `https://` URLs become links in
@@ -451,7 +454,7 @@ compositor and window stacking.
 ## LuaRocks
 
 ```sh
-luarocks make lua-notebooks-1.56.0-1.rockspec
+luarocks make lua-notebooks-1.57.0-1.rockspec
 lua-notebooks
 ```
 
@@ -460,7 +463,7 @@ The rockspec installs the app source under the LuaRocks share tree and a
 
 ```sh
 make rock
-luarocks install lua-notebooks-1.56.0-1.src.rock
+luarocks install lua-notebooks-1.57.0-1.src.rock
 ```
 
 Publishing to a remote rock server is intentionally not automated.
@@ -515,7 +518,7 @@ LUANB_SMOKE_STATS=1 lovr .  # open/close notebook statistics, then quit
 LUANB_SMOKE_GLOBAL_FIND=1 lovr . # search/jump across tabs, then quit
 LUANB_SMOKE_CLOSE=1 lovr . # guard, close, and re-key notebook kernels, then quit
 LUANB_SMOKE_OUTPUT=1 lovr . # expand a 12-line output, then quit
-LUANB_SMOKE_WORKFLOW=1 lovr . # exercise workflow shortcuts + restart/run-all
+LUANB_SMOKE_WORKFLOW=1 lovr . # shortcuts, task click, outline, restart + run below
 LUANB_QA_CELL=6 lovr .      # run one cell and keep the window open for visual QA
 LUANB_QA_TAGS=1 LUANB_QA_SCREENSHOT=1 lovr . # tag-index overlay screenshot
 LUANB_QA_STATS=1 LUANB_QA_SCREENSHOT=1 lovr . # statistics overlay screenshot
@@ -646,12 +649,34 @@ its globals alive.
 ## Notebook workflow shortcuts
 
 `Ctrl+Shift+C` copies the selected cell's source exactly, including Markdown
-cells, without writing to the notebook or dirtying it. **Alt+Up** and
-**Alt+Down** reorder the selected cell in one step; the cell keeps its source,
-output, and widget state. **Ctrl+Shift+Up** and **Ctrl+Shift+Down** jump to the
-nearest Markdown heading before or after the selected cell without wrapping.
-The command palette adds **Collapse all headings** and **Expand all headings**,
-which change every heading as one undoable edit while leaving code cells alone.
+cells, without writing to the notebook or dirtying it. `Ctrl+Alt+C` copies the
+cell's captured text output, or its error text; scene and widget state are not
+clipboard text. `Ctrl+Alt+Enter` runs the selected cell and every code cell
+below it, leaving earlier outputs untouched. **Alt+Up** and **Alt+Down** reorder
+the selected cell in one step; the cell keeps its source, output, and widget
+state. **Ctrl+Shift+Up** and **Ctrl+Shift+Down** jump to the nearest Markdown
+heading before or after the selected cell without wrapping. The command palette
+adds **Collapse all headings** and **Expand all headings**, which change every
+heading as one undoable edit while leaving code cells alone.
+
+**F11** opens the heading outline with a type-to-filter field. Matching is a
+case-insensitive substring over heading text, the header shows the filtered
+count, and Up/Down move the highlight; Enter or a click jumps to that heading
+and closes the outline.
+
+## Interactive task lists
+
+In the live Markdown preview, clicking the `[x]` or `[ ]` marker of a task-list
+item toggles that item in the cell source as one undoable edit. The rest of the
+line, indentation, and list marker are preserved. The static HTML export and
+browser front-end remain read-only and keep their disabled checkboxes.
+
+## Nested blockquotes
+
+Consecutive Markdown quote lines retain their nesting depth. The live preview
+indents deeper quotes with `│`, while the static export and browser front-end
+emit nested `<blockquote>` elements; depth-one quotes keep the existing
+one-paragraph-per-line layout.
 
 ## Links
 

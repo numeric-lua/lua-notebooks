@@ -172,6 +172,9 @@ function UI.new(app)
     diagnostic_cache = {},
     show_outline = false,
     outline_rects = {},
+    outline_query = "",
+    outline_selected = 1,
+    outline_matches = {},
     show_help = false,
     show_find = false,
     show_global_find = false,
@@ -210,6 +213,7 @@ function UI.new(app)
     find_cell_only = false,
     find_rects = {},
     link_rects = {},
+    task_rects = {},
     show_palette = false,
     palette_rects = {},
     palette_query = "",
@@ -339,6 +343,7 @@ function UI:draw(pass, logical_width, logical_height)
   self.source_rects = {}
   self.nvim_rect = nil
   self.link_rects = {}
+  self.task_rects = {}
   local content_height = 0
 
   local visible = {}
@@ -594,6 +599,15 @@ function UI:draw(pass, logical_width, logical_height)
           local text_color = wiki_target and { 0.45, 0.72, 1, 1 } or
             (heading_preview and { 0.88, 0.92, 1, 1 } or source_color)
           local text_scale = heading_preview and 0.98 or 0.86
+          if preview and raw_display:match("^%s*[-*+]%s+%[[ xX]%]") then
+            local indent = display:match("^(%s*)") or ""
+            local marker_x = x + app.font:getWidth(indent) * text_scale
+            self.task_rects[#self.task_rects + 1] = {
+              x = marker_x - 3, y = line_y - 2,
+              w = app.font:getWidth("[x]") * text_scale + 8,
+              h = 22, cell = index, line = line_index,
+            }
+          end
           for _, segment in ipairs(Math.segments(display)) do
             local line_font = segment.math and (app.math_font or app.font) or
               app.font
@@ -831,7 +845,9 @@ function UI:palette_commands()
     { id = "restart-run-all", label = "Restart kernel and run all cells  (Ctrl+Shift+F5)" },
     { id = "clear-outputs", label = "Clear all cell outputs" },
     { id = "run-all", label = "Run all code cells" },
+    { id = "run-below", label = "Run selected cell and below  (Ctrl+Alt+Enter)" },
     { id = "copy-cell", label = "Copy selected cell source  (Ctrl+Shift+C)" },
+    { id = "copy-output", label = "Copy selected cell output  (Ctrl+Alt+C)" },
     { id = "export-md", label = "Export notebook as Markdown" },
     { id = "export-html", label = "Export notebook as HTML" },
     { id = "recover-autosave", label = "Recover autosaved notebook" },
@@ -931,7 +947,9 @@ function UI:run_palette_command(id)
   elseif id == "restart-run-all" then self.app:restart_and_run_all()
   elseif id == "clear-outputs" then self.app:clear_outputs()
   elseif id == "run-all" then self.app:run_all()
+  elseif id == "run-below" then self.app:run_all_below()
   elseif id == "copy-cell" then self.app:copy_cell_source()
+  elseif id == "copy-output" then self.app:copy_cell_output()
   elseif id == "export-md" then self.app:export_markdown()
   elseif id == "export-html" then self.app:export_html()
   elseif id == "recover-autosave" then self.app:recover_autosave()
@@ -996,7 +1014,7 @@ function UI:run_palette_command(id)
   elseif id == "undo" then self.app:notebook():undo()
   elseif id == "redo" then self.app:notebook():redo()
   elseif id == "extensions" then self.show_extensions = true
-  elseif id == "outline" then self.show_outline = true
+  elseif id == "outline" then self:open_outline()
   elseif id == "help" then self.show_help = true
   elseif id == "nvim" then self.app:open_nvim()
   elseif id == "nvim-default" then self.app:toggle_nvim_default()
@@ -1511,6 +1529,7 @@ function UI:draw_help(pass, width, height)
         { "Ctrl+S", "save notebook" },
         { "Ctrl+W", "close notebook tab" },
         { "Ctrl+Shift+C / F5", "copy source / restart and run all" },
+        { "Ctrl+Alt+C / Enter", "copy output / run below" },
         { "Alt+Up / Down", "move selected cell" },
         { "Ctrl+Shift+Up / Down", "previous / next heading" },
         { "Ctrl+Tab", "next / previous notebook" },
@@ -1547,7 +1566,7 @@ function UI:draw_help(pass, width, height)
       { title = "VIEW", rows = {
         { "+ / - / 0", "UI zoom / reset" },
         { "F4", "Zen mode" },
-        { "F10 / F11", "extensions / outline" },
+        { "F10 / F11", "extensions / filterable outline" },
         { "Ctrl+Shift+S", "screenshot" },
         { "Ctrl+Shift+E / T", "timing / light-dark theme" },
         { "Ctrl+Shift+U", "history" },
@@ -1764,30 +1783,77 @@ function UI:draw_symbol_prompt(pass, width, height)
     { 0.85, 0.92, 1, 1 }, 0.7)
 end
 
+function UI:update_outline()
+  local headings = self.app:notebook():headings()
+  self.outline_matches = Format.filter_headings(headings, self.outline_query)
+  if #self.outline_matches == 0 then
+    self.outline_selected = 1
+  else
+    self.outline_selected = math.max(1,
+      math.min(self.outline_selected, #self.outline_matches))
+  end
+  return self.outline_matches
+end
+
+function UI:open_outline()
+  self.show_outline = true
+  self.outline_query = ""
+  self.outline_selected = 1
+  local headings = self.app:notebook():headings()
+  for index, heading in ipairs(headings) do
+    if heading.index == self.app:notebook().active then
+      self.outline_selected = index
+      break
+    end
+  end
+  self:update_outline()
+end
+
+function UI:jump_to_outline_heading()
+  local heading = self.outline_matches[self.outline_selected]
+  if heading == nil then return false end
+  self.app:notebook():select(heading.index)
+  self.scroll_to_selected = true
+  self.show_outline = false
+  self.app.status = "jumped to heading"
+  return true
+end
+
 function UI:draw_outline(pass, width, height)
   self.outline_rects = {}
   if not self.show_outline then return end
-  local headings = self.app:notebook():headings()
-  local panel_w = 320
-  local panel_h = 90 + math.max(1, #headings) * 30
+  local headings = self:update_outline()
+  local all_headings = self.app:notebook():headings()
+  local panel_w = 360
+  local panel_h = 112 + math.max(1, #headings) * 30
   local x, y = 20, 54
   box(pass, x, y, panel_w, panel_h, { 0.045, 0.055, 0.08, 0.98 })
-  text(pass, self.app.font, "Outline  (F11 to close)", x + 14, y + 14,
+  text(pass, self.app.font, "Outline  (F11 to close)", x + 14, y + 12,
     { 0.9, 0.94, 1, 1 }, 0.78)
+  box(pass, x + 12, y + 36, panel_w - 24, 26, { 0.09, 0.12, 0.18, 1 })
+  local query = self.outline_query
+  text(pass, self.app.font,
+    (query == "" and "type to filter headings" or query) .. "|",
+    x + 20, y + 42,
+    query == "" and { 0.45, 0.5, 0.62, 1 } or { 0.85, 0.92, 1, 1 }, 0.7)
+  text(pass, self.app.font,
+    string.format("%d of %d", #headings, #all_headings),
+    x + panel_w - 14, y + 42, { 0.55, 0.62, 0.75, 1 }, 0.62, "right")
   if #headings == 0 then
-    text(pass, self.app.font, "No markdown headings", x + 14, y + 52,
-      { 0.55, 0.6, 0.7, 1 }, 0.7)
+    text(pass, self.app.font, "No headings match this filter", x + 14,
+      y + 82, { 0.55, 0.6, 0.7, 1 }, 0.7)
   end
   for index, heading in ipairs(headings) do
-    local row_y = y + 46 + (index - 1) * 30
-    local selected = heading.index == self.app:notebook().active
+    local row_y = y + 74 + (index - 1) * 30
+    local selected = index == self.outline_selected
     box(pass, x + 8, row_y, panel_w - 16, 26,
       selected and { 0.14, 0.22, 0.34, 1 } or { 0.07, 0.08, 0.11, 1 })
     text(pass, self.app.font, (heading.collapsed and "▸ " or "▾ ") ..
       string.rep("  ", heading.level - 1) .. heading.text,
       x + 18, row_y + 6, { 0.8, 0.86, 0.98, 1 }, 0.68)
     self.outline_rects[#self.outline_rects + 1] = {
-      x = x + 8, y = row_y, w = panel_w - 16, h = 26, index = heading.index,
+      x = x + 8, y = row_y, w = panel_w - 16, h = 26,
+      index = heading.index, match = index,
     }
   end
 end
@@ -1912,6 +1978,12 @@ function UI:textinput(value)
   if self.show_find then
     self.find_query = self.find_query .. value
     self:update_find()
+    return
+  end
+  if self.show_outline then
+    self.outline_query = self.outline_query .. value
+    self.outline_selected = 1
+    self:update_outline()
     return
   end
   if self.app.show_nvim then
@@ -2493,6 +2565,23 @@ function UI:keypressed(key, modifiers)
     end
     return
   end
+  if self.show_outline then
+    if key == "escape" or key == "f11" then
+      self.show_outline = false
+    elseif key == "backspace" then
+      self.outline_query = self.outline_query:sub(1, -2)
+      self.outline_selected = 1
+      self:update_outline()
+    elseif key == "return" then
+      self:jump_to_outline_heading()
+    elseif key == "up" then
+      self.outline_selected = math.max(1, self.outline_selected - 1)
+    elseif key == "down" then
+      self.outline_selected = math.min(#self.outline_matches,
+        self.outline_selected + 1)
+    end
+    return
+  end
   if self.show_global_find then
     if key == "escape" then
       self.show_global_find = false
@@ -2596,6 +2685,14 @@ function UI:keypressed(key, modifiers)
   end
   if ctrl_down and shift_down and (key == "down" or key == "up") then
     self.app:goto_heading(key == "down" and 1 or -1)
+    return
+  end
+  if ctrl_down and alt_down and key == "return" then
+    self.app:run_all_below()
+    return
+  end
+  if ctrl_down and alt_down and key == "c" then
+    self.app:copy_cell_output()
     return
   end
   if ctrl_down and key == "p" then
@@ -3361,7 +3458,8 @@ function UI:keypressed(key, modifiers)
   elseif key == "f10" then
     self.show_extensions = not self.show_extensions
   elseif key == "f11" then
-    self.show_outline = not self.show_outline
+    if self.show_outline then self.show_outline = false
+    else self:open_outline() end
   elseif key == "f12" then
     self.show_help = not self.show_help
   elseif key == "tab" then
@@ -3568,6 +3666,15 @@ function UI:mousepressed(x, y, button)
       end
     end
     return
+  end
+  for _, rect in ipairs(self.task_rects) do
+    if inside(x, y, rect) then
+      local checked = self.app:notebook():toggle_task(rect.cell, rect.line)
+      if checked ~= nil then
+        self.app.status = checked and "checked task" or "unchecked task"
+        return
+      end
+    end
   end
   for cell_index, controls in pairs(self.widget_rects) do
     for _, rect in ipairs(controls) do

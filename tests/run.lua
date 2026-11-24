@@ -281,6 +281,21 @@ test("lists heading cells and levels", function()
   eq(headings[2].index, 3)
 end)
 
+test("filters outline headings by case-insensitive text", function()
+  local Format = require("notebook.format")
+  local headings = {
+    { index = 1, level = 1, text = "Introduction" },
+    { index = 3, level = 2, text = "Plot setup" },
+    { index = 5, level = 2, text = "plot results" },
+  }
+  eq(#Format.filter_headings(headings, ""), 3)
+  local matched = Format.filter_headings(headings, "PLOT")
+  eq(#matched, 2)
+  eq(matched[1].index, 3)
+  eq(matched[2].index, 5)
+  eq(#Format.filter_headings(headings, "missing"), 0)
+end)
+
 test("navigates between headings without wrapping", function()
   local Notebook = require("notebook.model")
   local notebook = Notebook.new({ cells = {
@@ -454,6 +469,24 @@ test("edits markdown cells", function()
   eq(notebook:selected().source, "hello")
   notebook:cursor_home()
   eq(notebook:selected().cursor, 1)
+end)
+test("toggles one Markdown task marker without changing the rest", function()
+  local Notebook = require("notebook.model")
+  local notebook = Notebook.new({ cells = {
+    { kind = "markdown", source = "- [ ] first\n  * [x] second\nplain" },
+  } })
+  eq(notebook:toggle_task(1, 1), true)
+  eq(notebook.cells[1].source,
+    "- [x] first\n  * [x] second\nplain")
+  eq(notebook.dirty, true)
+  eq(notebook:toggle_task(1, 2), false)
+  eq(notebook.cells[1].source,
+    "- [x] first\n  * [ ] second\nplain")
+  eq(notebook:toggle_task(1, 3), nil)
+  eq(notebook:toggle_task(2, 1), nil)
+  notebook:undo()
+  eq(notebook.cells[1].source,
+    "- [x] first\n  * [x] second\nplain")
 end)
 
 current = "vim delimiter objects"
@@ -703,6 +736,22 @@ test("renders horizontal rules and strikethrough", function()
   assert(html:find("<hr>", 1, true))
   assert(html:find("<p>Retired <del>old</del> text.</p>", 1, true))
   assert(html:find("<p>----------</p>", 1, true) == nil)
+end)
+
+test("renders nested Markdown blockquotes", function()
+  local notebook = Notebook.new({ name = "quotes.luanb", cells = {
+    { kind = "markdown", source = table.concat({
+      "> outer",
+      "> > inner",
+      "> outer again",
+      "> > > deepest",
+    }, "\n") },
+  } })
+  local html = Format.to_html(notebook)
+  assert(html:find(
+    "<blockquote><p>outer</p><blockquote><p>inner</p></blockquote>" ..
+    "<p>outer again</p><blockquote><blockquote>" ..
+    "<p>deepest</p></blockquote></blockquote></blockquote>", 1, true))
 end)
 
 current = "html ordered lists"

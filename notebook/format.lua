@@ -628,6 +628,43 @@ local function code_block_html(source, language)
     table.concat(lines) .. "</code></pre></div>"
 end
 
+local function quote_depth(line)
+  local depth, rest = 0, line
+  while true do
+    local prefix, content = rest:match("^(%s*>%s?)(.*)$")
+    if prefix == nil then break end
+    depth = depth + 1
+    rest = content
+  end
+  return depth, rest
+end
+
+-- Render consecutive blockquote entries as nested <blockquote> blocks while
+-- keeping one paragraph per source line, matching the existing preview/export
+-- behavior for depth-one quotes.
+local function quote_html(entries, footnotes)
+  local function render_from(start, depth)
+    local out = {}
+    local index = start
+    while index <= #entries and entries[index].depth >= depth do
+      if entries[index].depth == depth then
+        out[#out + 1] = "<p>" ..
+          inline_markdown(entries[index].text, footnotes) .. "</p>"
+        index = index + 1
+      else
+        local child_start = index
+        while index <= #entries and entries[index].depth > depth do
+          index = index + 1
+        end
+        out[#out + 1] = "<blockquote>" ..
+          render_from(child_start, depth + 1) .. "</blockquote>"
+      end
+    end
+    return table.concat(out)
+  end
+  return "<blockquote>" .. render_from(1, 1) .. "</blockquote>"
+end
+
 -- Small, readable Markdown renderer for static exports.  It intentionally
 -- covers the subset the editor previews: headings, nested lists, pipe tables,
 -- quotes, fenced code, emphasis, inline code, links, and wiki links.
@@ -713,12 +750,7 @@ local function markdown_html(source, headings, footnote_prefix)
 
   local function flush_quote()
     if #quote > 0 then
-      local parts = {}
-      for _, line in ipairs(quote) do
-        parts[#parts + 1] = "<p>" ..
-          inline_markdown(line, footnotes) .. "</p>"
-      end
-      out[#out + 1] = "<blockquote>" .. table.concat(parts) .. "</blockquote>"
+      out[#out + 1] = quote_html(quote, footnotes)
       quote = {}
     end
   end
@@ -810,7 +842,8 @@ local function markdown_html(source, headings, footnote_prefix)
             add_list_item(item)
           elseif line:match("^%s*>%s?") then
             flush_paragraph(); close_lists()
-            quote[#quote + 1] = line:gsub("^%s*>%s?", "")
+            local depth, text = quote_depth(line)
+          quote[#quote + 1] = { depth = depth, text = text }
           elseif line:match("^%s*$") then
             flush_blocks()
           else
@@ -2299,6 +2332,20 @@ function Format.filter_entries(entries, query)
           break
         end
       end
+    end
+  end
+  return result
+end
+
+-- Case-insensitive substring filter over outline heading text.  An empty query
+-- returns the original list unchanged.
+function Format.filter_headings(headings, query)
+  if type(query) ~= "string" or query == "" then return headings end
+  local needle = query:lower()
+  local result = {}
+  for _, heading in ipairs(headings or {}) do
+    if tostring(heading.text or ""):lower():find(needle, 1, true) ~= nil then
+      result[#result + 1] = heading
     end
   end
   return result

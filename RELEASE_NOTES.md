@@ -1,3 +1,32 @@
+# lua-notebooks 1.57.0
+
+- make Markdown task-list markers clickable in the live preview: clicking
+  `[x]`/`[ ]` toggles only that marker in the cell source as one undoable edit,
+  preserving indentation and the rest of the line; the static export and
+  browser keep their read-only disabled checkboxes;
+- add **Ctrl+Alt+C** and a palette action to copy the selected cell's captured
+  text output, falling back to its error text and refusing scene-only cells;
+- add **Ctrl+Alt+Enter** and a palette action to run the selected cell and
+  every code cell below it without rerunning earlier cells;
+- make the **F11** outline filterable: type a case-insensitive substring, see
+  the matched/total count, move the highlight with Up/Down, and jump with Enter
+  or a click;
+- render nested Markdown blockquotes in the live preview (`│` indentation), the
+  static HTML export, and the browser front-end, while depth-one quotes keep
+  their existing one-paragraph-per-line layout;
+- extend `tests/workflow.lua`, `tests/run.lua`, `tests/markdown.lua`, and the
+  browser Markdown suite; expand `LUANB_SMOKE_WORKFLOW` to cover task clicks,
+  outline filtering, output copy, and run-below execution; add nested-quote DOM
+  checks to `scripts/export-qa.sh`; update the welcome notebooks and document
+  the new behavior in the README, `docs/export.md`, `docs/web.md`,
+  `docs/roadmap.md`, and `webapp/README.md`.
+
+No new runtime dependencies. The Neovim path, kernel protocol, and committed
+visual pixel baselines are unchanged. `make test`, `make test-nvim`,
+`make test-webapp`, `LUANB_SMOKE_WORKFLOW=1 lovr .`, the pixel baseline check,
+`scripts/export-qa.sh`, and `scripts/scene-qa.sh` pass. This release is tagged
+`v1.57.0`.
+
 # lua-notebooks 1.56.0
 
 - add **Ctrl+Shift+F5** and a command-palette action to restart the current

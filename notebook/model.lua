@@ -646,6 +646,28 @@ function Notebook:set_headings_collapsed(collapsed)
   return true
 end
 
+-- Toggle one Markdown task-list checkbox by source line.  Only the marker
+-- character changes, so indentation, list kind, and trailing text are kept.
+function Notebook:toggle_task(index, line_index)
+  local cell = self.cells[index]
+  if cell == nil or cell.kind ~= "markdown" then return nil end
+  local lines = {}
+  for line in ((cell.source or "") .. "\n"):gmatch("(.-)\n") do
+    lines[#lines + 1] = line
+  end
+  local line = lines[line_index]
+  if line == nil then return nil end
+  local prefix, checkbox, suffix =
+    line:match("^(%s*[-*+]%s+%[)([ xX])(%].*)$")
+  if prefix == nil then return nil end
+  local checked = checkbox:lower() == "x"
+  self:push_undo("toggle task")
+  lines[line_index] = prefix .. (checked and " " or "x") .. suffix
+  cell.source = table.concat(lines, "\n")
+  self.dirty = true
+  return not checked
+end
+
 local OUTPUT_PREVIEW_LINES = 6
 
 function Notebook.output_line_count(cell)
@@ -1042,7 +1064,7 @@ return { scene = {
     },
   },
 } }]]),
-      cell("markdown", "# Markdown checklist\n\n- [x] render inline math and **emphasis**\n- [x] preview links such as [[Second kernel]]\n- [ ] add `docs` for your own notebook\n\nChecklists preview as [x]/[ ] markers and export as disabled HTML checkboxes."),
+      cell("markdown", "# Markdown checklist\n\n- [x] render inline math and **emphasis**\n- [x] preview links such as [[Second kernel]]\n- [ ] add `docs` for your own notebook\n\nChecklists preview as [x]/[ ] markers; click a marker to toggle the source item. The export shows disabled HTML checkboxes."),
       cell("code", [[
 -- Long output stays compact until you expand it.
 for line = 1, 12 do
@@ -1070,7 +1092,11 @@ Press **Ctrl+F** for notebook search or **Ctrl+H** for replace, then **Alt+R** t
 
 Use ==highlight== for a marker, bare links such as https://love2d.org, and a backslash to keep punctuation literal: \*star\*, \[brackets\], and \_underscore\_.
 
-Press **Alt+L** in find or replace to limit the search to the selected cell.]]),
+Press **Alt+L** in find or replace to limit the search to the selected cell.
+
+> Quotes can nest.
+> > A nested quote is indented one level deeper.
+> Back at the outer level.]]),
       cell("markdown", [[# Footnotes
 
 Markdown footnotes use `[^label]` for the reference and a `[^label]: text` line for the note. The same note renders in the live preview, the static HTML export, and the browser front-end.[^workflow]
@@ -1079,9 +1105,11 @@ Markdown footnotes use `[^label]` for the reference and a `[^label]: text` line 
       cell("markdown", [[# Notebook workflow
 
 - **Ctrl+Shift+F5** restarts the kernel and runs every code cell.
-- **Ctrl+Shift+C** copies the selected cell source.
+- **Ctrl+Shift+C** copies the selected cell source; **Ctrl+Alt+C** copies its text output.
+- **Ctrl+Alt+Enter** runs the selected cell and every code cell below it.
 - **Alt+Up / Alt+Down** moves the selected cell.
-- **Ctrl+Shift+Up / Ctrl+Shift+Down** jumps between headings, and the command palette can collapse or expand every heading at once.]]),
+- **Ctrl+Shift+Up / Ctrl+Shift+Down** jumps between headings, and the command palette can collapse or expand every heading at once.
+- **F11** opens the heading outline; type to filter it and press Enter to jump.]]),
     },
   })
   local second = Notebook.new({

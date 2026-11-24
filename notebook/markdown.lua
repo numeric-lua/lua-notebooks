@@ -97,6 +97,17 @@ function Markdown.preview(line, footnotes)
     line = "↳ " .. definition_text
   end
 
+  local quote_depth, quote_rest = 0, line
+  while true do
+    local prefix, rest = quote_rest:match("^(%s*>%s?)(.*)$")
+    if prefix == nil then break end
+    quote_depth = quote_depth + 1
+    quote_rest = rest
+  end
+  if quote_depth > 0 then
+    line = string.rep("│ ", quote_depth) .. quote_rest
+  end
+
   if line:match("^%s*([%*%-_])%s*%1%s*%1[%s%*%-_]*$") then
     return restore("----------")
   end

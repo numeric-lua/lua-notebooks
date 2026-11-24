@@ -211,8 +211,11 @@ through `<ol start="N">`. Pipe tables become
 `<table class="markdown-table">` with a `<thead>` row and left, center, or right
 aligned `<th>`/`<td>` cells taken from the `:---`/`:---:`/`---:` delimiter row;
 a table inside a fenced block stays code. Consecutive `>` lines are grouped in
-one `<blockquote>`, and every rendered heading carries a hover/focus `#`
-permalink pointing at its anchor. Raw HTML in Markdown is escaped.
+one `<blockquote>`; extra `>` markers create nested `<blockquote>` elements
+while depth-one lines keep one paragraph per source line. Every rendered
+heading carries a hover/focus `#` permalink pointing at its anchor. Raw HTML
+in Markdown is escaped. Task-list checkboxes stay disabled in the static
+export; clicking them is a live-preview-only editing affordance.
 
 Footnotes use `[^label]` references and single-line `[^label]: text`
 definitions within one cell. References become superscript links such as
@@ -260,8 +263,9 @@ make test-webapp          # Node browser-renderer tests
 
 The unit tests exercise heading anchors, duplicate slugs, heading permalinks,
 table-of-contents links, tables and alignment, nested lists, italic and
-blockquote grouping, thematic breaks and strikethrough, ordered-list start
-numbers, footnote references/endnotes/backlinks, search-index normalization
+blockquote grouping and nesting, thematic breaks and strikethrough,
+ordered-list start numbers, footnote references/endnotes/backlinks,
+interactive task-marker edits, outline filtering, search-index normalization
 and escaping, figure
 summaries/SVGs, polar axes and series, escaping, JSON truncation, tag filtering,
 and timing sums. `tests/polar.lua` additionally checks the shared projection,

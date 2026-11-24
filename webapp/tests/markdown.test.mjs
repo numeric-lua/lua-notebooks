@@ -32,6 +32,12 @@ test("renders lists and blockquotes", () => {
   assert.match(html, /<blockquote><p>quoted<\/p><\/blockquote>/);
 });
 
+test("renders nested blockquotes", () => {
+  const html = renderMarkdown("> outer\n> > inner\n> outer again\n> > > deepest");
+  assert.match(html,
+    /<blockquote><p>outer<\/p><blockquote><p>inner<\/p><\/blockquote><p>outer again<\/p><blockquote><blockquote><p>deepest<\/p><\/blockquote><\/blockquote><\/blockquote>/);
+});
+
 test("renders horizontal rules and strikethrough", () => {
   const html = renderMarkdown("Before\n\n---\n\nRetired ~~old~~ text.");
   assert.match(html, /<p>Before<\/p>/);

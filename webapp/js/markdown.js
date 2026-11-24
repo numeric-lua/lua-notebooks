@@ -215,6 +215,39 @@ function renderList(entry, context) {
   return `<${tag}${attributes}>${items}</${tag}>`;
 }
 
+function quoteDepth(line) {
+  let depth = 0;
+  let rest = String(line);
+  for (;;) {
+    const match = rest.match(/^(\s*>\s?)(.*)$/);
+    if (!match) break;
+    depth += 1;
+    rest = match[2];
+  }
+  return { depth, text: rest };
+}
+
+function quoteHtml(entries, context) {
+  const renderFrom = (start, depth) => {
+    const out = [];
+    let index = start;
+    while (index < entries.length && entries[index].depth >= depth) {
+      if (entries[index].depth === depth) {
+        out.push(`<p>${inline(entries[index].text, context)}</p>`);
+        index += 1;
+      } else {
+        const childStart = index;
+        while (index < entries.length && entries[index].depth > depth) {
+          index += 1;
+        }
+        out.push(`<blockquote>${renderFrom(childStart, depth + 1)}</blockquote>`);
+      }
+    }
+    return out.join("");
+  };
+  return `<blockquote>${renderFrom(0, 1)}</blockquote>`;
+}
+
 export function renderMarkdown(source, prefix = "md") {
   const lines = String(source || "").replace(/\r\n/g, "\n").split("\n");
   const context = footnoteContext(source);
@@ -262,7 +295,7 @@ export function renderMarkdown(source, prefix = "md") {
   };
   const flushQuote = () => {
     if (quote.length) {
-      out.push(`<blockquote>${quote.map((line) => `<p>${inline(line, context)}</p>`).join("")}</blockquote>`);
+      out.push(quoteHtml(quote, context));
       quote = [];
     }
   };
@@ -298,11 +331,11 @@ export function renderMarkdown(source, prefix = "md") {
       flushAll();
       continue;
     }
-    const quoteMatch = raw.match(/^>\s?(.*)$/);
-    if (quoteMatch) {
+    const quoted = quoteDepth(raw);
+    if (quoted.depth > 0) {
       flushParagraph();
       closeLists();
-      quote.push(quoteMatch[1]);
+      quote.push(quoted);
       continue;
     }
     if (quote.length) flushQuote();

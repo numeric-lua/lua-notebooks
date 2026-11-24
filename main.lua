@@ -636,6 +636,20 @@ function App:run_all()
   self:_run_next_all()
 end
 
+-- Run the selected code cell and every code cell after it.  A selected Markdown
+-- cell starts at the next code cell, matching the usual "run below" behavior.
+function App:run_all_below()
+  local notebook = self:notebook()
+  local cell = notebook:selected()
+  if cell ~= nil and cell.running then
+    self.status = "cell is already running"
+    return
+  end
+  self._run_all_position = notebook.active - 1
+  self.status = "running selected cell and below"
+  self:_run_next_all()
+end
+
 function App:export_html()
   local notebook = self:notebook()
   local safe = notebook.name:gsub("[^%w_.-]", "_"):gsub("%.luanb$", "")
@@ -706,6 +720,36 @@ function App:copy_cell_source()
   end)
   if ok then
     self.status = "copied source of cell " .. tostring(notebook.active)
+  else
+    self.status = "clipboard is unavailable"
+  end
+  return ok
+end
+
+-- Copy captured text output, or the error text when the cell failed.  Scene
+-- descriptions and widget state are live values, not clipboard text.
+function App:copy_cell_output()
+  local notebook = self:notebook()
+  local cell = notebook and notebook:selected()
+  if cell == nil then
+    self.status = "no cell to copy"
+    return false
+  end
+  local text = cell.output
+  local kind = "output"
+  if text == nil or text == "" then
+    text = cell.error
+    kind = "error"
+  end
+  if text == nil or text == "" then
+    self.status = "cell " .. tostring(notebook.active) .. " has no text output"
+    return false
+  end
+  local ok = pcall(function()
+    lovr.system.setClipboardText(text)
+  end)
+  if ok then
+    self.status = "copied " .. kind .. " of cell " .. tostring(notebook.active)
   else
     self.status = "clipboard is unavailable"
   end
@@ -1950,19 +1994,62 @@ function lovr.load()
     app.ui:keypressed("c", { ctrl = true, shift = true })
     local clipboard_ok = lovr.system.getClipboardText() == copied_source
 
+    local old_output = notebook.cells[1].output
+    notebook.cells[1].output = "smoke clipboard output"
+    app.ui:keypressed("c", { ctrl = true, alt = true })
+    local output_clipboard_ok =
+      lovr.system.getClipboardText() == "smoke clipboard output"
+    notebook.cells[1].output = old_output
+
+    local task_cell, task_line
+    for cell_index, cell in ipairs(notebook.cells) do
+      if cell.kind == "markdown" then
+        local line_number = 0
+        for line in ((cell.source or "") .. "\n"):gmatch("(.-)\n") do
+          line_number = line_number + 1
+          if line:find("- [ ]", 1, true) then
+            task_cell, task_line = cell_index, line_number
+            break
+          end
+        end
+      end
+      if task_cell then break end
+    end
+    local task_ok = false
+    if task_cell then
+      local before = notebook.cells[task_cell].source
+      app.ui.task_rects = {
+        { x = 0, y = 0, w = 20, h = 20, cell = task_cell, line = task_line },
+      }
+      app.ui:mousepressed(5, 5, 1)
+      task_ok = notebook.cells[task_cell].source ~= before
+      notebook:undo()
+    end
+
+    app.ui:keypressed("f11")
+    app.ui:textinput("Tables")
+    local outline_ok = #app.ui.outline_matches == 1
+    local outline_target = app.ui.outline_matches[1]
+    app.ui:keypressed("return")
+    outline_ok = outline_ok and outline_target ~= nil and
+      notebook.active == outline_target.index and not app.ui.show_outline
+
     app.smoke_workflow_ok = moved_down and moved_up and heading_ok and
-      collapsed_ok and expanded_ok and clipboard_ok
+      collapsed_ok and expanded_ok and clipboard_ok and output_clipboard_ok and
+      task_ok and outline_ok
     print(string.format(
-      "SMOKE_WORKFLOW_SHORTCUTS=%s:%s:%s:%s:%s:%s",
+      "SMOKE_WORKFLOW_SHORTCUTS=%s:%s:%s:%s:%s:%s:%s:%s:%s",
       tostring(moved_down), tostring(moved_up), tostring(heading_ok),
       tostring(collapsed_ok), tostring(expanded_ok),
-      tostring(clipboard_ok)))
+      tostring(clipboard_ok), tostring(output_clipboard_ok),
+      tostring(task_ok), tostring(outline_ok)))
 
     local workflow = Notebook.new({
       name = "workflow-smoke.luanb",
       cells = {
         { kind = "code", output = "", source = "workflow_marker = (workflow_marker or 0) + 1\nprint(\"workflow marker\", workflow_marker)" },
         { kind = "code", output = "", source = "print(\"workflow repeat\", workflow_marker)" },
+        { kind = "code", output = "", source = "print(\"workflow third\", workflow_marker)" },
       },
     })
     app.notebooks[#app.notebooks + 1] = workflow
@@ -2135,7 +2222,8 @@ function lovr.update(dt)
     local notebook = app:notebook()
     local cell = notebook.cells[notebook.active]
     if os.getenv("LUANB_SMOKE_WORKFLOW") then
-      local first, second = notebook.cells[1], notebook.cells[2]
+      local first, second, third =
+        notebook.cells[1], notebook.cells[2], notebook.cells[3]
       if app.smoke_workflow_phase == "prepare" then
         if not first.running and
            first.output:find("workflow marker\t1", 1, true) then
@@ -2150,21 +2238,56 @@ function lovr.update(dt)
         end
       elseif app.smoke_workflow_phase == "run-all" then
         if app._run_all_position == nil and not first.running and
-           not second.running and
+           not second.running and not third.running and
            app.status:find("all code cells finished", 1, true) then
           local first_ok =
             first.output:find("workflow marker\t1", 1, true) ~= nil
           local second_ok =
             second.output:find("workflow repeat\t1", 1, true) ~= nil
-          local ok = app.smoke_workflow_ok and first_ok and second_ok
-          print("SMOKE_WORKFLOW=" .. tostring(ok) .. ":" ..
-            tostring(first_ok) .. ":" .. tostring(second_ok) .. ":" ..
-            tostring(first.output) .. "|" .. tostring(second.output))
-          app.smoke = false
-          lovr.event.quit()
+          local third_ok =
+            third.output:find("workflow third\t1", 1, true) ~= nil
+          if app.smoke_workflow_ok and first_ok and second_ok and third_ok then
+            app.smoke_workflow_first_output = first.output
+            notebook:select(2)
+            app.ui:keypressed("return", { ctrl = true, alt = true })
+            app.smoke_workflow_phase = "run-below"
+            app.smoke_start = lovr.timer.getTime()
+          else
+            print("SMOKE_WORKFLOW=false:" .. tostring(first_ok) .. ":" ..
+              tostring(second_ok) .. ":" .. tostring(third_ok) .. ":" ..
+              tostring(first.output) .. "|" .. tostring(second.output) ..
+              "|" .. tostring(third.output))
+            app.smoke = false
+            lovr.event.quit()
+          end
         elseif lovr.timer.getTime() - app.smoke_start > 15 then
           print("SMOKE_WORKFLOW=timeout:run-all:" .. tostring(app.status) ..
-            ":" .. tostring(first.output) .. "|" .. tostring(second.output))
+            ":" .. tostring(first.output) .. "|" .. tostring(second.output) ..
+            "|" .. tostring(third.output))
+          app.smoke = false
+          lovr.event.quit()
+        end
+      elseif app.smoke_workflow_phase == "run-below" then
+        if app._run_all_position == nil and not first.running and
+           not second.running and not third.running and
+           app.status:find("all code cells finished", 1, true) then
+          local first_unchanged = first.output ==
+            app.smoke_workflow_first_output
+          local second_ok =
+            second.output:find("workflow repeat\t1", 1, true) ~= nil
+          local third_ok =
+            third.output:find("workflow third\t1", 1, true) ~= nil
+          local ok = first_unchanged and second_ok and third_ok
+          print("SMOKE_WORKFLOW=" .. tostring(ok) .. ":" ..
+            tostring(first_unchanged) .. ":" .. tostring(second_ok) .. ":" ..
+            tostring(third_ok) .. ":" .. tostring(second.output) .. "|" ..
+            tostring(third.output))
+          app.smoke = false
+          lovr.event.quit()
+        elseif lovr.timer.getTime() - app.smoke_start > 12 then
+          print("SMOKE_WORKFLOW=timeout:run-below:" .. tostring(app.status) ..
+            ":" .. tostring(first.output) .. "|" .. tostring(second.output) ..
+            "|" .. tostring(third.output))
           app.smoke = false
           lovr.event.quit()
         end

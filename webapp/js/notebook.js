@@ -39,7 +39,8 @@ Inline math: $E = mc^2$. A formula:
 
 $$\\int_0^1 x^2 \\, dx = \\frac{1}{3}$$
 
-> Notebooks are documents first. The window is just a view.`),
+> Notebooks are documents first.
+> > The window is just a view.`),
     createCell("markdown", `## Tables and nesting
 
 | Feature | State |
