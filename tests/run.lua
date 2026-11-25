@@ -544,6 +544,39 @@ test("moves, duplicates, comments, indents, and seeks source lines", function()
   eq(notebook:toggle_comment(), false)
 end)
 
+test("moves and deletes by word and joins lines", function()
+  local Notebook = require("notebook.model")
+  local notebook = Notebook.new({ cells = {
+    { kind = "code", source = "alpha beta gamma" },
+  } })
+  local cell = notebook.cells[1]
+  cell.cursor = 1
+  eq(notebook:move_word(1), true)
+  eq(cell.cursor, 7)
+  eq(notebook:move_word(1), true)
+  eq(cell.cursor, 12)
+  eq(notebook:move_word(-1), true)
+  eq(cell.cursor, 7)
+
+  cell.cursor = #cell.source + 1
+  eq(notebook:delete_word(-1), true)
+  eq(cell.source, "alpha beta ")
+  cell.cursor = 1
+  eq(notebook:delete_word(1), true)
+  eq(cell.source, "beta ")
+
+  cell.source = "alpha\n  beta"
+  cell.cursor = 3
+  eq(notebook:join_line(), true)
+  eq(cell.source, "alpha beta")
+  eq(cell.cursor, 7)
+  cell.source = "a\nb\nc"
+  eq(notebook:cursor_cell_start(), true)
+  eq(cell.cursor, 1)
+  eq(notebook:cursor_cell_end(), true)
+  eq(cell.cursor, #cell.source + 1)
+end)
+
 current = "vim delimiter objects"
 test("finds quoted and bracketed ranges", function()
   local Notebook = require("notebook.model")

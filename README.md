@@ -216,6 +216,10 @@ Controls:
 | `Ctrl+/` | toggle a `--` comment on the current line |
 | `Alt+Shift+Up` / `Alt+Shift+Down` | move the current line up / down |
 | `Ctrl+Shift+D` | duplicate the current line |
+| `Ctrl+Left` / `Ctrl+Right` | move by word |
+| `Ctrl+Backspace` / `Ctrl+Delete` | delete the previous / next word |
+| `Ctrl+Home` / `Ctrl+End` | jump to cell start / end |
+| `Ctrl+J` | join the current line with the next |
 | `Ctrl+]` / `Ctrl+[` | indent / outdent the current line |
 | `Alt+Up` / `Alt+Down` | move the selected cell up / down |
 | `Ctrl+Shift+Up` / `Ctrl+Shift+Down` | jump to the previous / next Markdown heading |
@@ -428,7 +432,8 @@ remaining gaps.
 `make test` runs the pure model, widget, engine, remote-supervisor,
 process-kernel, sandbox, editor, filetree filtering/sorting/keyboard navigation,
 workflow shortcut dispatch, run-above, paste, save/restart-all, bulk output
-folding, line editing/comment/duplicate/indent, tag/heading filtering, Markdown
+folding, line/word editing, join, comment/duplicate/indent, tag/heading filtering,
+Markdown
 nested quotes/callouts/definition lists/tables/nesting/
 emphasis/highlight/autolink/escape/footnote/regex, polar/heatmap/contour/
 quiver/streamplot/colourbar/clipping export parity, and Neovim-buffer plan/apply
@@ -693,9 +698,11 @@ heading as one undoable edit while leaving code cells alone.
 `Ctrl+/` toggles a `--` comment on the current code line (Markdown cells are
 left alone), `Alt+Shift+Up` and `Alt+Shift+Down` swap the line with its
 neighbor, `Ctrl+Shift+D` duplicates it, and `Ctrl+]` / `Ctrl+[` indent or
-outdent by two spaces (or one tab). `Ctrl+Alt+L` opens a numeric prompt and
-moves the caret to a line in the selected cell. Line edits are normal undoable
-changes.
+outdent by two spaces (or one tab). `Ctrl+Left`/`Ctrl+Right` move by word,
+`Ctrl+Backspace`/`Ctrl+Delete` delete a word, `Ctrl+Home`/`Ctrl+End` jump to the
+cell bounds, and `Ctrl+J` joins the current line with the next. `Ctrl+Alt+L`
+opens a numeric prompt and moves the caret to a line in the selected cell. Line
+edits are normal undoable changes.
 
 **F11** opens the heading outline with a type-to-filter field. Matching is a
 case-insensitive substring over heading text, the header shows the filtered

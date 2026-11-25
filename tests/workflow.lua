@@ -141,7 +141,8 @@ for _, id in ipairs({ "restart-run-all", "copy-cell", "paste-cell", "copy-output
     "expand-outputs", "collapse-outputs", "clear-cell-output", "reopen-closed", "go-to-cell",
     "close-others", "duplicate-cell", "comment-line", "move-line-up",
     "move-line-down", "duplicate-line", "indent-line", "outdent-line",
-    "go-to-line", "tree-sort", "prev-heading", "next-heading",
+    "delete-word-back", "delete-word-forward", "join-line", "cell-start",
+    "cell-end", "go-to-line", "tree-sort", "prev-heading", "next-heading",
     "collapse-headings", "expand-headings" }) do
   assert(commands[id] ~= nil, "missing palette command: " .. id)
 end
@@ -189,6 +190,26 @@ assert(calls.duplicate_line == 2, "palette duplicate-line is miswired")
 ui:run_palette_command("indent-line")
 ui:run_palette_command("outdent-line")
 assert(calls.indent_line == 0, "palette indent commands are miswired")
+notebook:select(2)
+notebook.cells[2].source = "alpha beta"
+notebook.cells[2].cursor = #notebook.cells[2].source + 1
+ui:run_palette_command("delete-word-back")
+assert(notebook.cells[2].source == "alpha ",
+  "palette delete-word-back is miswired")
+notebook.cells[2].source = "alpha beta"
+notebook.cells[2].cursor = 1
+ui:run_palette_command("delete-word-forward")
+assert(notebook.cells[2].source == "beta",
+  "palette delete-word-forward is miswired")
+notebook.cells[2].source = "a\nb"
+notebook.cells[2].cursor = 1
+ui:run_palette_command("cell-end")
+assert(notebook.cells[2].cursor == 4, "palette cell-end is miswired")
+ui:run_palette_command("cell-start")
+assert(notebook.cells[2].cursor == 1, "palette cell-start is miswired")
+notebook.cells[2].source = "a\nb"
+ui:run_palette_command("join-line")
+assert(notebook.cells[2].source == "a b", "palette join-line is miswired")
 ui:run_palette_command("go-to-line")
 assert(ui.show_cell_prompt and ui.cell_prompt_kind == "line",
   "palette go-to-line did not open the line prompt")
@@ -242,6 +263,36 @@ local line_two = notebook.cells[4].source:find("\n", 1, true) + 1
 assert(notebook.cells[4].cursor == line_two,
   "Ctrl+Alt+L did not move the caret to line 2")
 assert(not ui.show_cell_prompt, "line prompt did not close")
+
+notebook:select(2)
+notebook.cells[2].source = "alpha beta"
+notebook.cells[2].cursor = 1
+ui:keypressed("right", { ctrl = true })
+assert(notebook.cells[2].cursor == 7,
+  "Ctrl+Right did not move to the next word")
+ui:keypressed("left", { ctrl = true })
+assert(notebook.cells[2].cursor == 1,
+  "Ctrl+Left did not move to the previous word")
+notebook.cells[2].cursor = #notebook.cells[2].source + 1
+ui:keypressed("backspace", { ctrl = true })
+assert(notebook.cells[2].source == "alpha ",
+  "Ctrl+Backspace did not delete the previous word")
+notebook.cells[2].source = "alpha beta"
+notebook.cells[2].cursor = 1
+ui:keypressed("delete", { ctrl = true })
+assert(notebook.cells[2].source == "beta",
+  "Ctrl+Delete did not delete the next word")
+notebook.cells[2].source = "a\nb"
+notebook.cells[2].cursor = 2
+ui:keypressed("home", { ctrl = true })
+assert(notebook.cells[2].cursor == 1, "Ctrl+Home did not go to cell start")
+ui:keypressed("end", { ctrl = true })
+assert(notebook.cells[2].cursor == 4, "Ctrl+End did not go to cell end")
+notebook.cells[2].source = "alpha\n  beta"
+notebook.cells[2].cursor = 3
+ui:keypressed("j", { ctrl = true })
+assert(notebook.cells[2].source == "alpha beta",
+  "Ctrl+J did not join the next line")
 
 ui.link_rects = { { x = 0, y = 0, w = 20, h = 20, target = "Two" } }
 ui:mousepressed(5, 5, 1)

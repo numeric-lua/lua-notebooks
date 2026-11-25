@@ -892,6 +892,11 @@ function UI:palette_commands()
     { id = "duplicate-line", label = "Duplicate current line  (Ctrl+Shift+D)" },
     { id = "indent-line", label = "Indent current line  (Ctrl+])" },
     { id = "outdent-line", label = "Outdent current line  (Ctrl+[)" },
+    { id = "delete-word-back", label = "Delete previous word  (Ctrl+Backspace)" },
+    { id = "delete-word-forward", label = "Delete next word  (Ctrl+Delete)" },
+    { id = "join-line", label = "Join current line with next  (Ctrl+J)" },
+    { id = "cell-start", label = "Go to cell start  (Ctrl+Home)" },
+    { id = "cell-end", label = "Go to cell end  (Ctrl+End)" },
     { id = "save", label = "Save notebook  (F6)" },
     { id = "save-all", label = "Save all notebooks  (Ctrl+Alt+S)" },
     { id = "save-as", label = "Save notebook as…" },
@@ -1015,6 +1020,17 @@ function UI:run_palette_command(id)
   elseif id == "duplicate-line" then self.app:duplicate_current_line()
   elseif id == "indent-line" then self.app:indent_current_line(1)
   elseif id == "outdent-line" then self.app:indent_current_line(-1)
+  elseif id == "delete-word-back" then
+    self.app.status = self.app:notebook():delete_word(-1) and
+      "deleted previous word" or "no previous word"
+  elseif id == "delete-word-forward" then
+    self.app.status = self.app:notebook():delete_word(1) and
+      "deleted next word" or "no next word"
+  elseif id == "join-line" then
+    self.app.status = self.app:notebook():join_line() and "joined line" or
+      "no line to join"
+  elseif id == "cell-start" then self.app:notebook():cursor_cell_start()
+  elseif id == "cell-end" then self.app:notebook():cursor_cell_end()
   elseif id == "save" then self.app:save()
   elseif id == "save-all" then self.app:save_all()
   elseif id == "save-as" then self.app:save_as()
@@ -1648,6 +1664,10 @@ function UI:draw_help(pass, width, height)
         { "Alt+Shift+Up / Down", "move current line" },
         { "Ctrl+Shift+D", "duplicate current line" },
         { "Ctrl+] / [", "indent / outdent current line" },
+        { "Ctrl+Left / Right", "move by word" },
+        { "Ctrl+Backspace / Delete", "delete previous / next word" },
+        { "Ctrl+Home / End", "jump to cell start / end" },
+        { "Ctrl+J", "join line with next" },
         { "A / I", "insert at line end / start" },
         { "D / C", "delete / change to line end" },
         { "diw / daw", "delete inner / outer word" },
@@ -2894,6 +2914,35 @@ function UI:keypressed(key, modifiers)
   end
   if ctrl_down and key == "/" then
     self.app:toggle_line_comment()
+    return
+  end
+  if ctrl_down and key == "left" then
+    notebook:move_word(-1)
+    return
+  end
+  if ctrl_down and key == "right" then
+    notebook:move_word(1)
+    return
+  end
+  if ctrl_down and key == "backspace" then
+    notebook:delete_word(-1)
+    return
+  end
+  if ctrl_down and key == "delete" then
+    notebook:delete_word(1)
+    return
+  end
+  if ctrl_down and key == "home" then
+    notebook:cursor_cell_start()
+    return
+  end
+  if ctrl_down and key == "end" then
+    notebook:cursor_cell_end()
+    return
+  end
+  if ctrl_down and key == "j" then
+    self.app.status = notebook:join_line() and "joined line" or
+      "no line to join"
     return
   end
   if ctrl_down and shift_down and key == "d" then

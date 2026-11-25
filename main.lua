@@ -2327,6 +2327,19 @@ function lovr.load()
     app.ui:keypressed("return")
     local go_line_ok = notebook.cells[2].cursor == 5 and
       not app.ui.show_cell_prompt
+    notebook.cells[2].source = "alpha beta"
+    notebook.cells[2].cursor = 1
+    app.ui:keypressed("delete", { ctrl = true })
+    local word_ok = notebook.cells[2].source == "beta"
+    notebook.cells[2].source = "alpha\n  beta"
+    notebook.cells[2].cursor = 3
+    app.ui:keypressed("j", { ctrl = true })
+    local join_ok = notebook.cells[2].source == "alpha beta"
+    notebook.cells[2].source = "a\nb"
+    notebook.cells[2].cursor = 2
+    app.ui:keypressed("home", { ctrl = true })
+    app.ui:keypressed("end", { ctrl = true })
+    local home_end_ok = notebook.cells[2].cursor == 4
     notebook.cells[2].source = original_line_cell
     notebook.cells[2].cursor = 1
 
@@ -2335,9 +2348,9 @@ function lovr.load()
       task_ok and outline_ok and clear_ok and tag_ok and wiki_ok and
       duplicate_ok and goto_ok and paste_ok and save_all_ok and
       restart_all_ok and expand_ok and collapse_ok and line_ops_ok and
-      go_line_ok
+      go_line_ok and word_ok and join_ok and home_end_ok
     print(string.format(
-      "SMOKE_WORKFLOW_SHORTCUTS=%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s",
+      "SMOKE_WORKFLOW_SHORTCUTS=%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s",
       tostring(moved_down), tostring(moved_up), tostring(heading_ok),
       tostring(collapsed_ok), tostring(expanded_ok),
       tostring(clipboard_ok), tostring(output_clipboard_ok),
@@ -2345,7 +2358,8 @@ function lovr.load()
       tostring(tag_ok), tostring(wiki_ok), tostring(duplicate_ok),
       tostring(goto_ok), tostring(paste_ok), tostring(save_all_ok),
       tostring(restart_all_ok), tostring(expand_ok), tostring(collapse_ok),
-      tostring(line_ops_ok), tostring(go_line_ok)))
+      tostring(line_ops_ok), tostring(go_line_ok), tostring(word_ok),
+      tostring(join_ok), tostring(home_end_ok)))
 
     local workflow = Notebook.new({
       name = "workflow-smoke.luanb",

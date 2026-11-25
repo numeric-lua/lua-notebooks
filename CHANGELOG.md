@@ -31,12 +31,18 @@
 - duplicate the current line with **Ctrl+Shift+D**;
 - indent or outdent the current line with **Ctrl+]** / **Ctrl+[**;
 - jump to a numbered line in the selected cell with **Ctrl+Alt+L** or the
-  **Go to line in cell** palette prompt.
+  **Go to line in cell** palette prompt;
+- move the caret by word with **Ctrl+Left** / **Ctrl+Right**;
+- delete the previous word with **Ctrl+Backspace**;
+- delete the next word with **Ctrl+Delete**;
+- jump to the start or end of the cell with **Ctrl+Home** / **Ctrl+End**;
+- join the current line with the next with **Ctrl+J**.
 
 Tests: `tests/workflow.lua` covers paste, run-above dispatch, save/restart-all
 dispatch, filetree keyboard navigation, and output-fold dispatch; `tests/run.lua`
-covers filetree sorting, bulk output folding, duplicate-cell undo, and line
-editing (move/duplicate/comment/indent/go-to-line); the browser Markdown suite
+covers filetree sorting, bulk output folding, duplicate-cell undo, line editing
+(move/duplicate/comment/indent/go-to-line), word movement/deletion, and line
+joining; the browser Markdown suite
 covers code-block badges/copy markup, heading anchor uniqueness, permalinks, and
 display math. The filetree overlay QA screenshot and
 `LUANB_SMOKE_WORKFLOW` (including save-all, restart-all, run-above, paste, and

@@ -292,6 +292,32 @@ function Notebook:new_cell(kind, source)
   return cell(kind or "code", source or "")
 end
 
+local function is_word_byte(byte)
+  return byte ~= nil and ((byte >= 48 and byte <= 57) or
+    (byte >= 65 and byte <= 90) or (byte >= 97 and byte <= 122) or byte == 95)
+end
+
+local function word_boundary(source, cursor, delta)
+  if delta > 0 then
+    local position = math.max(1, math.min(#source + 1, cursor))
+    while position <= #source and is_word_byte(source:byte(position)) do
+      position = position + 1
+    end
+    while position <= #source and not is_word_byte(source:byte(position)) do
+      position = position + 1
+    end
+    return position
+  end
+  local position = math.min(#source, cursor - 1)
+  while position >= 1 and not is_word_byte(source:byte(position)) do
+    position = position - 1
+  end
+  while position >= 1 and is_word_byte(source:byte(position)) do
+    position = position - 1
+  end
+  return position + 1
+end
+
 local function line_bounds(source, cursor)
   local before = source:sub(1, math.max(0, cursor - 1))
   local last_newline = before:match(".*()\n")
@@ -670,6 +696,72 @@ function Notebook:go_to_line(line)
     start = newline + 1
   end
   cell.cursor = start
+  return true
+end
+
+function Notebook:move_word(delta)
+  if delta ~= 1 and delta ~= -1 then return false end
+  local cell = self:selected()
+  if cell == nil or (cell.kind ~= "code" and cell.kind ~= "markdown") then
+    return false
+  end
+  local source = cell.source or ""
+  cell.cursor = word_boundary(source, cell.cursor or (#source + 1), delta)
+  return true
+end
+
+function Notebook:delete_word(delta)
+  if delta ~= 1 and delta ~= -1 then return false end
+  local cell = self:selected()
+  if cell == nil or (cell.kind ~= "code" and cell.kind ~= "markdown") then
+    return false
+  end
+  local source = cell.source or ""
+  local cursor = cell.cursor or (#source + 1)
+  local target = word_boundary(source, cursor, delta)
+  if target == cursor then return false end
+  local first, last = math.min(cursor, target), math.max(cursor, target)
+  self:push_undo(delta > 0 and "delete next word" or "delete previous word")
+  cell.source = source:sub(1, first - 1) .. source:sub(last)
+  cell.cursor = first
+  self.dirty = true
+  return true
+end
+
+function Notebook:cursor_cell_start()
+  local cell = self:selected()
+  if cell == nil then return false end
+  cell.cursor = 1
+  return true
+end
+
+function Notebook:cursor_cell_end()
+  local cell = self:selected()
+  if cell == nil then return false end
+  cell.cursor = #(cell.source or "") + 1
+  return true
+end
+
+function Notebook:join_line()
+  local cell = self:selected()
+  if cell == nil or (cell.kind ~= "code" and cell.kind ~= "markdown") then
+    return false
+  end
+  local source = cell.source or ""
+  local cursor = cell.cursor or (#source + 1)
+  local start, stop = line_bounds(source, cursor)
+  local newline = source:find("\n", stop + 1, true)
+  if newline == nil then return false end
+  local next_start = newline + 1
+  local next_stop = source:find("\n", next_start, true)
+  next_stop = (next_stop and next_stop - 1) or #source
+  local next_text = source:sub(next_start, next_stop):gsub("^%s+", "")
+  local separator = (#next_text > 0 and stop >= start) and " " or ""
+  self:push_undo("join line")
+  cell.source = source:sub(1, stop) .. separator .. next_text ..
+    source:sub(next_stop + 1)
+  cell.cursor = math.min(#cell.source + 1, stop + #separator + 1)
+  self.dirty = true
   return true
 end
 
@@ -1276,6 +1368,7 @@ Markdown footnotes use `[^label]` for the reference and a `[^label]: text` line 
 - **Alt+Up / Alt+Down** moves the selected cell.
 - **Ctrl+/** comments the current code line; **Alt+Shift+Up/Down** moves it, **Ctrl+Shift+D** duplicates it, and **Ctrl+] / [** indent or outdent.
 - **Ctrl+Alt+L** jumps to a line in the selected cell.
+- **Ctrl+Left/Right**, **Ctrl+Backspace/Delete**, **Ctrl+Home/End**, and **Ctrl+J** handle word movement/deletion, cell bounds, and line joining.
 - **Ctrl+Shift+Up / Ctrl+Shift+Down** jumps between headings, and the command palette can collapse or expand every heading at once.
 - **F11** opens the heading outline; type to filter it and press Enter to jump.]]),
     },
