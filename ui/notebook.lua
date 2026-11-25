@@ -258,6 +258,7 @@ function UI.new(app)
     symbol_prompt = nil,
     show_cell_prompt = false,
     cell_prompt = "",
+    cell_prompt_kind = "cell",
     zen_mode = false,
     show_history = false,
     history_items = {},
@@ -871,6 +872,7 @@ function UI:palette_commands()
     { id = "graph", label = "Link graph" },
     { id = "tags", label = "Tag index  (Ctrl+T)" },
     { id = "go-to-cell", label = "Go to cell…  (Ctrl+Alt+G)" },
+    { id = "go-to-line", label = "Go to line in cell  (Ctrl+Alt+L)" },
     { id = "timing", label = "Toggle execution timing" },
     { id = "output", label = "Toggle long cell output  (Ctrl+Shift+O)" },
     { id = "expand-outputs", label = "Expand all long outputs" },
@@ -884,6 +886,12 @@ function UI:palette_commands()
     { id = "collapse-headings", label = "Collapse all headings" },
     { id = "expand-headings", label = "Expand all headings" },
     { id = "duplicate-cell", label = "Duplicate selected cell  (Alt+D)" },
+    { id = "comment-line", label = "Toggle line comment  (Ctrl+/)" },
+    { id = "move-line-up", label = "Move current line up  (Alt+Shift+Up)" },
+    { id = "move-line-down", label = "Move current line down  (Alt+Shift+Down)" },
+    { id = "duplicate-line", label = "Duplicate current line  (Ctrl+Shift+D)" },
+    { id = "indent-line", label = "Indent current line  (Ctrl+])" },
+    { id = "outdent-line", label = "Outdent current line  (Ctrl+[)" },
     { id = "save", label = "Save notebook  (F6)" },
     { id = "save-all", label = "Save all notebooks  (Ctrl+Alt+S)" },
     { id = "save-as", label = "Save notebook as…" },
@@ -984,6 +992,7 @@ function UI:run_palette_command(id)
   elseif id == "graph" then self:open_graph()
   elseif id == "tags" then self:open_tags()
   elseif id == "go-to-cell" then self:open_cell_prompt()
+  elseif id == "go-to-line" then self:open_line_prompt()
   elseif id == "timing" then self:toggle_timing()
   elseif id == "output" then
     local notebook = self.app:notebook()
@@ -1000,6 +1009,12 @@ function UI:run_palette_command(id)
   elseif id == "collapse-headings" then self.app:set_headings_collapsed(true)
   elseif id == "expand-headings" then self.app:set_headings_collapsed(false)
   elseif id == "duplicate-cell" then self.app:duplicate_cell()
+  elseif id == "comment-line" then self.app:toggle_line_comment()
+  elseif id == "move-line-up" then self.app:shift_current_line(-1)
+  elseif id == "move-line-down" then self.app:shift_current_line(1)
+  elseif id == "duplicate-line" then self.app:duplicate_current_line()
+  elseif id == "indent-line" then self.app:indent_current_line(1)
+  elseif id == "outdent-line" then self.app:indent_current_line(-1)
   elseif id == "save" then self.app:save()
   elseif id == "save-all" then self.app:save_all()
   elseif id == "save-as" then self.app:save_as()
@@ -1610,6 +1625,7 @@ function UI:draw_help(pass, width, height)
         { "Ctrl+H", "replace (Alt+L cell, Alt+C/W/R)" },
         { "Ctrl+G / Ctrl+T", "link graph / tag index" },
         { "Ctrl+Alt+G", "go to cell number" },
+        { "Ctrl+Alt+L", "go to line in cell" },
         { "Ctrl+Alt+W", "close other clean tabs" },
         { "Ctrl+P", "command palette" },
         { "Ctrl+S", "save notebook" },
@@ -1628,6 +1644,10 @@ function UI:draw_help(pass, width, height)
       } },
       { title = "EDITING", rows = {
         { "Tab", "insert two spaces" },
+        { "Ctrl+/", "toggle line comment" },
+        { "Alt+Shift+Up / Down", "move current line" },
+        { "Ctrl+Shift+D", "duplicate current line" },
+        { "Ctrl+] / [", "indent / outdent current line" },
         { "A / I", "insert at line end / start" },
         { "D / C", "delete / change to line end" },
         { "diw / daw", "delete inner / outer word" },
@@ -1906,9 +1926,14 @@ function UI:activate_tree_item(index)
   return true
 end
 
-function UI:open_cell_prompt()
+function UI:open_cell_prompt(kind)
   self.show_cell_prompt = true
+  self.cell_prompt_kind = kind == "line" and "line" or "cell"
   self.cell_prompt = ""
+end
+
+function UI:open_line_prompt()
+  self:open_cell_prompt("line")
 end
 
 function UI:draw_cell_prompt(pass, width, height)
@@ -1917,14 +1942,20 @@ function UI:draw_cell_prompt(pass, width, height)
   local panel_w, panel_h = 440, 110
   local x, y = (width - panel_w) / 2, 170
   box(pass, x, y, panel_w, panel_h, { 0.04, 0.05, 0.08, 1 })
+  local title = self.cell_prompt_kind == "line" and "Go to line in cell" or
+    "Go to cell"
   text(pass, self.app.font,
-    string.format("Go to cell  (%d in this notebook)", #notebook.cells),
+    string.format("%s  (%s)", title,
+      self.cell_prompt_kind == "line" and
+        ("cell " .. tostring(notebook.active)) or
+        (#notebook.cells .. " in this notebook")),
     x + 16, y + 12, { 0.85, 0.92, 1, 1 }, 0.72)
   box(pass, x + 14, y + 40, panel_w - 28, 28, { 0.09, 0.12, 0.18, 1 })
   text(pass, self.app.font, self.cell_prompt .. "|", x + 24, y + 47,
     { 0.85, 0.92, 1, 1 }, 0.74)
-  text(pass, self.app.font, "Enter jumps · Esc closes", x + 16,
-    y + panel_h - 22, { 0.5, 0.58, 0.72, 1 }, 0.62)
+  text(pass, self.app.font, self.cell_prompt_kind == "line" and
+    "Enter moves the caret · Esc closes" or "Enter jumps · Esc closes",
+    x + 16, y + panel_h - 22, { 0.5, 0.58, 0.72, 1 }, 0.62)
 end
 
 function UI:draw_symbol_prompt(pass, width, height)
@@ -2663,8 +2694,16 @@ function UI:keypressed(key, modifiers)
       self.cell_prompt = self.cell_prompt:sub(1, -2)
     elseif key == "return" then
       local target = tonumber(self.cell_prompt)
+      local kind = self.cell_prompt_kind
       self.show_cell_prompt = false
-      if target == nil or not self.app:notebook():select(target) then
+      if kind == "line" then
+        if target == nil or not self.app:notebook():go_to_line(target) then
+          self.app.status = "no line " .. tostring(self.cell_prompt)
+        else
+          self.scroll_to_selected = true
+          self.app.status = "moved to line " .. tostring(target)
+        end
+      elseif target == nil or not self.app:notebook():select(target) then
         self.app.status = "no cell " .. tostring(self.cell_prompt)
       else
         self.scroll_to_selected = true
@@ -2853,6 +2892,22 @@ function UI:keypressed(key, modifiers)
     end
     return
   end
+  if ctrl_down and key == "/" then
+    self.app:toggle_line_comment()
+    return
+  end
+  if ctrl_down and shift_down and key == "d" then
+    self.app:duplicate_current_line()
+    return
+  end
+  if ctrl_down and key == "]" then
+    self.app:indent_current_line(1)
+    return
+  end
+  if ctrl_down and key == "[" then
+    self.app:indent_current_line(-1)
+    return
+  end
   if ctrl_down and key == "f" and shift_down then
     self:open_global_find(); return
   end
@@ -2916,6 +2971,10 @@ function UI:keypressed(key, modifiers)
     self:open_cell_prompt()
     return
   end
+  if ctrl_down and alt_down and key == "l" then
+    self:open_line_prompt()
+    return
+  end
   if ctrl_down and alt_down and key == "w" then
     self.app:close_other_notebooks()
     return
@@ -2966,7 +3025,10 @@ function UI:keypressed(key, modifiers)
     else self.app:zoom_ui(0.1) end
     return
   end
-  if alt_down and (key == "up" or key == "down") then
+  if alt_down and shift_down and (key == "up" or key == "down") then
+    self.app:shift_current_line(key == "up" and -1 or 1)
+    return
+  elseif alt_down and (key == "up" or key == "down") then
     self.app:move_cell(key == "up" and -1 or 1)
     return
   elseif alt_down and key == "b" then

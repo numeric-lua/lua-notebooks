@@ -24,7 +24,8 @@ local calls = {
   copy_output = 0, run_below = 0, clear_output = 0, reopen = 0,
   open_title = 0, duplicate = 0, close_others = 0, run_above = 0,
   open_path = 0, cycle_sort = 0, save_all = 0, restart_all = 0,
-  expand_outputs = 0,
+  expand_outputs = 0, comment_line = 0, shift_line = 0, duplicate_line = 0,
+  indent_line = 0,
 }
 local app = {
   notebooks = { notebook },
@@ -63,6 +64,10 @@ local app = {
   set_outputs_expanded = function(self, expanded)
     calls.expand_outputs = calls.expand_outputs + (expanded and 1 or -1)
   end,
+  toggle_line_comment = function(self) calls.comment_line = calls.comment_line + 1 end,
+  shift_current_line = function(self, delta) calls.shift_line = calls.shift_line + delta end,
+  duplicate_current_line = function(self) calls.duplicate_line = calls.duplicate_line + 1 end,
+  indent_current_line = function(self, delta) calls.indent_line = calls.indent_line + delta end,
   set_tab = function(self, index) self.active = index end,
   restart_and_run_all = function(self) calls.restart = calls.restart + 1 end,
   set_headings_collapsed = function(self, collapsed)
@@ -99,6 +104,17 @@ ui:keypressed("x", { ctrl = true, alt = true })
 assert(calls.clear_output == 1, "Ctrl+Alt+X does not clear the cell output")
 ui:keypressed("t", { ctrl = true, alt = true })
 assert(calls.reopen == 1, "Ctrl+Alt+T does not reopen the last tab")
+ui:keypressed("/", { ctrl = true })
+assert(calls.comment_line == 1, "Ctrl+/ does not toggle the line comment")
+ui:keypressed("down", { alt = true, shift = true })
+assert(calls.shift_line == 1, "Alt+Shift+Down does not move the line")
+ui:keypressed("up", { alt = true, shift = true })
+assert(calls.shift_line == 0, "Alt+Shift+Up does not move the line")
+ui:keypressed("d", { ctrl = true, shift = true })
+assert(calls.duplicate_line == 1, "Ctrl+Shift+D does not duplicate the line")
+ui:keypressed("]", { ctrl = true })
+ui:keypressed("[", { ctrl = true })
+assert(calls.indent_line == 0, "Ctrl+] / [ do not indent and outdent")
 ui:keypressed("s", { ctrl = true, alt = true })
 assert(calls.save_all == 1, "Ctrl+Alt+S does not save all notebooks")
 ui:keypressed("k", { ctrl = true, alt = true })
@@ -123,7 +139,9 @@ end
 for _, id in ipairs({ "restart-run-all", "copy-cell", "paste-cell", "copy-output",
     "run-below", "run-above", "save-all", "restart-all-kernels",
     "expand-outputs", "collapse-outputs", "clear-cell-output", "reopen-closed", "go-to-cell",
-    "close-others", "duplicate-cell", "tree-sort", "prev-heading", "next-heading",
+    "close-others", "duplicate-cell", "comment-line", "move-line-up",
+    "move-line-down", "duplicate-line", "indent-line", "outdent-line",
+    "go-to-line", "tree-sort", "prev-heading", "next-heading",
     "collapse-headings", "expand-headings" }) do
   assert(commands[id] ~= nil, "missing palette command: " .. id)
 end
@@ -161,6 +179,20 @@ ui:run_palette_command("collapse-outputs")
 assert(calls.expand_outputs == 0, "palette output-fold commands are miswired")
 ui:run_palette_command("duplicate-cell")
 assert(calls.duplicate == 2, "palette duplicate-cell is miswired")
+ui:run_palette_command("comment-line")
+assert(calls.comment_line == 2, "palette comment-line is miswired")
+ui:run_palette_command("move-line-up")
+ui:run_palette_command("move-line-down")
+assert(calls.shift_line == 0, "palette line-move commands are miswired")
+ui:run_palette_command("duplicate-line")
+assert(calls.duplicate_line == 2, "palette duplicate-line is miswired")
+ui:run_palette_command("indent-line")
+ui:run_palette_command("outdent-line")
+assert(calls.indent_line == 0, "palette indent commands are miswired")
+ui:run_palette_command("go-to-line")
+assert(ui.show_cell_prompt and ui.cell_prompt_kind == "line",
+  "palette go-to-line did not open the line prompt")
+ui:keypressed("escape")
 ui:run_palette_command("close-others")
 assert(calls.close_others == 2, "palette close-others is miswired")
 ui:run_palette_command("tree-sort")
@@ -201,6 +233,15 @@ assert(not ui.show_tags, "tag Enter did not close the overlay")
 assert(ui.find_query == "#alpha", "tag Enter did not open the tag search")
 ui:keypressed("escape")
 assert(not ui.show_find, "find overlay did not close")
+
+notebook:select(4)
+ui:keypressed("l", { ctrl = true, alt = true })
+ui:textinput("2")
+ui:keypressed("return")
+local line_two = notebook.cells[4].source:find("\n", 1, true) + 1
+assert(notebook.cells[4].cursor == line_two,
+  "Ctrl+Alt+L did not move the caret to line 2")
+assert(not ui.show_cell_prompt, "line prompt did not close")
 
 ui.link_rects = { { x = 0, y = 0, w = 20, h = 20, target = "Two" } }
 ui:mousepressed(5, 5, 1)

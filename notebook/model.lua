@@ -292,6 +292,21 @@ function Notebook:new_cell(kind, source)
   return cell(kind or "code", source or "")
 end
 
+local function line_bounds(source, cursor)
+  local before = source:sub(1, math.max(0, cursor - 1))
+  local last_newline = before:match(".*()\n")
+  local start = (last_newline or 0) + 1
+  local stop = source:find("\n", start, true)
+  stop = (stop and stop - 1) or #source
+  return start, stop
+end
+
+local function line_index(source, start)
+  local index = 1
+  for _ in source:sub(1, start - 1):gmatch("\n") do index = index + 1 end
+  return index
+end
+
 function Notebook:add_cell(kind, after_index)
   self:push_undo("add cell")
   local index = (after_index or self.active or #self.cells) + 1
@@ -537,6 +552,124 @@ function Notebook:move_line(delta)
   end
   local line_end = source:find("\n", line_start, true) or (#source + 1)
   cell.cursor = math.min(line_start + column, line_end)
+  return true
+end
+
+function Notebook:shift_line(delta)
+  if delta ~= 1 and delta ~= -1 then return false end
+  local cell = self:selected()
+  if cell == nil or (cell.kind ~= "code" and cell.kind ~= "markdown") then
+    return false
+  end
+  local source = cell.source or ""
+  local cursor = cell.cursor or (#source + 1)
+  local start = line_bounds(source, cursor)
+  local current = line_index(source, start)
+  local target = current + delta
+  local lines = {}
+  for line in (source .. "\n"):gmatch("(.-)\n") do lines[#lines + 1] = line end
+  if target < 1 or target > #lines then return false end
+  local offset = cursor - start
+  self:push_undo("move line")
+  lines[current], lines[target] = lines[target], lines[current]
+  cell.source = table.concat(lines, "\n")
+  local new_start = 1
+  for index = 1, target - 1 do new_start = new_start + #lines[index] + 1 end
+  cell.cursor = math.min(#cell.source + 1, new_start + offset)
+  self.dirty = true
+  return true
+end
+
+function Notebook:duplicate_line()
+  local cell = self:selected()
+  if cell == nil or (cell.kind ~= "code" and cell.kind ~= "markdown") then
+    return false
+  end
+  local source = cell.source or ""
+  local cursor = cell.cursor or (#source + 1)
+  local start, stop = line_bounds(source, cursor)
+  local text = source:sub(start, stop)
+  self:push_undo("duplicate line")
+  cell.source = source:sub(1, stop) .. "\n" .. text .. source:sub(stop + 1)
+  cell.cursor = math.min(#cell.source + 1, stop + 2 + (cursor - start))
+  self.dirty = true
+  return true
+end
+
+function Notebook:toggle_comment()
+  local cell = self:selected()
+  if cell == nil or cell.kind ~= "code" then return false end
+  local source = cell.source or ""
+  local cursor = cell.cursor or (#source + 1)
+  local start, stop = line_bounds(source, cursor)
+  local line = source:sub(start, stop)
+  local indent, rest = line:match("^(%s*)(.*)$")
+  if rest == "" then return false end
+  local replacement
+  if rest:match("^%-%-") then
+    replacement = indent .. rest:gsub("^%-%-%s?", "", 1)
+  else
+    replacement = indent .. "-- " .. rest
+  end
+  local delta = #replacement - #line
+  self:push_undo("toggle line comment")
+  cell.source = source:sub(1, start - 1) .. replacement .. source:sub(stop + 1)
+  if cursor > start + #indent then
+    cell.cursor = math.max(start + #indent,
+      math.min(#cell.source + 1, cursor + delta))
+  end
+  self.dirty = true
+  return true
+end
+
+function Notebook:indent_line(delta)
+  if delta ~= 1 and delta ~= -1 then return false end
+  local cell = self:selected()
+  if cell == nil or (cell.kind ~= "code" and cell.kind ~= "markdown") then
+    return false
+  end
+  local source = cell.source or ""
+  local cursor = cell.cursor or (#source + 1)
+  local start, stop = line_bounds(source, cursor)
+  local line = source:sub(start, stop)
+  local replacement, shift
+  if delta > 0 then
+    replacement = "  " .. line
+    shift = 2
+  else
+    local indent, rest = line:match("^(\t+)(.*)$")
+    if indent ~= nil then
+      replacement = indent:sub(2) .. rest
+      shift = -1
+    else
+      indent, rest = line:match("^(  )(.*)$")
+      if indent == nil then indent, rest = line:match("^( )(.*)$") end
+      if indent == nil then return false end
+      replacement = rest
+      shift = -#indent
+    end
+  end
+  self:push_undo(delta > 0 and "indent line" or "outdent line")
+  cell.source = source:sub(1, start - 1) .. replacement .. source:sub(stop + 1)
+  cell.cursor = math.max(start, math.min(#cell.source + 1, cursor + shift))
+  self.dirty = true
+  return true
+end
+
+function Notebook:go_to_line(line)
+  if type(line) ~= "number" or line < 1 then return false end
+  local cell = self:selected()
+  if cell == nil or (cell.kind ~= "code" and cell.kind ~= "markdown") then
+    return false
+  end
+  local source = cell.source or ""
+  local start = 1
+  for _ = 1, line - 1 do
+    local newline = source:find("\n", start, true)
+    if newline == nil then return false end
+    start = newline + 1
+  end
+  cell.cursor = start
   return true
 end
 
@@ -1141,6 +1274,8 @@ Markdown footnotes use `[^label]` for the reference and a `[^label]: text` line 
 - **Ctrl+Alt+S** saves every dirty tab; **Ctrl+Alt+K** restarts every kernel.
 - Palette actions expand or collapse every long output at once.
 - **Alt+Up / Alt+Down** moves the selected cell.
+- **Ctrl+/** comments the current code line; **Alt+Shift+Up/Down** moves it, **Ctrl+Shift+D** duplicates it, and **Ctrl+] / [** indent or outdent.
+- **Ctrl+Alt+L** jumps to a line in the selected cell.
 - **Ctrl+Shift+Up / Ctrl+Shift+Down** jumps between headings, and the command palette can collapse or expand every heading at once.
 - **F11** opens the heading outline; type to filter it and press Enter to jump.]]),
     },

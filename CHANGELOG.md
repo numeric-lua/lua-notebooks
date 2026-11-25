@@ -23,15 +23,22 @@
   clearing running flags and pending requests for all tabs;
 - expand or collapse every long output as one undoable edit with the
   **Expand all long outputs** and **Collapse all long outputs** palette actions;
-- browser Markdown headings now get deterministic unique IDs and hover/focus
-  `#` permalinks, and single-line or fenced `$$...$$` math renders as centered
-  display blocks.
+- browser Markdown previews now give headings deterministic cell-scoped IDs
+  and hover/focus `#` permalinks, and render single-line or fenced `$$...$$`
+  math as centered display blocks;
+- toggle a `--` comment on the current code line with **Ctrl+/**;
+- move the current line up or down with **Alt+Shift+Up** / **Alt+Shift+Down**;
+- duplicate the current line with **Ctrl+Shift+D**;
+- indent or outdent the current line with **Ctrl+]** / **Ctrl+[**;
+- jump to a numbered line in the selected cell with **Ctrl+Alt+L** or the
+  **Go to line in cell** palette prompt.
 
 Tests: `tests/workflow.lua` covers paste, run-above dispatch, save/restart-all
 dispatch, filetree keyboard navigation, and output-fold dispatch; `tests/run.lua`
-covers filetree sorting, bulk output folding, and duplicate-cell undo; the
-browser Markdown suite covers code-block badges/copy markup, heading anchor
-uniqueness, permalinks, and display math. The filetree overlay QA screenshot and
+covers filetree sorting, bulk output folding, duplicate-cell undo, and line
+editing (move/duplicate/comment/indent/go-to-line); the browser Markdown suite
+covers code-block badges/copy markup, heading anchor uniqueness, permalinks, and
+display math. The filetree overlay QA screenshot and
 `LUANB_SMOKE_WORKFLOW` (including save-all, restart-all, run-above, paste, and
 output folding) are green. Neovim behavior, the static export, and committed
 visual baselines are unchanged.

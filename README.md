@@ -209,9 +209,14 @@ Controls:
 | `Ctrl+Alt+Enter` | run the selected cell and every code cell below it |
 | `Ctrl+Alt+Up` | run the selected cell and every code cell above it |
 | `Ctrl+Alt+G` | jump to a cell by number |
+| `Ctrl+Alt+L` | jump to a line in the selected cell |
 | `Ctrl+Alt+S` | save every dirty notebook |
 | `Ctrl+Alt+K` | restart every notebook kernel |
 | `Alt+D` | duplicate the selected cell |
+| `Ctrl+/` | toggle a `--` comment on the current line |
+| `Alt+Shift+Up` / `Alt+Shift+Down` | move the current line up / down |
+| `Ctrl+Shift+D` | duplicate the current line |
+| `Ctrl+]` / `Ctrl+[` | indent / outdent the current line |
 | `Alt+Up` / `Alt+Down` | move the selected cell up / down |
 | `Ctrl+Shift+Up` / `Ctrl+Shift+Down` | jump to the previous / next Markdown heading |
 | `F1` | open/close the command palette |
@@ -423,7 +428,7 @@ remaining gaps.
 `make test` runs the pure model, widget, engine, remote-supervisor,
 process-kernel, sandbox, editor, filetree filtering/sorting/keyboard navigation,
 workflow shortcut dispatch, run-above, paste, save/restart-all, bulk output
-folding, tag/heading filtering, Markdown
+folding, line editing/comment/duplicate/indent, tag/heading filtering, Markdown
 nested quotes/callouts/definition lists/tables/nesting/
 emphasis/highlight/autolink/escape/footnote/regex, polar/heatmap/contour/
 quiver/streamplot/colourbar/clipping export parity, and Neovim-buffer plan/apply
@@ -682,6 +687,15 @@ state. **Ctrl+Shift+Up** and **Ctrl+Shift+Down** jump to the nearest Markdown
 heading before or after the selected cell without wrapping. The command palette
 adds **Collapse all headings** and **Expand all headings**, which change every
 heading as one undoable edit while leaving code cells alone.
+
+## Line editing
+
+`Ctrl+/` toggles a `--` comment on the current code line (Markdown cells are
+left alone), `Alt+Shift+Up` and `Alt+Shift+Down` swap the line with its
+neighbor, `Ctrl+Shift+D` duplicates it, and `Ctrl+]` / `Ctrl+[` indent or
+outdent by two spaces (or one tab). `Ctrl+Alt+L` opens a numeric prompt and
+moves the caret to a line in the selected cell. Line edits are normal undoable
+changes.
 
 **F11** opens the heading outline with a type-to-filter field. Matching is a
 case-insensitive substring over heading text, the header shows the filtered

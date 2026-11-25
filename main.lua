@@ -667,6 +667,29 @@ function App:duplicate_cell()
   self.status = "duplicated cell"
 end
 
+function App:toggle_line_comment()
+  local changed = self:notebook():toggle_comment()
+  self.status = changed and "toggled line comment" or
+    "cannot comment this line"
+end
+
+function App:shift_current_line(delta)
+  local changed = self:notebook():shift_line(delta)
+  self.status = changed and (delta < 0 and "moved line up" or "moved line down")
+    or "cannot move this line"
+end
+
+function App:duplicate_current_line()
+  local changed = self:notebook():duplicate_line()
+  self.status = changed and "duplicated line" or "cannot duplicate this line"
+end
+
+function App:indent_current_line(delta)
+  local changed = self:notebook():indent_line(delta)
+  self.status = changed and (delta > 0 and "indented line" or "outdented line")
+    or "cannot indent this line"
+end
+
 function App:move_cell(delta)
   local notebook = self:notebook()
   local index = notebook.active
@@ -2285,20 +2308,44 @@ function lovr.load()
     local collapse_ok = output_cell.output_expanded == false
     output_cell.output = old_output3
 
+    notebook:select(2)
+    local original_line_cell = notebook.cells[2].source
+    notebook.cells[2].source = "a\nb"
+    notebook.cells[2].cursor = 3
+    app.ui:keypressed("/", { ctrl = true })
+    app.ui:keypressed("]", { ctrl = true })
+    app.ui:keypressed("[", { ctrl = true })
+    app.ui:keypressed("d", { ctrl = true, shift = true })
+    notebook.cells[2].cursor = 3
+    app.ui:keypressed("up", { alt = true, shift = true })
+    local line_ops_ok = notebook.cells[2].source == "-- b\na\n-- b"
+
+    notebook.cells[2].source = "a\nb\nc"
+    notebook.cells[2].cursor = 1
+    app.ui:keypressed("l", { ctrl = true, alt = true })
+    app.ui:textinput("3")
+    app.ui:keypressed("return")
+    local go_line_ok = notebook.cells[2].cursor == 5 and
+      not app.ui.show_cell_prompt
+    notebook.cells[2].source = original_line_cell
+    notebook.cells[2].cursor = 1
+
     app.smoke_workflow_ok = moved_down and moved_up and heading_ok and
       collapsed_ok and expanded_ok and clipboard_ok and output_clipboard_ok and
       task_ok and outline_ok and clear_ok and tag_ok and wiki_ok and
       duplicate_ok and goto_ok and paste_ok and save_all_ok and
-      restart_all_ok and expand_ok and collapse_ok
+      restart_all_ok and expand_ok and collapse_ok and line_ops_ok and
+      go_line_ok
     print(string.format(
-      "SMOKE_WORKFLOW_SHORTCUTS=%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s",
+      "SMOKE_WORKFLOW_SHORTCUTS=%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s",
       tostring(moved_down), tostring(moved_up), tostring(heading_ok),
       tostring(collapsed_ok), tostring(expanded_ok),
       tostring(clipboard_ok), tostring(output_clipboard_ok),
       tostring(task_ok), tostring(outline_ok), tostring(clear_ok),
       tostring(tag_ok), tostring(wiki_ok), tostring(duplicate_ok),
       tostring(goto_ok), tostring(paste_ok), tostring(save_all_ok),
-      tostring(restart_all_ok), tostring(expand_ok), tostring(collapse_ok)))
+      tostring(restart_all_ok), tostring(expand_ok), tostring(collapse_ok),
+      tostring(line_ops_ok), tostring(go_line_ok)))
 
     local workflow = Notebook.new({
       name = "workflow-smoke.luanb",

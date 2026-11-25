@@ -503,6 +503,47 @@ test("toggles one Markdown task marker without changing the rest", function()
     "- [x] first\n  * [x] second\nplain")
 end)
 
+current = "line editing"
+test("moves, duplicates, comments, indents, and seeks source lines", function()
+  local Notebook = require("notebook.model")
+  local notebook = Notebook.new({ cells = {
+    { kind = "code", source = "one\ntwo\nthree" },
+  } })
+  local cell = notebook.cells[1]
+  cell.cursor = 6
+  eq(notebook:shift_line(-1), true)
+  eq(cell.source, "two\none\nthree")
+  eq(cell.cursor, 2)
+  eq(notebook:shift_line(-1), false)
+
+  cell.source = "one\ntwo"
+  cell.cursor = 6
+  eq(notebook:duplicate_line(), true)
+  eq(cell.source, "one\ntwo\ntwo")
+  eq(cell.cursor, 10)
+
+  cell.source = "  value = 1"
+  cell.cursor = 5
+  eq(notebook:toggle_comment(), true)
+  eq(cell.source, "  -- value = 1")
+  eq(notebook:toggle_comment(), true)
+  eq(cell.source, "  value = 1")
+
+  cell.source = "line"
+  cell.cursor = 3
+  eq(notebook:indent_line(1), true)
+  eq(cell.source, "  line")
+  eq(notebook:indent_line(-1), true)
+  eq(cell.source, "line")
+
+  cell.source = "first\nsecond\nthird"
+  eq(notebook:go_to_line(3), true)
+  eq(cell.cursor, 14)
+  eq(notebook:go_to_line(4), false)
+  cell.kind = "markdown"
+  eq(notebook:toggle_comment(), false)
+end)
+
 current = "vim delimiter objects"
 test("finds quoted and bracketed ranges", function()
   local Notebook = require("notebook.model")

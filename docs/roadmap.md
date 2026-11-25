@@ -33,7 +33,8 @@
   duplicate a cell, run selected-and-above, save all notebooks, restart all
   kernels, expand/collapse all long outputs, move the selected cell with
   Alt+Up/Down, heading navigation, collapse/expand all headings, and a
-  type-to-filter outline.
+  type-to-filter outline. Line editing covers comment toggle, line move,
+  duplicate, indent/outdent, and go-to-line.
 - Clickable Markdown task-list markers in the live preview and nested
   blockquotes and GitHub-style callouts across the preview, static export,
   and browser front-end; clickable browser task checkboxes, definition lists
