@@ -777,6 +777,13 @@ function App:clear_outputs()
   self.status = "cleared outputs"
 end
 
+function App:set_outputs_expanded(expanded)
+  local changed = self:notebook():set_outputs_expanded(expanded)
+  self.status = changed and
+    (expanded and "expanded all long outputs" or "collapsed all long outputs") or
+    (expanded and "no long outputs to expand" or "no long outputs to collapse")
+end
+
 function App:clear_cell_output()
   local notebook = self:notebook()
   local cell = notebook and notebook:selected()
@@ -797,21 +804,39 @@ function App:clear_cell_output()
   return true
 end
 
+function App:restart_notebook(notebook, index)
+  if not self.supervisor.restart then return false end
+  self.supervisor:restart(self:kernel_id(notebook))
+  for request, target in pairs(self.pending) do
+    if target.notebook == index then self.pending[request] = nil end
+  end
+  for _, cell in ipairs(notebook.cells) do cell.running = false end
+  return true
+end
+
 function App:restart_kernel()
   self._run_all_position = nil
-  local id = self:kernel_id(self:notebook())
-  if self.supervisor.restart then
-    self.supervisor:restart(id)
-    for request, target in pairs(self.pending) do
-      if target.notebook == self.active then self.pending[request] = nil end
-    end
-    local notebook = self:notebook()
-    for _, cell in ipairs(notebook.cells) do cell.running = false end
+  if self:restart_notebook(self:notebook(), self.active) then
     self.status = "kernel restarted"
     return true
   end
   self.status = "kernel restart is unavailable for this backend"
   return false
+end
+
+function App:restart_all_kernels()
+  self._run_all_position = nil
+  local count = 0
+  for index, notebook in ipairs(self.notebooks) do
+    if self:restart_notebook(notebook, index) then count = count + 1 end
+  end
+  if count == 0 then
+    self.status = "kernel restart is unavailable for this backend"
+    return false
+  end
+  self.pending = {}
+  self.status = string.format("restarted %d kernel(s)", count)
+  return true
 end
 
 -- Restart first, then run every code cell in the restarted state.  The restart
@@ -1342,8 +1367,7 @@ function App:open_nvim_notebook()
   self.status = "Neovim notebook (normal mode): i to edit, F10 save, F5 run"
 end
 
-function App:save()
-  local notebook = self:notebook()
+function App:save_notebook(notebook)
   local ok, path, absolute
   if notebook._path and not notebook._path:match("^notebooks/") then
     ok, path = pcall(Format.save_path, notebook, notebook._path)
@@ -1351,13 +1375,43 @@ function App:save()
   else
     ok, path, absolute = pcall(Format.save, notebook)
   end
-  if not ok then
-    self.status = "save failed: " .. tostring(path)
-    return
+  if not ok or path == nil then
+    return false, tostring(path or absolute or "write failed")
   end
   notebook.dirty = false
   Format.remove_autosave(notebook)
-  self.status = "saved " .. tostring(absolute or path)
+  return true, absolute or path
+end
+
+function App:save()
+  local ok, path = self:save_notebook(self:notebook())
+  self.status = ok and ("saved " .. tostring(path)) or
+    ("save failed: " .. tostring(path))
+end
+
+function App:save_all()
+  local saved, failed = 0, 0
+  local last_path
+  for _, notebook in ipairs(self.notebooks) do
+    if notebook.dirty then
+      local ok, path = self:save_notebook(notebook)
+      if ok then
+        saved = saved + 1
+        last_path = path
+      else
+        failed = failed + 1
+      end
+    end
+  end
+  if saved == 0 and failed == 0 then
+    self.status = "no unsaved notebooks"
+  elseif failed > 0 then
+    self.status = string.format("saved %d notebook(s); %d failed", saved,
+      failed)
+  else
+    self.status = string.format("saved %d notebook(s) (%s)", saved,
+      tostring(last_path))
+  end
 end
 
 function App:save_as()
@@ -2213,18 +2267,38 @@ function lovr.load()
       app:notebook():title() == "Second kernel"
     app:set_tab(1)
 
+    notebook.dirty = true
+    app:save_all()
+    local save_all_ok = notebook.dirty == false and
+      app.status:find("saved", 1, true) ~= nil
+    local restart_all_ok = app:restart_all_kernels() and
+      app.status:find("restarted", 1, true) ~= nil
+
+    local output_cell = notebook.cells[1]
+    local old_output3 = output_cell.output
+    local output_lines = {}
+    for line = 1, 8 do output_lines[line] = "line " .. line end
+    output_cell.output = table.concat(output_lines, "\n")
+    app:set_outputs_expanded(true)
+    local expand_ok = output_cell.output_expanded == true
+    app:set_outputs_expanded(false)
+    local collapse_ok = output_cell.output_expanded == false
+    output_cell.output = old_output3
+
     app.smoke_workflow_ok = moved_down and moved_up and heading_ok and
       collapsed_ok and expanded_ok and clipboard_ok and output_clipboard_ok and
       task_ok and outline_ok and clear_ok and tag_ok and wiki_ok and
-      duplicate_ok and goto_ok and paste_ok
+      duplicate_ok and goto_ok and paste_ok and save_all_ok and
+      restart_all_ok and expand_ok and collapse_ok
     print(string.format(
-      "SMOKE_WORKFLOW_SHORTCUTS=%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s",
+      "SMOKE_WORKFLOW_SHORTCUTS=%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s",
       tostring(moved_down), tostring(moved_up), tostring(heading_ok),
       tostring(collapsed_ok), tostring(expanded_ok),
       tostring(clipboard_ok), tostring(output_clipboard_ok),
       tostring(task_ok), tostring(outline_ok), tostring(clear_ok),
       tostring(tag_ok), tostring(wiki_ok), tostring(duplicate_ok),
-      tostring(goto_ok), tostring(paste_ok)))
+      tostring(goto_ok), tostring(paste_ok), tostring(save_all_ok),
+      tostring(restart_all_ok), tostring(expand_ok), tostring(collapse_ok)))
 
     local workflow = Notebook.new({
       name = "workflow-smoke.luanb",

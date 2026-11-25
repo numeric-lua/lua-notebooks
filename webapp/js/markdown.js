@@ -281,6 +281,24 @@ function quoteHtml(entries, context) {
   return `<blockquote>${renderFrom(entries, 0, 1)}</blockquote>`;
 }
 
+function slugify(text) {
+  return String(text || "")
+    .toLowerCase()
+    .replace(/<[^>]*>/g, "")
+    .replace(/[`*_~=\[\]]/g, "")
+    .replace(/[^\w\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-") || "section";
+}
+
+function uniqueSlug(text, context) {
+  const base = slugify(text);
+  const count = (context.slugCounts.get(base) || 0) + 1;
+  context.slugCounts.set(base, count);
+  return count === 1 ? base : `${base}-${count}`;
+}
+
 function definitionListHtml(lines, index, context) {
   const items = [];
   let cursor = index;
@@ -310,6 +328,7 @@ export function renderMarkdown(source, prefix = "md", options = {}) {
   context.prefix = String(prefix).replace(/[^\w-]/g, "-") || "md";
   context.interactiveTasks = options.interactiveTasks === true;
   context.taskIndex = 0;
+  context.slugCounts = new Map();
   const out = [];
   let paragraph = [];
   let listStack = [];
@@ -389,6 +408,23 @@ export function renderMarkdown(source, prefix = "md", options = {}) {
       flushAll();
       continue;
     }
+    const displayMath = raw.match(/^\s*\$\$(.*)\$\$\s*$/);
+    if (displayMath && displayMath[1].trim()) {
+      flushAll();
+      out.push(`<div class="math-display">${escapeHtml(displayMath[1].trim())}</div>`);
+      continue;
+    }
+    if (/^\s*\$\$\s*$/.test(raw)) {
+      flushAll();
+      const math = [];
+      index += 1;
+      while (index < lines.length && !/^\s*\$\$\s*$/.test(lines[index])) {
+        math.push(lines[index]);
+        index += 1;
+      }
+      out.push(`<div class="math-display">${escapeHtml(math.join("\n"))}</div>`);
+      continue;
+    }
     const quoted = quoteDepth(raw);
     if (quoted.depth > 0) {
       flushParagraph();
@@ -421,7 +457,11 @@ export function renderMarkdown(source, prefix = "md", options = {}) {
     if (heading) {
       flushAll();
       const level = heading[1].length;
-      out.push(`<h${level}>${inline(heading[2], context)}</h${level}>`);
+      const slug = uniqueSlug(heading[2], context);
+      const id = `${context.prefix}-${slug}`;
+      out.push(`<h${level} id="${id}">${inline(heading[2], context)}` +
+        `<a class="heading-permalink" href="#${id}" ` +
+        `aria-label="Permalink to ${escapeHtml(heading[2])}">#</a></h${level}>`);
       continue;
     }
     if (/^\s*([-*_])\s*\1\s*\1[\s\-*_]*$/.test(raw)) {

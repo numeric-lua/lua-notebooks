@@ -113,7 +113,9 @@ rules as the desktop and export renderers, and streamplots draw the integrated
 polylines and mid-line heads from the same luaplotlib IR. Streamplot paths are
 cut at the frame in the shared Lua and JavaScript geometry, support
 solid/dashed/dotted/`none` strokes, and report both source and visible
-point/run/arrow counts.
+point/run/arrow counts. Markdown previews include cell-scoped unique heading anchors and
+permalink links, centered display-math blocks, clickable task checkboxes, and
+fenced code blocks with language badges and **Copy** controls.
 Heatmap fields larger than 4096 matrix cells are sampled into covering blocks
 before painting, so the live frame, the SVG export, and the Canvas renderer stay
 bounded without leaving gaps in the annulus.
@@ -207,6 +209,8 @@ Controls:
 | `Ctrl+Alt+Enter` | run the selected cell and every code cell below it |
 | `Ctrl+Alt+Up` | run the selected cell and every code cell above it |
 | `Ctrl+Alt+G` | jump to a cell by number |
+| `Ctrl+Alt+S` | save every dirty notebook |
+| `Ctrl+Alt+K` | restart every notebook kernel |
 | `Alt+D` | duplicate the selected cell |
 | `Alt+Up` / `Alt+Down` | move the selected cell up / down |
 | `Ctrl+Shift+Up` / `Ctrl+Shift+Down` | jump to the previous / next Markdown heading |
@@ -418,7 +422,8 @@ remaining gaps.
 
 `make test` runs the pure model, widget, engine, remote-supervisor,
 process-kernel, sandbox, editor, filetree filtering/sorting/keyboard navigation,
-workflow shortcut dispatch, run-above, paste, tag/heading filtering, Markdown
+workflow shortcut dispatch, run-above, paste, save/restart-all, bulk output
+folding, tag/heading filtering, Markdown
 nested quotes/callouts/definition lists/tables/nesting/
 emphasis/highlight/autolink/escape/footnote/regex, polar/heatmap/contour/
 quiver/streamplot/colourbar/clipping export parity, and Neovim-buffer plan/apply
@@ -668,7 +673,8 @@ clipboard at the caret as one undoable edit. `Ctrl+Alt+X` clears the selected
 cell's output, scene, widgets, and error (refusing while it is running), and
 `Ctrl+Alt+T` reopens the most recently closed tab with a fresh kernel.
 `Ctrl+Alt+W` closes every other tab that has no unsaved changes and reports how
-many dirty tabs it kept. `Ctrl+Alt+G` opens a numeric **Go to cell** prompt;
+many dirty tabs it kept. `Ctrl+Alt+S` saves every dirty tab and `Ctrl+Alt+K`
+restarts every kernel. `Ctrl+Alt+G` opens a numeric **Go to cell** prompt;
 Enter jumps and Esc cancels. `Alt+D` duplicates the selected cell.
 **Alt+Up** and **Alt+Down** reorder
 the selected cell in one step; the cell keeps its source, output, and widget
@@ -728,7 +734,7 @@ Tag scanning only reads Markdown prose. Tags inside fenced code blocks, inline c
 
 ## Execution timing
 
-Every code-cell run records its kernel execution time. The timing stays hidden by default, so the cell layout and committed visual baselines do not change; press **Ctrl+Shift+E** or choose **Toggle execution timing** in the command palette to show a compact duration next to the cell index. Timings are live session data and are not persisted in `.luanb` files. The status bar always reports the duration of the run that just finished, and **Run all code cells** ends with the summed timed duration (for example, `all code cells finished in 1.24 s (6 timed)`).
+Every code-cell run records its kernel execution time. The timing stays hidden by default, so the cell layout and committed visual baselines do not change; press **Ctrl+Shift+E** or choose **Toggle execution timing** in the command palette to show a compact duration next to the cell index. Timings are live session data and are not persisted in `.luanb` files. The status bar always reports the duration of the run that just finished, and **Expand all long outputs** / **Collapse all long outputs** in the palette change every output longer than six lines as one undoable edit. **Run all code cells** ends with the summed timed duration (for example, `all code cells finished in 1.24 s (6 timed)`).
 
 Neovim completion uses external popupmenu events rendered over the grid. Held Backspace, Delete, arrow, Home/End, and PageUp/PageDown keys repeat. F10 applies changes to the notebook model; F6 writes the `.luanb` file.
 

@@ -4,7 +4,7 @@ import { renderMarkdown, toggleTaskAt } from "../js/markdown.js";
 
 test("renders headings and paragraphs", () => {
   const html = renderMarkdown("# Title\n\nA paragraph.");
-  assert.match(html, /<h1>Title<\/h1>/);
+  assert.match(html, /<h1 id="md-title">Title<a class="heading-permalink" href="#md-title"/);
   assert.match(html, /<p>A paragraph\.<\/p>/);
 });
 
@@ -159,4 +159,18 @@ test("toggles the nth task line and skips fenced code", () => {
   assert.equal(toggleTaskAt(source, 1), "- [x] one\n\n```\n- [ ] hidden\n```\n\n- [x] two");
   assert.equal(toggleTaskAt(source, 2), "- [ ] one\n\n```\n- [ ] hidden\n```\n\n- [ ] two");
   assert.equal(toggleTaskAt(source, 3), null);
+});
+
+test("gives headings unique anchor ids and permalinks", () => {
+  const html = renderMarkdown("# Intro\n\n## Intro\n\n### Other *part*");
+  assert.match(html, /<h1 id="md-intro">Intro<a class="heading-permalink" href="#md-intro"/);
+  assert.match(html, /<h2 id="md-intro-2">Intro<a class="heading-permalink" href="#md-intro-2"/);
+  assert.match(html, /<h3 id="md-other-part">Other <em>part<\/em><a class="heading-permalink" href="#md-other-part"/);
+});
+
+test("renders single-line and fenced display math", () => {
+  const html = renderMarkdown("Before\n\n$$E = mc^2$$\n\n$$\na^2 + b^2\n$$");
+  assert.match(html, /<p>Before<\/p>/);
+  assert.match(html, /<div class="math-display">E = mc\^2<\/div>/);
+  assert.match(html, /<div class="math-display">a\^2 \+ b\^2<\/div>/);
 });

@@ -30,14 +30,16 @@
 - Notebook workflow commands: restart-and-run-all, run selected-and-below,
   copy cell source/output, paste the clipboard, clear the selected output,
   reopen the last closed tab, close other clean tabs, go to a cell number,
-  duplicate a cell, run selected-and-above, move the selected cell with
+  duplicate a cell, run selected-and-above, save all notebooks, restart all
+  kernels, expand/collapse all long outputs, move the selected cell with
   Alt+Up/Down, heading navigation, collapse/expand all headings, and a
   type-to-filter outline.
 - Clickable Markdown task-list markers in the live preview and nested
   blockquotes and GitHub-style callouts across the preview, static export,
   and browser front-end; clickable browser task checkboxes, definition lists
   across all three Markdown surfaces, browser code-block badges/copy controls,
-  clickable preview wiki links, and a filterable tag index.
+  clickable preview wiki links, browser heading anchor permalinks and display
+  math blocks, and a filterable tag index.
 - Close-notebook tabs with an unsaved-changes guard; kernels are keyed by
   notebook object so other tabs keep their globals.
 - Filterable, sortable, keyboard-navigable hierarchical notebook filetree with

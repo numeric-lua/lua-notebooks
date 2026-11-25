@@ -42,7 +42,8 @@ or with the settings button in the top bar.
   backslash-escaped punctuation, ordered-list start numbers, numbered
   footnotes with endnote backlinks, local notebook persistence, `.luanb`
   import/export;
-- fenced code blocks with a language badge and a **Copy** button;
+- fenced code blocks with a language badge and a **Copy** button, cell-scoped unique heading
+  anchor permalinks, and centered `$$...$$` display math;
 - Shift+Enter / Ctrl+Enter execution;
 - stdout, returned values, errors;
 - kernel widgets: sliders, buttons, checkboxes, selects, text, numbers,

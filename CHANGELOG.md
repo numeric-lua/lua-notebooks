@@ -17,10 +17,21 @@
 - browser Markdown fenced code blocks now show a language badge and a **Copy**
   control that copies the block without any badge text; unknown languages fall
   back to `text`.
+- save every dirty notebook with **Ctrl+Alt+S** or **Save all notebooks**, with
+  a per-run saved/failed count;
+- restart every notebook kernel with **Ctrl+Alt+K** or **Restart all kernels**,
+  clearing running flags and pending requests for all tabs;
+- expand or collapse every long output as one undoable edit with the
+  **Expand all long outputs** and **Collapse all long outputs** palette actions;
+- browser Markdown headings now get deterministic unique IDs and hover/focus
+  `#` permalinks, and single-line or fenced `$$...$$` math renders as centered
+  display blocks.
 
-Added `tests/workflow.lua` coverage for paste, run-above dispatch, and filetree
-keyboard navigation; `tests/run.lua` covers filetree sorting and duplicate-cell undo, the workflow
-smoke covers run-above execution, and the browser Markdown suite covers
-code-block badges/copy markup.
-The filetree overlay QA screenshot and `LUANB_SMOKE_WORKFLOW` are green. Neovim
-behavior, the static export, and committed visual baselines are unchanged.
+Tests: `tests/workflow.lua` covers paste, run-above dispatch, save/restart-all
+dispatch, filetree keyboard navigation, and output-fold dispatch; `tests/run.lua`
+covers filetree sorting, bulk output folding, and duplicate-cell undo; the
+browser Markdown suite covers code-block badges/copy markup, heading anchor
+uniqueness, permalinks, and display math. The filetree overlay QA screenshot and
+`LUANB_SMOKE_WORKFLOW` (including save-all, restart-all, run-above, paste, and
+output folding) are green. Neovim behavior, the static export, and committed
+visual baselines are unchanged.

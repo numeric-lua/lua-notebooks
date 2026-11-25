@@ -853,6 +853,7 @@ function UI:palette_commands()
   local commands = {
     { id = "run", label = "Run selected cell  (F5)" },
     { id = "restart-kernel", label = "Restart current kernel" },
+    { id = "restart-all-kernels", label = "Restart all kernels  (Ctrl+Alt+K)" },
     { id = "restart-run-all", label = "Restart kernel and run all cells  (Ctrl+Shift+F5)" },
     { id = "clear-outputs", label = "Clear all cell outputs" },
     { id = "clear-cell-output", label = "Clear selected cell output  (Ctrl+Alt+X)" },
@@ -872,6 +873,8 @@ function UI:palette_commands()
     { id = "go-to-cell", label = "Go to cell…  (Ctrl+Alt+G)" },
     { id = "timing", label = "Toggle execution timing" },
     { id = "output", label = "Toggle long cell output  (Ctrl+Shift+O)" },
+    { id = "expand-outputs", label = "Expand all long outputs" },
+    { id = "collapse-outputs", label = "Collapse all long outputs" },
     { id = "clear-recent", label = "Clear recent notebooks" },
     { id = "clear-session", label = "Clear restored session" },
     { id = "move-up", label = "Move selected cell up  (Alt+Up)" },
@@ -882,6 +885,7 @@ function UI:palette_commands()
     { id = "expand-headings", label = "Expand all headings" },
     { id = "duplicate-cell", label = "Duplicate selected cell  (Alt+D)" },
     { id = "save", label = "Save notebook  (F6)" },
+    { id = "save-all", label = "Save all notebooks  (Ctrl+Alt+S)" },
     { id = "save-as", label = "Save notebook as…" },
     { id = "close", label = "Close current notebook tab  (Ctrl+W)" },
     { id = "close-others", label = "Close other clean tabs  (Ctrl+Alt+W)" },
@@ -962,6 +966,7 @@ function UI:run_palette_command(id)
   self.show_palette = false
   if id == "run" then self.app:run()
   elseif id == "restart-kernel" then self.app:restart_kernel()
+  elseif id == "restart-all-kernels" then self.app:restart_all_kernels()
   elseif id == "restart-run-all" then self.app:restart_and_run_all()
   elseif id == "clear-outputs" then self.app:clear_outputs()
   elseif id == "clear-cell-output" then self.app:clear_cell_output()
@@ -984,6 +989,8 @@ function UI:run_palette_command(id)
     local notebook = self.app:notebook()
     local expanded = notebook:toggle_output(notebook.active)
     self.app.status = expanded and "expanded output" or "collapsed output"
+  elseif id == "expand-outputs" then self.app:set_outputs_expanded(true)
+  elseif id == "collapse-outputs" then self.app:set_outputs_expanded(false)
   elseif id == "clear-recent" then self.app:clear_recent()
   elseif id == "clear-session" then self.app:clear_session()
   elseif id == "move-up" then self.app:move_cell(-1)
@@ -994,6 +1001,7 @@ function UI:run_palette_command(id)
   elseif id == "expand-headings" then self.app:set_headings_collapsed(false)
   elseif id == "duplicate-cell" then self.app:duplicate_cell()
   elseif id == "save" then self.app:save()
+  elseif id == "save-all" then self.app:save_all()
   elseif id == "save-as" then self.app:save_as()
   elseif id == "close" then self:request_close()
   elseif id == "close-others" then self.app:close_other_notebooks()
@@ -1609,6 +1617,7 @@ function UI:draw_help(pass, width, height)
         { "Ctrl+Shift+C / F5", "copy source / restart and run all" },
         { "Ctrl+V", "paste clipboard at the caret" },
         { "Ctrl+Alt+C / Enter", "copy output / run below" },
+        { "Ctrl+Alt+S / K", "save all / restart all kernels" },
         { "Ctrl+Alt+Up", "run selected cell and above" },
         { "Ctrl+Alt+X / T", "clear output / reopen tab" },
         { "Alt+Up / Down", "move selected cell" },
@@ -2909,6 +2918,14 @@ function UI:keypressed(key, modifiers)
   end
   if ctrl_down and alt_down and key == "w" then
     self.app:close_other_notebooks()
+    return
+  end
+  if ctrl_down and alt_down and key == "s" then
+    self.app:save_all()
+    return
+  end
+  if ctrl_down and alt_down and key == "k" then
+    self.app:restart_all_kernels()
     return
   end
   if ctrl_down and key == "p" then

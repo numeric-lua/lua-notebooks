@@ -1215,6 +1215,22 @@ test("previews six long-output lines and persists expansion", function()
   eq(notebook:toggle_output(1), false)
   eq(select(1, Notebook.output_lines_shown(notebook.cells[1])), 6)
 end)
+test("expands and collapses every long output as one edit", function()
+  local long = table.concat({ "1", "2", "3", "4", "5", "6", "7" }, "\n")
+  local notebook = Notebook.new({ cells = {
+    { kind = "code", source = "print()", output = long },
+    { kind = "code", source = "print()", output = "short" },
+    { kind = "code", source = "print()", output = long },
+  } })
+  eq(notebook:set_outputs_expanded(true), true)
+  eq(notebook.cells[1].output_expanded, true)
+  eq(notebook.cells[2].output_expanded == true, false)
+  eq(notebook.cells[3].output_expanded, true)
+  eq(notebook:set_outputs_expanded(true), false)
+  eq(notebook:set_outputs_expanded(false), true)
+  eq(notebook.cells[1].output_expanded, false)
+  eq(notebook.cells[3].output_expanded, false)
+end)
 test("leaves short output unchanged and ignores missing cells", function()
   local notebook = Notebook.new({ cells = {
     { kind = "code", source = "print()", output = "one\ntwo" },

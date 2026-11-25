@@ -700,6 +700,26 @@ function Notebook:toggle_output(index, expanded)
   return cell.output_expanded
 end
 
+function Notebook:set_outputs_expanded(expanded)
+  local changed = false
+  for _, cell in ipairs(self.cells) do
+    if Notebook.output_line_count(cell) > OUTPUT_PREVIEW_LINES and
+       (cell.output_expanded == true) ~= expanded then
+      changed = true
+      break
+    end
+  end
+  if not changed then return false end
+  self:push_undo(expanded and "expand all outputs" or "collapse all outputs")
+  for _, cell in ipairs(self.cells) do
+    if Notebook.output_line_count(cell) > OUTPUT_PREVIEW_LINES then
+      cell.output_expanded = expanded
+    end
+  end
+  self.dirty = true
+  return true
+end
+
 function Notebook:newline()
   self:push_undo("newline")
   self:insert("\n")
@@ -1118,6 +1138,8 @@ Markdown footnotes use `[^label]` for the reference and a `[^label]: text` line 
 - **Ctrl+Alt+X** clears the selected cell output; **Ctrl+Alt+T** reopens the last closed tab.
 - **Ctrl+Alt+G** jumps to a cell number; **Alt+D** duplicates the selected cell.
 - **Ctrl+Alt+W** closes every other clean tab and keeps unsaved ones open.
+- **Ctrl+Alt+S** saves every dirty tab; **Ctrl+Alt+K** restarts every kernel.
+- Palette actions expand or collapse every long output at once.
 - **Alt+Up / Alt+Down** moves the selected cell.
 - **Ctrl+Shift+Up / Ctrl+Shift+Down** jumps between headings, and the command palette can collapse or expand every heading at once.
 - **F11** opens the heading outline; type to filter it and press Enter to jump.]]),
