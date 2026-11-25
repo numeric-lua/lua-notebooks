@@ -79,6 +79,12 @@ function App:new(notebooks)
   if scale_ok and tonumber(scale_value) then
     self.ui_scale = math.max(0.7, math.min(2, tonumber(scale_value)))
   end
+  self.tree_sort = "name"
+  local sort_ok, sort_value = pcall(lovr.filesystem.read, "tree_sort.txt")
+  if sort_ok and (sort_value == "name" or sort_value == "name-desc" or
+      sort_value == "recent") then
+    self.tree_sort = sort_value
+  end
   local kernel_mode = os.getenv("LUANB_KERNEL_MODE")
   local remote_url = os.getenv("LUANB_REMOTE_URL")
   if remote_url == nil and Runtime.is_web() then
@@ -368,9 +374,23 @@ function App:library_items(filter)
   self.tree_expanded = self.tree_expanded or { notebooks = true }
   local filtering = type(filter) == "string" and filter:match("%S") ~= nil
   local entries = Format.list_tree(self.tree_expanded, "notebooks", 0,
-    filtering)
+    filtering, self.tree_sort)
   if not filtering then return entries end
   return Format.filter_entries(entries, filter)
+end
+
+function App:cycle_tree_sort()
+  local modes = { "name", "name-desc", "recent" }
+  local next_mode = modes[1]
+  for index, mode in ipairs(modes) do
+    if mode == self.tree_sort then
+      next_mode = modes[index % #modes + 1]
+      break
+    end
+  end
+  self.tree_sort = next_mode
+  pcall(lovr.filesystem.write, "tree_sort.txt", next_mode)
+  self.status = "filetree sort: " .. Format.tree_sort_label(next_mode)
 end
 
 function App:new_notebook()
@@ -663,7 +683,9 @@ end
 function App:_run_next_all()
   if self._run_all_position == nil then return end
   local notebook = self:notebook()
-  for index = self._run_all_position + 1, #notebook.cells do
+  local finish = self._run_all_finished or "all code cells finished"
+  local last = self._run_all_stop or #notebook.cells
+  for index = self._run_all_position + 1, last do
     if notebook.cells[index].kind == "code" then
       self._run_all_position = index
       notebook:select(index)
@@ -675,15 +697,17 @@ function App:_run_next_all()
   self._run_all_position = nil
   local total, timed = Format.total_elapsed(notebook.cells)
   if total ~= nil and timed > 0 then
-    self.status = string.format("all code cells finished in %s (%d timed)",
+    self.status = string.format("%s in %s (%d timed)", finish,
       Format.duration(total), timed)
   else
-    self.status = "all code cells finished"
+    self.status = finish
   end
 end
 
 function App:run_all()
   self._run_all_position = 0
+  self._run_all_stop = #self:notebook().cells
+  self._run_all_finished = "all code cells finished"
   self.status = "running all code cells"
   self:_run_next_all()
 end
@@ -698,7 +722,23 @@ function App:run_all_below()
     return
   end
   self._run_all_position = notebook.active - 1
+  self._run_all_stop = #notebook.cells
+  self._run_all_finished = "all code cells below finished"
   self.status = "running selected cell and below"
+  self:_run_next_all()
+end
+
+function App:run_all_above()
+  local notebook = self:notebook()
+  local cell = notebook:selected()
+  if cell ~= nil and cell.running then
+    self.status = "cell is already running"
+    return
+  end
+  self._run_all_position = 0
+  self._run_all_stop = notebook.active
+  self._run_all_finished = "all code cells above finished"
+  self.status = "running selected cell and above"
   self:_run_next_all()
 end
 
@@ -1898,7 +1938,7 @@ function lovr.load()
     app.ui.show_extensions = true
   end
   if os.getenv("LUANB_QA_TREE") then
-    app.ui.show_tree = true
+    app.ui:open_tree()
   end
   if os.getenv("LUANB_QA_VIM") then
     app.ui.vim_normal = true
@@ -2084,6 +2124,13 @@ function lovr.load()
       lovr.system.getClipboardText() == "smoke clipboard output"
     notebook.cells[1].output = old_output
 
+    notebook:select(2)
+    notebook.cells[2].cursor = #notebook.cells[2].source + 1
+    lovr.system.setClipboardText("PASTE")
+    app.ui:keypressed("v", { ctrl = true })
+    local paste_ok = notebook.cells[2].source:find("PASTE", 1, true) ~= nil
+    notebook:undo()
+
     local task_cell, task_line
     for cell_index, cell in ipairs(notebook.cells) do
       if cell.kind == "markdown" then
@@ -2169,15 +2216,15 @@ function lovr.load()
     app.smoke_workflow_ok = moved_down and moved_up and heading_ok and
       collapsed_ok and expanded_ok and clipboard_ok and output_clipboard_ok and
       task_ok and outline_ok and clear_ok and tag_ok and wiki_ok and
-      duplicate_ok and goto_ok
+      duplicate_ok and goto_ok and paste_ok
     print(string.format(
-      "SMOKE_WORKFLOW_SHORTCUTS=%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s",
+      "SMOKE_WORKFLOW_SHORTCUTS=%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s",
       tostring(moved_down), tostring(moved_up), tostring(heading_ok),
       tostring(collapsed_ok), tostring(expanded_ok),
       tostring(clipboard_ok), tostring(output_clipboard_ok),
       tostring(task_ok), tostring(outline_ok), tostring(clear_ok),
       tostring(tag_ok), tostring(wiki_ok), tostring(duplicate_ok),
-      tostring(goto_ok)))
+      tostring(goto_ok), tostring(paste_ok)))
 
     local workflow = Notebook.new({
       name = "workflow-smoke.luanb",
@@ -2405,22 +2452,52 @@ function lovr.update(dt)
       elseif app.smoke_workflow_phase == "run-below" then
         if app._run_all_position == nil and not first.running and
            not second.running and not third.running and
-           app.status:find("all code cells finished", 1, true) then
+           app.status:find("all code cells below finished", 1, true) then
           local first_unchanged = first.output ==
             app.smoke_workflow_first_output
           local second_ok =
             second.output:find("workflow repeat\t1", 1, true) ~= nil
           local third_ok =
             third.output:find("workflow third\t1", 1, true) ~= nil
-          local ok = first_unchanged and second_ok and third_ok
+          if first_unchanged and second_ok and third_ok then
+            app.smoke_workflow_third_output = third.output
+            notebook:select(2)
+            app.ui:keypressed("up", { ctrl = true, alt = true })
+            app.smoke_workflow_phase = "run-above"
+            app.smoke_start = lovr.timer.getTime()
+          else
+            print("SMOKE_WORKFLOW=false:below:" ..
+              tostring(first_unchanged) .. ":" .. tostring(second_ok) ..
+              ":" .. tostring(third_ok))
+            app.smoke = false
+            lovr.event.quit()
+          end
+        elseif lovr.timer.getTime() - app.smoke_start > 12 then
+          print("SMOKE_WORKFLOW=timeout:run-below:" .. tostring(app.status) ..
+            ":" .. tostring(first.output) .. "|" .. tostring(second.output) ..
+            "|" .. tostring(third.output))
+          app.smoke = false
+          lovr.event.quit()
+        end
+      elseif app.smoke_workflow_phase == "run-above" then
+        if app._run_all_position == nil and not first.running and
+           not second.running and not third.running and
+           app.status:find("all code cells above finished", 1, true) then
+          local first_ok =
+            first.output:find("workflow marker\t2", 1, true) ~= nil
+          local second_ok =
+            second.output:find("workflow repeat\t2", 1, true) ~= nil
+          local third_unchanged = third.output ==
+            app.smoke_workflow_third_output
+          local ok = first_ok and second_ok and third_unchanged
           print("SMOKE_WORKFLOW=" .. tostring(ok) .. ":" ..
-            tostring(first_unchanged) .. ":" .. tostring(second_ok) .. ":" ..
-            tostring(third_ok) .. ":" .. tostring(second.output) .. "|" ..
-            tostring(third.output))
+            tostring(first_ok) .. ":" .. tostring(second_ok) .. ":" ..
+            tostring(third_unchanged) .. ":" .. tostring(first.output) .. "|" ..
+            tostring(second.output) .. "|" .. tostring(third.output))
           app.smoke = false
           lovr.event.quit()
         elseif lovr.timer.getTime() - app.smoke_start > 12 then
-          print("SMOKE_WORKFLOW=timeout:run-below:" .. tostring(app.status) ..
+          print("SMOKE_WORKFLOW=timeout:run-above:" .. tostring(app.status) ..
             ":" .. tostring(first.output) .. "|" .. tostring(second.output) ..
             "|" .. tostring(third.output))
           app.smoke = false

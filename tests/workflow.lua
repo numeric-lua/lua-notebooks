@@ -3,7 +3,12 @@
 local root = (arg and arg[0] or "tests/workflow.lua"):match("^(.*)/tests/") or "."
 package.path = root .. "/?.lua;" .. root .. "/?/init.lua;" .. package.path
 
-lovr = { system = { isKeyDown = function() return false end } }
+lovr = {
+  system = {
+    isKeyDown = function() return false end,
+    getClipboardText = function() return "pasted" end,
+  },
+}
 
 local Notebook = require("notebook.model")
 local UI = require("ui.notebook")
@@ -17,7 +22,8 @@ local notebook = Notebook.new({ cells = {
 local calls = {
   move = 0, heading = 0, copy = 0, restart = 0, collapse = 0,
   copy_output = 0, run_below = 0, clear_output = 0, reopen = 0,
-  open_title = 0, duplicate = 0, close_others = 0,
+  open_title = 0, duplicate = 0, close_others = 0, run_above = 0,
+  open_path = 0, cycle_sort = 0,
 }
 local app = {
   notebooks = { notebook },
@@ -33,11 +39,24 @@ local app = {
   copy_cell_source = function(self) calls.copy = calls.copy + 1 end,
   copy_cell_output = function(self) calls.copy_output = calls.copy_output + 1 end,
   run_all_below = function(self) calls.run_below = calls.run_below + 1 end,
+  run_all_above = function(self) calls.run_above = calls.run_above + 1 end,
   clear_cell_output = function(self) calls.clear_output = calls.clear_output + 1 end,
   reopen_closed_notebook = function(self) calls.reopen = calls.reopen + 1 end,
   open_title = function(self, title) calls.open_title = calls.open_title + 1; return true end,
   duplicate_cell = function(self) calls.duplicate = calls.duplicate + 1 end,
   close_other_notebooks = function(self) calls.close_others = calls.close_others + 1; return 0, 0 end,
+  tree_sort = "name",
+  tree_expanded = {},
+  library_items = function(self, query)
+    return {
+      { path = "notebooks/a.luanb", name = "a.luanb", kind = "file",
+        depth = 0 },
+      { path = "notebooks/work", name = "work", kind = "directory",
+        depth = 0 },
+    }
+  end,
+  open_path = function(self, path) calls.open_path = calls.open_path + 1; return true end,
+  cycle_tree_sort = function(self) calls.cycle_sort = calls.cycle_sort + 1 end,
   set_tab = function(self, index) self.active = index end,
   restart_and_run_all = function(self) calls.restart = calls.restart + 1 end,
   set_headings_collapsed = function(self, collapsed)
@@ -62,6 +81,14 @@ ui:keypressed("c", { ctrl = true, alt = true })
 assert(calls.copy_output == 1, "Ctrl+Alt+C does not copy the cell output")
 ui:keypressed("return", { ctrl = true, alt = true })
 assert(calls.run_below == 1, "Ctrl+Alt+Enter does not run the cell and below")
+ui:keypressed("up", { ctrl = true, alt = true })
+assert(calls.run_above == 1, "Ctrl+Alt+Up does not run the cell and above")
+notebook:select(2)
+notebook.cells[2].cursor = #notebook.cells[2].source + 1
+ui:keypressed("v", { ctrl = true })
+assert(notebook.cells[2].source:sub(-6) == "pasted",
+  "Ctrl+V does not paste into the selected cell")
+notebook:undo()
 ui:keypressed("x", { ctrl = true, alt = true })
 assert(calls.clear_output == 1, "Ctrl+Alt+X does not clear the cell output")
 ui:keypressed("t", { ctrl = true, alt = true })
@@ -83,9 +110,9 @@ local commands = {}
 for _, command in ipairs(ui:palette_commands()) do
   commands[command.id] = command.label
 end
-for _, id in ipairs({ "restart-run-all", "copy-cell", "copy-output",
-    "run-below", "clear-cell-output", "reopen-closed", "go-to-cell",
-    "close-others", "duplicate-cell", "prev-heading", "next-heading",
+for _, id in ipairs({ "restart-run-all", "copy-cell", "paste-cell", "copy-output",
+    "run-below", "run-above", "clear-cell-output", "reopen-closed", "go-to-cell",
+    "close-others", "duplicate-cell", "tree-sort", "prev-heading", "next-heading",
     "collapse-headings", "expand-headings" }) do
   assert(commands[id] ~= nil, "missing palette command: " .. id)
 end
@@ -98,10 +125,18 @@ ui:run_palette_command("prev-heading")
 assert(calls.heading == 0, "palette heading commands are miswired")
 ui:run_palette_command("copy-cell")
 assert(calls.copy == 2, "palette copy command is miswired")
+notebook:select(2)
+notebook.cells[2].cursor = #notebook.cells[2].source + 1
+ui:run_palette_command("paste-cell")
+assert(notebook.cells[2].source:sub(-6) == "pasted",
+  "palette paste command is miswired")
+notebook:undo()
 ui:run_palette_command("copy-output")
 assert(calls.copy_output == 2, "palette copy-output command is miswired")
 ui:run_palette_command("run-below")
 assert(calls.run_below == 2, "palette run-below command is miswired")
+ui:run_palette_command("run-above")
+assert(calls.run_above == 2, "palette run-above command is miswired")
 ui:run_palette_command("clear-cell-output")
 assert(calls.clear_output == 2, "palette clear-cell-output is miswired")
 ui:run_palette_command("reopen-closed")
@@ -110,6 +145,18 @@ ui:run_palette_command("duplicate-cell")
 assert(calls.duplicate == 2, "palette duplicate-cell is miswired")
 ui:run_palette_command("close-others")
 assert(calls.close_others == 2, "palette close-others is miswired")
+ui:run_palette_command("tree-sort")
+assert(calls.cycle_sort == 1, "palette tree-sort is miswired")
+ui:open_tree()
+assert(ui.show_tree, "open_tree did not show the filetree")
+ui:keypressed("down")
+assert(ui.tree_selected == 2, "filetree Down did not move the selection")
+ui:keypressed("down")
+assert(ui.tree_selected == 2, "filetree Down exceeded the item count")
+ui:keypressed("up")
+ui:keypressed("return")
+assert(calls.open_path == 1 and not ui.show_tree,
+  "filetree Enter did not open the selected file")
 ui:run_palette_command("go-to-cell")
 assert(ui.show_cell_prompt, "palette go-to-cell did not open the prompt")
 ui:keypressed("escape")

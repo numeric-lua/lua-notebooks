@@ -295,6 +295,15 @@ function definitionListHtml(lines, index, context) {
   return { html: `<dl>${items.join("")}</dl>`, next: cursor };
 }
 
+function codeBlockHtml(code) {
+  const language = String(code.lang || "").replace(/[^\w+_-]/g, "") || "text";
+  return `<div class="code-block"><div class="code-head">` +
+    `<span class="code-lang">${escapeHtml(language)}</span>` +
+    `<button type="button" class="copy-code">Copy</button></div>` +
+    `<pre><code class="language-${language}">` +
+    `${escapeHtml(code.lines.join("\n"))}</code></pre></div>`;
+}
+
 export function renderMarkdown(source, prefix = "md", options = {}) {
   const lines = String(source || "").replace(/\r\n/g, "\n").split("\n");
   const context = footnoteContext(source);
@@ -358,7 +367,7 @@ export function renderMarkdown(source, prefix = "md", options = {}) {
     const raw = lines[index];
     if (code) {
       if (/^\s*```/.test(raw)) {
-        out.push(`<pre><code>${escapeHtml(code.lines.join("\n"))}</code></pre>`);
+        out.push(codeBlockHtml(code));
         code = null;
       } else {
         code.lines.push(raw);
@@ -430,7 +439,7 @@ export function renderMarkdown(source, prefix = "md", options = {}) {
     if (listStack.length) closeLists();
     paragraph.push(raw.trim());
   }
-  if (code) out.push(`<pre><code>${escapeHtml(code.lines.join("\n"))}</code></pre>`);
+  if (code) out.push(codeBlockHtml(code));
   flushAll();
   const footnotes = footnoteSection(context);
   if (footnotes) out.push(footnotes);

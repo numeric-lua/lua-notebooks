@@ -28,19 +28,20 @@
   footnotes with endnote backlinks across the preview, static export, and
   browser front-end.
 - Notebook workflow commands: restart-and-run-all, run selected-and-below,
-  copy cell source/output, clear the selected output, reopen the last closed
-  tab, close other clean tabs, go to a cell number, duplicate a cell, move the
-  selected cell with Alt+Up/Down, heading navigation, collapse/expand all
-  headings, and a type-to-filter outline.
+  copy cell source/output, paste the clipboard, clear the selected output,
+  reopen the last closed tab, close other clean tabs, go to a cell number,
+  duplicate a cell, run selected-and-above, move the selected cell with
+  Alt+Up/Down, heading navigation, collapse/expand all headings, and a
+  type-to-filter outline.
 - Clickable Markdown task-list markers in the live preview and nested
   blockquotes and GitHub-style callouts across the preview, static export,
   and browser front-end; clickable browser task checkboxes, definition lists
-  across all three Markdown surfaces, clickable preview wiki links, and a
-  filterable tag index.
+  across all three Markdown surfaces, browser code-block badges/copy controls,
+  clickable preview wiki links, and a filterable tag index.
 - Close-notebook tabs with an unsaved-changes guard; kernels are keyed by
   notebook object so other tabs keep their globals.
-- Filterable hierarchical notebook filetree with create/delete/rename/folder
-  actions.
+- Filterable, sortable, keyboard-navigable hierarchical notebook filetree with
+  create/delete/rename/folder actions.
 - Vim mode (default on): insert/normal, cell/character visual, registers,
   yank/paste, undo, search, command line, literal/pattern substitution.
 - Inline and display math: symbols, fractions, radicals, simple matrices.

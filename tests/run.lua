@@ -1298,6 +1298,31 @@ test("recursively searches collapsed folders for the filter", function()
   eq(filtered[1].name, "work")
   eq(filtered[2].name, "alpha.luanb")
 end)
+test("sorts filetree entries by name and modification time", function()
+  local saved_lovr = rawget(_G, "lovr")
+  local tree = { notebooks = { "beta.luanb", "work", "alpha.luanb" } }
+  local times = {
+    ["notebooks/alpha.luanb"] = 200,
+    ["notebooks/beta.luanb"] = 100,
+    ["notebooks/work"] = 50,
+  }
+  _G.lovr = { filesystem = {
+    getDirectoryItems = function(path) return tree[path] or {} end,
+    isDirectory = function(path) return path == "notebooks/work" end,
+    getLastModified = function(path) return times[path] end,
+  } }
+  local function file_names(mode)
+    local names = {}
+    for _, item in ipairs(Format.list_tree({}, "notebooks", 0, false, mode)) do
+      if item.kind == "file" then names[#names + 1] = item.name end
+    end
+    return table.concat(names, ",")
+  end
+  eq(file_names("name"), "alpha.luanb,beta.luanb")
+  eq(file_names("name-desc"), "beta.luanb,alpha.luanb")
+  eq(file_names("recent"), "alpha.luanb,beta.luanb")
+  _G.lovr = saved_lovr
+end)
 
 current = "replace"
 test("replace_all replaces literal text across cells", function()

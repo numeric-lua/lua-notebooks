@@ -1113,7 +1113,8 @@ Markdown footnotes use `[^label]` for the reference and a `[^label]: text` line 
 
 - **Ctrl+Shift+F5** restarts the kernel and runs every code cell.
 - **Ctrl+Shift+C** copies the selected cell source; **Ctrl+Alt+C** copies its text output.
-- **Ctrl+Alt+Enter** runs the selected cell and every code cell below it.
+- **Ctrl+Alt+Enter** runs the selected cell and every code cell below it; **Ctrl+Alt+Up** runs the selected cell and everything above it.
+- **Ctrl+V** pastes the clipboard at the caret.
 - **Ctrl+Alt+X** clears the selected cell output; **Ctrl+Alt+T** reopens the last closed tab.
 - **Ctrl+Alt+G** jumps to a cell number; **Alt+D** duplicates the selected cell.
 - **Ctrl+Alt+W** closes every other clean tab and keeps unsaved ones open.

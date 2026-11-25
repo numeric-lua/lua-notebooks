@@ -16,7 +16,10 @@ test("escapes raw HTML", () => {
 
 test("renders fenced code and inline code", () => {
   const html = renderMarkdown("```lua\nreturn 6 * 7\n```\n\nUse `print`.");
-  assert.match(html, /<pre><code>return 6 \* 7<\/code><\/pre>/);
+  assert.match(html, /<div class="code-block"><div class="code-head">/);
+  assert.match(html, /<span class="code-lang">lua<\/span>/);
+  assert.match(html, /<button type="button" class="copy-code">Copy<\/button>/);
+  assert.match(html, /<pre><code class="language-lua">return 6 \* 7<\/code><\/pre>/);
   assert.match(html, /<code>print<\/code>/);
 });
 
@@ -112,7 +115,7 @@ test("does not autolink inside code or an explicit link", () => {
 test("does not parse a table inside a fenced code block", () => {
   const html = renderMarkdown("```lua\n| a | b |\n| --- | --- |\n```");
   assert.doesNotMatch(html, /markdown-table/);
-  assert.match(html, /<pre><code>\| a \| b \|/);
+  assert.match(html, /<pre><code class="language-lua">\| a \| b \|/);
 });
 
 test("renders footnote references and endnotes with a stable prefix", () => {

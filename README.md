@@ -200,16 +200,18 @@ Controls:
 | `Ctrl+Shift+I` | open/close notebook statistics |
 | `Ctrl+Shift+O` | expand/collapse the selected cell's long output |
 | `Ctrl+Shift+C` | copy the selected cell source |
+| `Ctrl+V` | paste the clipboard at the caret |
 | `Ctrl+Alt+C` | copy the selected cell's text output or error |
 | `Ctrl+Alt+X` | clear the selected cell's output |
 | `Ctrl+Shift+F5` | restart the current kernel and run every code cell |
 | `Ctrl+Alt+Enter` | run the selected cell and every code cell below it |
+| `Ctrl+Alt+Up` | run the selected cell and every code cell above it |
 | `Ctrl+Alt+G` | jump to a cell by number |
 | `Alt+D` | duplicate the selected cell |
 | `Alt+Up` / `Alt+Down` | move the selected cell up / down |
 | `Ctrl+Shift+Up` / `Ctrl+Shift+Down` | jump to the previous / next Markdown heading |
 | `F1` | open/close the command palette |
-| `F2` | open the hierarchical notebook filetree |
+| `F2` | open the sortable, keyboard-navigable notebook filetree |
 | `F3` | toggle Vim mode (on by default) |
 | `F4` | toggle Zen mode: hide top bar and footer, show only cells |
 | `Ctrl+Shift+S` | save a PNG screenshot of the offscreen notebook canvas |
@@ -230,10 +232,12 @@ kernel and global state.
 **F2** opens a hierarchical list of saved notebooks under `notebooks/`.
 Clicking a folder expands it, clicking a notebook opens it, `+ New notebook`
 creates one, `+ Folder` creates a folder, `✎` renames one, and `×` asks for
-confirmation before deleting one. The `filter:` field narrows the tree as you
-type: matching is a case-insensitive substring over notebook filenames, folders
-with a matching descendant stay visible even when collapsed, and Backspace/Enter
-open or refine the list. Escape or F2 closes the tree.
+confirmation before deleting one. The **Sort** button cycles **A→Z**, **Z→A**,
+and **Recent** (newest notebook files first); the choice persists in
+`tree_sort.txt`. The `filter:` field narrows the tree as you type: matching is a
+case-insensitive substring over notebook filenames, folders with a matching
+descendant stay visible even when collapsed, and Up/Down move the highlighted
+row, Enter opens a file or expands a folder, and Escape or F2 closes the tree.
 
 Vim mode is **on by default** and is shown in the footer:
 
@@ -413,9 +417,9 @@ remaining gaps.
 ## Tests
 
 `make test` runs the pure model, widget, engine, remote-supervisor,
-process-kernel, sandbox, editor, filetree filtering, workflow shortcut
-dispatch, tag/heading filtering, Markdown nested quotes/callouts/definition
-lists/tables/nesting/
+process-kernel, sandbox, editor, filetree filtering/sorting/keyboard navigation,
+workflow shortcut dispatch, run-above, paste, tag/heading filtering, Markdown
+nested quotes/callouts/definition lists/tables/nesting/
 emphasis/highlight/autolink/escape/footnote/regex, polar/heatmap/contour/
 quiver/streamplot/colourbar/clipping export parity, and Neovim-buffer plan/apply
 suite on LuaJIT. `make test-lua51
@@ -658,7 +662,9 @@ its globals alive.
 cells, without writing to the notebook or dirtying it. `Ctrl+Alt+C` copies the
 cell's captured text output, or its error text; scene and widget state are not
 clipboard text. `Ctrl+Alt+Enter` runs the selected cell and every code cell
-below it, leaving earlier outputs untouched. `Ctrl+Alt+X` clears the selected
+below it, leaving earlier outputs untouched; `Ctrl+Alt+Up` runs from the first
+code cell through the selected cell in source order. `Ctrl+V` pastes the
+clipboard at the caret as one undoable edit. `Ctrl+Alt+X` clears the selected
 cell's output, scene, widgets, and error (refusing while it is running), and
 `Ctrl+Alt+T` reopens the most recently closed tab with a fresh kernel.
 `Ctrl+Alt+W` closes every other tab that has no unsaved changes and reports how

@@ -28,8 +28,9 @@ graphics fix and for the validated transport bridge.
 
 The front-end renders Markdown locally, including nested lists, pipe tables
 with alignment, definition lists, clickable task checkboxes, italic emphasis,
-grouped and nested blockquotes and callouts, and numbered footnotes
-with endnote backlinks, matching the static export's subset. Scene outputs
+grouped and nested blockquotes and callouts, numbered footnotes with endnote
+backlinks, and fenced code blocks with language badges and copy controls,
+matching the static export's subset. Scene outputs
 render locally on Canvas 2D. Cartesian
 line/scatter/bar/hist scenes honour x/y limits, categorical ticks, explicit bar
 widths, and the export's 800/400-point sampling caps. Polar line/scatter/bar,

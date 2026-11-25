@@ -250,6 +250,7 @@ function UI.new(app)
     tree_rects = {},
     tree_items = {},
     tree_query = "",
+    tree_selected = 1,
     rename_prompt = nil,
     folder_prompt = nil,
     confirm_delete = nil,
@@ -857,7 +858,9 @@ function UI:palette_commands()
     { id = "clear-cell-output", label = "Clear selected cell output  (Ctrl+Alt+X)" },
     { id = "run-all", label = "Run all code cells" },
     { id = "run-below", label = "Run selected cell and below  (Ctrl+Alt+Enter)" },
+    { id = "run-above", label = "Run selected cell and above  (Ctrl+Alt+Up)" },
     { id = "copy-cell", label = "Copy selected cell source  (Ctrl+Shift+C)" },
+    { id = "paste-cell", label = "Paste into selected cell  (Ctrl+V)" },
     { id = "copy-output", label = "Copy selected cell output  (Ctrl+Alt+C)" },
     { id = "export-md", label = "Export notebook as Markdown" },
     { id = "export-html", label = "Export notebook as HTML" },
@@ -887,6 +890,7 @@ function UI:palette_commands()
     { id = "load", label = "Load notebook  (F7)" },
     { id = "new", label = "New notebook" },
     { id = "tree", label = "Notebook filetree  (F2)" },
+    { id = "tree-sort", label = "Cycle filetree sort  (A→Z / Z→A / Recent)" },
     { id = "vim", label = "Toggle Vim mode  (F3)" },
     { id = "zen", label = "Toggle Zen mode  (F4)" },
     { id = "screenshot", label = "Save screenshot  (Ctrl+Shift+S)" },
@@ -963,7 +967,9 @@ function UI:run_palette_command(id)
   elseif id == "clear-cell-output" then self.app:clear_cell_output()
   elseif id == "run-all" then self.app:run_all()
   elseif id == "run-below" then self.app:run_all_below()
+  elseif id == "run-above" then self.app:run_all_above()
   elseif id == "copy-cell" then self.app:copy_cell_source()
+  elseif id == "paste-cell" then self:paste_clipboard()
   elseif id == "copy-output" then self.app:copy_cell_output()
   elseif id == "export-md" then self.app:export_markdown()
   elseif id == "export-html" then self.app:export_html()
@@ -1005,8 +1011,8 @@ function UI:run_palette_command(id)
   elseif id == "load" then self.app:load()
   elseif id == "new" then self.app:new_notebook()
   elseif id == "tree" then
-    self.show_tree = true
-    self.tree_query = ""
+    self:open_tree()
+  elseif id == "tree-sort" then self.app:cycle_tree_sort()
   elseif id == "history" then self:open_history()
   elseif id == "stats" then self:open_stats()
   elseif id == "cell-below" then self.app:add_cell("code")
@@ -1215,6 +1221,25 @@ function UI:jump_to_selected_tag()
   local entry = self.tag_entries[self.tag_selected]
   if entry == nil then return false end
   self:open_tag(entry.tag)
+  return true
+end
+
+function UI:paste_clipboard()
+  local notebook = self.app:notebook()
+  local cell = notebook and notebook:selected()
+  if cell == nil or (cell.kind ~= "code" and cell.kind ~= "markdown") then
+    self.app.status = "select a code or markdown cell to paste"
+    return false
+  end
+  local ok, text = pcall(function()
+    return lovr.system.getClipboardText()
+  end)
+  if not ok or type(text) ~= "string" or text == "" then
+    self.app.status = "clipboard is empty"
+    return false
+  end
+  notebook:insert(text)
+  self.app.status = "pasted " .. #text .. " character(s)"
   return true
 end
 
@@ -1582,7 +1607,9 @@ function UI:draw_help(pass, width, height)
         { "Ctrl+S", "save notebook" },
         { "Ctrl+W", "close notebook tab" },
         { "Ctrl+Shift+C / F5", "copy source / restart and run all" },
+        { "Ctrl+V", "paste clipboard at the caret" },
         { "Ctrl+Alt+C / Enter", "copy output / run below" },
+        { "Ctrl+Alt+Up", "run selected cell and above" },
         { "Ctrl+Alt+X / T", "clear output / reopen tab" },
         { "Alt+Up / Down", "move selected cell" },
         { "Ctrl+Shift+Up / Down", "previous / next heading" },
@@ -1707,17 +1734,18 @@ function UI:draw_tree(pass, width, height)
   if not self.show_tree then return end
   local filtering = self.tree_query:match("%S") ~= nil
   local items = self.app:library_items(self.tree_query)
+  self.tree_items = items
+  if #items == 0 then
+    self.tree_selected = 1
+  else
+    self.tree_selected = math.max(1, math.min(self.tree_selected, #items))
+  end
   local panel_w = 360
-  local panel_h = 154 + math.max(1, #items) * 26
+  local panel_h = 186 + math.max(1, #items) * 26
   local x, y = 20, 52
   box(pass, x, y, panel_w, panel_h, { 0.035, 0.045, 0.07, 1 })
   text(pass, self.app.font, "Files  (F2 to close)", x + 14, y + 12,
     { 0.9, 0.94, 1, 1 }, 0.74)
-  if filtering then
-    text(pass, self.app.font, string.format("%d match%s", #items,
-      #items == 1 and "" or "es"), x + panel_w - 14, y + 14,
-      { 0.55, 0.65, 0.82, 1 }, 0.6, "right")
-  end
   box(pass, x + 12, y + 34, panel_w - 24, 26, { 0.09, 0.11, 0.17, 1 })
   text(pass, self.app.font, "filter: " .. self.tree_query .. "|", x + 20,
     y + 39, { 0.88, 0.93, 1, 1 }, 0.68)
@@ -1735,17 +1763,33 @@ function UI:draw_tree(pass, width, height)
     x = x + 18 + (panel_w - 28) / 2, y = y + 68,
     w = (panel_w - 28) / 2, h = 26, action = "folder",
   }
+  local sort_label = "Sort: " .. Format.tree_sort_label(
+    self.app.tree_sort or "name")
+  local sort_w = self.app.font:getWidth(sort_label) * 0.62 + 20
+  box(pass, x + 12, y + 100, sort_w, 24, { 0.13, 0.17, 0.26, 1 })
+  text(pass, self.app.font, sort_label, x + 20, y + 105,
+    { 0.78, 0.88, 1, 1 }, 0.64)
+  self.tree_rects[#self.tree_rects + 1] = {
+    x = x + 12, y = y + 100, w = sort_w, h = 24, action = "sort",
+  }
+  if filtering then
+    text(pass, self.app.font, string.format("%d match%s", #items,
+      #items == 1 and "" or "es"), x + panel_w - 14, y + 107,
+      { 0.55, 0.65, 0.82, 1 }, 0.6, "right")
+  end
   if #items == 0 then
     text(pass, self.app.font, "No notebooks match this filter.", x + 18,
-      y + 106, { 0.6, 0.66, 0.78, 1 }, 0.66)
+      y + 134, { 0.6, 0.66, 0.78, 1 }, 0.66)
   end
   for index, item in ipairs(items) do
-    local row_y = y + 104 + (index - 1) * 26
+    local row_y = y + 132 + (index - 1) * 26
     local indent = 14 + item.depth * 18
     local active = item.kind == "file" and self.app:notebook()._path ==
       item.path
+    local selected = index == self.tree_selected
     box(pass, x + 10, row_y, panel_w - 20, 23,
-      active and { 0.14, 0.22, 0.34, 1 } or { 0.065, 0.075, 0.1, 1 })
+      selected and { 0.18, 0.28, 0.44, 1 } or
+      (active and { 0.14, 0.22, 0.34, 1 } or { 0.065, 0.075, 0.1, 1 }))
     local marker = item.kind == "directory" and
       ((filtering or self.app.tree_expanded[item.path]) and "▾ " or "▸ ") or
       "• "
@@ -1753,7 +1797,7 @@ function UI:draw_tree(pass, width, height)
       { 0.82, 0.88, 1, 1 }, 0.66)
     self.tree_rects[#self.tree_rects + 1] = {
       x = x + 10, y = row_y, w = panel_w - 52, h = 23, path = item.path,
-      kind = item.kind, name = item.name,
+      kind = item.kind, name = item.name, index = index,
     }
     if item.kind == "file" then
       text(pass, self.app.font, "✎", x + panel_w - 58, row_y + 3,
@@ -1823,6 +1867,34 @@ function UI:draw_confirm(pass, width, height)
     text(pass, self.app.font, self.folder_prompt.value .. "|", x + 24, y + 49,
       { 0.85, 0.92, 1, 1 }, 0.7)
   end
+end
+
+function UI:open_tree()
+  self.show_tree = true
+  self.tree_query = ""
+  self.tree_selected = 1
+  self.tree_items = self.app:library_items("")
+  local active_path = self.app:notebook()._path
+  if active_path ~= nil then
+    for index, item in ipairs(self.tree_items) do
+      if item.path == active_path then self.tree_selected = index; break end
+    end
+  end
+end
+
+function UI:activate_tree_item(index)
+  local items = self.app:library_items(self.tree_query)
+  local item = items[index]
+  if item == nil then return false end
+  self.tree_selected = index
+  if item.kind == "directory" then
+    self.app.tree_expanded[item.path] =
+      not self.app.tree_expanded[item.path]
+    return true
+  end
+  self.app:open_path(item.path)
+  self.show_tree = false
+  return true
 end
 
 function UI:open_cell_prompt()
@@ -2104,6 +2176,7 @@ function UI:textinput(value)
   end
   if self.show_tree then
     self.tree_query = self.tree_query .. value
+    self.tree_selected = 1
     return
   end
   if self.vim_search ~= nil then
@@ -2597,14 +2670,15 @@ function UI:keypressed(key, modifiers)
       self.show_tree = false
     elseif key == "backspace" then
       self.tree_query = self.tree_query:sub(1, -2)
+      self.tree_selected = 1
+    elseif key == "up" then
+      self.tree_selected = math.max(1, self.tree_selected - 1)
+    elseif key == "down" then
+      local count = #self.app:library_items(self.tree_query)
+      self.tree_selected = math.min(math.max(1, count),
+        self.tree_selected + 1)
     elseif key == "return" then
-      for _, item in ipairs(self.app:library_items(self.tree_query)) do
-        if item.kind == "file" then
-          self.app:open_path(item.path)
-          self.show_tree = false
-          break
-        end
-      end
+      self:activate_tree_item(self.tree_selected)
     end
     return
   end
@@ -2805,8 +2879,16 @@ function UI:keypressed(key, modifiers)
     self.app:goto_heading(key == "down" and 1 or -1)
     return
   end
+  if ctrl_down and key == "v" then
+    self:paste_clipboard()
+    return
+  end
   if ctrl_down and alt_down and key == "return" then
     self.app:run_all_below()
+    return
+  end
+  if ctrl_down and alt_down and key == "up" then
+    self.app:run_all_above()
     return
   end
   if ctrl_down and alt_down and key == "c" then
@@ -3565,8 +3647,7 @@ function UI:keypressed(key, modifiers)
     self.palette_query = ""
     self.palette_selected = 1
   elseif key == "f2" then
-    self.show_tree = not self.show_tree
-    if self.show_tree then self.tree_query = "" end
+    if self.show_tree then self.show_tree = false else self:open_tree() end
   elseif key == "f3" then
     self.app.vim_mode = not self.app.vim_mode
     self.vim_normal = self.app.vim_mode
@@ -3706,7 +3787,10 @@ function UI:mousepressed(x, y, button)
   if self.show_tree then
     for _, rect in ipairs(self.tree_rects) do
       if inside(x, y, rect) then
-        if rect.action == "new" then
+        if rect.index ~= nil then self.tree_selected = rect.index end
+        if rect.action == "sort" then
+          self.app:cycle_tree_sort()
+        elseif rect.action == "new" then
           self.app:new_notebook()
         elseif rect.action == "rename" then
           self.rename_prompt = {

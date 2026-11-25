@@ -301,6 +301,19 @@ function markdownFor(cell) {
         renderPreview();
       });
     }
+    for (const button of preview.querySelectorAll(".copy-code")) {
+      button.addEventListener("click", () => {
+        const block = button.closest(".code-block");
+        const code = block?.querySelector("code")?.textContent || "";
+        if (!navigator.clipboard?.writeText) {
+          button.textContent = "Select";
+          return;
+        }
+        navigator.clipboard.writeText(code).catch(() => {});
+        button.textContent = "Copied";
+        setTimeout(() => { button.textContent = "Copy"; }, 1200);
+      });
+    }
   };
   renderPreview();
   const beginEdit = () => {

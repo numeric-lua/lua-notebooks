@@ -2350,14 +2350,44 @@ function Format.list()
   return names
 end
 
-function Format.list_tree(expanded, prefix, depth, recurse)
+function Format.tree_sort_label(mode)
+  if mode == "name-desc" then return "Z→A" end
+  if mode == "recent" then return "Recent" end
+  return "A→Z"
+end
+
+local function sort_tree_items(items, prefix, mode)
+  if mode == "name-desc" then
+    table.sort(items, function(a, b) return a > b end)
+  elseif mode == "recent" then
+    table.sort(items, function(a, b)
+      local a_path, b_path = prefix .. "/" .. a, prefix .. "/" .. b
+      local a_dir = lovr.filesystem.isDirectory(a_path)
+      local b_dir = lovr.filesystem.isDirectory(b_path)
+      if a_dir ~= b_dir then return a_dir end
+      if a_dir then return a < b end
+      local a_time, b_time = 0, 0
+      if lovr.filesystem.getLastModified then
+        a_time = lovr.filesystem.getLastModified(a_path) or 0
+        b_time = lovr.filesystem.getLastModified(b_path) or 0
+      end
+      if a_time == b_time then return a < b end
+      return a_time > b_time
+    end)
+  else
+    table.sort(items)
+  end
+end
+
+function Format.list_tree(expanded, prefix, depth, recurse, sort_mode)
   prefix = prefix or "notebooks"
   depth = depth or 0
   expanded = expanded or {}
+  sort_mode = sort_mode or "name"
   local entries = {}
   local ok, items = pcall(lovr.filesystem.getDirectoryItems, prefix)
   if not ok then return entries end
-  table.sort(items)
+  sort_tree_items(items, prefix, sort_mode)
   for _, item in ipairs(items) do
     local path = prefix .. "/" .. item
     if lovr.filesystem.isDirectory(path) then
@@ -2365,7 +2395,7 @@ function Format.list_tree(expanded, prefix, depth, recurse)
         kind = "directory" }
       if expanded[path] or recurse then
         for _, child in ipairs(Format.list_tree(expanded, path, depth + 1,
-            recurse)) do
+            recurse, sort_mode)) do
           entries[#entries + 1] = child
         end
       end

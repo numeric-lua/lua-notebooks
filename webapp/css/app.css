@@ -201,6 +201,11 @@ button { cursor: pointer; }
 .markdown-preview code { font: 12.5px var(--mono); background: #1b2130; border: 1px solid #293145; border-radius: 5px; padding: 1px 5px; color: #c7d6ff; }
 .markdown-preview pre { background: #0d1018; border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; overflow-x: auto; }
 .markdown-preview pre code { background: none; border: 0; padding: 0; color: #d5def4; }
+.markdown-preview .code-block { margin: 12px 0; }
+.markdown-preview .code-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 9px; background: #0d1018; border: 1px solid var(--border); border-bottom: 0; border-radius: 8px 8px 0 0; font: 11px/1.4 var(--mono); color: var(--muted); }
+.markdown-preview .code-lang { letter-spacing: 0.08em; text-transform: uppercase; }
+.markdown-preview .copy-code { border: 1px solid var(--border); border-radius: 5px; background: #151a23; color: var(--text); font: inherit; padding: 1px 7px; cursor: pointer; }
+.markdown-preview .code-block pre { margin: 0; border-top-left-radius: 0; border-top-right-radius: 0; }
 .markdown-preview ul, .markdown-preview ol { color: #cdd4e5; padding-left: 24px; }
 .markdown-preview blockquote { margin: 10px 0; padding: 2px 14px; border-left: 3px solid var(--accent-strong); color: var(--muted); background: rgba(138,164,255,.04); }
 .markdown-preview mark { background: rgba(246,193,119,.2); color: #ffe2ad; border-radius: 3px; padding: 0 2px; }
