@@ -884,6 +884,11 @@ function UI:palette_commands()
     { id = "clear-cell-output", label = "Clear selected cell output  (Ctrl+Alt+X)" },
     { id = "run-all", label = "Run all code cells" },
     { id = "run-below", label = "Run selected cell and below  (Ctrl+Alt+Enter)" },
+    { id = "run-next", label = "Run cell and select next  (Shift+Enter)" },
+    { id = "run-insert", label = "Run cell and insert below  (Alt+Enter)" },
+    { id = "clear-rerun", label = "Clear output and rerun cell  (Ctrl+Alt+R)" },
+    { id = "restart-clear", label = "Restart kernel and clear outputs" },
+    { id = "stop-run-all", label = "Stop run-all queue" },
     { id = "run-above", label = "Run selected cell and above  (Ctrl+Alt+Up)" },
     { id = "copy-cell", label = "Copy selected cell source  (Ctrl+Shift+C)" },
     { id = "paste-cell", label = "Paste into selected cell  (Ctrl+V)" },
@@ -1027,6 +1032,11 @@ function UI:run_palette_command(id)
     table.remove(self.recent_palette_commands)
   end
   if id == "run" then self.app:run()
+  elseif id == "run-next" then self.app:run_next()
+  elseif id == "run-insert" then self.app:run_and_insert()
+  elseif id == "clear-rerun" then self.app:clear_and_rerun()
+  elseif id == "restart-clear" then self.app:restart_and_clear()
+  elseif id == "stop-run-all" then self.app:stop_run_all()
   elseif id == "restart-kernel" then self.app:restart_kernel()
   elseif id == "restart-all-kernels" then self.app:restart_all_kernels()
   elseif id == "restart-run-all" then self.app:restart_and_run_all()
@@ -1778,6 +1788,8 @@ function UI:draw_help(pass, width, height)
         { "Ctrl+Shift+C / F5", "copy source / restart and run all" },
         { "Ctrl+V", "paste clipboard at the caret" },
         { "Ctrl+Alt+C / Enter", "copy output / run below" },
+        { "Shift+Enter / Alt+Enter", "run next / run and insert below" },
+        { "Ctrl+Alt+R", "clear output and rerun cell" },
         { "Ctrl+Alt+S / K", "save all / restart all kernels" },
         { "Ctrl+Alt+Up", "run selected cell and above" },
         { "Ctrl+Alt+X / T", "clear output / reopen tab" },
@@ -3236,6 +3248,18 @@ function UI:keypressed(key, modifiers)
   end
   if ctrl_down and key == "v" then
     self:paste_clipboard()
+    return
+  end
+  if shift_down and key == "return" then
+    self.app:run_next()
+    return
+  end
+  if alt_down and not ctrl_down and key == "return" then
+    self.app:run_and_insert()
+    return
+  end
+  if ctrl_down and alt_down and key == "r" then
+    self.app:clear_and_rerun()
     return
   end
   if ctrl_down and alt_down and key == "return" then

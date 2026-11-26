@@ -207,6 +207,9 @@ Controls:
 | `Ctrl+Alt+X` | clear the selected cell's output |
 | `Ctrl+Shift+F5` | restart the current kernel and run every code cell |
 | `Ctrl+Alt+Enter` | run the selected cell and every code cell below it |
+| `Shift+Enter` | run the selected cell and select the next cell |
+| `Alt+Enter` | run the selected cell and insert a new code cell below |
+| `Ctrl+Alt+R` | clear the selected output and rerun the cell |
 | `Ctrl+Alt+Up` | run the selected cell and every code cell above it |
 | `Ctrl+Alt+G` | jump to a cell by number |
 | `Ctrl+Alt+L` | jump to a line in the selected cell |
@@ -436,7 +439,8 @@ remaining gaps.
 
 `make test` runs the pure model, widget, engine, remote-supervisor,
 process-kernel, sandbox, editor, filetree filtering/sorting/keyboard navigation,
-workflow shortcut dispatch, run-above, paste, save/restart-all, bulk output
+workflow shortcut dispatch, run-next/run-insert/clear-rerun, run-above, paste,
+save/restart-all, bulk output
 folding, line/word editing, join, comment/duplicate/indent, filetree folder
 create/rename/delete, tag/heading filtering, Markdown
 nested quotes/callouts/definition lists/tables/nesting/
@@ -693,6 +697,11 @@ cell's output, scene, widgets, and error (refusing while it is running), and
 many dirty tabs it kept. `Ctrl+Alt+S` saves every dirty tab and `Ctrl+Alt+K`
 restarts every kernel. `Ctrl+Alt+G` opens a numeric **Go to cell** prompt;
 Enter jumps and Esc cancels. `Alt+D` duplicates the selected cell.
+**Shift+Enter** runs and selects the next cell, **Alt+Enter** runs and inserts a
+new code cell below, and **Ctrl+Alt+R** clears the current output and reruns the
+cell. The command palette adds **Restart kernel and clear outputs** and **Stop
+run-all queue**; stopping cancels the queued cells while an already-running cell
+may still finish.
 **Alt+Up** and **Alt+Down** reorder
 the selected cell in one step; the cell keeps its source, output, and widget
 state. **Ctrl+Shift+Up** and **Ctrl+Shift+Down** jump to the nearest Markdown

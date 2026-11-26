@@ -24,7 +24,9 @@
   whole-word options, a current-cell scope, and a cross-notebook search
   overlay with per-tab result jumps, paged result rows, and cell-kind filters.
   Command palette, tag index, heading outline, and filetree rows also page
-  cleanly, and recently used palette commands float to the top.
+  cleanly, and recently used palette commands float to the top. Execution
+  includes Shift+Enter run-next, Alt+Enter run-and-insert, clear-and-rerun,
+  restart-and-clear, and a stoppable run-all queue.
 - GitHub-style Markdown pipe tables, nested lists, italic emphasis, grouped
   blockquotes, highlight, bare-URL autolinks, backslash escapes, and numbered
   footnotes with endnote backlinks across the preview, static export, and

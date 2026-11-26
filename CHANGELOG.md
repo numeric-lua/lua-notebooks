@@ -61,14 +61,21 @@
 - page long tag-index lists with **PageUp**/**PageDown** and **Home**/**End**;
 - page long heading outlines with **PageUp**/**PageDown** and **Home**/**End**;
 - page long filetree lists with **PageUp**/**PageDown** instead of growing the
-  overlay past the window.
+  overlay past the window;
+- run the selected cell and select the next cell with **Shift+Enter**;
+- run the selected cell and insert a new code cell below with **Alt+Enter**;
+- clear the selected output and rerun it with **Ctrl+Alt+R**;
+- restart the current kernel and clear every output from the palette;
+- stop a running **Run all**/**Run below**/**Run above** queue from the palette
+  without interrupting a cell that is already executing.
 
 Tests: `tests/workflow.lua` covers paste, run-above dispatch, save/restart-all
 dispatch, filetree keyboard navigation, and output-fold dispatch; `tests/run.lua`
 covers filetree sorting, bulk output folding, duplicate-cell undo, line editing
 (move/duplicate/comment/indent/go-to-line), word movement/deletion, line joining,
 search kind filtering/paging, filetree keyboard navigation, folder
-create/rename/delete/save helpers, and palette/tag/outline/filetree paging; the browser Markdown suite
+create/rename/delete/save helpers, palette/tag/outline/filetree paging, and
+run-next/run-insert/clear-rerun/restart-clear/stop-run-all dispatch; the browser Markdown suite
 covers code-block badges/copy markup, heading anchor uniqueness, permalinks, and
 display math. The filetree overlay QA screenshot and
 `LUANB_SMOKE_WORKFLOW` (including save-all, restart-all, run-above, paste, and

@@ -589,6 +589,61 @@ function App:run_next()
   end
 end
 
+function App:run_and_insert()
+  local notebook = self:notebook()
+  local cell = notebook:selected()
+  if cell == nil or cell.kind ~= "code" then
+    self.status = "markdown cells are not executable"
+    return false
+  end
+  if cell.running then
+    self.status = "cell is already running"
+    return false
+  end
+  local index = notebook.active
+  self:run()
+  if not cell.running then return false end
+  notebook:add_cell("code")
+  self.ui.scroll_to_selected = true
+  self.status = "running cell " .. tostring(index) .. "; inserted cell below"
+  return true
+end
+
+function App:clear_and_rerun()
+  local notebook = self:notebook()
+  local cell = notebook:selected()
+  if cell == nil or cell.kind ~= "code" then
+    self.status = "markdown cells are not executable"
+    return false
+  end
+  if cell.running then
+    self.status = "cell is already running"
+    return false
+  end
+  local index = notebook.active
+  self:run()
+  self.status = "cleared output and rerunning cell " .. tostring(index)
+  return true
+end
+
+function App:stop_run_all()
+  if self._run_all_position == nil then
+    self.status = "no run-all queue"
+    return false
+  end
+  self._run_all_position = nil
+  self._run_all_stop = nil
+  self.status = "stopped run-all queue; the running cell may finish"
+  return true
+end
+
+function App:restart_and_clear()
+  if not self:restart_kernel() then return false end
+  self:clear_outputs()
+  self.status = "kernel restarted; outputs cleared"
+  return true
+end
+
 function App:run()
   local notebook = self:notebook()
   local index = notebook.active
@@ -2416,12 +2471,29 @@ function lovr.load()
     notebook.cells[2].source = original_line_cell
     notebook.cells[2].cursor = 1
 
+    local exec_count = #notebook.cells
+    local inserted = app:run_and_insert()
+    local insert_ok = inserted and #notebook.cells == exec_count + 1
+    notebook.cells[2].running = false
+    notebook:delete_cell(notebook.active)
+    notebook:select(2)
+    app._run_all_position = 1
+    app._run_all_stop = #notebook.cells
+    local stop_ok = app:stop_run_all() and app._run_all_position == nil
+    local rerun_ok = app:clear_and_rerun()
+    notebook.cells[2].running = false
+    local restart_clear_ok = app:restart_and_clear()
+    print("SMOKE_EXEC=" .. tostring(insert_ok) .. ":" ..
+      tostring(stop_ok) .. ":" .. tostring(rerun_ok) .. ":" ..
+      tostring(restart_clear_ok))
+
     app.smoke_workflow_ok = moved_down and moved_up and heading_ok and
       collapsed_ok and expanded_ok and clipboard_ok and output_clipboard_ok and
       task_ok and outline_ok and clear_ok and tag_ok and wiki_ok and
       duplicate_ok and goto_ok and paste_ok and save_all_ok and
       restart_all_ok and expand_ok and collapse_ok and line_ops_ok and
-      go_line_ok and word_ok and join_ok and home_end_ok
+      go_line_ok and word_ok and join_ok and home_end_ok and insert_ok and
+      stop_ok and rerun_ok and restart_clear_ok
     print(string.format(
       "SMOKE_WORKFLOW_SHORTCUTS=%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s:%s",
       tostring(moved_down), tostring(moved_up), tostring(heading_ok),

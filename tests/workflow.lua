@@ -25,7 +25,8 @@ local calls = {
   open_title = 0, duplicate = 0, close_others = 0, run_above = 0,
   open_path = 0, cycle_sort = 0, save_all = 0, restart_all = 0,
   new_notebook = 0, create_folder = 0, rename_folder = 0,
-  delete_path = 0, expand_folders = 0,
+  delete_path = 0, expand_folders = 0, run_next = 0, run_insert = 0,
+  clear_rerun = 0, restart_clear = 0, stop_run_all = 0,
   expand_outputs = 0, comment_line = 0, shift_line = 0, duplicate_line = 0,
   indent_line = 0,
 }
@@ -44,6 +45,11 @@ local app = {
   copy_cell_output = function(self) calls.copy_output = calls.copy_output + 1 end,
   run_all_below = function(self) calls.run_below = calls.run_below + 1 end,
   run_all_above = function(self) calls.run_above = calls.run_above + 1 end,
+  run_next = function(self) calls.run_next = calls.run_next + 1 end,
+  run_and_insert = function(self) calls.run_insert = calls.run_insert + 1 end,
+  clear_and_rerun = function(self) calls.clear_rerun = calls.clear_rerun + 1 end,
+  restart_and_clear = function(self) calls.restart_clear = calls.restart_clear + 1 end,
+  stop_run_all = function(self) calls.stop_run_all = calls.stop_run_all + 1 end,
   clear_cell_output = function(self) calls.clear_output = calls.clear_output + 1 end,
   reopen_closed_notebook = function(self) calls.reopen = calls.reopen + 1 end,
   open_title = function(self, title) calls.open_title = calls.open_title + 1; return true end,
@@ -138,13 +144,20 @@ assert(notebook.active == 3, "go-to-cell did not select cell 3")
 assert(not ui.show_cell_prompt, "go-to-cell prompt did not close")
 ui:keypressed("f5", { ctrl = true, shift = true })
 assert(calls.restart == 1, "Ctrl+Shift+F5 does not restart and run all")
+ui:keypressed("return", { shift = true })
+assert(calls.run_next == 1, "Shift+Enter does not run and select next")
+ui:keypressed("return", { alt = true })
+assert(calls.run_insert == 1, "Alt+Enter does not run and insert below")
+ui:keypressed("r", { ctrl = true, alt = true })
+assert(calls.clear_rerun == 1, "Ctrl+Alt+R does not clear and rerun")
 
 local commands = {}
 for _, command in ipairs(ui:palette_commands()) do
   commands[command.id] = command.label
 end
 for _, id in ipairs({ "restart-run-all", "copy-cell", "paste-cell", "copy-output",
-    "run-below", "run-above", "save-all", "restart-all-kernels",
+    "run-below", "run-above", "run-next", "run-insert", "clear-rerun",
+    "restart-clear", "stop-run-all", "save-all", "restart-all-kernels",
     "expand-outputs", "collapse-outputs", "clear-cell-output", "reopen-closed", "go-to-cell",
     "close-others", "duplicate-cell", "tree-expand-all", "tree-collapse-all",
     "comment-line", "move-line-up",
@@ -175,6 +188,16 @@ ui:run_palette_command("run-below")
 assert(calls.run_below == 2, "palette run-below command is miswired")
 ui:run_palette_command("run-above")
 assert(calls.run_above == 2, "palette run-above command is miswired")
+ui:run_palette_command("run-next")
+assert(calls.run_next == 2, "palette run-next command is miswired")
+ui:run_palette_command("run-insert")
+assert(calls.run_insert == 2, "palette run-insert command is miswired")
+ui:run_palette_command("clear-rerun")
+assert(calls.clear_rerun == 2, "palette clear-rerun command is miswired")
+ui:run_palette_command("restart-clear")
+assert(calls.restart_clear == 1, "palette restart-clear command is miswired")
+ui:run_palette_command("stop-run-all")
+assert(calls.stop_run_all == 1, "palette stop-run-all command is miswired")
 ui:run_palette_command("clear-cell-output")
 assert(calls.clear_output == 2, "palette clear-cell-output is miswired")
 ui:run_palette_command("reopen-closed")
