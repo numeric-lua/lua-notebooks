@@ -24,6 +24,8 @@ local calls = {
   copy_output = 0, run_below = 0, clear_output = 0, reopen = 0,
   open_title = 0, duplicate = 0, close_others = 0, run_above = 0,
   open_path = 0, cycle_sort = 0, save_all = 0, restart_all = 0,
+  new_notebook = 0, create_folder = 0, rename_folder = 0,
+  delete_path = 0, expand_folders = 0,
   expand_outputs = 0, comment_line = 0, shift_line = 0, duplicate_line = 0,
   indent_line = 0,
 }
@@ -59,6 +61,11 @@ local app = {
   end,
   open_path = function(self, path) calls.open_path = calls.open_path + 1; return true end,
   cycle_tree_sort = function(self) calls.cycle_sort = calls.cycle_sort + 1 end,
+  new_notebook = function(self, folder) calls.new_notebook = calls.new_notebook + 1; calls.new_folder = folder end,
+  create_folder = function(self, name, parent) calls.create_folder = calls.create_folder + 1; calls.folder_parent = parent end,
+  rename_folder = function(self, path, name) calls.rename_folder = calls.rename_folder + 1; return true end,
+  delete_notebook = function(self, path) calls.delete_path = calls.delete_path + 1 end,
+  set_folders_expanded = function(self, expanded) calls.expand_folders = calls.expand_folders + (expanded and 1 or -1) end,
   save_all = function(self) calls.save_all = calls.save_all + 1 end,
   restart_all_kernels = function(self) calls.restart_all = calls.restart_all + 1 end,
   set_outputs_expanded = function(self, expanded)
@@ -139,7 +146,8 @@ end
 for _, id in ipairs({ "restart-run-all", "copy-cell", "paste-cell", "copy-output",
     "run-below", "run-above", "save-all", "restart-all-kernels",
     "expand-outputs", "collapse-outputs", "clear-cell-output", "reopen-closed", "go-to-cell",
-    "close-others", "duplicate-cell", "comment-line", "move-line-up",
+    "close-others", "duplicate-cell", "tree-expand-all", "tree-collapse-all",
+    "comment-line", "move-line-up",
     "move-line-down", "duplicate-line", "indent-line", "outdent-line",
     "delete-word-back", "delete-word-forward", "join-line", "cell-start",
     "cell-end", "go-to-line", "tree-sort", "prev-heading", "next-heading",
@@ -238,6 +246,34 @@ ui:keypressed("up")
 ui:keypressed("return")
 assert(calls.open_path == 1 and not ui.show_tree,
   "filetree Enter did not open the selected file")
+ui.tree_selected = 2
+assert(ui:tree_parent_path() == "notebooks/work",
+  "tree_parent_path did not choose the selected folder")
+ui:open_tree()
+ui.tree_selected = 2
+ui.tree_rects = { { x = 0, y = 0, w = 20, h = 20, action = "new" } }
+ui:mousepressed(5, 5, 1)
+assert(calls.new_notebook == 1 and calls.new_folder == "notebooks/work",
+  "New notebook did not use the selected folder")
+ui.show_tree = false
+ui.folder_prompt = { value = "child", parent = "notebooks/work" }
+ui:keypressed("return")
+assert(calls.create_folder == 1 and calls.folder_parent == "notebooks/work",
+  "folder creation did not inherit the selected folder")
+ui.rename_prompt = {
+  old = "notebooks/work", value = "renamed", kind = "folder",
+}
+ui:keypressed("return")
+assert(calls.rename_folder == 1, "folder rename prompt was miswired")
+ui.confirm_delete = {
+  name = "work", path = "notebooks/work", kind = "folder",
+}
+ui:keypressed("return")
+assert(calls.delete_path == 1, "folder delete confirmation was miswired")
+ui:run_palette_command("tree-expand-all")
+ui:run_palette_command("tree-collapse-all")
+assert(calls.expand_folders == 0,
+  "palette folder expand/collapse commands are miswired")
 ui:run_palette_command("go-to-cell")
 assert(ui.show_cell_prompt, "palette go-to-cell did not open the prompt")
 ui:keypressed("escape")

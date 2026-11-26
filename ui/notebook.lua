@@ -912,6 +912,8 @@ function UI:palette_commands()
     { id = "new", label = "New notebook" },
     { id = "tree", label = "Notebook filetree  (F2)" },
     { id = "tree-sort", label = "Cycle filetree sort  (A→Z / Z→A / Recent)" },
+    { id = "tree-expand-all", label = "Expand all filetree folders" },
+    { id = "tree-collapse-all", label = "Collapse all filetree folders" },
     { id = "vim", label = "Toggle Vim mode  (F3)" },
     { id = "zen", label = "Toggle Zen mode  (F4)" },
     { id = "screenshot", label = "Save screenshot  (Ctrl+Shift+S)" },
@@ -1056,6 +1058,8 @@ function UI:run_palette_command(id)
   elseif id == "tree" then
     self:open_tree()
   elseif id == "tree-sort" then self.app:cycle_tree_sort()
+  elseif id == "tree-expand-all" then self.app:set_folders_expanded(true)
+  elseif id == "tree-collapse-all" then self.app:set_folders_expanded(false)
   elseif id == "history" then self:open_history()
   elseif id == "stats" then self:open_stats()
   elseif id == "cell-below" then self.app:add_cell("code")
@@ -1905,7 +1909,7 @@ function UI:draw_tree(pass, width, height)
     text(pass, self.app.font, marker .. item.name, x + indent, row_y + 4,
       { 0.82, 0.88, 1, 1 }, 0.66)
     self.tree_rects[#self.tree_rects + 1] = {
-      x = x + 10, y = row_y, w = panel_w - 52, h = 23, path = item.path,
+      x = x + 10, y = row_y, w = panel_w - 90, h = 23, path = item.path,
       kind = item.kind, name = item.name, index = index,
     }
     if item.kind == "file" then
@@ -1913,13 +1917,30 @@ function UI:draw_tree(pass, width, height)
         { 0.7, 0.8, 1, 1 }, 0.7)
       self.tree_rects[#self.tree_rects + 1] = {
         x = x + panel_w - 66, y = row_y, w = 24, h = 23,
-        action = "rename", name = item.name,
+        action = "rename", name = item.name, path = item.path,
+        kind = "file",
       }
       text(pass, self.app.font, "×", x + panel_w - 32, row_y + 3,
         { 0.9, 0.45, 0.45, 1 }, 0.7)
       self.tree_rects[#self.tree_rects + 1] = {
         x = x + panel_w - 40, y = row_y, w = 26, h = 23,
-        action = "delete", name = item.name,
+        action = "delete", name = item.name, path = item.path,
+        kind = "file",
+      }
+    else
+      text(pass, self.app.font, "✎", x + panel_w - 58, row_y + 3,
+        { 0.7, 0.8, 1, 1 }, 0.7)
+      self.tree_rects[#self.tree_rects + 1] = {
+        x = x + panel_w - 66, y = row_y, w = 24, h = 23,
+        action = "rename", name = item.name, path = item.path,
+        kind = "directory",
+      }
+      text(pass, self.app.font, "×", x + panel_w - 32, row_y + 3,
+        { 0.9, 0.45, 0.45, 1 }, 0.7)
+      self.tree_rects[#self.tree_rects + 1] = {
+        x = x + panel_w - 40, y = row_y, w = 26, h = 23,
+        action = "delete", name = item.name, path = item.path,
+        kind = "directory",
       }
     end
   end
@@ -1930,8 +1951,9 @@ function UI:draw_rename(pass, width, height)
   local panel_w, panel_h = 460, 90
   local x, y = (width - panel_w) / 2, 140
   box(pass, x, y, panel_w, panel_h, { 0.04, 0.05, 0.08, 1 })
-  text(pass, self.app.font, "Rename notebook", x + 16, y + 12,
-    { 0.9, 0.94, 1, 1 }, 0.72)
+  text(pass, self.app.font,
+    self.rename_prompt.kind == "folder" and "Rename folder" or
+    "Rename notebook", x + 16, y + 12, { 0.9, 0.94, 1, 1 }, 0.72)
   box(pass, x + 14, y + 40, panel_w - 28, 28, { 0.09, 0.12, 0.18, 1 })
   text(pass, self.app.font, self.rename_prompt.value .. "|", x + 24, y + 47,
     { 0.85, 0.92, 1, 1 }, 0.7)
@@ -1942,33 +1964,17 @@ function UI:draw_confirm(pass, width, height)
   local panel_w, panel_h = 500, 100
   local x, y = (width - panel_w) / 2, 150
   box(pass, x, y, panel_w, panel_h, { 0.04, 0.05, 0.08, 1 })
-  if self.vim_search ~= nil then
-    self.vim_search = self.vim_search .. value
-    return
-  end
-  if self.vim_command ~= nil then
-    self.vim_command = self.vim_command .. value
-    return
-  end
-  if self.symbol_prompt then
-    if key == "escape" then
-      self.symbol_prompt = nil
-    elseif key == "backspace" then
-      self.symbol_prompt.value = self.symbol_prompt.value:sub(1, -2)
-    elseif key == "return" then
-      local prompt = self.symbol_prompt
-      self.symbol_prompt = nil
-      if prompt.value ~= "" then
-        self.app:rename_symbol(prompt.old, prompt.value)
-      end
-    end
-    return
-  end
   if self.confirm_delete then
-    text(pass, self.app.font, "Delete " .. self.confirm_delete.name .. "?",
+    local label = self.confirm_delete.kind == "folder" and "folder " or ""
+    text(pass, self.app.font,
+      "Delete " .. label .. self.confirm_delete.name .. "?",
       x + 16, y + 14, { 0.95, 0.7, 0.7, 1 }, 0.72)
+    if self.confirm_delete.kind == "folder" then
+      text(pass, self.app.font, "Only empty folders can be deleted.",
+        x + 16, y + 40, { 0.7, 0.76, 0.9, 1 }, 0.62)
+    end
     text(pass, self.app.font, "Enter/Y confirms · Escape/N cancels", x + 16,
-      y + 48, { 0.7, 0.76, 0.9, 1 }, 0.66)
+      y + 64, { 0.7, 0.76, 0.9, 1 }, 0.66)
   else
     text(pass, self.app.font, "New folder", x + 16, y + 14,
       { 0.85, 0.92, 1, 1 }, 0.72)
@@ -2004,6 +2010,16 @@ function UI:activate_tree_item(index)
   self.app:open_path(item.path)
   self.show_tree = false
   return true
+end
+
+function UI:tree_parent_path()
+  local items = self.app:library_items(self.tree_query)
+  local item = items[self.tree_selected]
+  if item ~= nil then
+    if item.kind == "directory" then return item.path end
+    return item.path:match("^(.*)/") or "notebooks"
+  end
+  return "notebooks"
 end
 
 function UI:open_cell_prompt(kind)
@@ -3312,9 +3328,9 @@ function UI:keypressed(key, modifiers)
     elseif key == "backspace" then
       self.folder_prompt.value = self.folder_prompt.value:sub(1, -2)
     elseif key == "return" then
-      local value = self.folder_prompt.value
+      local prompt = self.folder_prompt
       self.folder_prompt = nil
-      self.app:create_folder(value)
+      self.app:create_folder(prompt.value, prompt.parent)
     end
     return
   end
@@ -3326,7 +3342,11 @@ function UI:keypressed(key, modifiers)
     elseif key == "return" then
       local prompt = self.rename_prompt
       self.rename_prompt = nil
-      self.app:rename_notebook(prompt.old, prompt.value)
+      if prompt.kind == "folder" then
+        self.app:rename_folder(prompt.old, prompt.value)
+      else
+        self.app:rename_notebook(prompt.old, prompt.value)
+      end
     end
     return
   end
@@ -4023,15 +4043,21 @@ function UI:mousepressed(x, y, button)
         if rect.action == "sort" then
           self.app:cycle_tree_sort()
         elseif rect.action == "new" then
-          self.app:new_notebook()
+          self.app:new_notebook(self:tree_parent_path())
         elseif rect.action == "rename" then
           self.rename_prompt = {
-            old = rect.path, value = rect.name:gsub("%.luanb$", ""),
+            old = rect.path,
+            value = rect.kind == "directory" and rect.name or
+              rect.name:gsub("%.luanb$", ""),
+            kind = rect.kind == "directory" and "folder" or "notebook",
           }
         elseif rect.action == "folder" then
-          self.folder_prompt = { value = "" }
+          self.folder_prompt = { value = "", parent = self:tree_parent_path() }
         elseif rect.action == "delete" then
-          self.confirm_delete = { name = rect.name, path = rect.path }
+          self.confirm_delete = {
+            name = rect.name, path = rect.path,
+            kind = rect.kind == "directory" and "folder" or "notebook",
+          }
         elseif rect.kind == "directory" then
           self.app.tree_expanded[rect.path] =
             not self.app.tree_expanded[rect.path]

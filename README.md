@@ -244,8 +244,11 @@ kernel and global state.
 
 **F2** opens a hierarchical list of saved notebooks under `notebooks/`.
 Clicking a folder expands it, clicking a notebook opens it, `+ New notebook`
-creates one, `+ Folder` creates a folder, `✎` renames one, and `×` asks for
-confirmation before deleting one. The **Sort** button cycles **A→Z**, **Z→A**,
+creates one in the selected folder (or the root), and `+ Folder` creates a
+subfolder there. Folders and notebooks both expose `✎` rename and `×` delete
+actions; folder deletion is limited to empty folders and asks for confirmation.
+The command palette adds **Expand all filetree folders** and **Collapse all
+filetree folders**. The **Sort** button cycles **A→Z**, **Z→A**,
 and **Recent** (newest notebook files first); the choice persists in
 `tree_sort.txt`. The `filter:` field narrows the tree as you type: matching is a
 case-insensitive substring over notebook filenames, folders with a matching
@@ -433,8 +436,8 @@ remaining gaps.
 `make test` runs the pure model, widget, engine, remote-supervisor,
 process-kernel, sandbox, editor, filetree filtering/sorting/keyboard navigation,
 workflow shortcut dispatch, run-above, paste, save/restart-all, bulk output
-folding, line/word editing, join, comment/duplicate/indent, tag/heading filtering,
-Markdown
+folding, line/word editing, join, comment/duplicate/indent, filetree folder
+create/rename/delete, tag/heading filtering, Markdown
 nested quotes/callouts/definition lists/tables/nesting/
 emphasis/highlight/autolink/escape/footnote/regex, polar/heatmap/contour/
 quiver/streamplot/colourbar/clipping export parity, and Neovim-buffer plan/apply

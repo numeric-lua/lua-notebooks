@@ -80,6 +80,15 @@ function Format.save(notebook)
   return path, lovr.filesystem.getSaveDirectory() .. "/" .. path
 end
 
+function Format.save_in(notebook, folder)
+  folder = (folder or "notebooks"):gsub("/+$", "")
+  lovr.filesystem.createDirectory(folder)
+  local path = folder .. "/" .. notebook.name
+  lovr.filesystem.write(path, Format.encode(notebook))
+  notebook._path = path
+  return path, lovr.filesystem.getSaveDirectory() .. "/" .. path
+end
+
 local function autosave_name(notebook)
   local name = notebook.name:gsub("%.luanb$", "")
   name = name:gsub("[^%w_.-]", "_")
@@ -2464,15 +2473,34 @@ function Format.filter_tag_entries(entries, query)
   return result
 end
 
-function Format.create_folder(name)
+function Format.create_folder(name, parent)
   name = (name or ""):gsub("^%s+", ""):gsub("%s+$", ""):gsub("%s+", "-")
-  if name == "" or name:find("%.%.") or name:find("/") then
+  parent = (parent or "notebooks"):gsub("/+$", "")
+  if name == "" or name:find("%.%.") or name:find("/") or
+     parent:find("%.%.") or parent:sub(1, 1) == "/" then
     return nil, "invalid folder name"
   end
-  local path = "notebooks/" .. name
+  local path = parent .. "/" .. name
   local ok, err = lovr.filesystem.createDirectory(path)
   if not ok then return nil, err end
   return path
+end
+
+function Format.rename_folder(path, new_name)
+  new_name = (new_name or ""):gsub("^%s+", ""):gsub("%s+$", ""):gsub("%s+", "-")
+  if new_name == "" or new_name:find("%.%.") or new_name:find("/") then
+    return nil, "invalid folder name"
+  end
+  local parent = path:match("^(.*)/") or "notebooks"
+  local target = parent .. "/" .. new_name
+  if target == path then return target end
+  if lovr.filesystem.isDirectory(target) then
+    return nil, "folder already exists"
+  end
+  local root = lovr.filesystem.getSaveDirectory() .. "/"
+  local ok, err = os.rename(root .. path, root .. target)
+  if not ok then return nil, err end
+  return target
 end
 
 function Format.rename(old_name, new_name)

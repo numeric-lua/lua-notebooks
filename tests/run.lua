@@ -1414,6 +1414,45 @@ test("sorts filetree entries by name and modification time", function()
   _G.lovr = saved_lovr
 end)
 
+test("creates and renames folders under a parent", function()
+  local saved_lovr = rawget(_G, "lovr")
+  local created
+  _G.lovr = { filesystem = {
+    createDirectory = function(path) created = path; return true end,
+    getSaveDirectory = function() return "/save" end,
+    isDirectory = function() return false end,
+  } }
+  local path = Format.create_folder(" sub ", "notebooks/work")
+  eq(path, "notebooks/work/sub")
+  eq(created, path)
+  eq(Format.create_folder("../bad", "notebooks/work"), nil)
+  local saved_rename = os.rename
+  local from, to
+  os.rename = function(source, target) from, to = source, target; return true end
+  local renamed = Format.rename_folder("notebooks/work/sub", "renamed")
+  os.rename = saved_rename
+  eq(renamed, "notebooks/work/renamed")
+  eq(from, "/save/notebooks/work/sub")
+  eq(to, "/save/notebooks/work/renamed")
+  _G.lovr = saved_lovr
+end)
+
+test("saves a notebook inside a folder", function()
+  local saved_lovr = rawget(_G, "lovr")
+  local written
+  _G.lovr = { filesystem = {
+    createDirectory = function() return true end,
+    write = function(path, content) written = path; return true end,
+    getSaveDirectory = function() return "/save" end,
+  } }
+  local notebook = Notebook.new({ name = "nested.luanb" })
+  local path = Format.save_in(notebook, "notebooks/work")
+  eq(path, "notebooks/work/nested.luanb")
+  eq(written, path)
+  eq(notebook._path, path)
+  _G.lovr = saved_lovr
+end)
+
 current = "replace"
 test("replace_all replaces literal text across cells", function()
   local notebook = Notebook.new({ cells = {

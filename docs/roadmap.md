@@ -45,8 +45,9 @@
 - Close-notebook tabs with an unsaved-changes guard; kernels are keyed by
   notebook object so other tabs keep their globals.
 - Filterable, sortable, keyboard-navigable hierarchical notebook filetree with
-  create/delete/rename/folder actions, Left/Right fold toggles, and Home/End
-  row jumps.
+  folder-aware notebook/subfolder creation, folder rename, empty-folder delete,
+  expand/collapse-all commands, Left/Right fold toggles, and Home/End row
+  jumps.
 - Vim mode (default on): insert/normal, cell/character visual, registers,
   yank/paste, undo, search, command line, literal/pattern substitution.
 - Inline and display math: symbols, fractions, radicals, simple matrices.

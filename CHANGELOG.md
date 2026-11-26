@@ -45,13 +45,22 @@
 - cycle the find and cross-notebook search cell-kind filters with **Alt+K**
   (all, code, Markdown);
 - expand or collapse the selected filetree folder with **Left**/**Right**;
-- jump to the first or last filetree row with **Home**/**End**.
+- jump to the first or last filetree row with **Home**/**End**;
+- create a new notebook inside the selected filetree folder, falling back to
+  `notebooks/` when no folder is selected;
+- create a new subfolder inside the selected filetree folder;
+- rename selected filetree folders with the `✎` action, updating open notebook
+  paths and expanded-folder state;
+- delete selected empty filetree folders with the `×` action after confirmation,
+  refusing non-empty folders;
+- expand or collapse every filetree folder from the command palette.
 
 Tests: `tests/workflow.lua` covers paste, run-above dispatch, save/restart-all
 dispatch, filetree keyboard navigation, and output-fold dispatch; `tests/run.lua`
 covers filetree sorting, bulk output folding, duplicate-cell undo, line editing
 (move/duplicate/comment/indent/go-to-line), word movement/deletion, line joining,
-search kind filtering/paging, and filetree keyboard navigation; the browser Markdown suite
+search kind filtering/paging, filetree keyboard navigation, and folder
+create/rename/delete/save helpers; the browser Markdown suite
 covers code-block badges/copy markup, heading anchor uniqueness, permalinks, and
 display math. The filetree overlay QA screenshot and
 `LUANB_SMOKE_WORKFLOW` (including save-all, restart-all, run-above, paste, and

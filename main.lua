@@ -79,6 +79,7 @@ function App:new(notebooks)
   if scale_ok and tonumber(scale_value) then
     self.ui_scale = math.max(0.7, math.min(2, tonumber(scale_value)))
   end
+  self.tree_expanded = { notebooks = true }
   self.tree_sort = "name"
   local sort_ok, sort_value = pcall(lovr.filesystem.read, "tree_sort.txt")
   if sort_ok and (sort_value == "name" or sort_value == "name-desc" or
@@ -393,27 +394,80 @@ function App:cycle_tree_sort()
   self.status = "filetree sort: " .. Format.tree_sort_label(next_mode)
 end
 
-function App:new_notebook()
+function App:new_notebook(folder)
+  folder = folder or "notebooks"
   local index = 1
-  while Format.load("untitled-" .. index .. ".luanb") do index = index + 1 end
+  while lovr.filesystem.read(folder .. "/untitled-" .. index .. ".luanb") do
+    index = index + 1
+  end
   local name = "untitled-" .. index .. ".luanb"
   local notebook = Notebook.new({
     name = name,
     cells = { { kind = "code", source = "print('new notebook')" } },
   })
-  Format.save(notebook)
-  notebook._path = "notebooks/" .. name
+  local path, err = Format.save_in(notebook, folder)
+  if path == nil then
+    self.status = "create failed: " .. tostring(err)
+    return
+  end
+  notebook._path = path
   self.notebooks[#self.notebooks + 1] = notebook
   self.active = #self.notebooks
   self.supervisor:open(self:kernel_id(notebook))
-  self.status = "created " .. name
+  self.status = "created " .. path
 end
 
-function App:create_folder(name)
-  local path, err = Format.create_folder(name)
+function App:create_folder(name, parent)
+  local path, err = Format.create_folder(name, parent)
   if path == nil then self.status = "folder failed: " .. tostring(err); return end
   self.tree_expanded[path] = true
   self.status = "created " .. path
+end
+
+function App:rename_folder(path, new_name)
+  local new_path, err = Format.rename_folder(path, new_name)
+  if new_path == nil then
+    self.status = "rename failed: " .. tostring(err)
+    return
+  end
+  local prefix = path .. "/"
+  local updates = {}
+  for key, value in pairs(self.tree_expanded or {}) do
+    if key == path or key:sub(1, #prefix) == prefix then
+      updates[#updates + 1] = { key = key, value = value }
+    end
+  end
+  for _, item in ipairs(updates) do
+    self.tree_expanded[item.key] = nil
+    local suffix = item.key == path and "" or item.key:sub(#path + 1)
+    self.tree_expanded[new_path .. suffix] = item.value
+  end
+  for _, notebook in ipairs(self.notebooks) do
+    if notebook._path == path or
+       (notebook._path and notebook._path:sub(1, #prefix) == prefix) then
+      notebook._path = new_path ..
+        (notebook._path == path and "" or notebook._path:sub(#path + 1))
+    end
+  end
+  self.status = "renamed folder to " .. new_path
+end
+
+function App:set_folders_expanded(expanded)
+  if not expanded then
+    self.tree_expanded = {}
+    self.status = "collapsed all folders"
+    return true
+  end
+  local entries = Format.list_tree({}, "notebooks", 0, true, self.tree_sort)
+  local count = 0
+  for _, entry in ipairs(entries) do
+    if entry.kind == "directory" then
+      self.tree_expanded[entry.path] = true
+      count = count + 1
+    end
+  end
+  self.status = "expanded " .. count .. " folder(s)"
+  return true
 end
 
 function App:rename_notebook(old_path, new_name)
@@ -440,6 +494,12 @@ function App:delete_notebook(path)
     if notebook._path == path then
       self:close_notebook(index, true)
       break
+    end
+  end
+  local prefix = path .. "/"
+  for key in pairs(self.tree_expanded or {}) do
+    if key == path or key:sub(1, #prefix) == prefix then
+      self.tree_expanded[key] = nil
     end
   end
   self.status = "deleted " .. path
@@ -1962,12 +2022,25 @@ function lovr.load()
   elseif os.getenv("LUANB_SMOKE_TREE") then
     local before = #Format.list()
     app:new_notebook()
-    local name = app:notebook().name
     local path = app:notebook()._path
     local after = #Format.list()
     app:delete_notebook(path)
     local final = #Format.list()
-    print(string.format("SMOKE_TREE=%d->%d->%d", before, after, final))
+    app:create_folder("smoke-folder")
+    app:new_notebook("notebooks/smoke-folder")
+    local nested = app:notebook()._path
+    local nested_ok = nested ~= nil and
+      nested:match("^notebooks/smoke%-folder/") ~= nil
+    app:rename_folder("notebooks/smoke-folder", "smoke-renamed")
+    local renamed_ok = app:notebook()._path ==
+      "notebooks/smoke-renamed/" .. app:notebook().name
+    app:delete_notebook(app:notebook()._path)
+    app:delete_notebook("notebooks/smoke-renamed")
+    local folder_gone = not lovr.filesystem.isDirectory(
+      "notebooks/smoke-renamed")
+    print(string.format("SMOKE_TREE=%d->%d->%d:%s:%s:%s", before, after,
+      final, tostring(nested_ok), tostring(renamed_ok),
+      tostring(folder_gone)))
     lovr.event.quit()
   elseif os.getenv("LUANB_SMOKE_EXT_PREFS") then
     Extensions.set_enabled("grid", false)
@@ -2454,12 +2527,25 @@ function lovr.load()
   elseif os.getenv("LUANB_SMOKE_TREE") then
     local before = #Format.list()
     app:new_notebook()
-    local name = app:notebook().name
     local path = app:notebook()._path
     local after = #Format.list()
     app:delete_notebook(path)
     local final = #Format.list()
-    print(string.format("SMOKE_TREE=%d->%d->%d", before, after, final))
+    app:create_folder("smoke-folder")
+    app:new_notebook("notebooks/smoke-folder")
+    local nested = app:notebook()._path
+    local nested_ok = nested ~= nil and
+      nested:match("^notebooks/smoke%-folder/") ~= nil
+    app:rename_folder("notebooks/smoke-folder", "smoke-renamed")
+    local renamed_ok = app:notebook()._path ==
+      "notebooks/smoke-renamed/" .. app:notebook().name
+    app:delete_notebook(app:notebook()._path)
+    app:delete_notebook("notebooks/smoke-renamed")
+    local folder_gone = not lovr.filesystem.isDirectory(
+      "notebooks/smoke-renamed")
+    print(string.format("SMOKE_TREE=%d->%d->%d:%s:%s:%s", before, after,
+      final, tostring(nested_ok), tostring(renamed_ok),
+      tostring(folder_gone)))
     lovr.event.quit()
   elseif os.getenv("LUANB_SMOKE_EXT_PREFS") then
     Extensions.set_enabled("grid", false)
@@ -2685,12 +2771,25 @@ function lovr.update(dt)
   elseif os.getenv("LUANB_SMOKE_TREE") then
     local before = #Format.list()
     app:new_notebook()
-    local name = app:notebook().name
     local path = app:notebook()._path
     local after = #Format.list()
     app:delete_notebook(path)
     local final = #Format.list()
-    print(string.format("SMOKE_TREE=%d->%d->%d", before, after, final))
+    app:create_folder("smoke-folder")
+    app:new_notebook("notebooks/smoke-folder")
+    local nested = app:notebook()._path
+    local nested_ok = nested ~= nil and
+      nested:match("^notebooks/smoke%-folder/") ~= nil
+    app:rename_folder("notebooks/smoke-folder", "smoke-renamed")
+    local renamed_ok = app:notebook()._path ==
+      "notebooks/smoke-renamed/" .. app:notebook().name
+    app:delete_notebook(app:notebook()._path)
+    app:delete_notebook("notebooks/smoke-renamed")
+    local folder_gone = not lovr.filesystem.isDirectory(
+      "notebooks/smoke-renamed")
+    print(string.format("SMOKE_TREE=%d->%d->%d:%s:%s:%s", before, after,
+      final, tostring(nested_ok), tostring(renamed_ok),
+      tostring(folder_gone)))
     lovr.event.quit()
   elseif os.getenv("LUANB_SMOKE_EXT_PREFS") then
     Extensions.set_enabled("grid", false)
