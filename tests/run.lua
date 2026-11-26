@@ -1455,6 +1455,23 @@ test("collects source and output rows while counting every occurrence", function
   local output_rows = Search.collect(cells, "output", { limit = 10 })
   assert(output_rows[1].line:find("out: ", 1, true) == 1)
 end)
+test("filters search rows by cell kind", function()
+  local Search = require("notebook.search")
+  local cells = {
+    { kind = "code", source = "needle code", output = "" },
+    { kind = "markdown", source = "needle prose", output = "" },
+    { kind = "code", source = "other", output = "needle output" },
+  }
+  local code, code_total = Search.collect(cells, "needle", { kind = "code" })
+  eq(code_total, 2)
+  eq(#code, 2)
+  eq(code[1].cell, 1)
+  eq(code[2].cell, 3)
+  local prose = Search.collect(cells, "needle", { kind = "markdown" })
+  eq(#prose, 1)
+  eq(prose[1].cell, 2)
+  eq(#Search.collect(cells, "needle", { kind = "none" }), 0)
+end)
 test("scopes collection and replacement to one cell", function()
   local Search = require("notebook.search")
   local cells = {

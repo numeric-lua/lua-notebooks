@@ -15,6 +15,7 @@ local function normalise(options)
     regex = options.regex == true,
     limit = options.limit,
     cell = tonumber(options.cell),
+    kind = options.kind,
   }
 end
 
@@ -99,7 +100,8 @@ function Search.collect(cells, query, options)
   local results, total = {}, 0
   if type(query) ~= "string" or query == "" then return results, total end
   for cell_index, cell in ipairs(cells or {}) do
-    if opts.cell == nil or opts.cell == cell_index then
+    if (opts.cell == nil or opts.cell == cell_index) and
+       (opts.kind == nil or opts.kind == cell.kind) then
       local source = type(cell.source) == "string" and cell.source or ""
       local offset = 1
       for line in (source .. "\n"):gmatch("(.-)\n") do

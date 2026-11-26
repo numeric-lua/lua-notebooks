@@ -187,6 +187,8 @@ function UI.new(app)
     global_find_regex = false,
     global_find_error = nil,
     global_find_rects = {},
+    global_find_offset = 0,
+    global_find_kind = "all",
     show_replace = false,
     show_graph = false,
     graph_rects = {},
@@ -215,6 +217,8 @@ function UI.new(app)
     find_error = nil,
     find_cell_only = false,
     find_rects = {},
+    find_offset = 0,
+    find_kind = "all",
     link_rects = {},
     task_rects = {},
     show_palette = false,
@@ -1466,16 +1470,39 @@ function UI:open_find()
   self.find_selected = 1
   self.find_results = {}
   self.find_total = 0
+  self.find_offset = 0
   self.find_error = nil
   self.find_regex = false
   self.find_cell_only = false
 end
 
+local SEARCH_PAGE_ROWS = 10
+
+local function search_page_offset(selected, count)
+  local max_offset = math.max(0, count - SEARCH_PAGE_ROWS)
+  local offset = math.floor((selected - 1) / SEARCH_PAGE_ROWS) *
+    SEARCH_PAGE_ROWS
+  return math.max(0, math.min(max_offset, offset))
+end
+
+local function next_search_kind(kind)
+  if kind == "all" then return "code" end
+  if kind == "code" then return "markdown" end
+  return "all"
+end
+
+local function search_kind_label(kind)
+  if kind == "code" then return "code cells" end
+  if kind == "markdown" then return "markdown cells" end
+  return "all cells"
+end
+
 function UI:update_find()
   self.find_selected = 1
+  self.find_offset = 0
   local options = search_options(self.find_case_sensitive,
     self.find_whole_word, true, self.find_regex)
-  options.limit = 40
+  options.kind = self.find_kind ~= "all" and self.find_kind or nil
   if self.find_cell_only then
     options.cell = self.app:notebook().active
   end
@@ -1487,29 +1514,38 @@ function UI:draw_find(pass, width, height)
   self.find_rects = {}
   if not self.show_find then return end
   local panel_w = math.min(760, width - 60)
-  local rows = math.min(#self.find_results, 10)
-  local panel_h = 74 + rows * 24
+  local max_offset = math.max(0, #self.find_results - SEARCH_PAGE_ROWS)
+  local offset = math.max(0, math.min(self.find_offset, max_offset))
+  local rows = math.min(#self.find_results - offset, SEARCH_PAGE_ROWS)
+  local panel_h = 74 + math.max(rows, 1) * 24
   local x, y = (width - panel_w) / 2, 80
   self.find_panel = { x = x, y = y, w = panel_w, h = panel_h }
   box(pass, x, y, panel_w, panel_h, { 0.06, 0.07, 0.10, 0.98 })
   text(pass, self.app.font, "Find in notebook  (Ctrl+F)", x + 14, y + 12,
     { 0.9, 0.94, 1, 1 }, 0.78)
+  local first = rows > 0 and offset + 1 or 0
+  local last = offset + rows
   local mode = self.find_error and "invalid pattern" or
-    string.format("%s · %s · %s · %s · %d match%s",
+    string.format("%s · %s · %s · %s · %d match%s · rows %d-%d",
       self.find_case_sensitive and "case" or "ignore case",
       self.find_regex and "regex" or "literal",
       self.find_whole_word and "whole word" or "substring",
-      self.find_cell_only and "current cell" or "notebook",
-      self.find_total, self.find_total == 1 and "" or "es")
+      search_kind_label(self.find_kind),
+      self.find_total, self.find_total == 1 and "" or "es", first, last)
   text(pass, self.app.font, mode, x + panel_w - 14, y + 14,
     self.find_error and { 0.95, 0.55, 0.55, 1 } or { 0.55, 0.65, 0.82, 1 },
-    0.6, "right")
+    0.58, "right")
   box(pass, x + 12, y + 36, panel_w - 24, 26, { 0.11, 0.13, 0.18, 1 })
   text(pass, self.app.font, self.find_query .. "|", x + 20, y + 41,
     { 0.9, 0.94, 1, 1 }, 0.75)
-  for index = 1, rows do
+  if rows == 0 then
+    text(pass, self.app.font, "No matching rows on this page.", x + 18,
+      y + 70, { 0.6, 0.66, 0.78, 1 }, 0.66)
+  end
+  for local_index = 1, rows do
+    local index = offset + local_index
     local result = self.find_results[index]
-    local row_y = y + 68 + (index - 1) * 24
+    local row_y = y + 68 + (local_index - 1) * 24
     if index == self.find_selected then
       box(pass, x + 10, row_y - 2, panel_w - 20, 22, { 0.16, 0.24, 0.36, 1 })
     end
@@ -1529,18 +1565,32 @@ function UI:open_global_find()
   self.global_find_selected = 1
   self.global_find_results = {}
   self.global_find_total = 0
+  self.global_find_offset = 0
   self.global_find_error = nil
   self.global_find_regex = false
 end
 
 function UI:update_global_find()
   self.global_find_selected = 1
+  self.global_find_offset = 0
   local options = search_options(self.global_find_case_sensitive,
     self.global_find_whole_word, true, self.global_find_regex)
-  options.limit = 80
+  options.kind = self.global_find_kind ~= "all" and self.global_find_kind or nil
   self.global_find_results, self.global_find_total, self.global_find_error =
     Search.collect_notebooks(self.app.notebooks, self.global_find_query,
       options)
+end
+
+function UI:open_find_result(result)
+  if result == nil then return false end
+  local notebook = self.app:notebook()
+  notebook:select(result.cell)
+  if notebook.cells[result.cell] ~= nil then
+    notebook.cells[result.cell].cursor = result.cursor
+  end
+  self.scroll_to_selected = true
+  self.show_find = false
+  return true
 end
 
 function UI:open_global_result(result)
@@ -1565,35 +1615,44 @@ function UI:draw_global_find(pass, width, height)
   self.global_find_rects = {}
   if not self.show_global_find then return end
   local panel_w = math.min(820, width - 60)
-  local rows = math.min(#self.global_find_results, 10)
+  local max_offset = math.max(0, #self.global_find_results - SEARCH_PAGE_ROWS)
+  local offset = math.max(0,
+    math.min(self.global_find_offset, max_offset))
+  local rows = math.min(#self.global_find_results - offset,
+    SEARCH_PAGE_ROWS)
   local panel_h = 98 + math.max(rows, 1) * 24
   local x, y = (width - panel_w) / 2, 78
   box(pass, x, y, panel_w, panel_h, { 0.06, 0.07, 0.10, 0.98 })
   box(pass, x, y, panel_w, 2, { 0.35, 0.72, 1, 1 })
   text(pass, self.app.font, "Find in all open notebooks  (Ctrl+Shift+F)",
     x + 14, y + 10, { 0.9, 0.94, 1, 1 }, 0.78)
+  local first = rows > 0 and offset + 1 or 0
+  local last = offset + rows
   local mode = self.global_find_error and "invalid pattern" or
-    string.format("%s · %s · %s · %d match%s in %d notebook(s)",
+    string.format("%s · %s · %s · %s · %d match%s · rows %d-%d",
       self.global_find_case_sensitive and "case" or "ignore case",
       self.global_find_regex and "regex" or "literal",
       self.global_find_whole_word and "whole word" or "substring",
+      search_kind_label(self.global_find_kind),
       self.global_find_total, self.global_find_total == 1 and "" or "es",
-      #self.app.notebooks)
+      first, last)
   text(pass, self.app.font, mode, x + panel_w - 14, y + 12,
     self.global_find_error and { 0.95, 0.55, 0.55, 1 } or
-    { 0.55, 0.65, 0.82, 1 }, 0.6, "right")
+    { 0.55, 0.65, 0.82, 1 }, 0.58, "right")
   box(pass, x + 12, y + 32, panel_w - 24, 26, { 0.11, 0.13, 0.18, 1 })
   text(pass, self.app.font, self.global_find_query .. "|", x + 20, y + 37,
     { 0.9, 0.94, 1, 1 }, 0.75)
   if rows == 0 then
     local message = self.global_find_query == "" and
-      "Type to search every open notebook." or "No matches in open notebooks."
+      "Type to search every open notebook." or
+      "No matching rows on this page."
     text(pass, self.app.font, message, x + 18, y + 70,
       { 0.6, 0.66, 0.78, 1 }, 0.68)
   end
-  for index = 1, rows do
+  for local_index = 1, rows do
+    local index = offset + local_index
     local result = self.global_find_results[index]
-    local row_y = y + 64 + (index - 1) * 24
+    local row_y = y + 64 + (local_index - 1) * 24
     if index == self.global_find_selected then
       box(pass, x + 10, row_y - 2, panel_w - 20, 22, { 0.16, 0.24, 0.36, 1 })
     end
@@ -1610,7 +1669,7 @@ function UI:draw_global_find(pass, width, height)
     }
   end
   text(pass, self.app.font,
-    "Enter opens result  ·  Up/Down select  ·  Alt+C case  ·  Alt+W word  ·  Alt+R regex  ·  Esc closes",
+    "Enter opens · Up/Down select · PgUp/PgDn page · Alt+K kind · Alt+C/W/R · Esc",
     x + 14, y + panel_h - 22, { 0.5, 0.58, 0.72, 1 }, 0.58)
 end
 
@@ -1636,7 +1695,8 @@ function UI:draw_help(pass, width, height)
         { "Alt+D", "duplicate selected cell" },
         { "Ctrl+1 / 2", "code / markdown" },
         { "o / O", "insert below / above and edit" },
-        { "Ctrl+F", "find cells (Alt+L cell, Alt+C/W/R)" },
+        { "Ctrl+F", "find cells (Alt+L cell, Alt+C/W/R/K kind)" },
+        { "PgUp / PgDn", "page find results (Home/End ends)" },
         { "Ctrl+Shift+F", "find across all open notebooks" },
         { "Ctrl+H", "replace (Alt+L cell, Alt+C/W/R)" },
         { "Ctrl+G / Ctrl+T", "link graph / tag index" },
@@ -2745,6 +2805,21 @@ function UI:keypressed(key, modifiers)
       local count = #self.app:library_items(self.tree_query)
       self.tree_selected = math.min(math.max(1, count),
         self.tree_selected + 1)
+    elseif key == "home" then
+      self.tree_selected = 1
+    elseif key == "end" then
+      self.tree_selected = math.max(1,
+        #self.app:library_items(self.tree_query))
+    elseif key == "right" then
+      local item = self.app:library_items(self.tree_query)[self.tree_selected]
+      if item ~= nil and item.kind == "directory" then
+        self.app.tree_expanded[item.path] = true
+      end
+    elseif key == "left" then
+      local item = self.app:library_items(self.tree_query)[self.tree_selected]
+      if item ~= nil and item.kind == "directory" then
+        self.app.tree_expanded[item.path] = false
+      end
     elseif key == "return" then
       self:activate_tree_item(self.tree_selected)
     end
@@ -2858,6 +2933,11 @@ function UI:keypressed(key, modifiers)
       self:update_global_find()
       self.app.status = self.global_find_regex and
         "global find: regex" or "global find: literal"
+    elseif alt_down and key == "k" then
+      self.global_find_kind = next_search_kind(self.global_find_kind)
+      self:update_global_find()
+      self.app.status = "global find: " ..
+        search_kind_label(self.global_find_kind)
     elseif key == "backspace" then
       self.global_find_query = self.global_find_query:sub(1, -2)
       self:update_global_find()
@@ -2871,7 +2951,19 @@ function UI:keypressed(key, modifiers)
     elseif key == "down" then
       self.global_find_selected = math.min(#self.global_find_results,
         self.global_find_selected + 1)
+    elseif key == "pageup" then
+      self.global_find_selected = math.max(1,
+        self.global_find_selected - SEARCH_PAGE_ROWS)
+    elseif key == "pagedown" then
+      self.global_find_selected = math.min(#self.global_find_results,
+        self.global_find_selected + SEARCH_PAGE_ROWS)
+    elseif key == "home" then
+      self.global_find_selected = 1
+    elseif key == "end" then
+      self.global_find_selected = math.max(1, #self.global_find_results)
     end
+    self.global_find_offset = search_page_offset(
+      self.global_find_selected, #self.global_find_results)
     return
   end
   if self.show_find then
@@ -2896,20 +2988,32 @@ function UI:keypressed(key, modifiers)
       self:update_find()
       self.app.status = self.find_cell_only and
         "find: current cell" or "find: whole notebook"
+    elseif alt_down and key == "k" then
+      self.find_kind = next_search_kind(self.find_kind)
+      self:update_find()
+      self.app.status = "find: " .. search_kind_label(self.find_kind)
     elseif key == "backspace" then
       self.find_query = self.find_query:sub(1, -2); self:update_find()
     elseif key == "return" and self.find_results[self.find_selected] then
-      local result = self.find_results[self.find_selected]
-      notebook:select(result.cell)
-      notebook.cells[result.cell].cursor = result.cursor
-      self.scroll_to_selected = true
-      self.show_find = false
+      self:open_find_result(self.find_results[self.find_selected])
     elseif key == "up" then
       self.find_selected = math.max(1, self.find_selected - 1)
     elseif key == "down" then
       self.find_selected = math.min(#self.find_results,
         self.find_selected + 1)
+    elseif key == "pageup" then
+      self.find_selected = math.max(1,
+        self.find_selected - SEARCH_PAGE_ROWS)
+    elseif key == "pagedown" then
+      self.find_selected = math.min(#self.find_results,
+        self.find_selected + SEARCH_PAGE_ROWS)
+    elseif key == "home" then
+      self.find_selected = 1
+    elseif key == "end" then
+      self.find_selected = math.max(1, #self.find_results)
     end
+    self.find_offset = search_page_offset(self.find_selected,
+      #self.find_results)
     return
   end
   if ctrl_down and key == "/" then
@@ -3972,6 +4076,15 @@ function UI:mousepressed(x, y, button)
     for _, rect in ipairs(self.tag_rects) do
       if inside(x, y, rect) then
         self:open_tag(rect.tag, rect.notebook)
+        return
+      end
+    end
+    return
+  end
+  if self.show_find then
+    for _, rect in ipairs(self.find_rects) do
+      if inside(x, y, rect) then
+        self:open_find_result(self.find_results[rect.index])
         return
       end
     end

@@ -36,13 +36,22 @@
 - delete the previous word with **Ctrl+Backspace**;
 - delete the next word with **Ctrl+Delete**;
 - jump to the start or end of the cell with **Ctrl+Home** / **Ctrl+End**;
-- join the current line with the next with **Ctrl+J**.
+- join the current line with the next with **Ctrl+J**;
+- page the notebook find overlay with **PageUp**/**PageDown** and jump to either
+  end with **Home**/**End**, without dropping matches beyond the previous
+  40-row cap;
+- page the cross-notebook search overlay the same way, with visible row ranges
+  and no 80-row truncation;
+- cycle the find and cross-notebook search cell-kind filters with **Alt+K**
+  (all, code, Markdown);
+- expand or collapse the selected filetree folder with **Left**/**Right**;
+- jump to the first or last filetree row with **Home**/**End**.
 
 Tests: `tests/workflow.lua` covers paste, run-above dispatch, save/restart-all
 dispatch, filetree keyboard navigation, and output-fold dispatch; `tests/run.lua`
 covers filetree sorting, bulk output folding, duplicate-cell undo, line editing
-(move/duplicate/comment/indent/go-to-line), word movement/deletion, and line
-joining; the browser Markdown suite
+(move/duplicate/comment/indent/go-to-line), word movement/deletion, line joining,
+search kind filtering/paging, and filetree keyboard navigation; the browser Markdown suite
 covers code-block badges/copy markup, heading anchor uniqueness, permalinks, and
 display math. The filetree overlay QA screenshot and
 `LUANB_SMOKE_WORKFLOW` (including save-all, restart-all, run-above, paste, and

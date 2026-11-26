@@ -250,7 +250,8 @@ and **Recent** (newest notebook files first); the choice persists in
 `tree_sort.txt`. The `filter:` field narrows the tree as you type: matching is a
 case-insensitive substring over notebook filenames, folders with a matching
 descendant stay visible even when collapsed, and Up/Down move the highlighted
-row, Enter opens a file or expands a folder, and Escape or F2 closes the tree.
+row, Left/Right collapse or expand a folder, Home/End jump to the first/last
+row, Enter opens a file or toggles a folder, and Escape or F2 closes the tree.
 
 Vim mode is **on by default** and is shown in the footer:
 
@@ -628,19 +629,21 @@ socket, not `luv` or `lua-mp`.
 
 Press **Ctrl+F** to search every cell. Results are case-insensitive and literal
 by default; **Alt+C** toggles case-sensitive matching and **Alt+W** requires a
-whole word (`foo` matches `foo` but not `food` or `foo_bar`). The overlay shows
-the total occurrence count and only the first 40 matching lines. Use Up/Down
-and Enter or click a result to select the matching cell and cursor position.
-Press **Alt+L** to limit the search to the selected cell; the header shows
-`current cell` and result rows keep their real notebook cell numbers.
+whole word (`foo` matches `foo` but not `food` or `foo_bar`). **Alt+K** cycles
+the cell-kind filter through all, code, and Markdown cells. The overlay shows
+the total occurrence count plus the visible row range; Up/Down select,
+PageUp/PageDown page, and Home/End jump to the ends. Enter or a click selects
+the matching cell and cursor position. Press **Alt+L** to limit the search to
+the selected cell; the header shows `current cell` and result rows keep their
+real notebook cell numbers.
 
 **Ctrl+Shift+F** searches every open notebook at once. The overlay groups each
 result by notebook title and cell number, shows the total occurrence count
-across tabs, and supports the same **Alt+C**/**Alt+W** options. Enter or a
+across tabs, and supports the same **Alt+C**/**Alt+W**/**Alt+K** options.
+Up/Down select, PageUp/PageDown page, and Home/End jump to the ends; Enter or a
 click switches to the owning tab, selects the cell, restores the match cursor,
 and scrolls it into view. The command palette exposes the same action as
-**Search all open notebooks**. Results are capped at 80 rows while the total
-count covers every occurrence.
+**Search all open notebooks**.
 
 **Ctrl+H** opens notebook-wide replace. It uses the same **Alt+C**/**Alt+W**
 options, previews the number of replacements before applying, and replaces

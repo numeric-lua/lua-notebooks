@@ -222,8 +222,18 @@ ui:open_tree()
 assert(ui.show_tree, "open_tree did not show the filetree")
 ui:keypressed("down")
 assert(ui.tree_selected == 2, "filetree Down did not move the selection")
+ui:keypressed("right")
+assert(app.tree_expanded["notebooks/work"] == true,
+  "filetree Right did not expand the folder")
+ui:keypressed("left")
+assert(app.tree_expanded["notebooks/work"] == false,
+  "filetree Left did not collapse the folder")
 ui:keypressed("down")
 assert(ui.tree_selected == 2, "filetree Down exceeded the item count")
+ui:keypressed("home")
+assert(ui.tree_selected == 1, "filetree Home did not jump to the first row")
+ui:keypressed("end")
+assert(ui.tree_selected == 2, "filetree End did not jump to the last row")
 ui:keypressed("up")
 ui:keypressed("return")
 assert(calls.open_path == 1 and not ui.show_tree,
@@ -255,6 +265,54 @@ assert(ui.find_query == "#alpha", "tag Enter did not open the tag search")
 ui:keypressed("escape")
 assert(not ui.show_find, "find overlay did not close")
 
+local original_search_cell = notebook.cells[2].source
+local original_markdown = notebook.cells[4].source
+local needle_lines = {}
+for line = 1, 15 do needle_lines[line] = "needle " .. line end
+notebook.cells[2].source = table.concat(needle_lines, "\n")
+notebook.cells[4].source = "needle prose"
+ui:open_find()
+ui.find_query = "needle"
+ui:update_find()
+assert(#ui.find_results == 16, "find did not collect every matching row")
+ui:keypressed("pagedown")
+assert(ui.find_selected == 11 and ui.find_offset == 6,
+  "find PageDown did not advance one page")
+ui:keypressed("home")
+assert(ui.find_selected == 1 and ui.find_offset == 0,
+  "find Home did not return to the first row")
+ui:keypressed("end")
+assert(ui.find_selected == 16 and ui.find_offset == 6,
+  "find End did not jump to the last page")
+ui:keypressed("k", { alt = true })
+assert(ui.find_kind == "code" and #ui.find_results == 15,
+  "find Alt+K did not select code cells")
+ui:keypressed("k", { alt = true })
+assert(ui.find_kind == "markdown" and #ui.find_results == 1,
+  "find Alt+K did not select markdown cells")
+ui:keypressed("k", { alt = true })
+assert(ui.find_kind == "all" and #ui.find_results == 16,
+  "find Alt+K did not return to all cells")
+ui.find_rects = { { x = 0, y = 0, w = 20, h = 20, index = 11 } }
+ui:mousepressed(5, 5, 1)
+assert(not ui.show_find and notebook.active == 2,
+  "clicking a paged find result did not open it")
+
+ui:open_global_find()
+ui.global_find_query = "needle"
+ui:update_global_find()
+assert(#ui.global_find_results == 16,
+  "global find did not collect every matching row")
+ui:keypressed("pagedown")
+assert(ui.global_find_selected == 11 and ui.global_find_offset == 6,
+  "global find PageDown did not advance one page")
+ui:keypressed("k", { alt = true })
+assert(ui.global_find_kind == "code" and
+  #ui.global_find_results == 15,
+  "global find Alt+K did not select code cells")
+ui:keypressed("escape")
+notebook.cells[2].source = original_search_cell
+notebook.cells[4].source = original_markdown
 notebook:select(4)
 ui:keypressed("l", { ctrl = true, alt = true })
 ui:textinput("2")

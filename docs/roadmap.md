@@ -22,7 +22,7 @@
 - Syntax highlighting, static diagnostics, completion, hover, go-to-definition,
   workspace rename, literal or Lua-pattern find/replace with case and
   whole-word options, a current-cell scope, and a cross-notebook search
-  overlay with per-tab result jumps.
+  overlay with per-tab result jumps, paged result rows, and cell-kind filters.
 - GitHub-style Markdown pipe tables, nested lists, italic emphasis, grouped
   blockquotes, highlight, bare-URL autolinks, backslash escapes, and numbered
   footnotes with endnote backlinks across the preview, static export, and
@@ -45,7 +45,8 @@
 - Close-notebook tabs with an unsaved-changes guard; kernels are keyed by
   notebook object so other tabs keep their globals.
 - Filterable, sortable, keyboard-navigable hierarchical notebook filetree with
-  create/delete/rename/folder actions.
+  create/delete/rename/folder actions, Left/Right fold toggles, and Home/End
+  row jumps.
 - Vim mode (default on): insert/normal, cell/character visual, registers,
   yank/paste, undo, search, command line, literal/pattern substitution.
 - Inline and display math: symbols, fractions, radicals, simple matrices.
