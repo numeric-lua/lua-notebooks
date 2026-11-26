@@ -174,6 +174,7 @@ function UI.new(app)
     outline_rects = {},
     outline_query = "",
     outline_selected = 1,
+    outline_offset = 0,
     outline_matches = {},
     show_help = false,
     show_find = false,
@@ -196,6 +197,7 @@ function UI.new(app)
     tag_rects = {},
     tag_query = "",
     tag_selected = 1,
+    tag_offset = 0,
     tag_entries = {},
     show_timing = false,
     replace_find = "",
@@ -225,6 +227,8 @@ function UI.new(app)
     palette_rects = {},
     palette_query = "",
     palette_selected = 1,
+    palette_offset = 0,
+    recent_palette_commands = {},
     completion = nil,
     completion_rects = {},
     show_tree = false,
@@ -255,6 +259,7 @@ function UI.new(app)
     tree_items = {},
     tree_query = "",
     tree_selected = 1,
+    tree_offset = 0,
     rename_prompt = nil,
     folder_prompt = nil,
     confirm_delete = nil,
@@ -854,6 +859,21 @@ function UI:draw(pass, logical_width, logical_height)
   return self.extension_passes
 end
 
+local PALETTE_PAGE_ROWS = 12
+
+local function palette_offset_for(selected, count)
+  local max_offset = math.max(0, count - PALETTE_PAGE_ROWS)
+  local offset = math.floor((selected - 1) / PALETTE_PAGE_ROWS) *
+    PALETTE_PAGE_ROWS
+  return math.max(0, math.min(max_offset, offset))
+end
+
+local function list_offset_for(selected, count, rows)
+  local max_offset = math.max(0, count - rows)
+  local offset = math.floor((selected - 1) / rows) * rows
+  return math.max(0, math.min(max_offset, offset))
+end
+
 function UI:palette_commands()
   local commands = {
     { id = "run", label = "Run selected cell  (F5)" },
@@ -971,7 +991,21 @@ function UI:palette_commands()
     end
   end
   local query = self.palette_query:lower()
-  if query == "" then return commands end
+  if query == "" then
+    local by_id, seen = {}, {}
+    for _, command in ipairs(commands) do by_id[command.id] = command end
+    local ordered = {}
+    for _, id in ipairs(self.recent_palette_commands) do
+      if by_id[id] ~= nil and not seen[id] then
+        ordered[#ordered + 1] = by_id[id]
+        seen[id] = true
+      end
+    end
+    for _, command in ipairs(commands) do
+      if not seen[command.id] then ordered[#ordered + 1] = command end
+    end
+    return ordered
+  end
   local filtered = {}
   for _, command in ipairs(commands) do
     if command.label:lower():find(query, 1, true) then
@@ -983,6 +1017,15 @@ end
 
 function UI:run_palette_command(id)
   self.show_palette = false
+  for index = #self.recent_palette_commands, 1, -1 do
+    if self.recent_palette_commands[index] == id then
+      table.remove(self.recent_palette_commands, index)
+    end
+  end
+  table.insert(self.recent_palette_commands, 1, id)
+  while #self.recent_palette_commands > 8 do
+    table.remove(self.recent_palette_commands)
+  end
   if id == "run" then self.app:run()
   elseif id == "restart-kernel" then self.app:restart_kernel()
   elseif id == "restart-all-kernels" then self.app:restart_all_kernels()
@@ -1102,14 +1145,22 @@ function UI:draw_palette(pass, width, height)
   self.palette_rects = {}
   if not self.show_palette then return end
   local commands = self:palette_commands()
-  if self.palette_selected > #commands then
-    self.palette_selected = math.max(1, #commands)
-  end
-  local panel_w, panel_h = 460, 100 + #commands * 32
+  if #commands == 0 then self.palette_selected = 1 end
+  self.palette_selected = math.max(1,
+    math.min(#commands, self.palette_selected))
+  local offset = palette_offset_for(self.palette_selected, #commands)
+  self.palette_offset = offset
+  local visible = math.min(#commands - offset, PALETTE_PAGE_ROWS)
+  local panel_w = 460
+  local panel_h = 100 + math.max(visible, 1) * 32
   local x, y = (width - panel_w) / 2, 100
   box(pass, x, y, panel_w, panel_h, { 0.035, 0.045, 0.07, 0.99 })
   text(pass, self.app.font, "Command palette  ·  type to filter", x + 18, y + 12,
     { 0.8, 0.86, 0.98, 1 }, 0.7)
+  text(pass, self.app.font,
+    string.format("%d-%d of %d", visible > 0 and offset + 1 or 0,
+      offset + visible, #commands),
+    x + panel_w - 18, y + 14, { 0.52, 0.62, 0.76, 1 }, 0.58, "right")
   box(pass, x + 12, y + 34, panel_w - 24, 26, { 0.08, 0.1, 0.15, 1 })
   text(pass, self.app.font, self.palette_query .. "|", x + 20, y + 39,
     { 0.9, 0.95, 1, 1 }, 0.72)
@@ -1117,8 +1168,10 @@ function UI:draw_palette(pass, width, height)
     text(pass, self.app.font, "No matching command", x + 20, y + 78,
       { 0.6, 0.65, 0.75, 1 }, 0.7)
   end
-  for index, command in ipairs(commands) do
-    local row_y = y + 72 + (index - 1) * 32
+  for local_index = 1, visible do
+    local index = offset + local_index
+    local command = commands[index]
+    local row_y = y + 72 + (local_index - 1) * 32
     local selected = index == self.palette_selected
     box(pass, x + 10, row_y, panel_w - 20, 27,
       selected and { 0.16, 0.25, 0.4, 1 } or { 0.09, 0.12, 0.18, 1 })
@@ -1128,6 +1181,9 @@ function UI:draw_palette(pass, width, height)
       x = x + 10, y = row_y, w = panel_w - 20, h = 27, id = command.id,
     }
   end
+  text(pass, self.app.font,
+    "Up/Down select · PgUp/PgDn page · Home/End ends · Enter runs",
+    x + 18, y + panel_h - 18, { 0.5, 0.58, 0.72, 1 }, 0.58)
 end
 
 function UI:draw_nvim_inline(pass, width, height)
@@ -1261,6 +1317,7 @@ function UI:open_tags()
   self.show_tags = true
   self.tag_query = ""
   self.tag_selected = 1
+  self.tag_offset = 0
   self:update_tags()
 end
 
@@ -1324,14 +1381,19 @@ function UI:open_tag(tag, notebook_index)
     target.title, target.count)
 end
 
+local TAG_PAGE_ROWS = 10
+
 function UI:draw_tags(pass, width, height)
   self.tag_rects = {}
   if not self.show_tags then return end
   local entries = self:update_tags()
   local all_entries = Format.tag_index(self.app.notebooks)
   local row_h = 38
-  local max_rows = math.max(1, math.floor((height - 170) / row_h))
-  local visible = math.min(#entries, math.min(20, max_rows))
+  local max_rows = math.max(1, math.min(TAG_PAGE_ROWS,
+    math.floor((height - 170) / row_h)))
+  local max_offset = math.max(0, #entries - max_rows)
+  local offset = math.max(0, math.min(self.tag_offset, max_offset))
+  local visible = math.min(#entries - offset, max_rows)
   local panel_w = math.min(700, width - 80)
   local rows = math.max(visible, 1)
   local panel_h = 104 + rows * row_h + 34
@@ -1349,15 +1411,18 @@ function UI:draw_tags(pass, width, height)
     x + 22, y + 46,
     self.tag_query == "" and { 0.45, 0.5, 0.62, 1 } or { 0.85, 0.92, 1, 1 },
     0.7)
-  text(pass, self.app.font, string.format("%d of %d", #entries, #all_entries),
+  text(pass, self.app.font,
+    string.format("%d-%d of %d", visible > 0 and offset + 1 or 0,
+      offset + visible, #entries),
     x + panel_w - 18, y + 46, { 0.55, 0.62, 0.75, 1 }, 0.62, "right")
   if #entries == 0 then
     text(pass, self.app.font, "No tags match this filter.", x + 18, y + 84,
       { 0.6, 0.66, 0.78, 1 }, 0.7)
   end
-  for index = 1, visible do
+  for local_index = 1, visible do
+    local index = offset + local_index
     local entry = entries[index]
-    local row_y = y + 76 + (index - 1) * row_h
+    local row_y = y + 76 + (local_index - 1) * row_h
     box(pass, x + 10, row_y, panel_w - 20, row_h - 2,
       index == self.tag_selected and { 0.14, 0.22, 0.34, 1 } or
       (index % 2 == 0 and { 0.075, 0.09, 0.13, 1 } or
@@ -1721,6 +1786,7 @@ function UI:draw_help(pass, width, height)
         { "Ctrl+Tab", "next / previous notebook" },
         { "F2", "notebook filetree" },
         { "F1", "command palette" },
+        { "PgUp / PgDn", "page palette/tags/outline/files" },
       } },
       { title = "EDITING", rows = {
         { "Tab", "insert two spaces" },
@@ -1842,6 +1908,8 @@ function UI:draw_hover(pass, width, height)
     { 0.75, 0.82, 0.94, 1 }, 0.66)
 end
 
+local TREE_PAGE_ROWS = 14
+
 function UI:draw_tree(pass, width, height)
   self.tree_rects = {}
   if not self.show_tree then return end
@@ -1853,8 +1921,11 @@ function UI:draw_tree(pass, width, height)
   else
     self.tree_selected = math.max(1, math.min(self.tree_selected, #items))
   end
+  local max_offset = math.max(0, #items - TREE_PAGE_ROWS)
+  local offset = math.max(0, math.min(self.tree_offset, max_offset))
+  local visible = math.min(#items - offset, TREE_PAGE_ROWS)
   local panel_w = 360
-  local panel_h = 186 + math.max(1, #items) * 26
+  local panel_h = 186 + math.max(1, visible) * 26
   local x, y = 20, 52
   box(pass, x, y, panel_w, panel_h, { 0.035, 0.045, 0.07, 1 })
   text(pass, self.app.font, "Files  (F2 to close)", x + 14, y + 12,
@@ -1885,17 +1956,18 @@ function UI:draw_tree(pass, width, height)
   self.tree_rects[#self.tree_rects + 1] = {
     x = x + 12, y = y + 100, w = sort_w, h = 24, action = "sort",
   }
-  if filtering then
-    text(pass, self.app.font, string.format("%d match%s", #items,
-      #items == 1 and "" or "es"), x + panel_w - 14, y + 107,
-      { 0.55, 0.65, 0.82, 1 }, 0.6, "right")
-  end
+  text(pass, self.app.font,
+    string.format("%d-%d of %d", visible > 0 and offset + 1 or 0,
+      offset + visible, #items), x + panel_w - 14, y + 107,
+    { 0.55, 0.65, 0.82, 1 }, 0.6, "right")
   if #items == 0 then
     text(pass, self.app.font, "No notebooks match this filter.", x + 18,
       y + 134, { 0.6, 0.66, 0.78, 1 }, 0.66)
   end
-  for index, item in ipairs(items) do
-    local row_y = y + 132 + (index - 1) * 26
+  for local_index = 1, visible do
+    local index = offset + local_index
+    local item = items[index]
+    local row_y = y + 132 + (local_index - 1) * 26
     local indent = 14 + item.depth * 18
     local active = item.kind == "file" and self.app:notebook()._path ==
       item.path
@@ -1988,6 +2060,7 @@ function UI:open_tree()
   self.show_tree = true
   self.tree_query = ""
   self.tree_selected = 1
+  self.tree_offset = 0
   self.tree_items = self.app:library_items("")
   local active_path = self.app:notebook()._path
   if active_path ~= nil then
@@ -2082,6 +2155,7 @@ function UI:open_outline()
   self.show_outline = true
   self.outline_query = ""
   self.outline_selected = 1
+  self.outline_offset = 0
   local headings = self.app:notebook():headings()
   for index, heading in ipairs(headings) do
     if heading.index == self.app:notebook().active then
@@ -2102,13 +2176,18 @@ function UI:jump_to_outline_heading()
   return true
 end
 
+local OUTLINE_PAGE_ROWS = 12
+
 function UI:draw_outline(pass, width, height)
   self.outline_rects = {}
   if not self.show_outline then return end
   local headings = self:update_outline()
   local all_headings = self.app:notebook():headings()
+  local max_offset = math.max(0, #headings - OUTLINE_PAGE_ROWS)
+  local offset = math.max(0, math.min(self.outline_offset, max_offset))
+  local visible = math.min(#headings - offset, OUTLINE_PAGE_ROWS)
   local panel_w = 360
-  local panel_h = 112 + math.max(1, #headings) * 30
+  local panel_h = 112 + math.max(1, visible) * 30
   local x, y = 20, 54
   box(pass, x, y, panel_w, panel_h, { 0.045, 0.055, 0.08, 0.98 })
   text(pass, self.app.font, "Outline  (F11 to close)", x + 14, y + 12,
@@ -2120,14 +2199,17 @@ function UI:draw_outline(pass, width, height)
     x + 20, y + 42,
     query == "" and { 0.45, 0.5, 0.62, 1 } or { 0.85, 0.92, 1, 1 }, 0.7)
   text(pass, self.app.font,
-    string.format("%d of %d", #headings, #all_headings),
+    string.format("%d-%d of %d", visible > 0 and offset + 1 or 0,
+      offset + visible, #headings),
     x + panel_w - 14, y + 42, { 0.55, 0.62, 0.75, 1 }, 0.62, "right")
   if #headings == 0 then
     text(pass, self.app.font, "No headings match this filter", x + 14,
       y + 82, { 0.55, 0.6, 0.7, 1 }, 0.7)
   end
-  for index, heading in ipairs(headings) do
-    local row_y = y + 74 + (index - 1) * 30
+  for local_index = 1, visible do
+    local index = offset + local_index
+    local heading = headings[index]
+    local row_y = y + 74 + (local_index - 1) * 30
     local selected = index == self.outline_selected
     box(pass, x + 8, row_y, panel_w - 16, 26,
       selected and { 0.14, 0.22, 0.34, 1 } or { 0.07, 0.08, 0.11, 1 })
@@ -2272,12 +2354,14 @@ function UI:textinput(value)
   if self.show_tags then
     self.tag_query = self.tag_query .. value
     self.tag_selected = 1
+    self.tag_offset = 0
     self:update_tags()
     return
   end
   if self.show_outline then
     self.outline_query = self.outline_query .. value
     self.outline_selected = 1
+    self.outline_offset = 0
     self:update_outline()
     return
   end
@@ -2313,6 +2397,7 @@ function UI:textinput(value)
   if self.show_tree then
     self.tree_query = self.tree_query .. value
     self.tree_selected = 1
+    self.tree_offset = 0
     return
   end
   if self.vim_search ~= nil then
@@ -2343,6 +2428,7 @@ function UI:textinput(value)
   if self.show_palette then
     self.palette_query = self.palette_query .. value
     self.palette_selected = 1
+    self.palette_offset = 0
     return
   end
   if self.focused_widget then
@@ -2815,12 +2901,20 @@ function UI:keypressed(key, modifiers)
     elseif key == "backspace" then
       self.tree_query = self.tree_query:sub(1, -2)
       self.tree_selected = 1
+      self.tree_offset = 0
     elseif key == "up" then
       self.tree_selected = math.max(1, self.tree_selected - 1)
     elseif key == "down" then
       local count = #self.app:library_items(self.tree_query)
       self.tree_selected = math.min(math.max(1, count),
         self.tree_selected + 1)
+    elseif key == "pagedown" then
+      local count = #self.app:library_items(self.tree_query)
+      self.tree_selected = math.min(math.max(1, count),
+        self.tree_selected + TREE_PAGE_ROWS)
+    elseif key == "pageup" then
+      self.tree_selected = math.max(1,
+        self.tree_selected - TREE_PAGE_ROWS)
     elseif key == "home" then
       self.tree_selected = 1
     elseif key == "end" then
@@ -2839,6 +2933,8 @@ function UI:keypressed(key, modifiers)
     elseif key == "return" then
       self:activate_tree_item(self.tree_selected)
     end
+    self.tree_offset = list_offset_for(self.tree_selected,
+      #self.app:library_items(self.tree_query), TREE_PAGE_ROWS)
     return
   end
   if self.show_replace then
@@ -2903,6 +2999,7 @@ function UI:keypressed(key, modifiers)
     elseif key == "backspace" then
       self.tag_query = self.tag_query:sub(1, -2)
       self.tag_selected = 1
+      self.tag_offset = 0
       self:update_tags()
     elseif key == "return" then
       self:jump_to_selected_tag()
@@ -2911,7 +3008,19 @@ function UI:keypressed(key, modifiers)
     elseif key == "down" then
       self.tag_selected = math.min(#self.tag_entries,
         self.tag_selected + 1)
+    elseif key == "pageup" then
+      self.tag_selected = math.max(1,
+        self.tag_selected - TAG_PAGE_ROWS)
+    elseif key == "pagedown" then
+      self.tag_selected = math.min(#self.tag_entries,
+        self.tag_selected + TAG_PAGE_ROWS)
+    elseif key == "home" then
+      self.tag_selected = 1
+    elseif key == "end" then
+      self.tag_selected = math.max(1, #self.tag_entries)
     end
+    self.tag_offset = list_offset_for(self.tag_selected,
+      #self.tag_entries, TAG_PAGE_ROWS)
     return
   end
   if self.show_outline then
@@ -2920,6 +3029,7 @@ function UI:keypressed(key, modifiers)
     elseif key == "backspace" then
       self.outline_query = self.outline_query:sub(1, -2)
       self.outline_selected = 1
+      self.outline_offset = 0
       self:update_outline()
     elseif key == "return" then
       self:jump_to_outline_heading()
@@ -2928,7 +3038,19 @@ function UI:keypressed(key, modifiers)
     elseif key == "down" then
       self.outline_selected = math.min(#self.outline_matches,
         self.outline_selected + 1)
+    elseif key == "pageup" then
+      self.outline_selected = math.max(1,
+        self.outline_selected - OUTLINE_PAGE_ROWS)
+    elseif key == "pagedown" then
+      self.outline_selected = math.min(#self.outline_matches,
+        self.outline_selected + OUTLINE_PAGE_ROWS)
+    elseif key == "home" then
+      self.outline_selected = 1
+    elseif key == "end" then
+      self.outline_selected = math.max(1, #self.outline_matches)
     end
+    self.outline_offset = list_offset_for(self.outline_selected,
+      #self.outline_matches, OUTLINE_PAGE_ROWS)
     return
   end
   if self.show_global_find then
@@ -3160,6 +3282,7 @@ function UI:keypressed(key, modifiers)
     self.show_palette = true
     self.palette_query = ""
     self.palette_selected = 1
+    self.palette_offset = 0
     return
   end
   if ctrl_down and key == "tab" then
@@ -3863,9 +3986,21 @@ function UI:keypressed(key, modifiers)
       self.palette_selected = math.max(1, self.palette_selected - 1)
     elseif key == "down" then
       self.palette_selected = math.min(#commands, self.palette_selected + 1)
+    elseif key == "pageup" then
+      self.palette_selected = math.max(1,
+        self.palette_selected - PALETTE_PAGE_ROWS)
+    elseif key == "pagedown" then
+      self.palette_selected = math.min(#commands,
+        self.palette_selected + PALETTE_PAGE_ROWS)
+    elseif key == "home" then
+      self.palette_selected = 1
+    elseif key == "end" then
+      self.palette_selected = math.max(1, #commands)
     elseif key == "return" and commands[self.palette_selected] then
       self:run_palette_command(commands[self.palette_selected].id)
     end
+    self.palette_offset = palette_offset_for(self.palette_selected,
+      #commands)
     return
   end
   if self.focused_widget then

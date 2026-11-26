@@ -23,6 +23,8 @@
   workspace rename, literal or Lua-pattern find/replace with case and
   whole-word options, a current-cell scope, and a cross-notebook search
   overlay with per-tab result jumps, paged result rows, and cell-kind filters.
+  Command palette, tag index, heading outline, and filetree rows also page
+  cleanly, and recently used palette commands float to the top.
 - GitHub-style Markdown pipe tables, nested lists, italic emphasis, grouped
   blockquotes, highlight, bare-URL autolinks, backslash escapes, and numbered
   footnotes with endnote backlinks across the preview, static export, and

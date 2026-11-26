@@ -248,7 +248,8 @@ creates one in the selected folder (or the root), and `+ Folder` creates a
 subfolder there. Folders and notebooks both expose `✎` rename and `×` delete
 actions; folder deletion is limited to empty folders and asks for confirmation.
 The command palette adds **Expand all filetree folders** and **Collapse all
-filetree folders**. The **Sort** button cycles **A→Z**, **Z→A**,
+filetree folders**. PageUp/PageDown move through longer trees, while Home/End
+jump to the first/last row. The **Sort** button cycles **A→Z**, **Z→A**,
 and **Recent** (newest notebook files first); the choice persists in
 `tree_sort.txt`. The `filter:` field narrows the tree as you type: matching is a
 case-insensitive substring over notebook filenames, folders with a matching
@@ -711,9 +712,10 @@ opens a numeric prompt and moves the caret to a line in the selected cell. Line
 edits are normal undoable changes.
 
 **F11** opens the heading outline with a type-to-filter field. Matching is a
-case-insensitive substring over heading text, the header shows the filtered
-count, and Up/Down move the highlight; Enter or a click jumps to that heading
-and closes the outline.
+case-insensitive substring over heading text, the header shows the visible page
+and filtered count, and Up/Down move the highlight; PageUp/PageDown page and
+Home/End jump to the ends. Enter or a click jumps to that heading and closes
+the outline.
 
 ## Interactive task lists
 
@@ -749,13 +751,13 @@ pairs share one list, and a blank line starts normal content again.
 ## Links
 
 Wiki links such as `[[Notebook Title]]` are previewed without brackets. Click a
-rendered wiki link in the preview to switch to that notebook tab. The command palette lists other tabs as **Switch to** entries and marks tabs that link to the current notebook as **Backlink**. Press **F1** to open it.
+rendered wiki link in the preview to switch to that notebook tab. The command palette lists other tabs as **Switch to** entries and marks tabs that link to the current notebook as **Backlink**. Press **F1** to open it; recently used commands float to the top, and PgUp/PgDn plus Home/End page through long lists.
 
 The Neovim process is kept warm after F10/F9/F5, so reopening a cell or switching with Alt+J/K does not pay startup cost again. The process is destroyed when the app quits.
 
 ## Tags
 
-Markdown `#tags` are indexed across open notebooks in the command palette; selecting one opens notebook-wide search for that tag. Press **Ctrl+T** for a tag-index overlay that shows every tag with its total use count and a clickable chip for each notebook that contains it, including that notebook's per-tag count (up to three chips, then `+N more`). The overlay has a type-to-filter field; matching is a case-insensitive substring over tag names, Up/Down move the highlight, and Enter opens the selected tag. Click a chip to jump straight to that notebook and search for `#tag`, or click the tag row to use the current notebook when it has the tag and the first matching notebook otherwise; `Esc` closes the overlay.
+Markdown `#tags` are indexed across open notebooks in the command palette; selecting one opens notebook-wide search for that tag. Press **Ctrl+T** for a tag-index overlay that shows every tag with its total use count and a clickable chip for each notebook that contains it, including that notebook's per-tag count (up to three chips, then `+N more`). The overlay has a type-to-filter field; matching is a case-insensitive substring over tag names, Up/Down move the highlight, PageUp/PageDown page through longer lists, Home/End jump to the ends, and Enter opens the selected tag. Click a chip to jump straight to that notebook and search for `#tag`, or click the tag row to use the current notebook when it has the tag and the first matching notebook otherwise; `Esc` closes the overlay.
 
 Tag scanning only reads Markdown prose. Tags inside fenced code blocks, inline code spans, URL fragments, and hex colors such as `#fff`, `#cafe`, or `#1a2b3c` are ignored; tags in headings, lists, and parentheses are counted.
 

@@ -400,4 +400,70 @@ assert(notebook.cells[4].source == "- [x] task",
   "clicking a preview task marker did not check it")
 assert(app.status == "checked task", "task click status is wrong")
 
+ui:run_palette_command("move-up")
+ui:keypressed("f1")
+ui.palette_query = ""
+local palette_items = ui:palette_commands()
+assert(palette_items[1].id == "move-up",
+  "recent palette command was not moved to the top")
+assert(#palette_items > 12, "palette fixture is too short for paging")
+ui:keypressed("pagedown")
+assert(ui.palette_selected == 13 and ui.palette_offset == 12,
+  "palette PageDown did not advance one page")
+ui:keypressed("home")
+assert(ui.palette_selected == 1 and ui.palette_offset == 0,
+  "palette Home did not return to the first command")
+ui:keypressed("end")
+assert(ui.palette_selected == #palette_items,
+  "palette End did not select the last command")
+ui:keypressed("escape")
+
+ui.tag_entries = {}
+for index = 1, 12 do
+  ui.tag_entries[index] = { tag = "t" .. index, count = 1, notebooks = {} }
+end
+ui.show_tags = true
+ui.tag_selected = 1
+ui:keypressed("pagedown")
+assert(ui.tag_selected == 11 and ui.tag_offset == 2,
+  "tag PageDown did not advance one page")
+ui:keypressed("home")
+assert(ui.tag_selected == 1 and ui.tag_offset == 0,
+  "tag Home did not return to the first tag")
+ui.show_tags = false
+
+ui.outline_matches = {}
+for index = 1, 15 do
+  ui.outline_matches[index] = { index = index, level = 1,
+    text = "Heading " .. index, collapsed = false }
+end
+ui.show_outline = true
+ui.outline_selected = 1
+ui:keypressed("pagedown")
+assert(ui.outline_selected == 13 and ui.outline_offset == 3,
+  "outline PageDown did not advance one page")
+ui:keypressed("home")
+assert(ui.outline_selected == 1 and ui.outline_offset == 0,
+  "outline Home did not return to the first heading")
+ui.show_outline = false
+
+local base_library_items = app.library_items
+app.library_items = function(self, query)
+  local items = {}
+  for index = 1, 20 do
+    items[index] = { path = "notebooks/n" .. index .. ".luanb",
+      name = "n" .. index .. ".luanb", kind = "file", depth = 0 }
+  end
+  return items
+end
+ui:open_tree()
+ui:keypressed("pagedown")
+assert(ui.tree_selected == 15 and ui.tree_offset == 6,
+  "filetree PageDown did not advance one page")
+ui:keypressed("home")
+assert(ui.tree_selected == 1 and ui.tree_offset == 0,
+  "filetree Home did not return to the first row")
+ui.show_tree = false
+app.library_items = base_library_items
+
 print("workflow shortcut tests ok")

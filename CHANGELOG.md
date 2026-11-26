@@ -53,14 +53,22 @@
   paths and expanded-folder state;
 - delete selected empty filetree folders with the `×` action after confirmation,
   refusing non-empty folders;
-- expand or collapse every filetree folder from the command palette.
+- expand or collapse every filetree folder from the command palette;
+- float the eight most recently used commands to the top of the empty command
+  palette;
+- page long command-palette lists with **PageUp**/**PageDown** and jump to the
+  ends with **Home**/**End**, with a visible row range;
+- page long tag-index lists with **PageUp**/**PageDown** and **Home**/**End**;
+- page long heading outlines with **PageUp**/**PageDown** and **Home**/**End**;
+- page long filetree lists with **PageUp**/**PageDown** instead of growing the
+  overlay past the window.
 
 Tests: `tests/workflow.lua` covers paste, run-above dispatch, save/restart-all
 dispatch, filetree keyboard navigation, and output-fold dispatch; `tests/run.lua`
 covers filetree sorting, bulk output folding, duplicate-cell undo, line editing
 (move/duplicate/comment/indent/go-to-line), word movement/deletion, line joining,
-search kind filtering/paging, filetree keyboard navigation, and folder
-create/rename/delete/save helpers; the browser Markdown suite
+search kind filtering/paging, filetree keyboard navigation, folder
+create/rename/delete/save helpers, and palette/tag/outline/filetree paging; the browser Markdown suite
 covers code-block badges/copy markup, heading anchor uniqueness, permalinks, and
 display math. The filetree overlay QA screenshot and
 `LUANB_SMOKE_WORKFLOW` (including save-all, restart-all, run-above, paste, and
