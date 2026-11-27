@@ -774,6 +774,107 @@ function Notebook:toggle_inline(prefix, suffix, label)
   return true
 end
 
+function Notebook:toggle_block(kind)
+  local cell = self:selected()
+  if cell == nil or cell.kind ~= "markdown" then return false end
+  local source = cell.source or ""
+  local cursor = cell.cursor or (#source + 1)
+  local start, stop = line_bounds(source, cursor)
+  local line = source:sub(start, stop)
+  local indent, rest = line:match("^(%s*)(.*)$")
+  local replacement
+  local label
+  if kind == "quote" then
+    label = "toggle blockquote"
+    if rest:match("^>%s?") then
+      replacement = indent .. rest:gsub("^>%s?", "", 1)
+    else
+      replacement = indent .. "> " .. rest
+    end
+  elseif kind == "bullet" then
+    label = "toggle bullet list"
+    if rest:match("^[-*+]%s+") then
+      replacement = indent .. rest:gsub("^[-*+]%s+", "", 1)
+    else
+      replacement = indent .. "- " .. rest
+    end
+  elseif kind == "ordered" then
+    label = "toggle ordered list"
+    if rest:match("^%d+%.%s+") then
+      replacement = indent .. rest:gsub("^%d+%.%s+", "", 1)
+    else
+      replacement = indent .. "1. " .. rest
+    end
+  else
+    return false
+  end
+  self:push_undo(label)
+  local delta = #replacement - #line
+  cell.source = source:sub(1, start - 1) .. replacement ..
+    source:sub(stop + 1)
+  if cursor > start + #indent then
+    cell.cursor = math.max(start + #indent,
+      math.min(#cell.source + 1, cursor + delta))
+  end
+  self.dirty = true
+  return true
+end
+
+function Notebook:cycle_heading()
+  local cell = self:selected()
+  if cell == nil or cell.kind ~= "markdown" then return false end
+  local source = cell.source or ""
+  local cursor = cell.cursor or (#source + 1)
+  local start, stop = line_bounds(source, cursor)
+  local line = source:sub(start, stop)
+  local indent, rest = line:match("^(%s*)(.*)$")
+  local level, body = rest:match("^(#+)%s+(.*)$")
+  level = level and #level or 0
+  body = body or rest
+  local replacement
+  if level == 0 then
+    replacement = indent .. "# " .. body
+  elseif level >= 3 then
+    replacement = indent .. body
+  else
+    replacement = indent .. string.rep("#", level + 1) .. " " .. body
+  end
+  self:push_undo("cycle heading level")
+  local delta = #replacement - #line
+  cell.source = source:sub(1, start - 1) .. replacement ..
+    source:sub(stop + 1)
+  if cursor > start + #indent then
+    cell.cursor = math.max(start + #indent,
+      math.min(#cell.source + 1, cursor + delta))
+  end
+  self.dirty = true
+  return true
+end
+
+function Notebook:insert_link(url)
+  local cell = self:selected()
+  if cell == nil or cell.kind ~= "markdown" then return false end
+  url = tostring(url or ""):gsub("^%s+", ""):gsub("%s+$", "")
+  if url == "" then return false end
+  local source = cell.source or ""
+  local cursor = cell.cursor or (#source + 1)
+  local start, stop = inline_word_bounds(source, cursor)
+  local label = start and source:sub(start, stop) or "link"
+  local replacement = "[" .. label .. "](" .. url .. ")"
+  self:push_undo("insert link")
+  if start == nil then
+    cell.source = source:sub(1, cursor - 1) .. replacement ..
+      source:sub(cursor)
+    cell.cursor = cursor + #replacement
+  else
+    cell.source = source:sub(1, start - 1) .. replacement ..
+      source:sub(stop + 1)
+    cell.cursor = start + #replacement
+  end
+  self.dirty = true
+  return true
+end
+
 function Notebook:move_word(delta)
   if delta ~= 1 and delta ~= -1 then return false end
   local cell = self:selected()

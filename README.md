@@ -220,6 +220,9 @@ Controls:
 | `Ctrl+B` / `Ctrl+I` | bold / italic Markdown text |
 | `Ctrl+Shift+M` | inline code Markdown text |
 | `Ctrl+Shift+H` / `Ctrl+Shift+X` | highlight / strikethrough Markdown text |
+| `Ctrl+Alt+Q / U / O` | toggle blockquote / bullet / ordered line |
+| `Ctrl+Alt+H` | cycle heading level |
+| `Ctrl+K` | insert Markdown link |
 | `Alt+Shift+Up` / `Alt+Shift+Down` | move the current line up / down |
 | `Ctrl+Shift+D` | duplicate the current line |
 | `Ctrl+Left` / `Ctrl+Right` | move by word |
@@ -448,7 +451,8 @@ remaining gaps.
 process-kernel, sandbox, editor, filetree filtering/sorting/keyboard navigation,
 workflow shortcut dispatch, run-next/run-insert/clear-rerun, run-above, paste,
 notebook naming/move/duplicate/title/reveal, save/restart-all, bulk output
-folding, line/word editing, join, comment/duplicate/indent, Markdown inline formatting,
+folding, line/word editing, join, comment/duplicate/indent, Markdown inline/block/link
+formatting,
 filetree folder
 create/rename/delete, tag/heading filtering, Markdown
 nested quotes/callouts/definition lists/tables/nesting/
@@ -742,6 +746,13 @@ In Markdown cells, **Ctrl+B** wraps the word at the caret in `**bold**`,
 command again removes the markers. With no word at the caret, the markers are
 inserted and the caret is placed between them. The same actions are available
 in the command palette; code cells are left unchanged.
+
+**Ctrl+Alt+Q** toggles a blockquote on the current line, **Ctrl+Alt+U** toggles a
+bullet list, and **Ctrl+Alt+O** toggles an ordered-list marker. **Ctrl+Alt+H**
+cycles the current line through `#`, `##`, `###`, and plain text. **Ctrl+K**
+opens a URL prompt and wraps the word at the caret as `[word](url)`, or inserts
+`[link](url)` when there is no word. These actions are also in the command
+palette.
 
 ## Interactive task lists
 

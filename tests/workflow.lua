@@ -29,6 +29,7 @@ local calls = {
   duplicate_notebook = 0, rename_title = 0, run_next = 0, run_insert = 0,
   clear_rerun = 0, restart_clear = 0, stop_run_all = 0,
   bold = 0, italic = 0, inline_code = 0, highlight = 0, strike = 0,
+  quote = 0, bullet = 0, ordered = 0, cycle_heading = 0, link = 0,
   expand_outputs = 0, comment_line = 0, shift_line = 0, duplicate_line = 0,
   indent_line = 0,
 }
@@ -50,6 +51,17 @@ local app = {
   run_next = function(self) calls.run_next = calls.run_next + 1 end,
   run_and_insert = function(self) calls.run_insert = calls.run_insert + 1 end,
   clear_and_rerun = function(self) calls.clear_rerun = calls.clear_rerun + 1 end,
+  toggle_markdown_block = function(self, kind)
+    if kind == "quote" then calls.quote = calls.quote + 1
+    elseif kind == "bullet" then calls.bullet = calls.bullet + 1
+    elseif kind == "ordered" then calls.ordered = calls.ordered + 1 end
+  end,
+  cycle_markdown_heading = function(self)
+    calls.cycle_heading = calls.cycle_heading + 1
+  end,
+  insert_markdown_link = function(self, url)
+    calls.link = calls.link + 1; calls.link_url = url
+  end,
   toggle_markdown_format = function(self, prefix, suffix, label)
     if label == "bold" then calls.bold = calls.bold + 1
     elseif label == "italic" then calls.italic = calls.italic + 1
@@ -178,6 +190,20 @@ ui:keypressed("h", { ctrl = true, shift = true })
 assert(calls.highlight == 1, "Ctrl+Shift+H does not toggle highlight")
 ui:keypressed("x", { ctrl = true, shift = true })
 assert(calls.strike == 1, "Ctrl+Shift+X does not toggle strikethrough")
+ui:keypressed("q", { ctrl = true, alt = true })
+ui:keypressed("u", { ctrl = true, alt = true })
+ui:keypressed("o", { ctrl = true, alt = true })
+assert(calls.quote == 1 and calls.bullet == 1 and calls.ordered == 1,
+  "Ctrl+Alt Q/U/O do not toggle block prefixes")
+ui:keypressed("h", { ctrl = true, alt = true })
+assert(calls.cycle_heading == 1, "Ctrl+Alt+H does not cycle headings")
+ui:keypressed("k", { ctrl = true })
+assert(ui.rename_prompt and ui.rename_prompt.kind == "link",
+  "Ctrl+K does not open the link prompt")
+ui.rename_prompt.value = "https://example.test"
+ui:keypressed("return")
+assert(calls.link == 1 and calls.link_url == "https://example.test",
+  "link prompt did not insert the URL")
 
 local commands = {}
 for _, command in ipairs(ui:palette_commands()) do
@@ -190,7 +216,8 @@ for _, id in ipairs({ "restart-run-all", "copy-cell", "paste-cell", "copy-output
     "close-others", "duplicate-cell", "tree-expand-all", "tree-collapse-all",
     "move-notebook", "duplicate-notebook", "reveal-notebook", "rename-title",
     "comment-line", "bold", "italic", "inline-code", "highlight",
-    "strikethrough", "move-line-up",
+    "strikethrough", "blockquote", "bullet-list", "ordered-list",
+    "cycle-heading", "insert-link", "move-line-up",
     "move-line-down", "duplicate-line", "indent-line", "outdent-line",
     "delete-word-back", "delete-word-forward", "join-line", "cell-start",
     "cell-end", "go-to-line", "tree-sort", "prev-heading", "next-heading",
@@ -275,6 +302,17 @@ ui:run_palette_command("strikethrough")
 assert(calls.bold == 2 and calls.italic == 2 and calls.inline_code == 2 and
   calls.highlight == 2 and calls.strike == 2,
   "palette Markdown formatting commands are miswired")
+ui:run_palette_command("blockquote")
+ui:run_palette_command("bullet-list")
+ui:run_palette_command("ordered-list")
+assert(calls.quote == 2 and calls.bullet == 2 and calls.ordered == 2,
+  "palette block formatting commands are miswired")
+ui:run_palette_command("cycle-heading")
+assert(calls.cycle_heading == 2, "palette cycle-heading is miswired")
+ui:run_palette_command("insert-link")
+assert(ui.rename_prompt and ui.rename_prompt.kind == "link",
+  "palette insert-link did not open the URL prompt")
+ui:keypressed("escape")
 ui:run_palette_command("move-line-up")
 ui:run_palette_command("move-line-down")
 assert(calls.shift_line == 0, "palette line-move commands are miswired")

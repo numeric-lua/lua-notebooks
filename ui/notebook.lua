@@ -921,6 +921,11 @@ function UI:palette_commands()
     { id = "inline-code", label = "Inline code  (Ctrl+Shift+M)" },
     { id = "highlight", label = "Highlight  (Ctrl+Shift+H)" },
     { id = "strikethrough", label = "Strikethrough  (Ctrl+Shift+X)" },
+    { id = "blockquote", label = "Toggle blockquote  (Ctrl+Alt+Q)" },
+    { id = "bullet-list", label = "Toggle bullet list  (Ctrl+Alt+U)" },
+    { id = "ordered-list", label = "Toggle ordered list  (Ctrl+Alt+O)" },
+    { id = "cycle-heading", label = "Cycle heading level  (Ctrl+Alt+H)" },
+    { id = "insert-link", label = "Insert link  (Ctrl+K)" },
     { id = "move-line-up", label = "Move current line up  (Alt+Shift+Up)" },
     { id = "move-line-down", label = "Move current line down  (Alt+Shift+Down)" },
     { id = "duplicate-line", label = "Duplicate current line  (Ctrl+Shift+D)" },
@@ -1093,6 +1098,16 @@ function UI:run_palette_command(id)
     self.app:toggle_markdown_format("==", "==", "highlight")
   elseif id == "strikethrough" then
     self.app:toggle_markdown_format("~~", "~~", "strikethrough")
+  elseif id == "blockquote" then
+    self.app:toggle_markdown_block("quote")
+  elseif id == "bullet-list" then
+    self.app:toggle_markdown_block("bullet")
+  elseif id == "ordered-list" then
+    self.app:toggle_markdown_block("ordered")
+  elseif id == "cycle-heading" then
+    self.app:cycle_markdown_heading()
+  elseif id == "insert-link" then
+    self.rename_prompt = { kind = "link", value = "https://" }
   elseif id == "move-line-up" then self.app:shift_current_line(-1)
   elseif id == "move-line-down" then self.app:shift_current_line(1)
   elseif id == "duplicate-line" then self.app:duplicate_current_line()
@@ -1841,6 +1856,8 @@ function UI:draw_help(pass, width, height)
         { "Ctrl+B / I", "bold / italic" },
         { "Ctrl+Shift+M", "inline code" },
         { "Ctrl+Shift+H / X", "highlight / strikethrough" },
+        { "Ctrl+Alt+Q/U/O", "quote / bullet / ordered line" },
+        { "Ctrl+Alt+H / Ctrl+K", "cycle heading / insert link" },
         { "Alt+Shift+Up / Down", "move current line" },
         { "Ctrl+Shift+D", "duplicate current line" },
         { "Ctrl+] / [", "indent / outdent current line" },
@@ -2078,6 +2095,7 @@ function UI:draw_rename(pass, width, height)
     title = "Rename notebook title",
     ["move-notebook"] = "Move notebook to folder",
     ["new-notebook"] = "New notebook name",
+    link = "Link URL",
   }
   text(pass, self.app.font,
     titles[self.rename_prompt.kind] or "Rename notebook", x + 16, y + 12,
@@ -3287,7 +3305,9 @@ function UI:keypressed(key, modifiers)
     self.app:toggle_markdown_format("~~", "~~", "strikethrough")
     return
   end
-  if ctrl_down and key == "h" then self:open_replace(); return end
+  if ctrl_down and not alt_down and key == "h" then
+    self:open_replace(); return
+  end
   if ctrl_down and key == "g" and not alt_down then
     self:open_graph(); return
   end
@@ -3346,6 +3366,22 @@ function UI:keypressed(key, modifiers)
     self.app:copy_cell_output()
     return
   end
+  if ctrl_down and alt_down and key == "q" then
+    self.app:toggle_markdown_block("quote")
+    return
+  end
+  if ctrl_down and alt_down and key == "u" then
+    self.app:toggle_markdown_block("bullet")
+    return
+  end
+  if ctrl_down and alt_down and key == "o" then
+    self.app:toggle_markdown_block("ordered")
+    return
+  end
+  if ctrl_down and alt_down and key == "h" then
+    self.app:cycle_markdown_heading()
+    return
+  end
   if ctrl_down and alt_down and key == "x" then
     self.app:clear_cell_output()
     return
@@ -3393,6 +3429,10 @@ function UI:keypressed(key, modifiers)
   end
   if ctrl_down and key == "w" then
     self:request_close()
+    return
+  end
+  if ctrl_down and key == "k" and not shift_down then
+    self.rename_prompt = { kind = "link", value = "https://" }
     return
   end
   if ctrl_down and key == "s" and lovr.system and
@@ -3569,6 +3609,8 @@ function UI:keypressed(key, modifiers)
         self.app:move_notebook(prompt.old, prompt.value)
       elseif prompt.kind == "new-notebook" then
         self.app:new_notebook(prompt.folder, prompt.value)
+      elseif prompt.kind == "link" then
+        self.app:insert_markdown_link(prompt.value)
       else
         self.app:rename_notebook(prompt.old, prompt.value)
       end

@@ -623,6 +623,41 @@ test("toggles inline Markdown formatting around the current word", function()
   eq(notebook:toggle_inline("**", "**", "bold"), false)
 end)
 
+test("toggles Markdown block prefixes and heading levels", function()
+  local Notebook = require("notebook.model")
+  local notebook = Notebook.new({ cells = {
+    { kind = "markdown", source = "text" },
+  } })
+  local cell = notebook.cells[1]
+  cell.cursor = 2
+  eq(notebook:toggle_block("quote"), true)
+  eq(cell.source, "> text")
+  eq(notebook:toggle_block("quote"), true)
+  eq(cell.source, "text")
+  eq(notebook:toggle_block("bullet"), true)
+  eq(cell.source, "- text")
+  eq(notebook:toggle_block("bullet"), true)
+  eq(cell.source, "text")
+  eq(notebook:toggle_block("ordered"), true)
+  eq(cell.source, "1. text")
+  eq(notebook:toggle_block("ordered"), true)
+  eq(cell.source, "text")
+  eq(notebook:cycle_heading(), true)
+  eq(cell.source, "# text")
+  eq(notebook:cycle_heading(), true)
+  eq(cell.source, "## text")
+  eq(notebook:cycle_heading(), true)
+  eq(cell.source, "### text")
+  eq(notebook:cycle_heading(), true)
+  eq(cell.source, "text")
+  cell.cursor = 2
+  eq(notebook:insert_link("https://example.test"), true)
+  eq(cell.source, "[text](https://example.test)")
+  eq(notebook:insert_link(""), false)
+  cell.kind = "code"
+  eq(notebook:toggle_block("quote"), false)
+end)
+
 current = "vim delimiter objects"
 test("finds quoted and bracketed ranges", function()
   local Notebook = require("notebook.model")

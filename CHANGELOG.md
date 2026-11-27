@@ -81,7 +81,14 @@
 - toggle `*italic*` around the Markdown word at the caret with **Ctrl+I**;
 - toggle inline code with **Ctrl+Shift+M**;
 - toggle `==highlight==` with **Ctrl+Shift+H**;
-- toggle `~~strikethrough~~` with **Ctrl+Shift+X**.
+- toggle `~~strikethrough~~` with **Ctrl+Shift+X**;
+- toggle a blockquote on the current Markdown line with **Ctrl+Alt+Q**;
+- toggle a bullet-list marker with **Ctrl+Alt+U**;
+- toggle an ordered-list marker with **Ctrl+Alt+O**;
+- cycle the current Markdown line through `#`, `##`, `###`, and plain text with
+  **Ctrl+Alt+H**;
+- insert a Markdown link with **Ctrl+K**, wrapping the word at the caret or
+  inserting `[link](url)` when no word is available.
 
 Tests: `tests/workflow.lua` covers paste, run-above dispatch, save/restart-all
 dispatch, filetree keyboard navigation, and output-fold dispatch; `tests/run.lua`
@@ -90,7 +97,8 @@ covers filetree sorting, bulk output folding, duplicate-cell undo, line editing
 search kind filtering/paging, filetree keyboard navigation, folder
 create/rename/delete/save helpers, palette/tag/outline/filetree paging, and
 run-next/run-insert/clear-rerun/restart-clear/stop-run-all dispatch, notebook
-name/move/duplicate/title/reveal flows and Markdown inline formatting; the browser Markdown suite
+name/move/duplicate/title/reveal flows and Markdown inline/block/link
+formatting; the browser Markdown suite
 covers code-block badges/copy markup, heading anchor uniqueness, permalinks, and
 display math. The filetree overlay QA screenshot and
 `LUANB_SMOKE_WORKFLOW` (including save-all, restart-all, run-above, paste, and

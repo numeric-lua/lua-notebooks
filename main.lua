@@ -842,6 +842,22 @@ function App:toggle_markdown_format(prefix, suffix, label)
     "markdown cells only"
 end
 
+function App:toggle_markdown_block(kind)
+  local changed = self:notebook():toggle_block(kind)
+  self.status = changed and ("toggled " .. kind .. " line") or
+    "markdown cells only"
+end
+
+function App:cycle_markdown_heading()
+  local changed = self:notebook():cycle_heading()
+  self.status = changed and "cycled heading level" or "markdown cells only"
+end
+
+function App:insert_markdown_link(url)
+  local changed = self:notebook():insert_link(url)
+  self.status = changed and "inserted link" or "link needs a URL"
+end
+
 function App:toggle_line_comment()
   local changed = self:notebook():toggle_comment()
   self.status = changed and "toggled line comment" or
