@@ -29,8 +29,8 @@
   restart-and-clear, and a stoppable run-all queue. Notebook identity covers
   named creation, folder moves, duplication, title renaming, and revealing the
   active file through expanded ancestors. Markdown editing includes bold,
-  italic, inline code, highlight, strikethrough, blockquote, list, heading, and
-  link actions.
+  italic, inline code, highlight, strikethrough, blockquote, list, heading,
+  link, task-list, rule, code-fence, table, and footnote actions.
 - GitHub-style Markdown pipe tables, nested lists, italic emphasis, grouped
   blockquotes, highlight, bare-URL autolinks, backslash escapes, and numbered
   footnotes with endnote backlinks across the preview, static export, and

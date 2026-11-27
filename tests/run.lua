@@ -658,6 +658,40 @@ test("toggles Markdown block prefixes and heading levels", function()
   eq(notebook:toggle_block("quote"), false)
 end)
 
+test("toggles task items and inserts Markdown blocks", function()
+  local Notebook = require("notebook.model")
+  local notebook = Notebook.new({ cells = {
+    { kind = "markdown", source = "task" },
+  } })
+  local cell = notebook.cells[1]
+  cell.cursor = 2
+  eq(notebook:toggle_task_item(), true)
+  eq(cell.source, "- [ ] task")
+  eq(notebook:toggle_task_item(), true)
+  eq(cell.source, "- [x] task")
+  eq(notebook:toggle_task_item(), true)
+  eq(cell.source, "- [ ] task")
+
+  cell.source = ""
+  cell.cursor = 1
+  eq(notebook:insert_markdown_block("rule"), true)
+  eq(cell.source, "---\n")
+  eq(notebook:insert_markdown_block("code", "lua"), true)
+  eq(cell.source, "---\n```lua\n\n```\n")
+  eq(notebook:insert_markdown_block("table"), true)
+  assert(cell.source:find("| Column | Column |", 1, true) ~= nil)
+  eq(notebook:insert_markdown_block("unknown"), false)
+
+  cell.source = "note"
+  cell.cursor = 5
+  eq(notebook:insert_footnote(), true)
+  eq(cell.source, "note[^1]\n\n[^1]: ")
+  eq(notebook:insert_footnote(), true)
+  assert(cell.source:find("[^2]", 1, true) ~= nil)
+  cell.kind = "code"
+  eq(notebook:toggle_task_item(), false)
+end)
+
 current = "vim delimiter objects"
 test("finds quoted and bracketed ranges", function()
   local Notebook = require("notebook.model")

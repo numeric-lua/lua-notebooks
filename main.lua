@@ -858,6 +858,21 @@ function App:insert_markdown_link(url)
   self.status = changed and "inserted link" or "link needs a URL"
 end
 
+function App:toggle_task_item()
+  local changed = self:notebook():toggle_task_item()
+  self.status = changed and "toggled task item" or "markdown cells only"
+end
+
+function App:insert_markdown_block(kind, language)
+  local changed = self:notebook():insert_markdown_block(kind, language)
+  self.status = changed and ("inserted " .. kind) or "markdown cells only"
+end
+
+function App:insert_footnote()
+  local changed = self:notebook():insert_footnote()
+  self.status = changed and "inserted footnote" or "markdown cells only"
+end
+
 function App:toggle_line_comment()
   local changed = self:notebook():toggle_comment()
   self.status = changed and "toggled line comment" or

@@ -30,6 +30,7 @@ local calls = {
   clear_rerun = 0, restart_clear = 0, stop_run_all = 0,
   bold = 0, italic = 0, inline_code = 0, highlight = 0, strike = 0,
   quote = 0, bullet = 0, ordered = 0, cycle_heading = 0, link = 0,
+  task_item = 0, rule = 0, code_block = 0, table = 0, footnote = 0,
   expand_outputs = 0, comment_line = 0, shift_line = 0, duplicate_line = 0,
   indent_line = 0,
 }
@@ -62,6 +63,14 @@ local app = {
   insert_markdown_link = function(self, url)
     calls.link = calls.link + 1; calls.link_url = url
   end,
+  toggle_task_item = function(self) calls.task_item = calls.task_item + 1 end,
+  insert_markdown_block = function(self, kind, language)
+    if kind == "rule" then calls.rule = calls.rule + 1
+    elseif kind == "code" then
+      calls.code_block = calls.code_block + 1; calls.code_language = language
+    elseif kind == "table" then calls.table = calls.table + 1 end
+  end,
+  insert_footnote = function(self) calls.footnote = calls.footnote + 1 end,
   toggle_markdown_format = function(self, prefix, suffix, label)
     if label == "bold" then calls.bold = calls.bold + 1
     elseif label == "italic" then calls.italic = calls.italic + 1
@@ -217,7 +226,8 @@ for _, id in ipairs({ "restart-run-all", "copy-cell", "paste-cell", "copy-output
     "move-notebook", "duplicate-notebook", "reveal-notebook", "rename-title",
     "comment-line", "bold", "italic", "inline-code", "highlight",
     "strikethrough", "blockquote", "bullet-list", "ordered-list",
-    "cycle-heading", "insert-link", "move-line-up",
+    "cycle-heading", "insert-link", "task-item", "horizontal-rule",
+    "code-block", "markdown-table", "footnote", "move-line-up",
     "move-line-down", "duplicate-line", "indent-line", "outdent-line",
     "delete-word-back", "delete-word-forward", "join-line", "cell-start",
     "cell-end", "go-to-line", "tree-sort", "prev-heading", "next-heading",
@@ -313,6 +323,21 @@ ui:run_palette_command("insert-link")
 assert(ui.rename_prompt and ui.rename_prompt.kind == "link",
   "palette insert-link did not open the URL prompt")
 ui:keypressed("escape")
+ui:run_palette_command("task-item")
+assert(calls.task_item == 1, "palette task-item is miswired")
+ui:run_palette_command("horizontal-rule")
+assert(calls.rule == 1, "palette horizontal-rule is miswired")
+ui:run_palette_command("code-block")
+assert(ui.rename_prompt and ui.rename_prompt.kind == "code-language",
+  "palette code-block did not open the language prompt")
+ui.rename_prompt.value = "lua"
+ui:keypressed("return")
+assert(calls.code_block == 1 and calls.code_language == "lua",
+  "code-block language prompt is miswired")
+ui:run_palette_command("markdown-table")
+assert(calls.table == 1, "palette markdown-table is miswired")
+ui:run_palette_command("footnote")
+assert(calls.footnote == 1, "palette footnote is miswired")
 ui:run_palette_command("move-line-up")
 ui:run_palette_command("move-line-down")
 assert(calls.shift_line == 0, "palette line-move commands are miswired")

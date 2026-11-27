@@ -452,7 +452,7 @@ process-kernel, sandbox, editor, filetree filtering/sorting/keyboard navigation,
 workflow shortcut dispatch, run-next/run-insert/clear-rerun, run-above, paste,
 notebook naming/move/duplicate/title/reveal, save/restart-all, bulk output
 folding, line/word editing, join, comment/duplicate/indent, Markdown inline/block/link
-formatting,
+formatting, task-list/rule/code/table/footnote insertion,
 filetree folder
 create/rename/delete, tag/heading filtering, Markdown
 nested quotes/callouts/definition lists/tables/nesting/
@@ -753,6 +753,12 @@ cycles the current line through `#`, `##`, `###`, and plain text. **Ctrl+K**
 opens a URL prompt and wraps the word at the caret as `[word](url)`, or inserts
 `[link](url)` when there is no word. These actions are also in the command
 palette.
+
+The palette also adds **Toggle task-list item**, **Insert horizontal rule**,
+**Insert fenced code block…** (with a language prompt), **Insert Markdown
+table**, and **Insert footnote**. Task-list toggles cycle unchecked, checked,
+and no-marker states. Footnotes use the next available number and append the
+matching `[^n]: ` definition to the end of the current Markdown cell.
 
 ## Interactive task lists
 

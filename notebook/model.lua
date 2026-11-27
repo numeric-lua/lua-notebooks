@@ -875,6 +875,91 @@ function Notebook:insert_link(url)
   return true
 end
 
+function Notebook:toggle_task_item()
+  local cell = self:selected()
+  if cell == nil or cell.kind ~= "markdown" then return false end
+  local source = cell.source or ""
+  local cursor = cell.cursor or (#source + 1)
+  local start, stop = line_bounds(source, cursor)
+  local line = source:sub(start, stop)
+  local indent, rest = line:match("^(%s*)(.*)$")
+  local replacement
+  if rest:match("^%- %[ %]%s+") then
+    replacement = indent .. "- [x] " .. rest:gsub("^%- %[ %]%s+", "", 1)
+  elseif rest:match("^%- %[[xX]%]%s+") then
+    replacement = indent .. "- [ ] " ..
+      rest:gsub("^%- %[[xX]%]%s+", "", 1)
+  else
+    replacement = indent .. "- [ ] " .. rest
+  end
+  self:push_undo("toggle task item")
+  local delta = #replacement - #line
+  cell.source = source:sub(1, start - 1) .. replacement ..
+    source:sub(stop + 1)
+  if cursor > start + #indent then
+    cell.cursor = math.max(start + #indent,
+      math.min(#cell.source + 1, cursor + delta))
+  end
+  self.dirty = true
+  return true
+end
+
+function Notebook:insert_markdown_block(kind, language)
+  local cell = self:selected()
+  if cell == nil or cell.kind ~= "markdown" then return false end
+  local source = cell.source or ""
+  local cursor = cell.cursor or (#source + 1)
+  local prefix = cursor > 1 and source:sub(cursor - 1, cursor - 1) ~= "\n"
+    and "\n" or ""
+  local block
+  local caret
+  if kind == "rule" then
+    block = prefix .. "---\n"
+    caret = #block
+  elseif kind == "code" then
+    language = tostring(language or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    if language == "" then language = "lua" end
+    block = prefix .. "```" .. language .. "\n\n```\n"
+    caret = #prefix + #language + 4
+  elseif kind == "table" then
+    block = prefix ..
+      "| Column | Column |\n| --- | --- |\n| Value | Value |\n"
+    caret = #block
+  else
+    return false
+  end
+  self:push_undo("insert " .. kind)
+  cell.source = source:sub(1, cursor - 1) .. block .. source:sub(cursor)
+  cell.cursor = cursor + caret
+  self.dirty = true
+  return true
+end
+
+function Notebook:insert_footnote()
+  local cell = self:selected()
+  if cell == nil or cell.kind ~= "markdown" then return false end
+  local highest = 0
+  for _, item in ipairs(self.cells) do
+    if item.kind == "markdown" then
+      for number in (item.source or ""):gmatch("%[%^(%d+)%]") do
+        highest = math.max(highest, tonumber(number) or 0)
+      end
+    end
+  end
+  local number = highest + 1
+  local reference = "[^" .. number .. "]"
+  local source = cell.source or ""
+  local cursor = cell.cursor or (#source + 1)
+  self:push_undo("insert footnote")
+  cell.source = source:sub(1, cursor - 1) .. reference ..
+    source:sub(cursor)
+  local separator = cell.source == "" and "" or "\n\n"
+  cell.source = cell.source .. separator .. reference .. ": "
+  cell.cursor = cursor + #reference
+  self.dirty = true
+  return true
+end
+
 function Notebook:move_word(delta)
   if delta ~= 1 and delta ~= -1 then return false end
   local cell = self:selected()

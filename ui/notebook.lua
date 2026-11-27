@@ -926,6 +926,11 @@ function UI:palette_commands()
     { id = "ordered-list", label = "Toggle ordered list  (Ctrl+Alt+O)" },
     { id = "cycle-heading", label = "Cycle heading level  (Ctrl+Alt+H)" },
     { id = "insert-link", label = "Insert link  (Ctrl+K)" },
+    { id = "task-item", label = "Toggle task-list item" },
+    { id = "horizontal-rule", label = "Insert horizontal rule" },
+    { id = "code-block", label = "Insert fenced code block…" },
+    { id = "markdown-table", label = "Insert Markdown table" },
+    { id = "footnote", label = "Insert footnote" },
     { id = "move-line-up", label = "Move current line up  (Alt+Shift+Up)" },
     { id = "move-line-down", label = "Move current line down  (Alt+Shift+Down)" },
     { id = "duplicate-line", label = "Duplicate current line  (Ctrl+Shift+D)" },
@@ -1108,6 +1113,14 @@ function UI:run_palette_command(id)
     self.app:cycle_markdown_heading()
   elseif id == "insert-link" then
     self.rename_prompt = { kind = "link", value = "https://" }
+  elseif id == "task-item" then self.app:toggle_task_item()
+  elseif id == "horizontal-rule" then
+    self.app:insert_markdown_block("rule")
+  elseif id == "code-block" then
+    self.rename_prompt = { kind = "code-language", value = "lua" }
+  elseif id == "markdown-table" then
+    self.app:insert_markdown_block("table")
+  elseif id == "footnote" then self.app:insert_footnote()
   elseif id == "move-line-up" then self.app:shift_current_line(-1)
   elseif id == "move-line-down" then self.app:shift_current_line(1)
   elseif id == "duplicate-line" then self.app:duplicate_current_line()
@@ -2096,6 +2109,7 @@ function UI:draw_rename(pass, width, height)
     ["move-notebook"] = "Move notebook to folder",
     ["new-notebook"] = "New notebook name",
     link = "Link URL",
+    ["code-language"] = "Code fence language",
   }
   text(pass, self.app.font,
     titles[self.rename_prompt.kind] or "Rename notebook", x + 16, y + 12,
@@ -3611,6 +3625,8 @@ function UI:keypressed(key, modifiers)
         self.app:new_notebook(prompt.folder, prompt.value)
       elseif prompt.kind == "link" then
         self.app:insert_markdown_link(prompt.value)
+      elseif prompt.kind == "code-language" then
+        self.app:insert_markdown_block("code", prompt.value)
       else
         self.app:rename_notebook(prompt.old, prompt.value)
       end
