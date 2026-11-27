@@ -394,27 +394,81 @@ function App:cycle_tree_sort()
   self.status = "filetree sort: " .. Format.tree_sort_label(next_mode)
 end
 
-function App:new_notebook(folder)
+function App:new_notebook(folder, requested_name)
   folder = folder or "notebooks"
-  local index = 1
-  while lovr.filesystem.read(folder .. "/untitled-" .. index .. ".luanb") do
-    index = index + 1
+  local path, name
+  if requested_name ~= nil and requested_name:match("%S") then
+    path, name = Format.unique_notebook_path(folder, requested_name)
+    if path == nil then
+      self.status = "create failed: " .. tostring(name)
+      return
+    end
+  else
+    local index = 1
+    while lovr.filesystem.read(folder .. "/untitled-" .. index .. ".luanb") do
+      index = index + 1
+    end
+    name = "untitled-" .. index .. ".luanb"
+    path = folder .. "/" .. name
   end
-  local name = "untitled-" .. index .. ".luanb"
   local notebook = Notebook.new({
     name = name,
     cells = { { kind = "code", source = "print('new notebook')" } },
   })
-  local path, err = Format.save_in(notebook, folder)
-  if path == nil then
+  local saved, err = Format.save_in(notebook, folder)
+  if saved == nil then
     self.status = "create failed: " .. tostring(err)
     return
   end
-  notebook._path = path
+  notebook._path = saved
   self.notebooks[#self.notebooks + 1] = notebook
   self.active = #self.notebooks
   self.supervisor:open(self:kernel_id(notebook))
-  self.status = "created " .. path
+  self.status = "created " .. saved
+end
+
+function App:move_notebook(path, folder)
+  local target, err = Format.move_path(path, folder)
+  if target == nil then
+    self.status = "move failed: " .. tostring(err)
+    return false
+  end
+  for _, notebook in ipairs(self.notebooks) do
+    if notebook._path == path then notebook._path = target; break end
+  end
+  self.status = "moved notebook to " .. target
+  return true
+end
+
+function App:duplicate_notebook()
+  local notebook = self:notebook()
+  if notebook == nil or notebook._path == nil then
+    self.status = "no saved notebook to duplicate"
+    return false
+  end
+  local target, err = Format.duplicate_path(notebook._path)
+  if target == nil then
+    self.status = "duplicate failed: " .. tostring(err)
+    return false
+  end
+  local duplicate, load_err = Format.load_path(target)
+  if duplicate == nil then
+    self.status = "duplicate failed: " .. tostring(load_err)
+    return false
+  end
+  duplicate.name = target:match("([^/]+)$")
+  self.notebooks[#self.notebooks + 1] = duplicate
+  self.active = #self.notebooks
+  self.supervisor:open(self:kernel_id(duplicate))
+  self.status = "duplicated notebook to " .. target
+  return true
+end
+
+function App:rename_title(title)
+  local changed = self:notebook():set_title(title)
+  self.status = changed and "renamed notebook title" or
+    "title unchanged or invalid"
+  return changed
 end
 
 function App:create_folder(name, parent)
@@ -2089,13 +2143,23 @@ function lovr.load()
     app:rename_folder("notebooks/smoke-folder", "smoke-renamed")
     local renamed_ok = app:notebook()._path ==
       "notebooks/smoke-renamed/" .. app:notebook().name
+    local title_ok = app:rename_title("Smoke identity") and
+      app:notebook():title() == "Smoke identity"
+    local moved_path = "notebooks/smoke-renamed/" .. app:notebook().name
+    local move_ok = app:move_notebook(moved_path, "notebooks") and
+      app:notebook()._path == "notebooks/" .. app:notebook().name
+    local moved_name = app:notebook().name
+    local duplicate_ok = app:duplicate_notebook() and
+      app:notebook()._path ~= "notebooks/" .. moved_name
     app:delete_notebook(app:notebook()._path)
+    app:delete_notebook("notebooks/" .. moved_name)
     app:delete_notebook("notebooks/smoke-renamed")
     local folder_gone = not lovr.filesystem.isDirectory(
       "notebooks/smoke-renamed")
-    print(string.format("SMOKE_TREE=%d->%d->%d:%s:%s:%s", before, after,
-      final, tostring(nested_ok), tostring(renamed_ok),
-      tostring(folder_gone)))
+    print(string.format("SMOKE_TREE=%d->%d->%d:%s:%s:%s:%s:%s:%s", before,
+      after, final, tostring(nested_ok), tostring(renamed_ok),
+      tostring(folder_gone), tostring(title_ok), tostring(move_ok),
+      tostring(duplicate_ok)))
     lovr.event.quit()
   elseif os.getenv("LUANB_SMOKE_EXT_PREFS") then
     Extensions.set_enabled("grid", false)
@@ -2611,13 +2675,23 @@ function lovr.load()
     app:rename_folder("notebooks/smoke-folder", "smoke-renamed")
     local renamed_ok = app:notebook()._path ==
       "notebooks/smoke-renamed/" .. app:notebook().name
+    local title_ok = app:rename_title("Smoke identity") and
+      app:notebook():title() == "Smoke identity"
+    local moved_path = "notebooks/smoke-renamed/" .. app:notebook().name
+    local move_ok = app:move_notebook(moved_path, "notebooks") and
+      app:notebook()._path == "notebooks/" .. app:notebook().name
+    local moved_name = app:notebook().name
+    local duplicate_ok = app:duplicate_notebook() and
+      app:notebook()._path ~= "notebooks/" .. moved_name
     app:delete_notebook(app:notebook()._path)
+    app:delete_notebook("notebooks/" .. moved_name)
     app:delete_notebook("notebooks/smoke-renamed")
     local folder_gone = not lovr.filesystem.isDirectory(
       "notebooks/smoke-renamed")
-    print(string.format("SMOKE_TREE=%d->%d->%d:%s:%s:%s", before, after,
-      final, tostring(nested_ok), tostring(renamed_ok),
-      tostring(folder_gone)))
+    print(string.format("SMOKE_TREE=%d->%d->%d:%s:%s:%s:%s:%s:%s", before,
+      after, final, tostring(nested_ok), tostring(renamed_ok),
+      tostring(folder_gone), tostring(title_ok), tostring(move_ok),
+      tostring(duplicate_ok)))
     lovr.event.quit()
   elseif os.getenv("LUANB_SMOKE_EXT_PREFS") then
     Extensions.set_enabled("grid", false)
@@ -2855,13 +2929,23 @@ function lovr.update(dt)
     app:rename_folder("notebooks/smoke-folder", "smoke-renamed")
     local renamed_ok = app:notebook()._path ==
       "notebooks/smoke-renamed/" .. app:notebook().name
+    local title_ok = app:rename_title("Smoke identity") and
+      app:notebook():title() == "Smoke identity"
+    local moved_path = "notebooks/smoke-renamed/" .. app:notebook().name
+    local move_ok = app:move_notebook(moved_path, "notebooks") and
+      app:notebook()._path == "notebooks/" .. app:notebook().name
+    local moved_name = app:notebook().name
+    local duplicate_ok = app:duplicate_notebook() and
+      app:notebook()._path ~= "notebooks/" .. moved_name
     app:delete_notebook(app:notebook()._path)
+    app:delete_notebook("notebooks/" .. moved_name)
     app:delete_notebook("notebooks/smoke-renamed")
     local folder_gone = not lovr.filesystem.isDirectory(
       "notebooks/smoke-renamed")
-    print(string.format("SMOKE_TREE=%d->%d->%d:%s:%s:%s", before, after,
-      final, tostring(nested_ok), tostring(renamed_ok),
-      tostring(folder_gone)))
+    print(string.format("SMOKE_TREE=%d->%d->%d:%s:%s:%s:%s:%s:%s", before,
+      after, final, tostring(nested_ok), tostring(renamed_ok),
+      tostring(folder_gone), tostring(title_ok), tostring(move_ok),
+      tostring(duplicate_ok)))
     lovr.event.quit()
   elseif os.getenv("LUANB_SMOKE_EXT_PREFS") then
     Extensions.set_enabled("grid", false)

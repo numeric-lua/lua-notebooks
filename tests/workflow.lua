@@ -25,7 +25,8 @@ local calls = {
   open_title = 0, duplicate = 0, close_others = 0, run_above = 0,
   open_path = 0, cycle_sort = 0, save_all = 0, restart_all = 0,
   new_notebook = 0, create_folder = 0, rename_folder = 0,
-  delete_path = 0, expand_folders = 0, run_next = 0, run_insert = 0,
+  delete_path = 0, expand_folders = 0, move_notebook = 0,
+  duplicate_notebook = 0, rename_title = 0, run_next = 0, run_insert = 0,
   clear_rerun = 0, restart_clear = 0, stop_run_all = 0,
   expand_outputs = 0, comment_line = 0, shift_line = 0, duplicate_line = 0,
   indent_line = 0,
@@ -67,7 +68,16 @@ local app = {
   end,
   open_path = function(self, path) calls.open_path = calls.open_path + 1; return true end,
   cycle_tree_sort = function(self) calls.cycle_sort = calls.cycle_sort + 1 end,
-  new_notebook = function(self, folder) calls.new_notebook = calls.new_notebook + 1; calls.new_folder = folder end,
+  new_notebook = function(self, folder, name)
+    calls.new_notebook = calls.new_notebook + 1
+    calls.new_folder = folder; calls.new_name = name
+  end,
+  move_notebook = function(self, path, folder)
+    calls.move_notebook = calls.move_notebook + 1
+    calls.move_to = folder
+  end,
+  duplicate_notebook = function(self) calls.duplicate_notebook = calls.duplicate_notebook + 1 end,
+  rename_title = function(self, title) calls.rename_title = calls.rename_title + 1; calls.title = title end,
   create_folder = function(self, name, parent) calls.create_folder = calls.create_folder + 1; calls.folder_parent = parent end,
   rename_folder = function(self, path, name) calls.rename_folder = calls.rename_folder + 1; return true end,
   delete_notebook = function(self, path) calls.delete_path = calls.delete_path + 1 end,
@@ -160,6 +170,7 @@ for _, id in ipairs({ "restart-run-all", "copy-cell", "paste-cell", "copy-output
     "restart-clear", "stop-run-all", "save-all", "restart-all-kernels",
     "expand-outputs", "collapse-outputs", "clear-cell-output", "reopen-closed", "go-to-cell",
     "close-others", "duplicate-cell", "tree-expand-all", "tree-collapse-all",
+    "move-notebook", "duplicate-notebook", "reveal-notebook", "rename-title",
     "comment-line", "move-line-up",
     "move-line-down", "duplicate-line", "indent-line", "outdent-line",
     "delete-word-back", "delete-word-forward", "join-line", "cell-start",
@@ -198,6 +209,30 @@ ui:run_palette_command("restart-clear")
 assert(calls.restart_clear == 1, "palette restart-clear command is miswired")
 ui:run_palette_command("stop-run-all")
 assert(calls.stop_run_all == 1, "palette stop-run-all command is miswired")
+ui:run_palette_command("duplicate-notebook")
+assert(calls.duplicate_notebook == 1,
+  "palette duplicate-notebook command is miswired")
+notebook._path = "notebooks/work/current.luanb"
+ui:run_palette_command("move-notebook")
+assert(ui.rename_prompt and ui.rename_prompt.kind == "move-notebook",
+  "palette move-notebook did not open the folder prompt")
+ui.rename_prompt.value = "notebooks/other"
+ui:keypressed("return")
+assert(calls.move_notebook == 1 and calls.move_to == "notebooks/other",
+  "move-notebook prompt was miswired")
+ui:run_palette_command("rename-title")
+assert(ui.rename_prompt and ui.rename_prompt.kind == "title",
+  "palette rename-title did not open the title prompt")
+ui.rename_prompt.value = "New title"
+ui:keypressed("return")
+assert(calls.rename_title == 1 and calls.title == "New title",
+  "rename-title prompt was miswired")
+notebook._path = "notebooks/deep/work.luanb"
+ui:run_palette_command("reveal-notebook")
+assert(ui.show_tree and app.tree_expanded["notebooks/deep"] == true,
+  "reveal-notebook did not expand the active notebook ancestors")
+ui.show_tree = false
+notebook._path = nil
 ui:run_palette_command("clear-cell-output")
 assert(calls.clear_output == 2, "palette clear-cell-output is miswired")
 ui:run_palette_command("reopen-closed")
@@ -276,8 +311,13 @@ ui:open_tree()
 ui.tree_selected = 2
 ui.tree_rects = { { x = 0, y = 0, w = 20, h = 20, action = "new" } }
 ui:mousepressed(5, 5, 1)
-assert(calls.new_notebook == 1 and calls.new_folder == "notebooks/work",
-  "New notebook did not use the selected folder")
+assert(ui.rename_prompt ~= nil and
+  ui.rename_prompt.kind == "new-notebook",
+  "New notebook did not open the name prompt")
+ui:keypressed("return")
+assert(calls.new_notebook == 1 and calls.new_folder == "notebooks/work" and
+  calls.new_name == "untitled",
+  "New notebook did not use the selected folder and name")
 ui.show_tree = false
 ui.folder_prompt = { value = "child", parent = "notebooks/work" }
 ui:keypressed("return")

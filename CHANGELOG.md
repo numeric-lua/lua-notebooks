@@ -67,7 +67,16 @@
 - clear the selected output and rerun it with **Ctrl+Alt+R**;
 - restart the current kernel and clear every output from the palette;
 - stop a running **Run all**/**Run below**/**Run above** queue from the palette
-  without interrupting a cell that is already executing.
+  without interrupting a cell that is already executing;
+- prompt for a notebook name when creating one from the filetree, keeping the
+  chosen folder and adding a numeric suffix only when the name already exists;
+- move the current notebook into another folder from the palette, updating its
+  open tab path;
+- duplicate the current notebook next to its file and open the copy in a new tab;
+- reveal the active notebook in the filetree by expanding every ancestor folder
+  and selecting its row;
+- rename the notebook title from the palette by editing the first level-one
+  Markdown heading, or inserting one when none exists.
 
 Tests: `tests/workflow.lua` covers paste, run-above dispatch, save/restart-all
 dispatch, filetree keyboard navigation, and output-fold dispatch; `tests/run.lua`
@@ -75,7 +84,8 @@ covers filetree sorting, bulk output folding, duplicate-cell undo, line editing
 (move/duplicate/comment/indent/go-to-line), word movement/deletion, line joining,
 search kind filtering/paging, filetree keyboard navigation, folder
 create/rename/delete/save helpers, palette/tag/outline/filetree paging, and
-run-next/run-insert/clear-rerun/restart-clear/stop-run-all dispatch; the browser Markdown suite
+run-next/run-insert/clear-rerun/restart-clear/stop-run-all dispatch, notebook
+name/move/duplicate/title/reveal flows; the browser Markdown suite
 covers code-block badges/copy markup, heading anchor uniqueness, permalinks, and
 display math. The filetree overlay QA screenshot and
 `LUANB_SMOKE_WORKFLOW` (including save-all, restart-all, run-above, paste, and

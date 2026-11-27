@@ -26,7 +26,9 @@
   Command palette, tag index, heading outline, and filetree rows also page
   cleanly, and recently used palette commands float to the top. Execution
   includes Shift+Enter run-next, Alt+Enter run-and-insert, clear-and-rerun,
-  restart-and-clear, and a stoppable run-all queue.
+  restart-and-clear, and a stoppable run-all queue. Notebook identity covers
+  named creation, folder moves, duplication, title renaming, and revealing the
+  active file through expanded ancestors.
 - GitHub-style Markdown pipe tables, nested lists, italic emphasis, grouped
   blockquotes, highlight, bare-URL autolinks, backslash escapes, and numbered
   footnotes with endnote backlinks across the preview, static export, and

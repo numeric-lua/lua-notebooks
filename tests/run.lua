@@ -417,6 +417,23 @@ test("derives the title from the first level-one markdown heading", function()
   eq(notebook:title(), "Second title")
 end)
 
+test("renames the existing title or inserts a heading", function()
+  local Notebook = require("notebook.model")
+  local notebook = Notebook.new({ cells = {
+    { kind = "markdown", source = "# Old\nbody" },
+  } })
+  eq(notebook:set_title("New"), true)
+  eq(notebook.cells[1].source, "# New\nbody")
+  eq(notebook:title(), "New")
+  eq(notebook:set_title("New"), false)
+  eq(notebook:set_title(""), false)
+  notebook.cells[1].source = "prose only"
+  eq(notebook:set_title("Inserted"), true)
+  eq(notebook.cells[1].kind, "markdown")
+  eq(notebook.cells[1].source, "# Inserted")
+  eq(notebook.active, 1)
+end)
+
 current = "undo tree"
 test("preserves branches after undo and edit", function()
   local Notebook = require("notebook.model")
@@ -1434,6 +1451,32 @@ test("creates and renames folders under a parent", function()
   eq(renamed, "notebooks/work/renamed")
   eq(from, "/save/notebooks/work/sub")
   eq(to, "/save/notebooks/work/renamed")
+  _G.lovr = saved_lovr
+end)
+
+test("moves, duplicates, and names notebooks in folders", function()
+  local saved_lovr = rawget(_G, "lovr")
+  local files = { ["notebooks/work/note.luanb"] = "{}" }
+  _G.lovr = { filesystem = {
+    read = function(path) return files[path] end,
+    write = function(path, text) files[path] = text; return true end,
+    createDirectory = function() return true end,
+    getSaveDirectory = function() return "/save" end,
+  } }
+  local path, name = Format.unique_notebook_path("notebooks/work", "note")
+  eq(path, "notebooks/work/note-2.luanb")
+  eq(name, "note-2.luanb")
+  local saved_rename = os.rename
+  local from, to
+  os.rename = function(source, target) from, to = source, target; return true end
+  local moved = Format.move_path("notebooks/work/note.luanb", "notebooks/other")
+  os.rename = saved_rename
+  eq(moved, "notebooks/other/note.luanb")
+  eq(from, "/save/notebooks/work/note.luanb")
+  eq(to, "/save/notebooks/other/note.luanb")
+  local copy = Format.duplicate_path("notebooks/work/note.luanb")
+  eq(copy, "notebooks/work/note-copy.luanb")
+  eq(files[copy], "{}")
   _G.lovr = saved_lovr
 end)
 

@@ -247,9 +247,13 @@ kernel and global state.
 
 **F2** opens a hierarchical list of saved notebooks under `notebooks/`.
 Clicking a folder expands it, clicking a notebook opens it, `+ New notebook`
-creates one in the selected folder (or the root), and `+ Folder` creates a
-subfolder there. Folders and notebooks both expose `✎` rename and `×` delete
-actions; folder deletion is limited to empty folders and asks for confirmation.
+opens a name prompt and creates the notebook in the selected folder (or the
+root), and `+ Folder` creates a subfolder there. The command palette adds
+**Move current notebook to folder…**, **Duplicate current notebook**, **Reveal
+current notebook in filetree**, and **Rename notebook title…**; reveal expands
+the active notebook's ancestor folders. Folders and notebooks both expose `✎`
+rename and `×` delete actions; folder deletion is limited to empty folders and
+asks for confirmation.
 The command palette adds **Expand all filetree folders** and **Collapse all
 filetree folders**. PageUp/PageDown move through longer trees, while Home/End
 jump to the first/last row. The **Sort** button cycles **A→Z**, **Z→A**,
@@ -440,7 +444,7 @@ remaining gaps.
 `make test` runs the pure model, widget, engine, remote-supervisor,
 process-kernel, sandbox, editor, filetree filtering/sorting/keyboard navigation,
 workflow shortcut dispatch, run-next/run-insert/clear-rerun, run-above, paste,
-save/restart-all, bulk output
+notebook naming/move/duplicate/title/reveal, save/restart-all, bulk output
 folding, line/word editing, join, comment/duplicate/indent, filetree folder
 create/rename/delete, tag/heading filtering, Markdown
 nested quotes/callouts/definition lists/tables/nesting/

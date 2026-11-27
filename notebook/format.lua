@@ -2552,6 +2552,68 @@ function Format.rename_path(old_path, new_name)
   return new_path
 end
 
+function Format.unique_notebook_path(folder, name)
+  folder = (folder or "notebooks"):gsub("/+$", "")
+  if folder:find("%.%.") or folder:sub(1, 1) == "/" then
+    return nil, "invalid folder"
+  end
+  name = (name or ""):gsub("^%s+", ""):gsub("%s+$", ""):gsub("%s+", "-")
+  name = name:gsub("%.luanb$", "")
+  if name:find("%.%.") or name:find("/") then
+    return nil, "invalid notebook name"
+  end
+  if name == "" then name = "untitled" end
+  local path
+  local suffix = 1
+  repeat
+    local candidate = suffix == 1 and name or (name .. "-" .. suffix)
+    path = folder .. "/" .. candidate .. ".luanb"
+    if lovr.filesystem.read(path) == nil then
+      return path, candidate .. ".luanb"
+    end
+    suffix = suffix + 1
+  until suffix > 999
+  return nil, "too many notebook names"
+end
+
+function Format.move_path(path, folder)
+  folder = (folder or "notebooks"):gsub("/+$", "")
+  if folder:find("%.%.") or folder:sub(1, 1) == "/" then
+    return nil, "invalid folder"
+  end
+  local name = path:match("([^/]+)$")
+  local parent = path:match("^(.*)/") or "notebooks"
+  if parent == folder then return path end
+  lovr.filesystem.createDirectory(folder)
+  local target = folder .. "/" .. name
+  if lovr.filesystem.read(target) ~= nil then
+    return nil, "target notebook already exists"
+  end
+  local root = lovr.filesystem.getSaveDirectory() .. "/"
+  local ok, err = os.rename(root .. path, root .. target)
+  if not ok then return nil, err end
+  return target
+end
+
+function Format.duplicate_path(path)
+  local text = lovr.filesystem.read(path)
+  if text == nil then return nil, "not found: " .. path end
+  local parent = path:match("^(.*)/") or "notebooks"
+  local name = path:match("([^/]+)$"):gsub("%.luanb$", "")
+  local suffix = 1
+  local target
+  repeat
+    local candidate = suffix == 1 and (name .. "-copy") or
+      (name .. "-copy-" .. suffix)
+    target = parent .. "/" .. candidate .. ".luanb"
+    if lovr.filesystem.read(target) == nil then break end
+    suffix = suffix + 1
+  until suffix > 999
+  local ok, err = lovr.filesystem.write(target, text)
+  if not ok then return nil, err end
+  return target
+end
+
 function Format.load(name)
   local path = "notebooks/" .. name
   local text = lovr.filesystem.read(path)

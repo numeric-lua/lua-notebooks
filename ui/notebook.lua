@@ -939,6 +939,10 @@ function UI:palette_commands()
     { id = "tree-sort", label = "Cycle filetree sort  (A→Z / Z→A / Recent)" },
     { id = "tree-expand-all", label = "Expand all filetree folders" },
     { id = "tree-collapse-all", label = "Collapse all filetree folders" },
+    { id = "move-notebook", label = "Move current notebook to folder…" },
+    { id = "duplicate-notebook", label = "Duplicate current notebook" },
+    { id = "reveal-notebook", label = "Reveal current notebook in filetree" },
+    { id = "rename-title", label = "Rename notebook title…" },
     { id = "vim", label = "Toggle Vim mode  (F3)" },
     { id = "zen", label = "Toggle Zen mode  (F4)" },
     { id = "screenshot", label = "Save screenshot  (Ctrl+Shift+S)" },
@@ -1113,6 +1117,22 @@ function UI:run_palette_command(id)
   elseif id == "tree-sort" then self.app:cycle_tree_sort()
   elseif id == "tree-expand-all" then self.app:set_folders_expanded(true)
   elseif id == "tree-collapse-all" then self.app:set_folders_expanded(false)
+  elseif id == "move-notebook" then
+    local notebook = self.app:notebook()
+    if notebook._path == nil then
+      self.app.status = "notebook has no saved path"
+    else
+      self.rename_prompt = {
+        kind = "move-notebook", old = notebook._path,
+        value = notebook._path:match("^(.*)/") or "notebooks",
+      }
+    end
+  elseif id == "duplicate-notebook" then self.app:duplicate_notebook()
+  elseif id == "reveal-notebook" then self:open_tree()
+  elseif id == "rename-title" then
+    self.rename_prompt = {
+      kind = "title", value = self.app:notebook():title(),
+    }
   elseif id == "history" then self:open_history()
   elseif id == "stats" then self:open_stats()
   elseif id == "cell-below" then self.app:add_cell("code")
@@ -2035,9 +2055,15 @@ function UI:draw_rename(pass, width, height)
   local panel_w, panel_h = 460, 90
   local x, y = (width - panel_w) / 2, 140
   box(pass, x, y, panel_w, panel_h, { 0.04, 0.05, 0.08, 1 })
+  local titles = {
+    folder = "Rename folder",
+    title = "Rename notebook title",
+    ["move-notebook"] = "Move notebook to folder",
+    ["new-notebook"] = "New notebook name",
+  }
   text(pass, self.app.font,
-    self.rename_prompt.kind == "folder" and "Rename folder" or
-    "Rename notebook", x + 16, y + 12, { 0.9, 0.94, 1, 1 }, 0.72)
+    titles[self.rename_prompt.kind] or "Rename notebook", x + 16, y + 12,
+    { 0.9, 0.94, 1, 1 }, 0.72)
   box(pass, x + 14, y + 40, panel_w - 28, 28, { 0.09, 0.12, 0.18, 1 })
   text(pass, self.app.font, self.rename_prompt.value .. "|", x + 24, y + 47,
     { 0.85, 0.92, 1, 1 }, 0.7)
@@ -2073,8 +2099,16 @@ function UI:open_tree()
   self.tree_query = ""
   self.tree_selected = 1
   self.tree_offset = 0
-  self.tree_items = self.app:library_items("")
   local active_path = self.app:notebook()._path
+  if active_path ~= nil then
+    local parent = active_path:match("^(.*)/")
+    while parent ~= nil and parent ~= "" do
+      self.app.tree_expanded[parent] = true
+      if parent == "notebooks" then break end
+      parent = parent:match("^(.*)/")
+    end
+  end
+  self.tree_items = self.app:library_items("")
   if active_path ~= nil then
     for index, item in ipairs(self.tree_items) do
       if item.path == active_path then self.tree_selected = index; break end
@@ -3491,6 +3525,12 @@ function UI:keypressed(key, modifiers)
       self.rename_prompt = nil
       if prompt.kind == "folder" then
         self.app:rename_folder(prompt.old, prompt.value)
+      elseif prompt.kind == "title" then
+        self.app:rename_title(prompt.value)
+      elseif prompt.kind == "move-notebook" then
+        self.app:move_notebook(prompt.old, prompt.value)
+      elseif prompt.kind == "new-notebook" then
+        self.app:new_notebook(prompt.folder, prompt.value)
       else
         self.app:rename_notebook(prompt.old, prompt.value)
       end
@@ -4202,7 +4242,10 @@ function UI:mousepressed(x, y, button)
         if rect.action == "sort" then
           self.app:cycle_tree_sort()
         elseif rect.action == "new" then
-          self.app:new_notebook(self:tree_parent_path())
+          self.rename_prompt = {
+            kind = "new-notebook", folder = self:tree_parent_path(),
+            value = "untitled",
+          }
         elseif rect.action == "rename" then
           self.rename_prompt = {
             old = rect.path,

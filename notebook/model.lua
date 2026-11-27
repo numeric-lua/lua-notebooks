@@ -237,6 +237,32 @@ function Notebook:duplicate(index)
   return copy
 end
 
+function Notebook:set_title(title)
+  title = tostring(title or ""):gsub("^%s+", ""):gsub("%s+$", "")
+  title = title:gsub("\n.*$", "")
+  if title == "" then return false end
+  for _, item in ipairs(self.cells) do
+    if item.kind == "markdown" then
+      local indent = item.source:match("^(%s*)#%s+[^\n]*")
+      if indent ~= nil then
+        if self:title() == title then return false end
+        local newline = item.source:find("\n", 1, true)
+        local tail = newline ~= nil and item.source:sub(newline) or ""
+        self:push_undo("rename title")
+        item.source = indent .. "# " .. title .. tail
+        self.dirty = true
+        return true
+      end
+    end
+  end
+  self:push_undo("rename title")
+  local new = cell("markdown", "# " .. title)
+  table.insert(self.cells, 1, new)
+  self.active = 1
+  self.dirty = true
+  return true
+end
+
 function Notebook:add_cell_above(kind)
   return self:add_cell(kind, math.max(0, (self.active or 1) - 1))
 end
