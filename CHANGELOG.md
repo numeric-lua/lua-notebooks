@@ -76,7 +76,12 @@
 - reveal the active notebook in the filetree by expanding every ancestor folder
   and selecting its row;
 - rename the notebook title from the palette by editing the first level-one
-  Markdown heading, or inserting one when none exists.
+  Markdown heading, or inserting one when none exists;
+- toggle `**bold**` around the Markdown word at the caret with **Ctrl+B**;
+- toggle `*italic*` around the Markdown word at the caret with **Ctrl+I**;
+- toggle inline code with **Ctrl+Shift+M**;
+- toggle `==highlight==` with **Ctrl+Shift+H**;
+- toggle `~~strikethrough~~` with **Ctrl+Shift+X**.
 
 Tests: `tests/workflow.lua` covers paste, run-above dispatch, save/restart-all
 dispatch, filetree keyboard navigation, and output-fold dispatch; `tests/run.lua`
@@ -85,7 +90,7 @@ covers filetree sorting, bulk output folding, duplicate-cell undo, line editing
 search kind filtering/paging, filetree keyboard navigation, folder
 create/rename/delete/save helpers, palette/tag/outline/filetree paging, and
 run-next/run-insert/clear-rerun/restart-clear/stop-run-all dispatch, notebook
-name/move/duplicate/title/reveal flows; the browser Markdown suite
+name/move/duplicate/title/reveal flows and Markdown inline formatting; the browser Markdown suite
 covers code-block badges/copy markup, heading anchor uniqueness, permalinks, and
 display math. The filetree overlay QA screenshot and
 `LUANB_SMOKE_WORKFLOW` (including save-all, restart-all, run-above, paste, and

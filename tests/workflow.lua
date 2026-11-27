@@ -28,6 +28,7 @@ local calls = {
   delete_path = 0, expand_folders = 0, move_notebook = 0,
   duplicate_notebook = 0, rename_title = 0, run_next = 0, run_insert = 0,
   clear_rerun = 0, restart_clear = 0, stop_run_all = 0,
+  bold = 0, italic = 0, inline_code = 0, highlight = 0, strike = 0,
   expand_outputs = 0, comment_line = 0, shift_line = 0, duplicate_line = 0,
   indent_line = 0,
 }
@@ -49,6 +50,13 @@ local app = {
   run_next = function(self) calls.run_next = calls.run_next + 1 end,
   run_and_insert = function(self) calls.run_insert = calls.run_insert + 1 end,
   clear_and_rerun = function(self) calls.clear_rerun = calls.clear_rerun + 1 end,
+  toggle_markdown_format = function(self, prefix, suffix, label)
+    if label == "bold" then calls.bold = calls.bold + 1
+    elseif label == "italic" then calls.italic = calls.italic + 1
+    elseif label == "inline code" then calls.inline_code = calls.inline_code + 1
+    elseif label == "highlight" then calls.highlight = calls.highlight + 1
+    elseif label == "strikethrough" then calls.strike = calls.strike + 1 end
+  end,
   restart_and_clear = function(self) calls.restart_clear = calls.restart_clear + 1 end,
   stop_run_all = function(self) calls.stop_run_all = calls.stop_run_all + 1 end,
   clear_cell_output = function(self) calls.clear_output = calls.clear_output + 1 end,
@@ -160,6 +168,16 @@ ui:keypressed("return", { alt = true })
 assert(calls.run_insert == 1, "Alt+Enter does not run and insert below")
 ui:keypressed("r", { ctrl = true, alt = true })
 assert(calls.clear_rerun == 1, "Ctrl+Alt+R does not clear and rerun")
+ui:keypressed("b", { ctrl = true })
+assert(calls.bold == 1, "Ctrl+B does not toggle bold")
+ui:keypressed("i", { ctrl = true })
+assert(calls.italic == 1, "Ctrl+I does not toggle italic")
+ui:keypressed("m", { ctrl = true, shift = true })
+assert(calls.inline_code == 1, "Ctrl+Shift+M does not toggle inline code")
+ui:keypressed("h", { ctrl = true, shift = true })
+assert(calls.highlight == 1, "Ctrl+Shift+H does not toggle highlight")
+ui:keypressed("x", { ctrl = true, shift = true })
+assert(calls.strike == 1, "Ctrl+Shift+X does not toggle strikethrough")
 
 local commands = {}
 for _, command in ipairs(ui:palette_commands()) do
@@ -171,7 +189,8 @@ for _, id in ipairs({ "restart-run-all", "copy-cell", "paste-cell", "copy-output
     "expand-outputs", "collapse-outputs", "clear-cell-output", "reopen-closed", "go-to-cell",
     "close-others", "duplicate-cell", "tree-expand-all", "tree-collapse-all",
     "move-notebook", "duplicate-notebook", "reveal-notebook", "rename-title",
-    "comment-line", "move-line-up",
+    "comment-line", "bold", "italic", "inline-code", "highlight",
+    "strikethrough", "move-line-up",
     "move-line-down", "duplicate-line", "indent-line", "outdent-line",
     "delete-word-back", "delete-word-forward", "join-line", "cell-start",
     "cell-end", "go-to-line", "tree-sort", "prev-heading", "next-heading",
@@ -248,6 +267,14 @@ ui:run_palette_command("duplicate-cell")
 assert(calls.duplicate == 2, "palette duplicate-cell is miswired")
 ui:run_palette_command("comment-line")
 assert(calls.comment_line == 2, "palette comment-line is miswired")
+ui:run_palette_command("bold")
+ui:run_palette_command("italic")
+ui:run_palette_command("inline-code")
+ui:run_palette_command("highlight")
+ui:run_palette_command("strikethrough")
+assert(calls.bold == 2 and calls.italic == 2 and calls.inline_code == 2 and
+  calls.highlight == 2 and calls.strike == 2,
+  "palette Markdown formatting commands are miswired")
 ui:run_palette_command("move-line-up")
 ui:run_palette_command("move-line-down")
 assert(calls.shift_line == 0, "palette line-move commands are miswired")

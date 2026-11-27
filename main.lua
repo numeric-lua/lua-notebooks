@@ -836,6 +836,12 @@ function App:duplicate_cell()
   self.status = "duplicated cell"
 end
 
+function App:toggle_markdown_format(prefix, suffix, label)
+  local changed = self:notebook():toggle_inline(prefix, suffix, label)
+  self.status = changed and ((label or "format") .. " toggled") or
+    "markdown cells only"
+end
+
 function App:toggle_line_comment()
   local changed = self:notebook():toggle_comment()
   self.status = changed and "toggled line comment" or

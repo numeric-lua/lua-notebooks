@@ -725,6 +725,55 @@ function Notebook:go_to_line(line)
   return true
 end
 
+local function inline_word_bounds(source, cursor)
+  local function blank(byte)
+    return byte == nil or byte == 32 or byte == 9 or byte == 10 or byte == 13
+  end
+  local start = math.min(math.max(1, cursor or 1), #source)
+  if start >= 1 and blank(source:byte(start)) then start = start - 1 end
+  if start < 1 or blank(source:byte(start)) then return nil end
+  while start > 1 and not blank(source:byte(start - 1)) do
+    start = start - 1
+  end
+  local stop = start
+  while stop <= #source and not blank(source:byte(stop)) do
+    stop = stop + 1
+  end
+  return start, stop - 1
+end
+
+function Notebook:toggle_inline(prefix, suffix, label)
+  local cell = self:selected()
+  if cell == nil or cell.kind ~= "markdown" then return false end
+  local source = cell.source or ""
+  local cursor = cell.cursor or (#source + 1)
+  local start, stop = inline_word_bounds(source, cursor)
+  self:push_undo(label or "format inline")
+  if start == nil then
+    cell.source = source:sub(1, cursor - 1) .. prefix .. suffix ..
+      source:sub(cursor)
+    cell.cursor = cursor + #prefix
+    self.dirty = true
+    return true
+  end
+  local text = source:sub(start, stop)
+  local offset = math.min(#text, math.max(0, cursor - start))
+  local replacement
+  if text:sub(1, #prefix) == prefix and
+     text:sub(#text - #suffix + 1) == suffix then
+    replacement = text:sub(#prefix + 1, #text - #suffix)
+    offset = math.max(0, offset - #prefix)
+  else
+    replacement = prefix .. text .. suffix
+    offset = offset + #prefix
+  end
+  cell.source = source:sub(1, start - 1) .. replacement ..
+    source:sub(stop + 1)
+  cell.cursor = start + offset
+  self.dirty = true
+  return true
+end
+
 function Notebook:move_word(delta)
   if delta ~= 1 and delta ~= -1 then return false end
   local cell = self:selected()

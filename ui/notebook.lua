@@ -916,6 +916,11 @@ function UI:palette_commands()
     { id = "expand-headings", label = "Expand all headings" },
     { id = "duplicate-cell", label = "Duplicate selected cell  (Alt+D)" },
     { id = "comment-line", label = "Toggle line comment  (Ctrl+/)" },
+    { id = "bold", label = "Bold  (Ctrl+B)" },
+    { id = "italic", label = "Italic  (Ctrl+I)" },
+    { id = "inline-code", label = "Inline code  (Ctrl+Shift+M)" },
+    { id = "highlight", label = "Highlight  (Ctrl+Shift+H)" },
+    { id = "strikethrough", label = "Strikethrough  (Ctrl+Shift+X)" },
     { id = "move-line-up", label = "Move current line up  (Alt+Shift+Up)" },
     { id = "move-line-down", label = "Move current line down  (Alt+Shift+Down)" },
     { id = "duplicate-line", label = "Duplicate current line  (Ctrl+Shift+D)" },
@@ -1078,6 +1083,16 @@ function UI:run_palette_command(id)
   elseif id == "expand-headings" then self.app:set_headings_collapsed(false)
   elseif id == "duplicate-cell" then self.app:duplicate_cell()
   elseif id == "comment-line" then self.app:toggle_line_comment()
+  elseif id == "bold" then
+    self.app:toggle_markdown_format("**", "**", "bold")
+  elseif id == "italic" then
+    self.app:toggle_markdown_format("*", "*", "italic")
+  elseif id == "inline-code" then
+    self.app:toggle_markdown_format("`", "`", "inline code")
+  elseif id == "highlight" then
+    self.app:toggle_markdown_format("==", "==", "highlight")
+  elseif id == "strikethrough" then
+    self.app:toggle_markdown_format("~~", "~~", "strikethrough")
   elseif id == "move-line-up" then self.app:shift_current_line(-1)
   elseif id == "move-line-down" then self.app:shift_current_line(1)
   elseif id == "duplicate-line" then self.app:duplicate_current_line()
@@ -1823,6 +1838,9 @@ function UI:draw_help(pass, width, height)
       { title = "EDITING", rows = {
         { "Tab", "insert two spaces" },
         { "Ctrl+/", "toggle line comment" },
+        { "Ctrl+B / I", "bold / italic" },
+        { "Ctrl+Shift+M", "inline code" },
+        { "Ctrl+Shift+H / X", "highlight / strikethrough" },
         { "Alt+Shift+Up / Down", "move current line" },
         { "Ctrl+Shift+D", "duplicate current line" },
         { "Ctrl+] / [", "indent / outdent current line" },
@@ -3249,6 +3267,26 @@ function UI:keypressed(key, modifiers)
     self:open_global_find(); return
   end
   if ctrl_down and key == "f" then self:open_find(); return end
+  if ctrl_down and key == "b" then
+    self.app:toggle_markdown_format("**", "**", "bold")
+    return
+  end
+  if ctrl_down and key == "i" and not shift_down then
+    self.app:toggle_markdown_format("*", "*", "italic")
+    return
+  end
+  if ctrl_down and shift_down and key == "m" then
+    self.app:toggle_markdown_format("`", "`", "inline code")
+    return
+  end
+  if ctrl_down and shift_down and key == "h" then
+    self.app:toggle_markdown_format("==", "==", "highlight")
+    return
+  end
+  if ctrl_down and shift_down and key == "x" then
+    self.app:toggle_markdown_format("~~", "~~", "strikethrough")
+    return
+  end
   if ctrl_down and key == "h" then self:open_replace(); return end
   if ctrl_down and key == "g" and not alt_down then
     self:open_graph(); return

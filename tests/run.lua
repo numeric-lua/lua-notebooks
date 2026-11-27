@@ -594,6 +594,35 @@ test("moves and deletes by word and joins lines", function()
   eq(cell.cursor, #cell.source + 1)
 end)
 
+test("toggles inline Markdown formatting around the current word", function()
+  local Notebook = require("notebook.model")
+  local notebook = Notebook.new({ cells = {
+    { kind = "markdown", source = "alpha beta" },
+  } })
+  local cell = notebook.cells[1]
+  cell.cursor = 3
+  eq(notebook:toggle_inline("**", "**", "bold"), true)
+  eq(cell.source, "**alpha** beta")
+  eq(cell.cursor, 5)
+  eq(notebook:toggle_inline("**", "**", "bold"), true)
+  eq(cell.source, "alpha beta")
+  eq(cell.cursor, 3)
+  cell.cursor = 8
+  eq(notebook:toggle_inline("*", "*", "italic"), true)
+  eq(cell.source, "alpha *beta*")
+  cell.cursor = 1
+  eq(notebook:toggle_inline("`", "`", "code"), true)
+  assert(cell.source:find("`alpha`", 1, true) == 1)
+  cell.cursor = 1
+  eq(notebook:toggle_inline("==", "==", "highlight"), true)
+  assert(cell.source:find("==`alpha`==", 1, true) == 1)
+  cell.cursor = 1
+  eq(notebook:toggle_inline("~~", "~~", "strike"), true)
+  assert(cell.source:find("~~==`alpha`==~~", 1, true) == 1)
+  cell.kind = "code"
+  eq(notebook:toggle_inline("**", "**", "bold"), false)
+end)
+
 current = "vim delimiter objects"
 test("finds quoted and bracketed ranges", function()
   local Notebook = require("notebook.model")

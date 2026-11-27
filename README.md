@@ -217,6 +217,9 @@ Controls:
 | `Ctrl+Alt+K` | restart every notebook kernel |
 | `Alt+D` | duplicate the selected cell |
 | `Ctrl+/` | toggle a `--` comment on the current line |
+| `Ctrl+B` / `Ctrl+I` | bold / italic Markdown text |
+| `Ctrl+Shift+M` | inline code Markdown text |
+| `Ctrl+Shift+H` / `Ctrl+Shift+X` | highlight / strikethrough Markdown text |
 | `Alt+Shift+Up` / `Alt+Shift+Down` | move the current line up / down |
 | `Ctrl+Shift+D` | duplicate the current line |
 | `Ctrl+Left` / `Ctrl+Right` | move by word |
@@ -445,7 +448,8 @@ remaining gaps.
 process-kernel, sandbox, editor, filetree filtering/sorting/keyboard navigation,
 workflow shortcut dispatch, run-next/run-insert/clear-rerun, run-above, paste,
 notebook naming/move/duplicate/title/reveal, save/restart-all, bulk output
-folding, line/word editing, join, comment/duplicate/indent, filetree folder
+folding, line/word editing, join, comment/duplicate/indent, Markdown inline formatting,
+filetree folder
 create/rename/delete, tag/heading filtering, Markdown
 nested quotes/callouts/definition lists/tables/nesting/
 emphasis/highlight/autolink/escape/footnote/regex, polar/heatmap/contour/
@@ -729,6 +733,15 @@ case-insensitive substring over heading text, the header shows the visible page
 and filtered count, and Up/Down move the highlight; PageUp/PageDown page and
 Home/End jump to the ends. Enter or a click jumps to that heading and closes
 the outline.
+
+## Markdown formatting
+
+In Markdown cells, **Ctrl+B** wraps the word at the caret in `**bold**`,
+**Ctrl+I** in `*italic*`, **Ctrl+Shift+M** in backticks, **Ctrl+Shift+H** in
+`==highlight==`, and **Ctrl+Shift+X** in `~~strikethrough~~`. Running the same
+command again removes the markers. With no word at the caret, the markers are
+inserted and the caret is placed between them. The same actions are available
+in the command palette; code cells are left unchanged.
 
 ## Interactive task lists
 
