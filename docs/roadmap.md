@@ -30,7 +30,8 @@
   named creation, folder moves, duplication, title renaming, and revealing the
   active file through expanded ancestors. Markdown editing includes bold,
   italic, inline code, highlight, strikethrough, blockquote, list, heading,
-  link, task-list, rule, code-fence, table, and footnote actions.
+  link, task-list, rule, code-fence, table, and footnote actions. Cell editing
+  adds split/join, edge moves, and code-cell jumps.
 - GitHub-style Markdown pipe tables, nested lists, italic emphasis, grouped
   blockquotes, highlight, bare-URL autolinks, backslash escapes, and numbered
   footnotes with endnote backlinks across the preview, static export, and

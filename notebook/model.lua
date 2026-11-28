@@ -282,6 +282,73 @@ function Notebook:set_cell_kind(index, kind)
   return true
 end
 
+function Notebook:move_cell_edge(edge)
+  if #self.cells <= 1 then return false end
+  local index = self.active
+  local target = edge == "top" and 1 or #self.cells
+  if index == target then return false end
+  self:push_undo(edge == "top" and "move cell to top" or "move cell to bottom")
+  local item = table.remove(self.cells, index)
+  table.insert(self.cells, target, item)
+  self.active = target
+  self.dirty = true
+  return true
+end
+
+function Notebook:split_cell()
+  local index = self.active
+  local item = self.cells[index]
+  if item == nil then return false end
+  local source = item.source or ""
+  local cursor = math.max(1, math.min(#source + 1, item.cursor or 1))
+  self:push_undo("split cell")
+  item.source = source:sub(1, cursor - 1)
+  item.output = ""
+  item.scene = nil
+  item.widgets = {}
+  item.error = nil
+  local next_item = cell(item.kind, source:sub(cursor))
+  next_item.cursor = 1
+  table.insert(self.cells, index + 1, next_item)
+  self.active = index + 1
+  self.dirty = true
+  return true
+end
+
+function Notebook:join_cell_with_next()
+  local index = self.active
+  local item = self.cells[index]
+  local next_item = self.cells[index + 1]
+  if item == nil or next_item == nil or item.kind ~= next_item.kind then
+    return false
+  end
+  self:push_undo("join cell with next")
+  local separator = item.source ~= "" and next_item.source ~= "" and "\n" or ""
+  local join_at = #(item.source or "")
+  item.source = (item.source or "") .. separator .. (next_item.source or "")
+  item.cursor = join_at + #separator + 1
+  item.output = ""
+  item.scene = nil
+  item.widgets = {}
+  item.error = nil
+  table.remove(self.cells, index + 1)
+  self.dirty = true
+  return true
+end
+
+function Notebook:goto_code_cell(delta)
+  if delta ~= 1 and delta ~= -1 then return false end
+  local index = self.active + delta
+  while index >= 1 and index <= #self.cells do
+    if self.cells[index].kind == "code" then
+      self.active = index
+      return true
+    end
+    index = index + delta
+  end
+  return false
+end
+
 function Notebook:delete_cell(index)
   if self.cells[index] == nil or #self.cells <= 1 then return false end
   self:push_undo("delete cell")

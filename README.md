@@ -231,6 +231,8 @@ Controls:
 | `Ctrl+J` | join the current line with the next |
 | `Ctrl+]` / `Ctrl+[` | indent / outdent the current line |
 | `Alt+Up` / `Alt+Down` | move the selected cell up / down |
+| `Alt+Shift+Home` / `Alt+Shift+End` | move the selected cell to top / bottom |
+| `Alt+Shift+J` / `Alt+Shift+K` | select the next / previous code cell |
 | `Ctrl+Shift+Up` / `Ctrl+Shift+Down` | jump to the previous / next Markdown heading |
 | `F1` | open/close the command palette |
 | `F2` | open the sortable, keyboard-navigable notebook filetree |
@@ -716,7 +718,10 @@ run-all queue**; stopping cancels the queued cells while an already-running cell
 may still finish.
 **Alt+Up** and **Alt+Down** reorder
 the selected cell in one step; the cell keeps its source, output, and widget
-state. **Ctrl+Shift+Up** and **Ctrl+Shift+Down** jump to the nearest Markdown
+state. **Alt+Shift+Home** and **Alt+Shift+End** move it to the top or bottom,
+and **Alt+Shift+J**/**Alt+Shift+K** jump between code cells. The command palette
+adds **Split cell at cursor** and **Join cell with next**; joining requires the
+same cell kind and clears the combined output. **Ctrl+Shift+Up** and **Ctrl+Shift+Down** jump to the nearest Markdown
 heading before or after the selected cell without wrapping. The command palette
 adds **Collapse all headings** and **Expand all headings**, which change every
 heading as one undoable edit while leaving code cells alone.

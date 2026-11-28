@@ -31,6 +31,7 @@ local calls = {
   bold = 0, italic = 0, inline_code = 0, highlight = 0, strike = 0,
   quote = 0, bullet = 0, ordered = 0, cycle_heading = 0, link = 0,
   task_item = 0, rule = 0, code_block = 0, table = 0, footnote = 0,
+  move_edge = 0, split = 0, join = 0, code_nav = 0,
   expand_outputs = 0, comment_line = 0, shift_line = 0, duplicate_line = 0,
   indent_line = 0,
 }
@@ -71,6 +72,10 @@ local app = {
     elseif kind == "table" then calls.table = calls.table + 1 end
   end,
   insert_footnote = function(self) calls.footnote = calls.footnote + 1 end,
+  move_cell_edge = function(self, edge) calls.move_edge = calls.move_edge + 1 end,
+  split_cell = function(self) calls.split = calls.split + 1 end,
+  join_cell_with_next = function(self) calls.join = calls.join + 1 end,
+  goto_code_cell = function(self, delta) calls.code_nav = calls.code_nav + delta end,
   toggle_markdown_format = function(self, prefix, suffix, label)
     if label == "bold" then calls.bold = calls.bold + 1
     elseif label == "italic" then calls.italic = calls.italic + 1
@@ -162,6 +167,12 @@ ui:keypressed("down", { alt = true, shift = true })
 assert(calls.shift_line == 1, "Alt+Shift+Down does not move the line")
 ui:keypressed("up", { alt = true, shift = true })
 assert(calls.shift_line == 0, "Alt+Shift+Up does not move the line")
+ui:keypressed("home", { alt = true, shift = true })
+ui:keypressed("end", { alt = true, shift = true })
+assert(calls.move_edge == 2, "Alt+Shift+Home/End do not move the cell")
+ui:keypressed("j", { alt = true, shift = true })
+ui:keypressed("k", { alt = true, shift = true })
+assert(calls.code_nav == 0, "Alt+Shift+J/K do not navigate code cells")
 ui:keypressed("d", { ctrl = true, shift = true })
 assert(calls.duplicate_line == 1, "Ctrl+Shift+D does not duplicate the line")
 ui:keypressed("]", { ctrl = true })
@@ -227,6 +238,8 @@ for _, id in ipairs({ "restart-run-all", "copy-cell", "paste-cell", "copy-output
     "comment-line", "bold", "italic", "inline-code", "highlight",
     "strikethrough", "blockquote", "bullet-list", "ordered-list",
     "cycle-heading", "insert-link", "task-item", "horizontal-rule",
+    "move-top", "move-bottom", "split-cell", "join-cell", "next-code",
+    "prev-code",
     "code-block", "markdown-table", "footnote", "move-line-up",
     "move-line-down", "duplicate-line", "indent-line", "outdent-line",
     "delete-word-back", "delete-word-forward", "join-line", "cell-start",
@@ -238,6 +251,16 @@ end
 ui:run_palette_command("move-up")
 ui:run_palette_command("move-down")
 assert(calls.move == 0, "palette move commands are miswired")
+ui:run_palette_command("move-top")
+ui:run_palette_command("move-bottom")
+assert(calls.move_edge == 4, "palette cell-edge commands are miswired")
+ui:run_palette_command("split-cell")
+assert(calls.split == 1, "palette split-cell is miswired")
+ui:run_palette_command("join-cell")
+assert(calls.join == 1, "palette join-cell is miswired")
+ui:run_palette_command("next-code")
+ui:run_palette_command("prev-code")
+assert(calls.code_nav == 0, "palette code-cell navigation is miswired")
 ui:run_palette_command("next-heading")
 ui:run_palette_command("prev-heading")
 assert(calls.heading == 0, "palette heading commands are miswired")

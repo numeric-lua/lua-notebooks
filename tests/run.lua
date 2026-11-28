@@ -417,6 +417,49 @@ test("derives the title from the first level-one markdown heading", function()
   eq(notebook:title(), "Second title")
 end)
 
+test("moves cells to edges, splits, joins, and seeks code cells", function()
+  local Notebook = require("notebook.model")
+  local notebook = Notebook.new({ cells = {
+    { kind = "code", source = "one" },
+    { kind = "markdown", source = "note" },
+    { kind = "code", source = "two" },
+  } })
+  notebook:select(2)
+  eq(notebook:move_cell_edge("top"), true)
+  eq(notebook.cells[1].source, "note")
+  eq(notebook.active, 1)
+  eq(notebook:move_cell_edge("bottom"), true)
+  eq(notebook.cells[3].source, "note")
+  eq(notebook.active, 3)
+
+  local code = notebook.cells[2]
+  code.source = "ab\ncd"
+  code.cursor = 4
+  notebook:select(2)
+  eq(notebook:split_cell(), true)
+  eq(code.source, "ab\n")
+  eq(notebook.cells[3].source, "cd")
+  eq(notebook.active, 3)
+  eq(notebook.cells[3].output, "")
+  eq(notebook:join_cell_with_next(), false)
+
+  local joined = notebook.cells[1]
+  joined.source = "left"
+  notebook.cells[2].source = "right"
+  notebook:select(1)
+  notebook.cells[2].kind = "code"
+  eq(notebook:join_cell_with_next(), true)
+  eq(joined.source, "left\nright")
+  eq(joined.cursor, 6)
+  eq(#notebook.cells, 3)
+
+  notebook:select(1)
+  eq(notebook:goto_code_cell(1), true)
+  eq(notebook.active, 2)
+  eq(notebook:goto_code_cell(-1), true)
+  eq(notebook.active, 1)
+end)
+
 test("renames the existing title or inserts a heading", function()
   local Notebook = require("notebook.model")
   local notebook = Notebook.new({ cells = {

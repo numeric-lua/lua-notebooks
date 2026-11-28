@@ -95,7 +95,12 @@
 - insert a fenced code block from the palette with a language prompt;
 - insert a Markdown table skeleton from the palette;
 - insert a numbered footnote reference and append its definition to the current
-  Markdown cell from the palette.
+  Markdown cell from the palette;
+- move the selected cell to the top with **Alt+Shift+Home**;
+- move the selected cell to the bottom with **Alt+Shift+End**;
+- split the selected cell at the caret from the palette, clearing the old output;
+- join the selected cell with the next same-kind cell from the palette;
+- jump to the next or previous code cell with **Alt+Shift+J**/**Alt+Shift+K**.
 
 Tests: `tests/workflow.lua` covers paste, run-above dispatch, save/restart-all
 dispatch, filetree keyboard navigation, and output-fold dispatch; `tests/run.lua`
@@ -105,7 +110,8 @@ search kind filtering/paging, filetree keyboard navigation, folder
 create/rename/delete/save helpers, palette/tag/outline/filetree paging, and
 run-next/run-insert/clear-rerun/restart-clear/stop-run-all dispatch, notebook
 name/move/duplicate/title/reveal flows and Markdown inline/block/link,
-task-list/rule/code/table/footnote insertion; the browser Markdown suite
+task-list/rule/code/table/footnote insertion and cell split/join/edge/code
+navigation; the browser Markdown suite
 covers code-block badges/copy markup, heading anchor uniqueness, permalinks, and
 display math. The filetree overlay QA screenshot and
 `LUANB_SMOKE_WORKFLOW` (including save-all, restart-all, run-above, paste, and

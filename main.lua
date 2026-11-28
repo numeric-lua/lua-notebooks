@@ -896,6 +896,28 @@ function App:indent_current_line(delta)
     or "cannot indent this line"
 end
 
+function App:move_cell_edge(edge)
+  local changed = self:notebook():move_cell_edge(edge)
+  self.status = changed and ("moved cell to " .. edge) or "cell is already there"
+end
+
+function App:split_cell()
+  local changed = self:notebook():split_cell()
+  self.status = changed and "split cell at cursor" or "cannot split cell"
+end
+
+function App:join_cell_with_next()
+  local changed = self:notebook():join_cell_with_next()
+  self.status = changed and "joined cell with next" or
+    "cannot join cells of different kinds"
+end
+
+function App:goto_code_cell(delta)
+  local changed = self:notebook():goto_code_cell(delta)
+  self.status = changed and ("selected " .. (delta > 0 and "next" or "previous") ..
+    " code cell") or "no code cell in that direction"
+end
+
 function App:move_cell(delta)
   local notebook = self:notebook()
   local index = notebook.active

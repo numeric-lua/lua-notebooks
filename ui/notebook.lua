@@ -910,6 +910,12 @@ function UI:palette_commands()
     { id = "clear-session", label = "Clear restored session" },
     { id = "move-up", label = "Move selected cell up  (Alt+Up)" },
     { id = "move-down", label = "Move selected cell down  (Alt+Down)" },
+    { id = "move-top", label = "Move selected cell to top  (Alt+Shift+Home)" },
+    { id = "move-bottom", label = "Move selected cell to bottom  (Alt+Shift+End)" },
+    { id = "split-cell", label = "Split cell at cursor" },
+    { id = "join-cell", label = "Join cell with next" },
+    { id = "next-code", label = "Select next code cell  (Alt+Shift+J)" },
+    { id = "prev-code", label = "Select previous code cell  (Alt+Shift+K)" },
     { id = "prev-heading", label = "Previous heading  (Ctrl+Shift+Up)" },
     { id = "next-heading", label = "Next heading  (Ctrl+Shift+Down)" },
     { id = "collapse-headings", label = "Collapse all headings" },
@@ -1087,6 +1093,12 @@ function UI:run_palette_command(id)
   elseif id == "clear-session" then self.app:clear_session()
   elseif id == "move-up" then self.app:move_cell(-1)
   elseif id == "move-down" then self.app:move_cell(1)
+  elseif id == "move-top" then self.app:move_cell_edge("top")
+  elseif id == "move-bottom" then self.app:move_cell_edge("bottom")
+  elseif id == "split-cell" then self.app:split_cell()
+  elseif id == "join-cell" then self.app:join_cell_with_next()
+  elseif id == "next-code" then self.app:goto_code_cell(1)
+  elseif id == "prev-code" then self.app:goto_code_cell(-1)
   elseif id == "prev-heading" then self.app:goto_heading(-1)
   elseif id == "next-heading" then self.app:goto_heading(1)
   elseif id == "collapse-headings" then self.app:set_headings_collapsed(true)
@@ -1857,6 +1869,8 @@ function UI:draw_help(pass, width, height)
         { "Ctrl+Alt+Up", "run selected cell and above" },
         { "Ctrl+Alt+X / T", "clear output / reopen tab" },
         { "Alt+Up / Down", "move selected cell" },
+        { "Alt+Shift+Home / End", "move cell to top / bottom" },
+        { "Alt+Shift+J / K", "next / previous code cell" },
         { "Ctrl+Shift+Up / Down", "previous / next heading" },
         { "Ctrl+Tab", "next / previous notebook" },
         { "F2", "notebook filetree" },
@@ -3465,6 +3479,22 @@ function UI:keypressed(key, modifiers)
     if key == "0" then self.app:set_ui_scale(1)
     elseif key == "-" then self.app:zoom_ui(-0.1)
     else self.app:zoom_ui(0.1) end
+    return
+  end
+  if alt_down and shift_down and key == "home" then
+    self.app:move_cell_edge("top")
+    return
+  end
+  if alt_down and shift_down and key == "end" then
+    self.app:move_cell_edge("bottom")
+    return
+  end
+  if alt_down and shift_down and key == "j" then
+    self.app:goto_code_cell(1)
+    return
+  end
+  if alt_down and shift_down and key == "k" then
+    self.app:goto_code_cell(-1)
     return
   end
   if alt_down and shift_down and (key == "up" or key == "down") then
